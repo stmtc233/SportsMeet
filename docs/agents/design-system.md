@@ -70,4 +70,4 @@
 
 ## 边界检查
 
-`scripts/check-design-system.sh`(CI 同跑)是**棘轮**:`src/design/` 之外不得引入第三方组件库、其他图标库,不得写字面颜色值(`#xxx`、`rgb(`)与零散像素圆角。基线从 0 开始,**只减不增**。
+`scripts/check-design-system.sh`(`bun run check` 与 CI 同跑)是**棘轮**:`src/design/` 之外不得引入第三方组件库、其他图标库,不得写字面颜色值(`#xxx`、`rgb(`)与零散像素圆角。这几条规则的基线为空;基线 **只减不增**。同一脚本还检查绑定引用,见 [frontend.md](frontend.md)「代码结构」。

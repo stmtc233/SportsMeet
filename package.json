@@ -10,7 +10,8 @@
     "build:web": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test:web": "bun test src",
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "check": "go vet ./... && go test ./... && tsc --noEmit && bun test src && scripts/check-design-system.sh"
   },
   "dependencies": {
     "lucide-react": "^1.72.0",

@@ -6,6 +6,7 @@
 
 - React;按 `src/features/<area>/` 拆分,单文件 ≲ 400 行。页面切换是 `src/app/nav.tsx` 里的路由状态(不用路由库),有未保存改动的页面经 `useLeaveGuard` 登记,离开前统一确认。
 - **只经生成的 `src/mygo.ts` 调用 Go**;页面组件不直接调用,读取经各 feature 的 `use*` 数据钩子(底层 `lib/useData.ts`),写入一律经 `*Controller`,由 `lib/action.ts` 的 `act()` 统一弹出结果提示(`StToast`)。
+- **调用 Go 的文件只有 `src/lib/` 与各 feature 的 `controller.ts` / `*Controller.ts` / `data.ts`**,其余文件只从 `src/mygo.ts` 引入类型(`import type` 或 `type X`)。调用散在组件里,同一个写入就会出现几种提示与刷新方式。`scripts/check-design-system.sh` 的 `bindings` 规则把关:基线里列出尚未收进 `controller` 的文件,只减不增;改到其中的文件时把调用收进 `controller`,再运行 `scripts/check-design-system.sh --update-baseline`。
 - `act()` 将 mygo 无返回值调用的 `null` 与 `undefined` 都视为成功,供调用方区分成功和异常;否则桌面操作已完成仍会被当作失败。
 - Go 返回的错误码在 `lib/errors.ts` 一处映射为中文提示,页面不各写一份;校验错误由 service 直接给出成文的中文。
 - 纯逻辑(按钮可用性、草稿合并、排序显示)写成可单测的纯函数,不埋在组件里。

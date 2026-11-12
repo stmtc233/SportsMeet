@@ -29,10 +29,7 @@ bun run dev
 ## 验证
 
 ```sh
-go test ./...
-bun run test:web
-bun run typecheck
-scripts/check-design-system.sh
+bun run check
 ```
 
 页面冒烟需先 `bunx playwright install chromium`,再运行 `bun run test:ui`。完整检查命令、桌面实测与跨平台限制见 [验证范围](docs/verification.md)。

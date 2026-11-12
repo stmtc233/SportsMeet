@@ -41,7 +41,7 @@ SportsMeet 是一款开源的**单机离线**田径运动会编排软件:一台�
 ```
 SportsMeet/
 ├── AGENTS.md / CLAUDE.md / README.md
-├── main.go                  ← mygo 入口:窗口、菜单、Bind 各服务、MCP 开关
+├── main.go                  ← mygo 入口:窗口、Bind 各服务、MCP 开关
 ├── go.mod
 ├── mygo.config.ts           ← 应用名、标识、版本、打包;bindings 输出 src/mygo.ts
 ├── package.json · vite.config.ts · tsconfig.json · index.html
@@ -57,6 +57,7 @@ SportsMeet/
 │   ├── report/              ← 秩序册 / 成绩册(HTML 模板);检录单、号码布待实现
 │   ├── service/             ← 唯一写入口:写锁、校验、操作日志、变更通知;含表格导入、编排保存、批量排时、成绩、导入导出
 │   ├── mcp/                 ← MCP 服务与监听生命周期(仅 127.0.0.1,默认关)
+│   ├── layers/              ← 分层测试:各包允许的依赖、纯计算包不碰 mygo、bind / mcp 不越过 service
 │   └── bind/                ← 给前端的 mygo 服务 + `dataChanged` 事件(薄层,只转调 service,另加文件对话框与打印窗口)
 ├── src/                     ← 前端(React)
 │   ├── main.tsx · App.tsx   ← 入口;外壳(侧栏 + 页面切换)
@@ -68,7 +69,8 @@ SportsMeet/
 ├── .agents/skills/          ← mygo 自带的 agent 技能
 ├── tests/ui/                ← Playwright 页面冒烟测试(模拟 mygo 桥接)
 ├── playwright.config.ts      ← 宽窄窗口与浅深色页面验证
-├── scripts/check-design-system.sh   ← 设计系统棘轮检查;基线 design-system-baseline.txt
+├── scripts/check-design-system.sh   ← 前端棘轮检查(设计系统 + 绑定引用);基线 design-system-baseline.txt
+├── .github/workflows/check.yml      ← CI:`bun run check`、绑定生成物比对、页面冒烟测试
 ├── docs/
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
 │   ├── schema/interchange-v1.schema.json
@@ -92,12 +94,11 @@ bun install
 bun run dev                          # mygo dev,打开应用窗口并热更新
 bun run build                        # mygo build,产物在 build/<平台>/
 bun run generate                     # 改了 Go 绑定后更新 src/mygo.ts
-go test ./...                        # Go 单测(含真实 SQLite)
-bun run test:web                     # 前端纯函数单测(bun test)
-bun run typecheck
+bun run check                        # 提交前跑这一条:go vet、Go 单测、类型检查、前端单测、前端棘轮
 bun run test:ui                      # 先 bunx playwright install chromium
-scripts/check-design-system.sh
 ```
+
+`bun run check` 里的各项也可单独跑:`go test ./...`(含真实 SQLite)、`bun run test:web`、`bun run typecheck`、`scripts/check-design-system.sh`。CI 在此之外还比对 `src/mygo.ts` 与重新生成的结果,并跑页面冒烟测试。
 
 本地只需验证能否打包时用 `bunx mygo build -skip-dmg -skip-notarize -skip-installer`。
 
@@ -119,8 +120,10 @@ scripts/check-design-system.sh
 ### 5.1 全局
 
 - **所有写操作只经 `internal/service`**:前端绑定与 MCP 共用同一组方法和校验,`bind/`、`mcp/` 不直接碰 `store/`;否则会绕过校验,界面也收不到变更事件。
+- **包的依赖方向由 `internal/layers` 的测试把关**:新增包或新增依赖时,在它的分层表里登记并同步 §3。
 - **业务规则只在 Go**:成绩解析与格式化、排名、晋级、项目名称组成都在 Go,前端只调用(→ domain.md)。
 - **`src/mygo.ts` 是生成物**,不手改。
+- **前端只有 `src/lib/` 与各 feature 的 `controller` / `data` 文件调用 Go**,其余文件只从 `src/mygo.ts` 引入类型;棘轮把关(→ frontend.md)。
 - **页面只用 `src/design/` 的 `St*` 组件、token 与统一图标**;`scripts/check-design-system.sh` 棘轮把关,基线只减不增(→ design-system.md)。
 - **数字一律等宽**,界面与打印模板都设 `tabular-nums`(→ design-system.md)。
 - **圆角用 `superellipse(1.78)` 平滑轮廓**,胶囊、圆形与开关显式 `round`(→ design-system.md)。
@@ -180,7 +183,7 @@ scripts/check-design-system.sh
 7. 发布前:应用图标、签名与自动更新配置、Windows / Linux 打包。
 
 **已知与细则不完全一致**
-- `AddEntriesDialog`、`HeatResults` 等少数组件里直接调用读取钩子与 `act()`,没有全部收进独立的 `*Controller`(→ [frontend.md](docs/agents/frontend.md)「代码结构」)。
+- `scripts/design-system-baseline.txt` 里标 `bindings` 的文件直接调用 Go 绑定,没有收进 `controller`;改到这些文件时顺手收进去并从基线删掉(→ [frontend.md](docs/agents/frontend.md)「代码结构」)。
 
 ---
 

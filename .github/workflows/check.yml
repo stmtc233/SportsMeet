@@ -1,0 +1,22 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      # src/mygo.ts must match the Go bindings it was generated from.
+      - run: bun run generate && git diff --exit-code src/mygo.ts
+      - run: bunx playwright install chromium
+      - run: bun run test:ui
