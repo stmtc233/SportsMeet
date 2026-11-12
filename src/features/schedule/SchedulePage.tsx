@@ -7,6 +7,7 @@ import { ConflictTag } from "../arrange/HeatCard";
 import { HeatDialog } from "../arrange/HeatDialog";
 import { RoundStartDialog } from "../arrange/RoundStartDialog";
 import { ScheduleDialog } from "../arrange/ScheduleDialog";
+import { HeatStarted } from "../event/HeatStarted";
 import { HeatTime } from "../event/HeatTime";
 import { useMeet } from "../meets/data";
 import { ScheduleController, useTimetable } from "./controller";
@@ -118,7 +119,12 @@ function Day({ title, count, folded = false, onFold, rounds, meetId, onStart, on
           }>
           {r.heats.length > 0 && (
             <StTable<TimetableHeat> dense rows={r.heats} rowKey={(h) => h.id} columns={[
-              { key: "time", title: "时间", width: "minmax(132px, 1.5fr)", render: (h) => <HeatTime text={h.scheduledText} inherited={h.scheduleInherited} /> },
+              { key: "time", title: "时间", width: "minmax(132px, 2.5fr)", render: (h) => (
+                <>
+                  <HeatTime text={h.scheduledText} inherited={h.scheduleInherited} />
+                  <HeatStarted text={h.startedText} delta={h.startDeltaText} />
+                </>
+              ) },
               { key: "heat", title: "组", width: "minmax(72px, 1fr)", render: (h) => <span title={h.label}>{h.label}</span> },
               { key: "duration", title: "用时", render: (h) => h.durationText },
               { key: "end", title: "结束", width: "minmax(64px, 1fr)", render: (h) => h.endText },

@@ -39,3 +39,18 @@ th { background: #f0f0f0; font-weight: 600; }
 .printed { margin-top: 16px; text-align: right; font-size: 10px; color: #666; }
 
 .member { font-size: 9pt; color: #555; }
+
+.heat-meta { margin: 2px 0 0; font-size: 10px; color: #444; }
+
+/* 检录单 */
+.sheet { margin-bottom: 24px; break-inside: avoid; page-break-inside: avoid; }
+.sheet-meet { margin: 0 0 2px; color: #444; }
+.sheet > h2 { font-size: 15px; margin: 0 0 6px; padding-bottom: 4px; border-bottom: 1.5px solid #111; }
+.sheet-times { width: auto; margin-bottom: 6px; }
+.sheet-times th, .sheet-times td { border: 0; background: none; padding: 0 12px 0 0; }
+.sheet-times th { font-weight: 400; color: #444; padding-right: 6px; }
+.sheet-times td { min-width: 8em; font-weight: 600; }
+.check { text-align: center; width: 3em; }
+.box { display: inline-block; width: 12px; height: 12px; border: 1px solid #111; vertical-align: middle; }
+.sign { margin: 10px 0 0; display: flex; justify-content: flex-end; align-items: flex-end; gap: 6px; }
+.sign-line { display: inline-block; width: 12em; border-bottom: 1px solid #111; }

@@ -40,9 +40,9 @@ func Decode(data []byte) (*File, error) {
 	if head.Version < 1 {
 		return nil, Problems{"version 必须为正整数"}
 	}
-	if head.Version < 4 {
+	if head.Version < 5 {
 		var err error
-		if data, err = withoutV4Fields(data); err != nil {
+		if data, err = withoutNewerFields(data, head.Version); err != nil {
 			return nil, fmt.Errorf("不是有效的 JSON:%w", err)
 		}
 	}
@@ -99,10 +99,12 @@ func Decode(data []byte) (*File, error) {
 	return &f, nil
 }
 
-// withoutV4Fields drops the round start and heat duration from a file of an
-// earlier version: they are unknown fields there, whatever their JSON types.
-// Parts that are not shaped as the spec says are left for Validate.
-func withoutV4Fields(data []byte) ([]byte, error) {
+// withoutNewerFields drops the fields later versions added to rounds and
+// heats from a file of an earlier version: the round start and heat
+// duration (v4) and the heat's actual start (v5) are unknown fields there,
+// whatever their JSON types. Parts that are not shaped as the spec says are
+// left for Validate.
+func withoutNewerFields(data []byte, version int) ([]byte, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
 	var doc map[string]any
@@ -118,11 +120,16 @@ func withoutV4Fields(data []byte) ([]byte, error) {
 			if !ok {
 				continue
 			}
-			delete(round, "scheduledAt")
+			if version < 4 {
+				delete(round, "scheduledAt")
+			}
 			heats, _ := round["heats"].([]any)
 			for _, h := range heats {
 				if heat, ok := h.(map[string]any); ok {
-					delete(heat, "durationMinutes")
+					if version < 4 {
+						delete(heat, "durationMinutes")
+					}
+					delete(heat, "startedAt")
 				}
 			}
 		}
@@ -354,6 +361,9 @@ func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units m
 			}
 			if !domain.ValidDuration(h.DurationMinutes) {
 				add("%s.durationMinutes 应为 1–%d", hat, domain.MaxDurationMinutes)
+			}
+			if h.StartedAt != nil && !domain.ValidScheduled(*h.StartedAt) {
+				add("%s.startedAt 应为 YYYY-MM-DDTHH:mm", hat)
 			}
 			positions := map[int]bool{}
 			for si, s := range h.Slots {

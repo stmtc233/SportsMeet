@@ -22,7 +22,7 @@
     <div class="heats">
       {{range .Heats}}
       <div class="heat">
-        <h4>{{.Label}}{{if .Time}}<small>{{.Time}}</small>{{end}}</h4>
+        <h4>{{.Label}}{{if or .Time .Started}}<small>{{.Time}}{{if .Started}}{{if .Time}} · {{end}}实际开赛 {{.Started}}{{end}}</small>{{end}}</h4>
         <table>
           <thead><tr><th class="num">{{$position}}</th><th>{{if $relay}}队伍 / {{$roster}}{{else}}姓名{{end}}</th><th>单位</th><th class="mark">成绩</th>{{if $attempt}}<th>逐次{{$attempt}}</th>{{end}}<th class="num">名次</th><th class="num">晋级</th></tr></thead>
           <tbody>
@@ -30,6 +30,7 @@
             {{end}}
           </tbody>
         </table>
+        {{if .ResultsTime}}<p class="heat-meta">成绩时间 {{.ResultsTime}}</p>{{end}}
       </div>
       {{end}}
     </div>
@@ -41,6 +42,7 @@
         {{end}}
       </tbody>
     </table>
+    {{$multi := gt (len .Heats) 1}}{{range .Heats}}{{if or .Started .ResultsTime}}<p class="heat-meta">{{if $multi}}{{.Label}} {{end}}{{if .Started}}实际开赛 {{.Started}}{{end}}{{if and .Started .ResultsTime}} · {{end}}{{if .ResultsTime}}成绩时间 {{.ResultsTime}}{{end}}</p>{{end}}{{end}}
     {{else}}<p class="empty">尚无成绩</p>{{end}}
   </div>
   {{end}}

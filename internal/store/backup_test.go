@@ -21,8 +21,29 @@ func backups(t *testing.T, dir string) []string {
 }
 
 // unapply makes the database look like one last opened before migration
-// 0006: its row is gone and so are the columns and index it adds.
+// 0006: the rows of 0006 and 0007 are gone and so are the columns and index
+// they add.
 func unapply(t *testing.T, dir string) {
+	t.Helper()
+	rollback(t, dir, append(startedRollback(),
+		Stmt("DELETE FROM schema_migrations WHERE version = 6"),
+		Stmt("DROP INDEX idx_audit_meet"),
+		Stmt("ALTER TABLE rounds DROP COLUMN scheduled_at"), Stmt("ALTER TABLE heats DROP COLUMN duration_minutes"),
+	))
+}
+
+// unapplyStarted makes the database look like one last opened before
+// migration 0007.
+func unapplyStarted(t *testing.T, dir string) {
+	t.Helper()
+	rollback(t, dir, startedRollback())
+}
+
+func startedRollback() []sqlite.Statement {
+	return []sqlite.Statement{Stmt("DELETE FROM schema_migrations WHERE version = 7"), Stmt("ALTER TABLE heats DROP COLUMN started_at")}
+}
+
+func rollback(t *testing.T, dir string, stmts []sqlite.Statement) {
 	t.Helper()
 	ctx := context.Background()
 	db, err := sqlite.Open(ctx, filepath.Join(dir, FileName), sqlite.OpenOptions{})
@@ -30,12 +51,7 @@ func unapply(t *testing.T, dir string) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	_, err = db.Transaction(ctx, []sqlite.Statement{
-		Stmt("DELETE FROM schema_migrations WHERE version = 6"),
-		Stmt("DROP INDEX idx_audit_meet"),
-		Stmt("ALTER TABLE rounds DROP COLUMN scheduled_at"), Stmt("ALTER TABLE heats DROP COLUMN duration_minutes"),
-	})
-	if err != nil {
+	if _, err := db.Transaction(ctx, stmts); err != nil {
 		t.Fatal(err)
 	}
 }

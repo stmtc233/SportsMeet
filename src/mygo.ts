@@ -173,6 +173,44 @@ export interface Change {
   eventId: string;
 }
 
+/** CheckInEvent is an event with its rounds that have heats. */
+export interface CheckInEvent {
+  id: string;
+  name: string;
+  rounds: CheckInRound[];
+}
+
+/**
+ * CheckInRequest selects the 检录单's heats: those of RoundIDs (empty = every
+ * round), and with Day only those planned on that day, by time.
+ */
+export interface CheckInRequest {
+  meetId: string;
+  roundIds: string[];
+  /** YYYY-MM-DD, "" = every heat */
+  day: string;
+}
+
+/** CheckInRound is a round that has heats. */
+export interface CheckInRound {
+  id: string;
+  label: string;
+  heatCount: number;
+  /** Days are the days its heats are planned on, ascending; empty when none is. */
+  days: string[];
+}
+
+/**
+ * CheckInTargets is what the 检录单 can print: the meet's events in the
+ * list's order with their rounds that have heats, and the days on which
+ * heats are planned.
+ */
+export interface CheckInTargets {
+  /** YYYY-MM-DD, ascending */
+  days: string[];
+  events: CheckInEvent[];
+}
+
 /** Combined owns independently arranged component events and one shared roster. */
 export interface Combined {
   id: string;
@@ -527,6 +565,31 @@ export interface HeatSave {
   slots: SlotSave[];
 }
 
+/** HeatStartInput sets when a heat actually started; StartedAt "" clears it. */
+export interface HeatStartInput {
+  heatId: string;
+  startedAt: string;
+}
+
+/**
+ * HeatStartResult is the heat's actual start after the write, shown as
+ * the event detail shows it.
+ */
+export interface HeatStartResult {
+  heatId: string;
+  /**
+   * StartedAt is the actual start (YYYY-MM-DDTHH:mm), "" = not recorded;
+   * StartedText shows it as the planned times are shown.
+   */
+  startedAt: string;
+  startedText: string;
+  /**
+   * StartDeltaText compares it with the effective planned time: 晚 12 分钟,
+   * 早 5 分钟, 准时; "" when either is missing.
+   */
+  startDeltaText: string;
+}
+
 /** HeatView is a heat; Base is its fingerprint when loaded. */
 export interface HeatView {
   id: string;
@@ -548,6 +611,17 @@ export interface HeatView {
   durationText: string;
   /** EndAt is EffectiveAt plus the duration, "" when either is missing. */
   endAt: string;
+  /**
+   * StartedAt is the actual start (YYYY-MM-DDTHH:mm), "" = not recorded;
+   * StartedText shows it as the planned times are shown.
+   */
+  startedAt: string;
+  startedText: string;
+  /**
+   * StartDeltaText compares it with the effective planned time: 晚 12 分钟,
+   * 早 5 分钟, 准时; "" when either is missing.
+   */
+  startDeltaText: string;
   /** ResultsUpdatedText is when the heat's results were last written, to the minute; "" = none. */
   resultsUpdatedText: string;
   slots: SlotView[];
@@ -725,6 +799,15 @@ export interface Preferences {
    * heats; 0 checks overlaps only (docs/agents/arrange.md「冲突检查」).
    */
   minRestMinutes: number;
+  /**
+   * CheckInLeadMinutes is how long before a heat's planned start its
+   * athletes check in, 0–240; 0 prints no check-in time.
+   */
+  checkInLeadMinutes: number;
+  /** PrintCheckInNewPage starts each heat's check-in sheet on a new page. */
+  printCheckInNewPage: boolean;
+  /** PrintResultsTime prints each heat's results time in the 成绩册. */
+  printResultsTime: boolean;
 }
 
 export interface ReportTarget {
@@ -1044,6 +1127,17 @@ export interface TimetableHeat {
   durationText: string;
   /** EndAt is EffectiveAt plus the duration, "" when either is missing. */
   endAt: string;
+  /**
+   * StartedAt is the actual start (YYYY-MM-DDTHH:mm), "" = not recorded;
+   * StartedText shows it as the planned times are shown.
+   */
+  startedAt: string;
+  startedText: string;
+  /**
+   * StartDeltaText compares it with the effective planned time: 晚 12 分钟,
+   * 早 5 分钟, 准时; "" when either is missing.
+   */
+  startDeltaText: string;
   /** EndAt as the times are shown; "" = none */
   endText: string;
   keepReason: string;
@@ -1324,10 +1418,18 @@ export const Results = {
   save(heatID: string, inputs: ResultInput[]): Promise<void> {
     return call("Results.Save", heatID, inputs);
   },
+  /** SetStarted records, changes or clears when a heat actually started. */
+  setStarted(in_: HeatStartInput): Promise<HeatStartResult | null> {
+    return call("Results.SetStarted", in_);
+  },
 } as const;
 
-/** Reports renders and prints 秩序册 and 成绩册. */
+/** Reports renders and prints 秩序册, 成绩册 and 检录单. */
 export const Reports = {
+  /** CheckInTargets lists the rounds the 检录单 can print and its days. */
+  checkInTargets(meetID: string): Promise<CheckInTargets | null> {
+    return call("Reports.CheckInTargets", meetID);
+  },
   /**
    * Print opens the report in a window of its own and shows the system's
    * print dialog, where it can also be saved as a PDF.
@@ -1335,9 +1437,17 @@ export const Reports = {
   print(kind: string, meetID: string, eventIDs: string[]): Promise<void> {
     return call("Reports.Print", kind, meetID, eventIDs);
   },
+  /** PrintCheckIn opens the 检录单 in a window of its own and shows the print dialog. */
+  printCheckIn(req: CheckInRequest): Promise<void> {
+    return call("Reports.PrintCheckIn", req);
+  },
   /** Render returns the report as an HTML document, for the preview. */
   render(kind: string, meetID: string, eventIDs: string[]): Promise<string> {
     return call("Reports.Render", kind, meetID, eventIDs);
+  },
+  /** RenderCheckIn returns the 检录单 as an HTML document, for the preview. */
+  renderCheckIn(req: CheckInRequest): Promise<string> {
+    return call("Reports.RenderCheckIn", req);
   },
   targets(meetID: string): Promise<ReportTarget[]> {
     return call("Reports.Targets", meetID);

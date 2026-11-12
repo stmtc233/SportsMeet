@@ -49,7 +49,7 @@ func (s *Service) prepareMutation(ctx context.Context, in Mutation) (*MutationPr
 		return nil, nil, false, err
 	}
 	pending := &preparedWrite{}
-	planner := &Service{store: s.store, pending: pending}
+	planner := &Service{store: s.store, pending: pending, zone: s.zone}
 	result, overwrite, err := planner.planMutation(ctx, in, before)
 	p := &MutationPreview{Errors: []string{}, Result: result}
 	if err != nil {

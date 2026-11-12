@@ -9,7 +9,8 @@ import (
 //
 //   - a date, YYYY-MM-DD: meets, events, birth dates;
 //   - a scheduled time, YYYY-MM-DDTHH:mm: a local wall-clock minute with
-//     no time zone, for heats;
+//     no time zone, for when rounds and heats are planned and when a heat
+//     actually started;
 //   - a recorded time, milliseconds since the epoch: when a row was
 //     written, shown in the computer's local time.
 //
@@ -109,6 +110,19 @@ func RecordedText(ms int64, loc *time.Location) string {
 		loc = time.Local
 	}
 	return time.UnixMilli(ms).In(loc).Format(minuteLayout)
+}
+
+// WallClock is a recorded time as a scheduled time in loc: the local
+// minute it happened, in the stored YYYY-MM-DDTHH:mm form. 0 gives "".
+func WallClock(ms int64, loc *time.Location) string {
+	if ms == 0 {
+		return ""
+	}
+	if loc == nil {
+		loc = time.Local
+	}
+	at, _ := FormatScheduled(time.UnixMilli(ms).In(loc))
+	return at
 }
 
 // EventDay is the day an event is held: its own date, or the meet's start.

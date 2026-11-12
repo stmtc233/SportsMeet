@@ -21,6 +21,13 @@ type Preferences struct {
 	// MinRestMinutes is the shortest rest an athlete needs between two
 	// heats; 0 checks overlaps only (docs/agents/arrange.md「冲突检查」).
 	MinRestMinutes int `json:"minRestMinutes"`
+	// CheckInLeadMinutes is how long before a heat's planned start its
+	// athletes check in, 0–240; 0 prints no check-in time.
+	CheckInLeadMinutes int `json:"checkInLeadMinutes"`
+	// PrintCheckInNewPage starts each heat's check-in sheet on a new page.
+	PrintCheckInNewPage bool `json:"printCheckInNewPage"`
+	// PrintResultsTime prints each heat's results time in the 成绩册.
+	PrintResultsTime bool `json:"printResultsTime"`
 }
 
 type MCPConfig struct {
@@ -30,7 +37,7 @@ type MCPConfig struct {
 }
 
 func (s *Service) Preferences(ctx context.Context) (Preferences, error) {
-	p := Preferences{Theme: "system", SeparateUnits: true, Balance: true, PrintSchedule: true}
+	p := Preferences{Theme: "system", SeparateUnits: true, Balance: true, PrintSchedule: true, CheckInLeadMinutes: domain.DefaultCheckInLeadMinutes}
 	raw, err := s.store.GetSetting(ctx, "preferences")
 	if err != nil {
 		return p, err
@@ -47,6 +54,9 @@ func (s *Service) SavePreferences(ctx context.Context, p Preferences) error {
 	}
 	if p.MinRestMinutes < 0 || p.MinRestMinutes > domain.MaxDurationMinutes {
 		return invalid("最短休息时间须为 0–%d 分钟", domain.MaxDurationMinutes)
+	}
+	if !domain.ValidCheckInLead(p.CheckInLeadMinutes) {
+		return invalid("检录提前时间须为 0–%d 分钟", domain.MaxCheckInLeadMinutes)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()

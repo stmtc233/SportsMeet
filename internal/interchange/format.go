@@ -7,7 +7,7 @@ import "github.com/stmtc233/sportsmeet/internal/domain"
 // Format and Version identify the file (spec §2).
 const (
 	Format  = "sportsmeet-interchange"
-	Version = 4
+	Version = 5
 )
 
 // File is one meet's full snapshot.
@@ -112,6 +112,7 @@ type Heat struct {
 	Name            string  `json:"name,omitempty"`
 	ScheduledAt     *string `json:"scheduledAt,omitempty"`
 	DurationMinutes *int    `json:"durationMinutes,omitempty"`
+	StartedAt       *string `json:"startedAt,omitempty"`
 	Wind            *int    `json:"wind,omitempty"`
 	Slots           []Slot  `json:"slots"`
 }

@@ -1,6 +1,7 @@
-// Package report renders printable HTML: 秩序册 (start lists) and 成绩册
-// (results). The page shows it in a frame and prints it from the WebView
-// (docs/agents/frontend.md「打印」). Texts follow docs/agents/copywriting.md.
+// Package report renders printable HTML: 秩序册 (start lists), 成绩册
+// (results) and 检录单 (check-in sheets). The page shows it in a frame and
+// prints it from the WebView (docs/agents/frontend.md「打印」). Texts follow
+// docs/agents/copywriting.md.
 package report
 
 import (
@@ -63,7 +64,12 @@ type Round struct {
 type Heat struct {
 	Label string
 	Time  string // 09:30, with the date when it differs from the event's day
-	Lines []Line
+	// Started is when it actually started, shown as Time is; "" = not recorded.
+	Started string
+	// ResultsTime is when its results were last written, results books only
+	// and when the settings ask for it; "" = not printed.
+	ResultsTime string
+	Lines       []Line
 }
 
 // Line is one athlete.
@@ -90,9 +96,13 @@ var startListHTML string
 //go:embed results.html
 var resultsHTML string
 
+//go:embed checkin.html
+var checkInHTML string
+
 var (
 	startListTmpl = template.Must(template.New("startlist").Parse(startListHTML))
 	resultsTmpl   = template.Must(template.New("results").Parse(resultsHTML))
+	checkInTmpl   = template.Must(template.New("checkin").Parse(checkInHTML))
 )
 
 type page struct {
@@ -122,6 +132,47 @@ func StartList(b Book) (string, error) {
 func Results(b Book) (string, error) {
 	b.Title = "成绩册"
 	return render(resultsTmpl, b)
+}
+
+// CheckInBook is the 检录单: one sheet per heat.
+type CheckInBook struct {
+	NewPage   bool // Start each sheet on a new printed page.
+	Title     string
+	Meet      string
+	PrintedAt string
+	// ShowCheckIn prints the check-in time; false when the settings' lead is 0.
+	ShowCheckIn bool
+	Sheets      []CheckInSheet
+}
+
+// CheckInSheet is one heat to check in.
+type CheckInSheet struct {
+	Event         string
+	Round         string
+	Heat          string
+	Time          string // planned, with its date; "" = not planned
+	CheckIn       string // 09:10, with the date when it differs from Time's; "" = none
+	PositionLabel string // 道次 / 顺序
+	Team          bool
+	RosterLabel   string // 棒次 / 成员
+	Lines         []Line
+}
+
+// CheckIn renders the 检录单.
+func CheckIn(b CheckInBook) (string, error) {
+	b.Title = "检录单"
+	css := style
+	if b.NewPage {
+		css += "\n@media print { .sheet ~ .sheet { break-before: page; page-break-before: always; } }"
+	}
+	var buf bytes.Buffer
+	if err := checkInTmpl.Execute(&buf, struct {
+		CheckInBook
+		Style template.CSS
+	}{b, template.CSS(css)}); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 type Combined struct {

@@ -36,6 +36,7 @@ var auditActions = map[string]string{
 	"heats.scheduled":      "批量排时间",
 	"round.scheduled":      "修改轮次开始时间",
 	"results.saved":        "录入成绩",
+	"heat.started":         "修改实际开赛时间",
 	"settings.preferences": "修改设置",
 	"settings.mcp":         "修改 MCP 设置",
 	"combined.created":     "新建全能",

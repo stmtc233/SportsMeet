@@ -1,8 +1,8 @@
-# 交换格式规范 v4
+# 交换格式规范 v5
 
 SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的完整快照**:参赛单位、运动员、项目、报名、轮次、组、成绩。
 
-- 机器可读定义：[v4](schema/interchange-v4.schema.json)；兼容读取 [v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)（JSON Schema 2020-12）
+- 机器可读定义：[v5](schema/interchange-v5.schema.json)；兼容读取 [v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
 - 示例:[examples/sample-meet.json](examples/sample-meet.json)
 
 ## 1. 文件
@@ -18,12 +18,12 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ## 2. 版本
 
 ```json
-{ "format": "sportsmeet-interchange", "version": 4 }
+{ "format": "sportsmeet-interchange", "version": 5 }
 ```
 
 - `format` 固定,不符即拒绝读取。
 - `version` 为正整数。增删字段、改字段含义、改单位、改枚举取值均须 +1。
-- 写出方总是写 v4；读取方支持 v1、v2、v3、v4。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
+- 写出方总是写 v5；读取方支持 v1、v2、v3、v4、v5。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
 - 读取方必须能读所有已发布版本;遇到比自己新的版本直接拒绝,并提示升级软件(不尝试猜测读取)。
 
 ## 3. 基本约定
@@ -197,6 +197,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `name` | string | | 省略显示为「第 N 组」 |
 | `scheduledAt` | 计划时间 \| null | | 组单独指定的时间;`null` 时沿用所在轮次的 `scheduledAt` |
 | `durationMinutes` | integer \| null | | v4。预计用时,1–1440 分钟;组的预计结束时间 = 生效计划时间 + 预计用时 |
+| `startedAt` | 计划时间 \| null | | v5。实际开赛时间,格式同计划时间;`null` 为未记录 |
 | `wind` | integer \| null | | 径赛整组风速,单位 0.1 m/s(+1.2 → `12`) |
 | `slots` | Slot[] | ✓ | §5.9 |
 
@@ -284,7 +285,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 
 队伍在所属项目内按规范化的 `name + unitId` 识别,单位先匹配到目标赛事;成员也先匹配到目标运动员,名单顺序完全一致才复用。名单不符、匹配不唯一或成员已在该项目其他队伍时整份拒绝,避免把已有比赛记录对应到另一份名单。预览分别统计队伍新建与复用数量。
 
-轮次按 `stage`、组按 `ordinal` 对应。新建的轮次与组带上文件里的 `scheduledAt` 与 `durationMinutes`；已有的轮次与组保留目标里的开始时间、计划时间与预计用时，不按文件改写。
+轮次按 `stage`、组按 `ordinal` 对应。新建的轮次与组带上文件里的 `scheduledAt`、`durationMinutes` 与 `startedAt`；已有的轮次与组保留目标里的开始时间、计划时间、预计用时与实际开赛时间，不按文件改写。导入的成绩不会自动记录实际开赛时间，只用文件里的值。
 
 全能按 `gender + name + groupLabel` 识别；分项先匹配所属全能，项目再按 `combinedId + gender + discipline + groupLabel` 识别。`discipline` 宽松比较:`100 米` = `100m`,`4x100M` = `4×100m`。
 

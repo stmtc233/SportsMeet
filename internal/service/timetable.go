@@ -295,6 +295,7 @@ type TimetableHeat struct {
 	ScheduledAt     string `json:"scheduledAt"`
 	DurationMinutes *int   `json:"durationMinutes"`
 	HeatTimes
+	HeatStart
 	EndText    string         `json:"endText"` // EndAt as the times are shown; "" = none
 	KeepReason string         `json:"keepReason"`
 	People     int            `json:"people"`
@@ -352,7 +353,8 @@ func (p *meetPlan) timetable(only map[string]bool) *Timetable {
 				tr.People += people
 				tr.Heats = append(tr.Heats, TimetableHeat{ID: h.ID, Label: domain.HeatLabel(h.Ordinal, h.Name), Name: h.Name,
 					Base: arrange.Fingerprint(h), ScheduledAt: h.ScheduledAt, DurationMinutes: h.DurationMinutes, HeatTimes: times,
-					EndText: domain.ScheduledText(times.EndAt, day), KeepReason: h.Facts().KeepReason(), People: people,
+					HeatStart: HeatStartOf(times.EffectiveAt, h.StartedAt, day),
+					EndText:   domain.ScheduledText(times.EndAt, day), KeepReason: h.Facts().KeepReason(), People: people,
 					Conflicts: []HeatConflict{}})
 			}
 			if len(r.Heats) == 0 && ri == 0 {

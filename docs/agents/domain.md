@@ -87,7 +87,7 @@
 
 - **三种时间**:
   - 日期 `YYYY-MM-DD`:赛事起止、项目日期、出生日期。
-  - 计划时间 `YYYY-MM-DDTHH:mm`:轮次开始时间与组的计划时间(用户要求),本地墙上时间、精确到分钟、不带时区。
+  - 计划时间 `YYYY-MM-DDTHH:mm`:轮次开始时间、组的计划时间与组的实际开赛时间(用户要求),本地墙上时间、精确到分钟、不带时区。
   - 记录时间:毫秒时间戳,如成绩的 `updated_at`、操作日志的时刻、创建时间;显示时换算为本机时区。
 - **校验**:日期与计划时间须是真实存在的日历日 / 分钟(`2026-02-30`、`24:00` 拒绝),年份 1–9999,格式严格匹配,不接受空格、秒或时区。只做格式检查会让无效值写进库,之后的排序与运算都会出错。组的预计用时 `durationMinutes` 为 1–1440 分钟的整数,可不填(`ValidDuration`)。
 - **运算**:计划时间按 UTC 解析与加减,只当作日历字段,不经本机时区:换算会在夏令时切换处跳过或重复一小时,批量排时与结束时间就会出错。超出 9999 年拒绝。
@@ -103,7 +103,14 @@
   - 日期范围同一天只显示一个日期,否则 `开始 – 结束`(`MeetView.datesText`、打印页眉)。
   - 记录时间显示到分钟 `YYYY-MM-DD HH:mm`,不随「今天」变化,页面不重读时文字也不会过时。
 - **每组成绩的最后修改时间**:读取组时一并取该组现有成绩 `updated_at` 的最大值(`Heat.ResultsUpdatedAt`,不存储、不进指纹与 JSON),`HeatView.resultsUpdatedText` 显示。写成绩、排位变化以及重算改动名次或晋级的成绩都会更新;清空的成绩不再计入。
-- **打印时间**:秩序册与成绩册末尾印「打印时间」,取生成 HTML 的时刻,按记录时间显示。
+- **实际开赛时间**(`Heat.StartedAt`,计划时间格式,空 = 未记录):
+  - 自动记录:`SaveResults` 写入后该组有成绩、且还没有开赛时间时,同一批写入把它设为当时时刻(service 时钟 `store.Now` 按 service 时区换成墙上时间,`domain.WallClock`);已有值不覆盖。界面与 MCP `set_results` 都经这里。
+  - 手动修改与清除:`SetHeatStarted`(界面与 MCP `set_heat_started` 共用)直接写入,记操作日志 `heat.started`(详情含前后值)并发出 `heats` 变更;值不变时不写。
+  - 它不是编排:不进组指纹,不影响锁定,修改它不会让编排草稿或位置作废。清空全部成绩不清它,要清除就手动清除;编排保存只改位置相关的列,也不动它。批量排时间的预览指纹包含组的全部状态,预览之后改了开赛时间须重新预览。
+  - 显示:`HeatStart` 内嵌在 `HeatView` 与 `TimetableHeat`:`startedAt`、`startedText`(与计划时间同样以参照日显示)、`startDeltaText`(与生效计划时间的差,`StartDeltaText`:`准时`、`晚 12 分钟`、`早 5 分钟`、`晚 1 小时 5 分钟`、`晚 1 天 2 小时`,跨午夜与跨天照算,为零的单位不写;任一时间缺失为空)。成绩页组标题与日程页时间列显示它;成绩册在组标题后印「实际开赛 HH:mm」,没有就不印;秩序册不印。
+- **检录时间**(`CheckInAt`):生效计划时间减去「设置 → 编排」的检录提前时间(0–240 分钟,默认 20,`ValidCheckInLead`);提前时间为 0 或组没有计划时间时没有检录时间。不存储,只在检录单上印,日程页与秩序册不显示。
+- **成绩时间**:「设置 → 打印」打开「成绩时间」(默认关)后,成绩册在每组成绩后印该组成绩的最后修改时间(`ResultsUpdatedAt`,到分钟);只排名的轮次印在排名表后。
+- **打印时间**:秩序册、成绩册与检录单末尾印「打印时间」,取生成 HTML 的时刻,按记录时间显示。
 - **竞赛日程表**:秩序册在项目之前印「竞赛日程表」(「设置 → 打印」可关,默认开),与日程页同一份 `Timetable`:按天、按时间列出时间、项目、轮次、组数与人数(口径同日程页,见 [arrange.md](arrange.md)「竞赛日程」),只印已安排时间的轮次,没有时间的轮次不印;只含本次打印选中的项目(选全能即含其分项),一个都没有就整节不印。成绩册不印。表格行不跨页拆开,每天的日期标题不与表格分开(`break-inside` / `break-after: avoid`,并写旧的 `page-break-*`)。
 - **轮次开始时间的写入**:`SetRoundStart`(界面与 MCP `set_round_start` 共用)直接写入、记操作日志 `round.scheduled` 并发出 `heats` 变更;值不变时不写。它不改任何组,所以不影响组指纹与编排草稿,已比赛的组若沿用它,显示的时间也随之变化,位置与成绩不变。
 - **项目列表顺序**(`ScheduleOrder`,项目列表、MCP `list_events`、打印选择与秩序册 / 成绩册共用):普通项目先按 `PlannedDay`,再按该项目最早的计划时间(`EarliestScheduled`:轮次开始时间与组的单独时间),最后按创建顺序;没有日子或时间的排在有的之后。全能分项不参与时间排序,按原顺序排在普通项目之后,分项顺序属于全能。交换格式导出与其他内部读取保持创建顺序,时间变化不会改动导出文件。`EventRow.timeText` 显示最早的计划时间(赛事首日只显示时刻),没有时间时显示非首日的项目日期。
@@ -118,6 +125,6 @@
 
 - service 的每个写操作写一条日志:时刻、来源(`ui` / `mcp` / `system`)、动作、涉及的项目 / 组、简短说明与 JSON 详情。
 - 日志写入失败只记应用日志,不影响业务。
-- 新增写操作必须同时登记它的日志动作名。现有:`meet.created / updated / deleted / imported`、`unit.created / updated / deleted`、`athlete.created / updated / deleted / imported`、`event.created / updated / deleted`、`team.created / updated / deleted`、`entry.added / removed / seed`、`board.saved / reset`、`heats.scheduled`、`round.scheduled`、`results.saved`、`settings.preferences / mcp`、`combined.created / updated / deleted / entries / rules`。
+- 新增写操作必须同时登记它的日志动作名。现有:`meet.created / updated / deleted / imported`、`unit.created / updated / deleted`、`athlete.created / updated / deleted / imported`、`event.created / updated / deleted`、`team.created / updated / deleted`、`entry.added / removed / seed`、`board.saved / reset`、`heats.scheduled`、`round.scheduled`、`heat.started`、`results.saved`、`settings.preferences / mcp`、`combined.created / updated / deleted / entries / rules`。
 - 成绩日志同时保留输入位置的原成绩与新成绩完整记录,包括逐次记录与备注;只修改备注同样可追查。设置日志不含令牌。
 - 日志只读:`ListAudit` 按时刻倒序(同一时刻按写入顺序)分页读取,可按赛事与来源筛选;每页最多 200 条,以上一页最后一行的时刻与 id 继续,固定两次查询(日志与赛事名称),不随条数增长。动作与来源的中文显示文本由 `service/audit.go` 映射,新增动作同时登记显示文本,单测检查没有遗漏。赛事删除后其日志保留,赛事名称为空。

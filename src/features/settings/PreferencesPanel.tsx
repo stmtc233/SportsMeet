@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { StNotice, StSection, StSegmented, StSelect, StSwitchItem } from "../../design";
 import { SettingsController, usePreferences } from "./controller";
+import { minuteOptions } from "./minutes";
 
 /** The minimum rest choices; 0 checks overlaps only. */
-const rests = ["0", "5", "10", "15", "20", "30", "45", "60"].map((value) => ({ value, label: value === "0" ? "只查重叠" : `${value} 分钟` }));
+const rests = [0, 5, 10, 15, 20, 30, 45, 60];
+/** The check-in lead choices; 0 prints no check-in time. */
+const leads = [0, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240];
 
 export function PreferencesPanel({ section }: { section: "general" | "arrange" | "print" }) {
   const { data, error } = usePreferences();
@@ -30,7 +33,11 @@ export function PreferencesPanel({ section }: { section: "general" | "arrange" |
       </StSection>
       <StSection title="时间冲突">
         <StSelect label="最短休息时间" value={String(data.minRestMinutes)} disabled={busy} onChange={(v) => void save({ minRestMinutes: Number(v) })}
-          options={rests.some((r) => r.value === String(data.minRestMinutes)) ? rests : [...rests, { value: String(data.minRestMinutes), label: `${data.minRestMinutes} 分钟` }]} />
+          options={minuteOptions(rests, data.minRestMinutes, "只查重叠")} />
+      </StSection>
+      <StSection title="检录">
+        <StSelect label="检录提前时间" value={String(data.checkInLeadMinutes)} disabled={busy} onChange={(v) => void save({ checkInLeadMinutes: Number(v) })}
+          options={minuteOptions(leads, data.checkInLeadMinutes, "不显示")} />
       </StSection>
     </>
   );
@@ -38,6 +45,12 @@ export function PreferencesPanel({ section }: { section: "general" | "arrange" |
     <>
       <StSection title="秩序册" padded={false}>
         <StSwitchItem title="竞赛日程表" subtitle="印在项目之前" checked={data.printSchedule} disabled={busy} onChange={(printSchedule) => void save({ printSchedule })} />
+      </StSection>
+      <StSection title="成绩册" padded={false}>
+        <StSwitchItem title="成绩时间" subtitle="每组成绩后印最后修改时间" checked={data.printResultsTime} disabled={busy} onChange={(printResultsTime) => void save({ printResultsTime })} />
+      </StSection>
+      <StSection title="检录单" padded={false}>
+        <StSwitchItem title="每组另起一页" checked={data.printCheckInNewPage} disabled={busy} onChange={(printCheckInNewPage) => void save({ printCheckInNewPage })} />
       </StSection>
       <StSection title="分页" padded={false}>
         <StSwitchItem title="每个项目另起一页" checked={data.printNewPage} disabled={busy} onChange={(printNewPage) => void save({ printNewPage })} />

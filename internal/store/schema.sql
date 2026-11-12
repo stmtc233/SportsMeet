@@ -102,7 +102,7 @@ CREATE TABLE rounds (
 );
 CREATE INDEX idx_rounds_event ON rounds(event_id, ordinal);
 
--- 组;name 只存自定义名称
+-- 组;name 只存自定义名称,started_at 是实际开赛时间
 CREATE TABLE heats (
     id TEXT PRIMARY KEY,
     round_id TEXT NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
@@ -110,7 +110,8 @@ CREATE TABLE heats (
     name TEXT NOT NULL DEFAULT '',
     scheduled_at TEXT NOT NULL DEFAULT '',
     wind INTEGER,
-    duration_minutes INTEGER
+    duration_minutes INTEGER,
+    started_at TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX idx_heats_round ON heats(round_id, ordinal);
 

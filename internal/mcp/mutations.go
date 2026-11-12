@@ -101,6 +101,11 @@ func registerMutations(s *sdk.Server, svc *service.Service) {
 	}) (any, error) {
 		return svc.SetHeatTime(ctx, store.SourceMCP, in.Input)
 	})
+	addTool(s, "set_heat_started", "设置一个组的实际开赛时间（本地 YYYY-MM-DDTHH:mm，无时区；空字符串清除）。组第一次录入成绩时若未记录会自动取当时时间，用它修改或清除。只改这一个字段，不动位置、成绩、名次与组指纹 base，已比赛的组也可改。直接写入；返回该组的 startedAt、startedText 与 startDeltaText（与生效计划时间的差）。", false, func(ctx context.Context, in struct {
+		Input service.HeatStartInput `json:"input"`
+	}) (any, error) {
+		return svc.SetHeatStarted(ctx, store.SourceMCP, in.Input)
+	})
 	addTool(s, "preview_schedule", "预览批量计划时间：一个轮次（request.eventId / roundId），或按 request.rounds 顺序连排同一赛事的多个轮次，轮次之间另留 roundGapMinutes。每个轮次按组序号排列，已有成绩的组跳过且不占间隔，已有计划时间可覆盖；间隔同时写为每个被排组的预计用时（durationMinutes）。返回 changes（原时间与用时 beforeText、新 afterText、所属轮次 round）、skipped、errors、warnings（如不在赛事日期内、排完后的时间冲突，只提示不拦截）、conflicts 和 previewHash。向用户展示变化与提示后取得明确确认。", true, func(ctx context.Context, in scheduleArg) (any, error) {
 		return svc.PreviewSchedule(ctx, in.Request)
 	})

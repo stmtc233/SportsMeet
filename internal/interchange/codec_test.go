@@ -44,7 +44,7 @@ func TestDecodeRejects(t *testing.T) {
 	cases := []struct {
 		name, from, to, want string
 	}{
-		{"newer version", `"version": 1`, `"version": 5`, ""},
+		{"newer version", `"version": 1`, `"version": 6`, ""},
 		{"wrong format", `"sportsmeet-interchange"`, `"other"`, "format"},
 		{"OK without mark", `"status": "OK", "mark": 12650`, `"status": "OK", "mark": null`, "mark 必填"},
 		{"unknown athlete", `"athleteId": "a3", "seedMark": 13100`, `"athleteId": "zz", "seedMark": 13100`, "找不到运动员 zz"},
@@ -173,11 +173,8 @@ func TestV4RoundStartAndDuration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if example, err := os.ReadFile("../../docs/examples/sample-meet.json"); err != nil || string(example) != string(data) {
-		t.Fatalf("the documented example is not the v4 golden file: %v", err)
-	}
 	h1, r3 := f.Events[0].Rounds[0].Heats[0], f.Events[2].Rounds[0]
-	if f.Version != Version || h1.DurationMinutes == nil || *h1.DurationMinutes != 10 ||
+	if f.Version != 4 || h1.DurationMinutes == nil || *h1.DurationMinutes != 10 ||
 		r3.ScheduledAt == nil || *r3.ScheduledAt != "2026-11-12T14:00" || r3.Heats[0].ScheduledAt != nil {
 		t.Fatalf("v4 fields: %+v %+v", h1, r3)
 	}
@@ -217,5 +214,55 @@ func TestV4RoundStartAndDuration(t *testing.T) {
 	}
 	if old.Events[0].Rounds[0].Heats[0].ScheduledAt == nil || *old.Events[0].Rounds[0].Heats[0].Wind != 12 {
 		t.Fatal("v3 known fields lost")
+	}
+}
+
+func TestV5HeatStarted(t *testing.T) {
+	data, err := os.ReadFile("../../testdata/interchange/sample-meet-v5.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if example, err := os.ReadFile("../../docs/examples/sample-meet.json"); err != nil || string(example) != string(data) {
+		t.Fatalf("the documented example is not the v5 golden file: %v", err)
+	}
+	f, err := Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h1 := f.Events[0].Rounds[0].Heats[0]
+	if f.Version != Version || Version != 5 || h1.StartedAt == nil || *h1.StartedAt != "2026-11-12T09:42" || f.Events[2].Rounds[0].Heats[0].StartedAt != nil {
+		t.Fatalf("v5 fields: %+v", h1)
+	}
+	out, err := Encode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := Decode(out)
+	if err != nil || !reflect.DeepEqual(f, again) {
+		t.Fatalf("v5 round trip: %v", err)
+	}
+	for _, bad := range []string{`"2026-11-12 09:42"`, `"2026-11-12T24:00"`, `"09:42"`} {
+		_, err := Decode([]byte(strings.Replace(string(data), `"2026-11-12T09:42"`, bad, 1)))
+		var p Problems
+		if !errors.As(err, &p) || !strings.Contains(p.Error(), "heats[0].startedAt 应为 YYYY-MM-DDTHH:mm") {
+			t.Fatalf("%s: err = %v", bad, err)
+		}
+	}
+
+	// A v4 file does not know the field, whatever its JSON type; its v4 fields stay.
+	v4, err := os.ReadFile("../../testdata/interchange/sample-meet-v4.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{`"2026-11-12T09:42"`, `{"later": true}`, `"bad"`} {
+		text := strings.Replace(string(v4), `"durationMinutes": 10,`, `"durationMinutes": 10, "startedAt": `+value+`,`, 1)
+		old, err := Decode([]byte(text))
+		if err != nil {
+			t.Fatalf("%s: %v", value, err)
+		}
+		h := old.Events[0].Rounds[0].Heats[0]
+		if h.StartedAt != nil || h.DurationMinutes == nil || *h.DurationMinutes != 10 || old.Events[2].Rounds[0].ScheduledAt == nil {
+			t.Fatalf("v4 file with startedAt %s: %+v", value, h)
+		}
 	}
 }

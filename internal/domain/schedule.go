@@ -3,6 +3,7 @@ package domain
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -47,6 +48,58 @@ func ScheduledEnd(at string, minutes *int) (end string, ok bool) {
 func HeatEnd(r Round, h Heat) (end string, ok bool) {
 	at, _ := EffectiveScheduled(r, h)
 	return ScheduledEnd(at, h.DurationMinutes)
+}
+
+// Check-in lead: how long before a heat's planned start its athletes check
+// in, in minutes; 0 prints no check-in time.
+const (
+	DefaultCheckInLeadMinutes = 20
+	MaxCheckInLeadMinutes     = 240
+)
+
+// ValidCheckInLead reports whether a check-in lead is 0–MaxCheckInLeadMinutes.
+func ValidCheckInLead(m int) bool { return m >= 0 && m <= MaxCheckInLeadMinutes }
+
+// CheckInAt is when a heat's athletes check in: its effective planned time
+// minus lead minutes. "" when the heat has no planned time, the lead is 0,
+// or the result falls before year 1.
+func CheckInAt(at string, lead int) string {
+	t, ok := ParseScheduled(at)
+	if !ok || lead <= 0 {
+		return ""
+	}
+	out, _ := FormatScheduled(t.Add(-time.Duration(lead) * time.Minute))
+	return out
+}
+
+// StartDeltaText says how a heat's actual start compares with its planned
+// one: 准时, 晚 12 分钟, 早 1 小时 5 分钟, 晚 1 天 2 小时. The difference counts
+// across midnight and days. "" when either time is missing.
+func StartDeltaText(planned, started string) string {
+	p, ok1 := ParseScheduled(planned)
+	s, ok2 := ParseScheduled(started)
+	if !ok1 || !ok2 {
+		return ""
+	}
+	minutes := int(s.Sub(p) / time.Minute)
+	word := "晚"
+	if minutes < 0 {
+		word, minutes = "早", -minutes
+	}
+	if minutes == 0 {
+		return "准时"
+	}
+	parts := []string{}
+	for _, unit := range []struct {
+		size int
+		name string
+	}{{1440, "天"}, {60, "小时"}, {1, "分钟"}} {
+		if n := minutes / unit.size; n > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", n, unit.name))
+			minutes %= unit.size
+		}
+	}
+	return word + " " + strings.Join(parts, " ")
 }
 
 // EarliestScheduled is the first planned time among the rounds' starts and

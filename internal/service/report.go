@@ -22,11 +22,11 @@ const (
 // limits it to some events (in the list's order, domain.ScheduleOrder);
 // empty means all.
 func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventIDs []string) (string, error) {
-	book, err := s.reportBook(ctx, meetID, eventIDs)
+	prefs, err := s.Preferences(ctx)
 	if err != nil {
 		return "", err
 	}
-	prefs, err := s.Preferences(ctx)
+	book, err := s.reportBook(ctx, meetID, eventIDs, kind == ReportResults && prefs.PrintResultsTime)
 	if err != nil {
 		return "", err
 	}
@@ -43,7 +43,9 @@ func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventID
 	return "", invalid("报表类型不正确")
 }
 
-func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []string) (*report.Book, error) {
+// reportBook gathers the printed content; resultsTime adds each heat's
+// results time (成绩册, when the settings ask for it).
+func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []string, resultsTime bool) (*report.Book, error) {
 	meet, err := s.GetMeet(ctx, meetID)
 	if err != nil {
 		return nil, err
@@ -173,7 +175,11 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 			bySlot := map[string]report.Line{}
 			for _, h := range r.Heats {
 				at, _ := domain.EffectiveScheduled(r, h)
-				heat := report.Heat{Label: domain.HeatLabel(h.Ordinal, h.Name), Time: domain.ScheduledText(at, date)}
+				heat := report.Heat{Label: domain.HeatLabel(h.Ordinal, h.Name), Time: domain.ScheduledText(at, date),
+					Started: domain.ScheduledText(h.StartedAt, date)}
+				if resultsTime {
+					heat.ResultsTime = domain.RecordedText(h.ResultsUpdatedAt, s.zone)
+				}
 				for _, sl := range h.Slots {
 					l := line(sl)
 					heat.Lines = append(heat.Lines, l)

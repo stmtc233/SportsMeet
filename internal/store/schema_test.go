@@ -179,3 +179,45 @@ func TestScheduleMigrationKeepsExistingData(t *testing.T) {
 		t.Fatalf("audit index: %v %v", rows, err)
 	}
 }
+
+// A database last opened before migration 7 keeps its heats and results;
+// no heat has an actual start yet.
+func TestStartedMigrationKeepsExistingData(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	s, err := Open(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s.Write(ctx,
+		Stmt(`INSERT INTO meets(id,name,start_date,created_at) VALUES ('m','赛事','2026-11-12',0)`),
+		Stmt(`INSERT INTO athletes(id,meet_id,name,created_at) VALUES ('a','m','运动员',0)`),
+		Stmt(`INSERT INTO events(id,meet_id,name,gender,discipline,kind,created_at) VALUES ('e','m','男子100m','男','100m','track',0)`),
+		Stmt(`INSERT INTO rounds(id,event_id,stage,ordinal,scheduled_at) VALUES ('r','e','final',1,'2026-11-12T09:00')`),
+		Stmt(`INSERT INTO heats(id,round_id,ordinal,scheduled_at,duration_minutes) VALUES ('h','r',1,'2026-11-12T09:30',10)`),
+		Stmt(`INSERT INTO slots(heat_id,position,athlete_id) VALUES ('h',4,'a')`),
+		Stmt(`INSERT INTO results(heat_id,position,status,mark,updated_at) VALUES ('h',4,'OK',12340,5)`),
+	)
+	s.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	unapplyStarted(t, dir)
+	if s, err = Open(ctx, dir); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if got := backups(t, dir); len(got) != 1 || filepath.Base(got[0])[len("sportsmeet-20060102-150405"):] != "-v0006.db" {
+		t.Fatalf("backup before migration 7: %v", got)
+	}
+	rounds, err := s.LoadRounds(ctx, Scope{MeetID: "m"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := rounds["e"][0]
+	h := r.Heats[0]
+	if r.ScheduledAt != "2026-11-12T09:00" || h.ScheduledAt != "2026-11-12T09:30" || h.DurationMinutes == nil || *h.DurationMinutes != 10 ||
+		h.StartedAt != "" || h.Slots[0].Result == nil || *h.Slots[0].Result.Mark != 12340 || h.ResultsUpdatedAt != 5 {
+		t.Fatalf("after migration: %+v", h)
+	}
+}

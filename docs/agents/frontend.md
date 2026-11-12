@@ -39,7 +39,8 @@
 - 位置上换了人,该位置的输入丢弃,避免把成绩记到另一个人名下。刚保存的行跟随新数据,显示 Go 整理后的成绩文本,保存后该组不再算有改动。
 - 成绩输入根据 Go 的 `rules.multipleAttempts` 和 `rules.markLabel` 显示单值或逐次记录；`StMarkField` 经 `lib/marks.ts` 携带完整项目配置调用 Go，计分小数位不在前端推断。
 - 「放弃」恢复为已读取的数据,并去掉未保存的新增高度。读写经 `results/controller.ts`。
-- 组标题经 `features/event/HeatTime.tsx` 显示生效时间 `scheduledText`:单独指定的用 `StTag`,沿用轮次(`scheduleInherited`)的用次要文字;组内有成绩时,操作区左侧显示「修改于」与 `resultsUpdatedText`。
+- 组标题经 `features/event/HeatTime.tsx` 显示生效时间 `scheduledText`:单独指定的用 `StTag`,沿用轮次(`scheduleInherited`)的用次要文字;其后经 `features/event/HeatStarted.tsx` 显示「开赛 `startedText`」与差值标签 `startDeltaText`,窄窗口下换到第二行;组内有成绩时,操作区左侧显示「修改于」与 `resultsUpdatedText`。
+- 操作区的「开赛时间」图标按钮打开 `results/StartedDialog.tsx`(日期 + 时间):已有开赛时间时填入它并提供「清除」;没有时日期取生效计划日期,再取 `EventDetail.day`,时间留空(`results/started.ts` 的纯函数,有单测)。保存与清除经 `ResultsController.setStarted`(`Results.setStarted`)立即写入,成功后由 `heats` 事件重读。规则见 [domain.md](domain.md)「时间」。
 
 ## 编排页时间
 
@@ -54,6 +55,7 @@
 
 - `src/features/schedule/`:`SchedulePage.tsx` 页面;`controller.ts` 的 `useTimetable`(`Arrange.meetSchedule`,赛事任意变化与 `settings` 变化时重读)与 `ScheduleController.editHeat`;`options.ts` 把日程转成连排对话框的轮次选项(纯函数,有单测)。规则与布局见 [arrange.md](arrange.md)「竞赛日程」。
 - 时间对话框复用编排页的 `RoundStartDialog`、`HeatDialog`(只取所需字段的类型)与 `ScheduleDialog`;组改动直接写入,不进草稿。
+- 组表格的「时间」列在计划时间后接 `HeatStarted`(实际开赛时间与差值);列宽不够时截断,完整文本在悬停提示里。
 
 ## 设置页
 
@@ -61,7 +63,7 @@
 - 宽窄切换只增减左侧分类列表,内容区留在同一树位置,表单、焦点与未保存修改都保留。
 - 开关与分段控件立即生效;需要保存的表单经底部保存栏,有修改时离开先确认。
 
-- 通用:外观(跟随系统 / 浅色 / 深色),经根元素 `data-theme` 应用。编排:同单位分散、均衡人数,作为自动编排对话框每次打开时的默认值;「时间冲突」的最短休息时间(`StSelect`:只查重叠 / 5–60 分钟,选择即生效),冲突检查经 service 读取。打印:秩序册是否印竞赛日程表、每个项目另起一页,Go 生成预览与打印 HTML 时读取同一设置。
+- 通用:外观(跟随系统 / 浅色 / 深色),经根元素 `data-theme` 应用。编排:同单位分散、均衡人数,作为自动编排对话框每次打开时的默认值;「时间冲突」的最短休息时间(`StSelect`:只查重叠 / 5–60 分钟,选择即生效),冲突检查经 service 读取;「检录」的检录提前时间(`StSelect`:不显示 / 10–240 分钟,默认 20)。分钟选项由 `settings/minutes.ts` 生成,已存的值不在列表里时追加显示(有单测)。打印:秩序册是否印竞赛日程表、成绩册是否印「成绩时间」、检录单每组另起一页、每个项目另起一页,Go 生成预览与打印 HTML 时读取同一设置。
 - 操作日志:只读表格,按赛事(`StSelect`)与来源(`StSegmented`:全部 / 界面 / MCP / 系统)筛选,每页 50 条,「加载更多」接续上一页,没有更多时置灰。任一数据变化重读最新一页并与已加载的页按 id 合并(`settings/auditLog.ts`,有单测);新记录多于一页、接不上已加载部分时从最新一页重新开始,不显示断档。读取经 `settings/controller.ts` 的 `useAuditLog` 与生成的 `Settings.auditLog`。
 - MCP:本机开关、运行状态、端口、令牌显示 / 复制 / 轮换与复制连接信息。端口单独编辑保存,失败保留输入;有端口草稿时禁用开关与轮换,避免隐式提交草稿。关于包含版本与开源许可。
 - 赛事列表工具栏与赛事侧栏均提供设置入口,返回恢复进入设置前的页面。分类导航经同一 `useNav` 离开确认,宽窄变化只通过 CSS 控制分类列表的可见性。
@@ -72,7 +74,10 @@
 - 打印选择项由 `Reports.targets` 提供普通项目和全能，选择全能展开全部分项与汇总表；读取、生成与打印经 `reports/controller.ts`。
 - 秩序册按起跑方式显示「道次」或「顺序」，两类报表显示起跑方式或尝试配置；成绩册包含远度逐次试跳 / 试投记录，接力显示建议棒数与成员棒次。
 - 项目按项目列表的顺序排列;组的时间与项目同日只印时刻;两类报表末尾印「打印时间」(见 [domain.md](domain.md)「时间」)。秩序册开头的「竞赛日程表」见 [domain.md](domain.md)「时间」;每个项目另起一页时,日程表之后的第一个项目也另起一页。
-- 秩序册、成绩册由 Go `internal/report/` 生成完整 HTML 文档(检录单、号码布待实现)。「打印」页在 `sandbox` 的 `iframe` 里预览;点「打印」由 Go 另开一个窗口载入该 HTML 并调出系统打印对话框(可另存为 PDF)。不在主窗口里打印:主窗口的页面是应用界面,打出来会带上侧栏。
+- 秩序册、成绩册、检录单由 Go `internal/report/` 生成完整 HTML 文档(号码布待实现)。「打印」页在 `sandbox` 的 `iframe` 里预览;点「打印」由 Go 另开一个窗口载入该 HTML 并调出系统打印对话框(可另存为 PDF)。不在主窗口里打印:主窗口的页面是应用界面,打出来会带上侧栏。
+- 检录单(`Reports.checkInTargets` / `renderCheckIn` / `printCheckIn`,service `RenderCheckIn`):「打印」页分段控件的第三项。侧栏上方「日期」(`StSelect`:全部日期 + 有计划组的日子)筛选,下方按轮次勾选(项目只有一个轮次时只写项目名);选了日期只列当天有组的轮次。全部勾选时请求不带轮次(等于全部),否则带勾选的轮次;选择逻辑是 `reports/checkin.ts` 的纯函数(有单测)。
+  - 内容:每组一张,印赛事、项目、轮次、组、计划时间、检录时间(提前时间为 0 时整格不印)、道次 / 顺序、号码、姓名、单位与「到」「缺」方框,末尾「裁判签名」;队伍项目印队名与成员 / 棒次(含号码)。没有计划时间的组照印,时间留空。
+  - 顺序:不选日期时按项目列表顺序、轮次、组序号;选了日期只印当天的组,按生效计划时间排。「设置 → 打印 → 检录单 → 每组另起一页」打开时每张另起一页。
 - 打印 HTML 同样数字等宽(`font-variant-numeric: tabular-nums`)、同样遵守文案规范。
 - 打印样式预设待实现。
 

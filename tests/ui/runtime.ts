@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test";
 export async function installRuntime(page: Page, options: { schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean; conflicts?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
-    let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, minRestMinutes: 0 };
+    let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInNewPage: false, printResultsTime: false };
     let mcp = { enabled: false, running: false, port: 18765, address: "http://127.0.0.1:18765/mcp", error: "" };
     const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12" };
     const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0, participantMode: "athlete", teamSize: 0, scoreDecimals: 0, rankDirection: "", attemptMode: "" };
@@ -19,7 +19,14 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
       return { scheduledAt: at, durationMinutes: minutes, effectiveAt, scheduleInherited: !at && !!roundStart, scheduledText: effectiveAt ? shown(effectiveAt) : "",
         durationText: minutes === null ? "" : `${minutes} 分钟`, endAt: "" };
     };
-    const detail = { day: "2026-11-12", rules, event, teams: [] as any[], entries, rounds: [{ id: "round", stage: "final", ordinal: 1, name: "", label: "决赛", advance: null, scheduledAt: "", scheduledText: "", complete: false, standings: [], heats: [{ id: "heat", ordinal: 1, name: "", label: "第1组", ...times("", "2026-11-12T09:00", null), resultsUpdatedText: "", base: "base", keepReason: "", slots: entries.slice(0, 8).map((a, i) => ({ position: i + 1, athleteId: a.athleteId, competitorId: a.competitorId, result: null })) }] }] };
+    // A heat's actual start (service.HeatStart) against its effective time; same-day minutes only.
+    const minutesOf = (at: string) => Number(at.slice(11, 13)) * 60 + Number(at.slice(14, 16));
+    const started = (effectiveAt: string, startedAt: string) => {
+      const d = effectiveAt && startedAt ? minutesOf(startedAt) - minutesOf(effectiveAt) : null;
+      return { startedAt, startedText: startedAt ? shown(startedAt) : "", startDeltaText: d === null ? "" : d === 0 ? "准时" : `${d > 0 ? "晚" : "早"} ${Math.abs(d)} 分钟` };
+    };
+    const unstarted = started("", "");
+    const detail = { day: "2026-11-12", rules, event, teams: [] as any[], entries, rounds: [{ id: "round", stage: "final", ordinal: 1, name: "", label: "决赛", advance: null, scheduledAt: "", scheduledText: "", complete: false, standings: [], heats: [{ id: "heat", ordinal: 1, name: "", label: "第1组", ...times("", "2026-11-12T09:00", null), ...unstarted, resultsUpdatedText: "", base: "base", keepReason: "", slots: entries.slice(0, 8).map((a, i) => ({ position: i + 1, athleteId: a.athleteId, competitorId: a.competitorId, result: null })) }] }] };
     if (options.relay) {
       Object.assign(event, { relayLegCount: 4, participantMode: "team", kind: "relay", name: "男子4×100m", discipline: "4×100m", groupLabel: "" });
       rules.team = true;
@@ -59,8 +66,8 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
     (globalThis as any).__relayCalls = [];
     if (options.schedule) {
       detail.rounds[0]!.heats.push(
-        { id: "scored", ordinal: 2, name: "", label: "第2组", ...times("", "2026-11-12T09:07", null), resultsUpdatedText: "2026-11-12 09:20", base: "scored-base", keepReason: "已有成绩", slots: [] },
-        { id: "later", ordinal: 3, name: "", label: "第3组", ...times("", "", null), resultsUpdatedText: "", base: "later-base", keepReason: "", slots: [] },
+        { id: "scored", ordinal: 2, name: "", label: "第2组", ...times("", "2026-11-12T09:07", null), ...started("2026-11-12T09:07", "2026-11-12T09:19"), resultsUpdatedText: "2026-11-12 09:20", base: "scored-base", keepReason: "已有成绩", slots: [] },
+        { id: "later", ordinal: 3, name: "", label: "第3组", ...times("", "", null), ...unstarted, resultsUpdatedText: "", base: "later-base", keepReason: "", slots: [] },
       );
     }
     const actions = [["results.saved", "录入成绩", "mcp"], ["heats.scheduled", "批量排时间", "ui"], ["unit.created", "新建参赛单位", "ui"]] as const;
@@ -97,7 +104,7 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
     const heatConflicts = (heatId: string) => conflicts().filter((c) => c.first.heatId === heatId || c.second.heatId === heatId)
       .map((c) => ({ athleteId: c.athleteId, athleteName: c.athleteName, text: c.text, other: c.first.heatId === heatId ? c.second : c.first }));
     const timetableHeat = (h: any) => ({ id: h.id, label: h.label, name: h.name, base: h.base, scheduledAt: h.scheduledAt, durationMinutes: h.durationMinutes, effectiveAt: h.effectiveAt,
-      scheduleInherited: h.scheduleInherited, scheduledText: h.scheduledText, durationText: h.durationText, endAt: "", endText: "", keepReason: h.keepReason, people: h.slots.length, conflicts: heatConflicts(h.id) });
+      scheduleInherited: h.scheduleInherited, scheduledText: h.scheduledText, durationText: h.durationText, endAt: "", endText: "", ...started(h.effectiveAt, h.startedAt ?? ""), keepReason: h.keepReason, people: h.slots.length, conflicts: heatConflicts(h.id) });
     const timetable = () => {
       const r = detail.rounds[0]!;
       const heats = r.heats.map(timetableHeat);
@@ -105,7 +112,7 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
       const sprint = { eventId: event.id, eventName: event.name, roundId: r.id, roundLabel: r.label, day: startAt.slice(0, 10), scheduledAt: r.scheduledAt, scheduledText: r.scheduledText,
         startAt, startText: startAt ? shown(startAt) : "", heatCount: heats.length, people: heats.reduce((n, h) => n + h.people, 0), peopleEntered: false, heats };
       const jumpHeat = { id: "jump-heat", label: "第1组", name: "", base: "jump-base", scheduledAt: "", durationMinutes: 30, effectiveAt: "2026-11-12T09:00", scheduleInherited: true, scheduledText: "09:00",
-        durationText: "30 分钟", endAt: "2026-11-12T09:30", endText: "09:30", keepReason: "", people: 1, conflicts: heatConflicts("jump-heat") };
+        durationText: "30 分钟", endAt: "2026-11-12T09:30", endText: "09:30", ...unstarted, keepReason: "", people: 1, conflicts: heatConflicts("jump-heat") };
       const jump = { eventId: "jump", eventName: "男子跳远", roundId: "jump-round", roundLabel: "决赛", day: "2026-11-12", scheduledAt: "2026-11-12T09:00", scheduledText: "09:00",
         startAt: "2026-11-12T09:00", startText: "09:00", heatCount: 1, people: 1, peopleEntered: false, heats: [jumpHeat] };
       const high = { eventId: "high", eventName: "男子跳高", roundId: "high-round", roundLabel: "决赛", day: "", scheduledAt: "", scheduledText: "", startAt: "", startText: "", heatCount: 0, people: 12, peopleEntered: true, heats: [] };
@@ -183,7 +190,7 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
             return [{ slots: detail.entries.map((e, i) => ({ position: (rules.usesLanes ? 4 : 1) + i, competitorId: e.competitorId })) }];
           case "Arrange.Save": {
             (globalThis as any).__relayCalls.push({ method, args });
-            detail.rounds[0]!.heats = args[0].rounds[0].added.map((h: any, i: number) => ({ id: `heat${i}`, ordinal: i + 1, name: "", label: `第${i + 1}组`, base: `saved${i}`, keepReason: "", ...times(detail.rounds[0]!.scheduledAt, "", null), resultsUpdatedText: "", slots: h.slots.map((sl: any) => ({ ...sl, athleteId: rules.team ? "" : sl.competitorId, teamId: rules.team ? sl.competitorId : "", result: null })) }));
+            detail.rounds[0]!.heats = args[0].rounds[0].added.map((h: any, i: number) => ({ id: `heat${i}`, ordinal: i + 1, name: "", label: `第${i + 1}组`, base: `saved${i}`, keepReason: "", ...times(detail.rounds[0]!.scheduledAt, "", null), ...unstarted, resultsUpdatedText: "", slots: h.slots.map((sl: any) => ({ ...sl, athleteId: rules.team ? "" : sl.competitorId, teamId: rules.team ? sl.competitorId : "", result: null })) }));
             for (const t of detail.teams) t.placed = true;
             changed("heats", "meet", "event"); return structuredClone(detail);
           }
@@ -214,8 +221,17 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
             }
             h.keepReason = "已有成绩";
             (h as any).resultsUpdatedText = "2026-11-12 09:31";
+            if (!h.startedAt) Object.assign(h, started(h.effectiveAt, "2026-11-12T09:12"));
             for (const t of detail.teams) t.keepReason = "已有成绩";
             changed("results", "meet", "event"); return null;
+          }
+          case "Results.SetStarted": {
+            const { heatId, startedAt } = args[0];
+            (globalThis as any).__startedCalls = [...((globalThis as any).__startedCalls ?? []), structuredClone(args[0])];
+            const h = detail.rounds[0]!.heats.find((h) => h.id === heatId)!;
+            Object.assign(h, started(h.effectiveAt, startedAt));
+            changed("heats", "meet", "event");
+            return { heatId, ...started(h.effectiveAt, startedAt) };
           }
           case "Arrange.PreviewSchedule": {
             (globalThis as any).__scheduleCalls.preview++;
@@ -259,6 +275,19 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
             changed("heats", "meet", "event");
             return structuredClone(schedulePreview);
           case "Reports.Targets": return [{ id: event.id, name: event.name }];
+          case "Reports.CheckInTargets": return {
+            days: ["2026-11-12", "2026-11-13"],
+            events: [
+              { id: event.id, name: event.name, rounds: [{ id: "round", label: "决赛", heatCount: detail.rounds[0]!.heats.length, days: ["2026-11-12"] }] },
+              { id: "jump", name: "男子跳远", rounds: [{ id: "jump-round", label: "决赛", heatCount: 1, days: ["2026-11-13"] }] },
+            ],
+          };
+          case "Reports.RenderCheckIn":
+            (globalThis as any).__checkInCalls = [...((globalThis as any).__checkInCalls ?? []), structuredClone(args[0])];
+            return `<!DOCTYPE html><html><body><h1>检录单</h1><p>${args[0].day || "全部日期"} · ${args[0].roundIds.join(",") || "全部轮次"}</p></body></html>`;
+          case "Reports.PrintCheckIn":
+            (globalThis as any).__checkInPrints = [...((globalThis as any).__checkInPrints ?? []), structuredClone(args[0])];
+            return null;
           case "Combined.List": return [];
           case "Reports.Render": return "<!DOCTYPE html><html><body><h1>秋季运动会</h1><p>秩序册</p></body></html>";
           case "Marks.EventName": return `${args[0] === "混合" ? "混合" : args[0] === "女" ? "女子" : "男子"}${args[1]}${args[2] ? ` ${args[2]}` : ""}`;

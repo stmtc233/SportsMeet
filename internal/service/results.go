@@ -265,9 +265,15 @@ func (s *Service) SaveResults(ctx context.Context, src store.Source, heatID stri
 		slot.Result = r
 	}
 	rescoreEvent(st.event, round.Advance, heats)
-	stmts := resultWrites(before, heats, nil, s.store.Now())
+	now := s.store.Now()
+	stmts := resultWrites(before, heats, nil, now)
 	if len(stmts) == 0 {
 		return nil
+	}
+	// The first save of a heat's results records when it started, unless
+	// someone already did (docs/agents/domain.md「时间」).
+	if heat.StartedAt == "" && heat.Facts().Results > 0 {
+		stmts = append(stmts, store.Stmt(`UPDATE heats SET started_at = ? WHERE id = ? AND started_at = ''`, domain.WallClock(now, s.zone), heatID))
 	}
 	label := st.event.Name + " " + round.Label() + " " + domain.HeatLabel(heat.Ordinal, heat.Name)
 	return s.write(ctx,

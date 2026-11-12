@@ -128,7 +128,7 @@ func (s *Store) LoadRounds(ctx context.Context, sc Scope) (map[string][]domain.R
 		return nil, err
 	}
 	inRounds := "round_id IN (SELECT id FROM rounds WHERE " + cond + ")"
-	hr, err := s.Query(ctx, `SELECT id, round_id, ordinal, name, scheduled_at, wind, duration_minutes FROM heats
+	hr, err := s.Query(ctx, `SELECT id, round_id, ordinal, name, scheduled_at, wind, duration_minutes, started_at FROM heats
 		WHERE `+inRounds+` ORDER BY ordinal`, arg)
 	if err != nil {
 		return nil, err
@@ -168,7 +168,7 @@ func (s *Store) LoadRounds(ctx context.Context, sc Scope) (map[string][]domain.R
 	heats := map[string][]domain.Heat{}
 	for _, r := range hr.Values {
 		h := domain.Heat{ID: str(r[0]), RoundID: str(r[1]), Ordinal: int(i64(r[2])), Name: str(r[3]),
-			ScheduledAt: str(r[4]), Wind: optInt(r[5]), DurationMinutes: optInt(r[6]), Slots: slots[str(r[0])], ResultsUpdatedAt: updated[str(r[0])]}
+			ScheduledAt: str(r[4]), Wind: optInt(r[5]), DurationMinutes: optInt(r[6]), StartedAt: str(r[7]), Slots: slots[str(r[0])], ResultsUpdatedAt: updated[str(r[0])]}
 		if h.Slots == nil {
 			h.Slots = []domain.Slot{}
 		}

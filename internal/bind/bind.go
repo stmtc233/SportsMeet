@@ -269,7 +269,12 @@ func (r Results) Save(ctx context.Context, heatID string, inputs []service.Resul
 	return r.Svc.SaveResults(ctx, ui, heatID, inputs)
 }
 
-// Reports renders and prints 秩序册 and 成绩册.
+// SetStarted records, changes or clears when a heat actually started.
+func (r Results) SetStarted(ctx context.Context, in service.HeatStartInput) (*service.HeatStartResult, error) {
+	return r.Svc.SetHeatStarted(ctx, ui, in)
+}
+
+// Reports renders and prints 秩序册, 成绩册 and 检录单.
 type Reports struct{ *Core }
 
 func (r Reports) Targets(ctx context.Context, meetID string) ([]service.ReportTarget, error) {
@@ -292,12 +297,39 @@ func (r Reports) Print(ctx context.Context, kind, meetID string, eventIDs []stri
 	if kind == service.ReportResults {
 		title = "成绩册"
 	}
+	printWindow(title, html)
+	return nil
+}
+
+// CheckInTargets lists the rounds the 检录单 can print and its days.
+func (r Reports) CheckInTargets(ctx context.Context, meetID string) (*service.CheckInTargets, error) {
+	return r.Svc.CheckInTargets(ctx, meetID)
+}
+
+// RenderCheckIn returns the 检录单 as an HTML document, for the preview.
+func (r Reports) RenderCheckIn(ctx context.Context, req service.CheckInRequest) (string, error) {
+	return r.Svc.RenderCheckIn(ctx, req)
+}
+
+// PrintCheckIn opens the 检录单 in a window of its own and shows the print dialog.
+func (r Reports) PrintCheckIn(ctx context.Context, req service.CheckInRequest) error {
+	html, err := r.Svc.RenderCheckIn(ctx, req)
+	if err != nil {
+		return err
+	}
+	printWindow("检录单", html)
+	return nil
+}
+
+// printWindow loads a report into a window of its own and shows the
+// system's print dialog once it has loaded. The main window is not printed:
+// it would print the app's sidebar too.
+func printWindow(title, html string) {
 	win := mygo.NewWindow(mygo.WindowOptions{Title: title, Width: 900, Height: 760})
 	page := win.Page()
 	var once sync.Once
 	page.OnDidFinishLoad(func() { once.Do(page.Print) })
 	page.LoadHTML(html, "")
-	return nil
 }
 
 // Exchange imports and exports interchange files (.meet.json).

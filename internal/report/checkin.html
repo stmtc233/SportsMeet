@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>{{.Meet}} {{.Title}}</title>
+<style>{{.Style}}</style>
+</head>
+<body>
+{{$meet := .Meet}}{{$title := .Title}}{{$show := .ShowCheckIn}}
+{{range .Sheets}}
+<section class="sheet">
+  <p class="sheet-meet">{{$meet}} · {{$title}}</p>
+  <h2>{{.Event}} {{.Round}} {{.Heat}}</h2>
+  <table class="sheet-times">
+    <tbody><tr><th>计划时间</th><td>{{.Time}}</td>{{if $show}}<th>检录时间</th><td>{{.CheckIn}}</td>{{end}}</tr></tbody>
+  </table>
+  <table>
+    <thead><tr><th class="num">{{.PositionLabel}}</th><th class="narrow">号码</th><th>{{if .Team}}队伍 / {{.RosterLabel}}{{else}}姓名{{end}}</th><th>单位</th><th class="check">到</th><th class="check">缺</th></tr></thead>
+    <tbody>
+      {{range .Lines}}<tr><td class="num">{{.Position}}</td><td>{{.Bib}}</td><td>{{.Name}}{{range .Members}}<div class="member">{{.}}</div>{{end}}</td><td>{{.Unit}}</td><td class="check"><span class="box"></span></td><td class="check"><span class="box"></span></td></tr>
+      {{end}}
+    </tbody>
+  </table>
+  <p class="sign">裁判签名<span class="sign-line"></span></p>
+</section>
+{{else}}<p class="empty">没有可打印的组</p>
+{{end}}
+{{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
+</body>
+</html>

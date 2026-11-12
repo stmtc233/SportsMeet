@@ -66,6 +66,7 @@ type HeatView struct {
 	ScheduledAt     string `json:"scheduledAt"`
 	DurationMinutes *int   `json:"durationMinutes"`
 	HeatTimes
+	HeatStart
 	// ResultsUpdatedText is when the heat's results were last written, to the minute; "" = none.
 	ResultsUpdatedText string     `json:"resultsUpdatedText"`
 	Slots              []SlotView `json:"slots"`
@@ -95,6 +96,23 @@ func HeatTimesOf(roundStart, own string, minutes *int, day string) HeatTimes {
 	end, _ := domain.HeatEnd(r, h)
 	return HeatTimes{EffectiveAt: at, ScheduleInherited: inherited, ScheduledText: domain.ScheduledText(at, day),
 		DurationText: domain.DurationText(minutes), EndAt: end}
+}
+
+// HeatStart is when a heat actually started, as the pages show it.
+type HeatStart struct {
+	// StartedAt is the actual start (YYYY-MM-DDTHH:mm), "" = not recorded;
+	// StartedText shows it as the planned times are shown.
+	StartedAt   string `json:"startedAt"`
+	StartedText string `json:"startedText"`
+	// StartDeltaText compares it with the effective planned time: 晚 12 分钟,
+	// 早 5 分钟, 准时; "" when either is missing.
+	StartDeltaText string `json:"startDeltaText"`
+}
+
+// HeatStartOf shows a heat's actual start against its effective planned
+// time; day is the event's shown day.
+func HeatStartOf(effective, started, day string) HeatStart {
+	return HeatStart{StartedAt: started, StartedText: domain.ScheduledText(started, day), StartDeltaText: domain.StartDeltaText(effective, started)}
 }
 
 // SlotView is a slot with its result.
@@ -242,9 +260,11 @@ func (st *eventState) view(day string, zone *time.Location) *EventDetail {
 			ScheduledAt: r.ScheduledAt, ScheduledText: domain.ScheduledText(r.ScheduledAt, day),
 			Heats: make([]HeatView, len(r.Heats))}
 		for j, h := range r.Heats {
+			times := HeatTimesOf(r.ScheduledAt, h.ScheduledAt, h.DurationMinutes, day)
 			hv := HeatView{ID: h.ID, Ordinal: h.Ordinal, Name: h.Name, Label: domain.HeatLabel(h.Ordinal, h.Name),
 				ScheduledAt: h.ScheduledAt, DurationMinutes: h.DurationMinutes,
-				HeatTimes:          HeatTimesOf(r.ScheduledAt, h.ScheduledAt, h.DurationMinutes, day),
+				HeatTimes:          times,
+				HeatStart:          HeatStartOf(times.EffectiveAt, h.StartedAt, day),
 				ResultsUpdatedText: domain.RecordedText(h.ResultsUpdatedAt, zone),
 				KeepReason:         h.Facts().KeepReason(), Base: arrange.Fingerprint(h),
 				Slots: make([]SlotView, len(h.Slots))}

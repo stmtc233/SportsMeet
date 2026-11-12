@@ -133,9 +133,13 @@ type Heat struct {
 	Name        string `json:"name"`        // custom name only
 	ScheduledAt string `json:"scheduledAt"` // own time, YYYY-MM-DDTHH:mm wall clock; "" = the round's
 	// DurationMinutes is how long the heat is expected to take, 1–1440; nil = not given.
-	DurationMinutes *int   `json:"durationMinutes"`
-	Wind            *int   `json:"wind"`
-	Slots           []Slot `json:"slots"`
+	DurationMinutes *int `json:"durationMinutes"`
+	// StartedAt is when the heat actually started (YYYY-MM-DDTHH:mm wall
+	// clock, "" = not recorded). It is not arranging, so the fingerprint
+	// and the lock leave it out.
+	StartedAt string `json:"startedAt"`
+	Wind      *int   `json:"wind"`
+	Slots     []Slot `json:"slots"`
 	// ResultsUpdatedAt is the latest write among the slots' results (ms,
 	// 0 = none). It is read with the results and never stored on the heat.
 	ResultsUpdatedAt int64 `json:"-"`

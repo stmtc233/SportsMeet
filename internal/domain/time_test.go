@@ -191,3 +191,57 @@ func TestPlannedDayAndOutsideMeet(t *testing.T) {
 		t.Fatal("single-day meet / meet without days")
 	}
 }
+
+func TestWallClock(t *testing.T) {
+	zone := time.FixedZone("UTC+8", 8*3600)
+	ms := time.Date(2026, 11, 12, 16, 5, 59, 0, time.UTC).UnixMilli()
+	if got := WallClock(ms, zone); got != "2026-11-13T00:05" {
+		t.Errorf("WallClock = %q", got)
+	}
+	if WallClock(0, zone) != "" {
+		t.Error("WallClock(0) should be empty")
+	}
+}
+
+func TestCheckInAt(t *testing.T) {
+	for _, c := range []struct {
+		at   string
+		lead int
+		want string
+	}{
+		{"2026-11-12T09:30", 20, "2026-11-12T09:10"},
+		{"2026-11-13T00:10", 20, "2026-11-12T23:50"},
+		{"2026-03-01T00:00", 240, "2026-02-28T20:00"},
+		{"2026-11-12T09:30", 0, ""},
+		{"", 20, ""},
+		{"0001-01-01T00:10", 20, ""},
+	} {
+		if got := CheckInAt(c.at, c.lead); got != c.want {
+			t.Errorf("CheckInAt(%q, %d) = %q, want %q", c.at, c.lead, got, c.want)
+		}
+	}
+	for m, ok := range map[int]bool{-1: false, 0: true, 20: true, 240: true, 241: false} {
+		if ValidCheckInLead(m) != ok {
+			t.Errorf("ValidCheckInLead(%d) != %v", m, ok)
+		}
+	}
+}
+
+func TestStartDeltaText(t *testing.T) {
+	for _, c := range []struct{ planned, started, want string }{
+		{"2026-11-12T09:30", "2026-11-12T09:30", "准时"},
+		{"2026-11-12T09:30", "2026-11-12T09:42", "晚 12 分钟"},
+		{"2026-11-12T09:30", "2026-11-12T09:25", "早 5 分钟"},
+		{"2026-11-12T23:50", "2026-11-13T00:05", "晚 15 分钟"},
+		{"2026-11-12T09:30", "2026-11-12T10:35", "晚 1 小时 5 分钟"},
+		{"2026-11-12T09:30", "2026-11-12T11:30", "晚 2 小时"},
+		{"2026-11-12T09:30", "2026-11-13T11:30", "晚 1 天 2 小时"},
+		{"2026-12-31T23:00", "2026-11-30T23:00", "早 31 天"},
+		{"", "2026-11-12T09:30", ""},
+		{"2026-11-12T09:30", "", ""},
+	} {
+		if got := StartDeltaText(c.planned, c.started); got != c.want {
+			t.Errorf("StartDeltaText(%q, %q) = %q, want %q", c.planned, c.started, got, c.want)
+		}
+	}
+}

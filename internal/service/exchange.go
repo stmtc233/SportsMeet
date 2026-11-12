@@ -128,7 +128,7 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 			}
 			for _, h := range r.Heats {
 				heat := interchange.Heat{ID: h.ID, Ordinal: h.Ordinal, Name: h.Name, ScheduledAt: optStr(h.ScheduledAt),
-					DurationMinutes: h.DurationMinutes, Wind: h.Wind, Slots: []interchange.Slot{}}
+					DurationMinutes: h.DurationMinutes, StartedAt: optStr(h.StartedAt), Wind: h.Wind, Slots: []interchange.Slot{}}
 				for _, sl := range h.Slots {
 					if sl.CompetitorID() == "" {
 						continue
@@ -606,12 +606,15 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 				}
 				heatID := newID()
 				p.Heats++
-				sched := ""
+				sched, started := "", ""
 				if h.ScheduledAt != nil {
 					sched = *h.ScheduledAt
 				}
-				add(`INSERT INTO heats(id, round_id, ordinal, name, scheduled_at, duration_minutes, wind) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-					heatID, roundID, h.Ordinal, domain.NormalizeHeatName(h.Name), sched, optArg(h.DurationMinutes), optArg(h.Wind))
+				if h.StartedAt != nil {
+					started = *h.StartedAt
+				}
+				add(`INSERT INTO heats(id, round_id, ordinal, name, scheduled_at, duration_minutes, started_at, wind) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					heatID, roundID, h.Ordinal, domain.NormalizeHeatName(h.Name), sched, optArg(h.DurationMinutes), started, optArg(h.Wind))
 				for _, sl := range slots {
 					placedElsewhere[sl.CompetitorID()] = h.Ordinal
 					plan.stmts = append(plan.stmts, insertSlot(heatID, sl))

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { StButton, StMarkField, StMuted, StRow, StSection, StSelect, StTag, StTextField } from "../../design";
+import { IconTime, StButton, StIconButton, StMarkField, StMuted, StRow, StSection, StSelect, StTag, StTextField, iconStroke } from "../../design";
+import { HeatStarted } from "../event/HeatStarted";
 import { HeatTime } from "../event/HeatTime";
 import { statusLabels } from "../../lib/labels";
 import type { EntryView, EventDetail, HeatView, ResultInput, Status } from "../../mygo";
 import { ResultsController } from "./controller";
 import { mergeRows, sameRow, toRow, toRows, type Row, type Rows } from "./rows";
+import { StartedDialog } from "./StartedDialog";
 
 const isAttemptWord = (t: string) => /^(x|×|-|—|犯规|免跳|免投|免)$/i.test(t);
 const isTrials = (t: string) => /^[oOxX0×\-—]{1,3}$/.test(t);
@@ -31,6 +33,7 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
   const [extra, setExtra] = useState<string[]>([]);
   const [height, setHeight] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editStart, setEditStart] = useState(false);
   // base is what rows were typed over; accepted is what a save sent and
   // the next reload has not shown yet.
   const base = useRef(initial);
@@ -91,14 +94,16 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
   return (
     <StSection padded={false}
       title={
-        <>
-          {heat.label}
+        <span className="heat-title">
+          <span>{heat.label}</span>
           <HeatTime text={heat.scheduledText} inherited={heat.scheduleInherited} />
-        </>
+          <HeatStarted text={heat.startedText} delta={heat.startDeltaText} />
+        </span>
       }
       actions={
         <>
           {heat.resultsUpdatedText && <StMuted>修改于 {heat.resultsUpdatedText}</StMuted>}
+          <StIconButton size="small" label="开赛时间" onClick={() => setEditStart(true)}><IconTime size={16} strokeWidth={iconStroke} /></StIconButton>
           {kind === "height" && (
             <StRow wrap={false}>
               <StTextField value={height} onChange={setHeight} placeholder="高度" width="narrow" suffix="m" aria-label="高度" />
@@ -145,6 +150,7 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
           ];
         })}
       </div>
+      {editStart && <StartedDialog heat={heat} day={detail.day} onClose={() => setEditStart(false)} />}
     </StSection>
   );
 }
