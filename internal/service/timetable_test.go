@@ -2,8 +2,11 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
 // roundStart sets the start of an event's first round.
@@ -50,6 +53,13 @@ func newTimetableFixture(t *testing.T) *timetableFixture {
 	return tf
 }
 
+func editHeat(t *testing.T, f *fixture, in HeatEdit) *HeatEditResult {
+	t.Helper()
+	out, err := f.svc.EditHeat(f.ctx, ui, in)
+	must(t, err)
+	return out
+}
+
 func (tf *timetableFixture) on(eventID string) *fixture {
 	tf.event = eventID
 	return tf.fixture
@@ -75,14 +85,14 @@ func TestTimetableAndConflicts(t *testing.T) {
 	five := 5
 	sprint := tf.detail()
 	h2 := sprint.Rounds[0].Heats[1]
-	must(t, tf.svc.EditHeat(tf.ctx, ui, HeatEdit{EventID: tf.sprint, HeatID: h2.ID, Base: h2.Base, Name: "", ScheduledAt: "2026-11-12T09:05", DurationMinutes: &five}))
-	err := tf.svc.EditHeat(tf.ctx, ui, HeatEdit{EventID: tf.sprint, HeatID: h2.ID, Base: h2.Base, ScheduledAt: "2026-11-12T09:06"})
+	editHeat(t, tf.fixture, HeatEdit{EventID: tf.sprint, HeatID: h2.ID, Base: h2.Base, Name: "", ScheduledAt: "2026-11-12T09:05", DurationMinutes: &five})
+	_, err := tf.svc.EditHeat(tf.ctx, ui, HeatEdit{EventID: tf.sprint, HeatID: h2.ID, Base: h2.Base, ScheduledAt: "2026-11-12T09:06"})
 	if !errors.Is(err, ErrStale) {
 		t.Fatalf("edit with an old fingerprint: %v", err)
 	}
 	relayHeat := tf.on(tf.relay).detail().Rounds[0].Heats[0]
 	four := 4
-	must(t, tf.svc.EditHeat(tf.ctx, ui, HeatEdit{EventID: tf.relay, HeatID: relayHeat.ID, Base: relayHeat.Base, ScheduledAt: "2026-11-12T09:00", DurationMinutes: &four}))
+	editHeat(t, tf.fixture, HeatEdit{EventID: tf.relay, HeatID: relayHeat.ID, Base: relayHeat.Base, ScheduledAt: "2026-11-12T09:00", DurationMinutes: &four})
 	roundStart(t, tf.on(tf.combined[1]), "2026-11-13T09:00")
 	if got := tf.on(tf.relay).detail().Rounds[0].Heats[0]; len(got.Slots) != 1 || got.Slots[0].TeamID == "" {
 		t.Fatal("editing the time changed the slots")
@@ -108,16 +118,18 @@ func TestTimetableAndConflicts(t *testing.T) {
 	if c := first.Heats[0].Conflicts; len(c) != 1 || c[0].Other.EventID != tf.relay {
 		t.Fatalf("heat conflicts: %+v", c)
 	}
-	hc, err := tf.svc.EventConflicts(tf.ctx, tf.relay)
+	relayDetail := tf.on(tf.relay).detail()
+	hc, err := tf.svc.DraftConflicts(tf.ctx, DraftConflictRequest{EventID: tf.relay, Heats: []DraftTime{{Key: relayHeat.ID, RoundID: relayDetail.Rounds[0].ID,
+		ScheduledAt: "2026-11-12T09:00", DurationMinutes: &four, Competitors: []string{relayDetail.Rounds[0].Heats[0].Slots[0].TeamID}}}})
 	must(t, err)
-	if len(hc) != 1 || hc[0].HeatID != relayHeat.ID || hc[0].Conflicts[0].Other.HeatLabel != "第1组" {
+	if len(hc) != 1 || hc[0].HeatID != relayHeat.ID || hc[0].Conflicts[0].Other.HeatLabel != "第1组" || hc[0].Conflicts[0].Other.Text != "2026-11-12 09:00 男子100m 决赛 第1组" {
 		t.Fatalf("event conflicts: %+v", hc)
 	}
 
 	// Move the relay to 08:50–08:54: no overlap; a 10-minute rest flags
 	// 08:54 → 09:00, which leaves 6 minutes.
 	relayHeat = tf.on(tf.relay).detail().Rounds[0].Heats[0]
-	must(t, tf.svc.EditHeat(tf.ctx, ui, HeatEdit{EventID: tf.relay, HeatID: relayHeat.ID, Base: relayHeat.Base, ScheduledAt: "2026-11-12T08:50", DurationMinutes: &four}))
+	editHeat(t, tf.fixture, HeatEdit{EventID: tf.relay, HeatID: relayHeat.ID, Base: relayHeat.Base, ScheduledAt: "2026-11-12T08:50", DurationMinutes: &four})
 	cl, err := tf.svc.MeetConflicts(tf.ctx, tf.meet)
 	must(t, err)
 	if len(cl.Conflicts) != 0 {
@@ -157,8 +169,12 @@ func TestTimetableReportSection(t *testing.T) {
 	roundStart(t, tf.on(tf.sprint), "2026-11-12T09:00")
 	html, err := tf.svc.RenderReport(tf.ctx, ReportStartList, tf.meet, nil)
 	must(t, err)
-	if !strings.Contains(html, "竞赛日程表") || !strings.Contains(html, "未安排时间") || !strings.Contains(html, `<td class="time">09:00</td>`) {
+	if !strings.Contains(html, "竞赛日程表") || !strings.Contains(html, `<td class="time">09:00</td>`) {
 		t.Fatal("start list lacks the schedule")
+	}
+	// Only scheduled rounds are printed: the relay and the all-around have no time.
+	if strings.Contains(html, "未安排时间") || strings.Contains(html, "<td>男子4×100m</td>") {
+		t.Fatal("unscheduled rounds printed")
 	}
 	results, err := tf.svc.RenderReport(tf.ctx, ReportResults, tf.meet, nil)
 	must(t, err)
@@ -217,7 +233,7 @@ func TestMultiRoundSchedule(t *testing.T) {
 	// Stale: a heat of the second round changes after the preview.
 	relayHeat := relayRound.Heats[0]
 	one := 1
-	must(t, tf.svc.EditHeat(tf.ctx, ui, HeatEdit{EventID: tf.relay, HeatID: relayHeat.ID, Base: relayHeat.Base, DurationMinutes: &one}))
+	editHeat(t, tf.fixture, HeatEdit{EventID: tf.relay, HeatID: relayHeat.ID, Base: relayHeat.Base, DurationMinutes: &one})
 	_, err = tf.svc.ApplySchedule(tf.ctx, ui, in, hash, true)
 	if !errors.Is(err, ErrStale) {
 		t.Fatalf("stale multi-round preview: %v", err)
@@ -253,5 +269,201 @@ func TestMultiRoundSchedule(t *testing.T) {
 	must(t, err)
 	if len(p.Errors) != 1 || !strings.Contains(p.Errors[0], "轮次间隔") {
 		t.Fatalf("gap bound: %+v", p.Errors)
+	}
+}
+
+func TestMultiRoundScheduleFollowsRequestOrder(t *testing.T) {
+	tf := newTimetableFixture(t)
+	sprintRound := tf.on(tf.sprint).detail().Rounds[0]
+	relayRound := tf.on(tf.relay).detail().Rounds[0]
+	// The relay first, then the 100m: rounds[] is the order, not the event list.
+	in := ScheduleRequest{Rounds: []RoundRef{{tf.relay, relayRound.ID}, {tf.sprint, sprintRound.ID}}, StartAt: "2026-11-12T09:00", IntervalMinutes: 5}
+	p, err := tf.svc.PreviewSchedule(tf.ctx, in)
+	must(t, err)
+	got := []string{}
+	for _, c := range p.Changes {
+		got = append(got, c.RoundID+"@"+c.After)
+	}
+	want := []string{relayRound.ID + "@2026-11-12T09:00", sprintRound.ID + "@2026-11-12T09:05", sprintRound.ID + "@2026-11-12T09:10"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("order: %v", got)
+	}
+	reversed := in
+	reversed.Rounds = []RoundRef{in.Rounds[1], in.Rounds[0]}
+	q, err := tf.svc.PreviewSchedule(tf.ctx, reversed)
+	must(t, err)
+	if q.PreviewHash == p.PreviewHash || q.Changes[0].RoundID != sprintRound.ID {
+		t.Fatal("another order must be another plan")
+	}
+	_, err = tf.svc.ApplySchedule(tf.ctx, ui, reversed, p.PreviewHash, true)
+	if !errors.Is(err, ErrStale) {
+		t.Fatalf("a preview of another order confirmed: %v", err)
+	}
+}
+
+func TestSetHeatTime(t *testing.T) {
+	tf := newTimetableFixture(t)
+	sprint := tf.on(tf.sprint).detail()
+	h := sprint.Rounds[0].Heats[0]
+	editHeat(t, tf.fixture, HeatEdit{EventID: tf.sprint, HeatID: h.ID, Base: h.Base, Name: "甲组"})
+	must(t, tf.svc.SaveResults(tf.ctx, ui, h.ID, []ResultInput{{Position: 1, Mark: "12.34"}}))
+	h = tf.detail().Rounds[0].Heats[0]
+	relayHeat := tf.on(tf.relay).detail().Rounds[0].Heats[0]
+	editHeat(t, tf.fixture, HeatEdit{EventID: tf.relay, HeatID: relayHeat.ID, Base: relayHeat.Base, ScheduledAt: "2026-11-12T09:02"})
+
+	five := 5
+	out, err := tf.svc.SetHeatTime(tf.ctx, store.SourceMCP, HeatTimeEdit{EventID: tf.sprint, HeatID: h.ID, Base: h.Base, ScheduledAt: "2026-11-13T09:00", DurationMinutes: &five})
+	must(t, err)
+	after := tf.on(tf.sprint).detail().Rounds[0].Heats[0]
+	if after.Name != "甲组" || after.ScheduledAt != "2026-11-13T09:00" || *after.DurationMinutes != 5 || after.Base != out.Base {
+		t.Fatalf("heat after: %+v / %+v", after, out)
+	}
+	if len(after.Slots) != len(h.Slots) || after.Slots[0].Result == nil || after.Slots[0].Result.MarkText == "" {
+		t.Fatal("slots or results changed")
+	}
+	if len(out.Warnings) != 1 || out.Warnings[0] != "时间不在赛事日期内" || len(out.Conflicts) != 0 {
+		t.Fatalf("result: %+v", out)
+	}
+	_, err = tf.svc.SetHeatTime(tf.ctx, store.SourceMCP, HeatTimeEdit{EventID: tf.sprint, HeatID: h.ID, Base: h.Base, ScheduledAt: "2026-11-12T09:00"})
+	if !errors.Is(err, ErrStale) {
+		t.Fatalf("old fingerprint: %v", err)
+	}
+	// Back next to the relay (选手01 at 09:02): the conflict comes back with it.
+	out, err = tf.svc.SetHeatTime(tf.ctx, store.SourceMCP, HeatTimeEdit{EventID: tf.sprint, HeatID: h.ID, Base: out.Base, ScheduledAt: "2026-11-12T09:00", DurationMinutes: &five})
+	must(t, err)
+	if len(out.Warnings) != 0 || len(out.Conflicts) != 1 || out.Conflicts[0].Other.EventID != tf.relay || out.Conflicts[0].AthleteName != "选手01" {
+		t.Fatalf("conflicts: %+v", out)
+	}
+	_, err = tf.svc.SetHeatTime(tf.ctx, store.SourceMCP, HeatTimeEdit{EventID: tf.sprint, HeatID: h.ID, Base: out.Base, ScheduledAt: "9:00"})
+	wantInvalid(t, err, "计划时间格式")
+	zero := 0
+	_, err = tf.svc.SetHeatTime(tf.ctx, store.SourceMCP, HeatTimeEdit{EventID: tf.sprint, HeatID: h.ID, Base: out.Base, DurationMinutes: &zero})
+	wantInvalid(t, err, "预计用时")
+	rows, err := tf.svc.store.Query(tf.ctx, `SELECT source FROM audit_log WHERE action = 'board.saved' AND source = 'mcp'`)
+	must(t, err)
+	if len(rows.Values) != 2 {
+		t.Fatalf("audit: %+v", rows.Values)
+	}
+}
+
+func TestDraftConflicts(t *testing.T) {
+	tf := newTimetableFixture(t)
+	roundStart(t, tf.on(tf.sprint), "2026-11-12T09:00")
+	relay := tf.on(tf.relay).detail()
+	editHeat(t, tf.fixture, HeatEdit{EventID: tf.relay, HeatID: relay.Rounds[0].Heats[0].ID, Base: relay.Rounds[0].Heats[0].Base, ScheduledAt: "2026-11-12T09:00"})
+	sprint := tf.on(tf.sprint).detail()
+	r := sprint.Rounds[0]
+	draft := func(heats ...DraftTime) DraftConflictRequest {
+		return DraftConflictRequest{EventID: tf.sprint, Heats: heats}
+	}
+	saved := func(i int) DraftTime {
+		h := r.Heats[i]
+		d := DraftTime{Key: h.ID, RoundID: r.ID, ScheduledAt: h.ScheduledAt, DurationMinutes: h.DurationMinutes}
+		for _, sl := range h.Slots {
+			d.Competitors = append(d.Competitors, sl.AthleteID)
+		}
+		return d
+	}
+	// As saved: 选手01 in heat 1 at 09:00 and in the relay at 09:00.
+	got, err := tf.svc.DraftConflicts(tf.ctx, draft(saved(0), saved(1)))
+	must(t, err)
+	if len(got) != 1 || got[0].HeatID != r.Heats[0].ID || got[0].Conflicts[0].Other.EventID != tf.relay {
+		t.Fatalf("saved draft: %+v", got)
+	}
+	// Unsaved: heat 1 moved to 10:00, 选手01 moved into a new heat at 09:00.
+	moved := saved(0)
+	moved.ScheduledAt, moved.Competitors = "2026-11-12T10:00", moved.Competitors[1:]
+	added := DraftTime{Key: "new-1", RoundID: r.ID, Name: "", Competitors: []string{tf.athletes[0]}}
+	got, err = tf.svc.DraftConflicts(tf.ctx, draft(moved, saved(1), added))
+	must(t, err)
+	if len(got) != 1 || got[0].HeatID != "new-1" || got[0].Conflicts[0].AthleteName != "选手01" {
+		t.Fatalf("unsaved draft: %+v", got)
+	}
+	// The other heat of the same draft is named by its place in the draft.
+	clash := saved(1)
+	clash.ScheduledAt, clash.Competitors = "2026-11-12T10:00", append(clash.Competitors, tf.athletes[1])
+	got, err = tf.svc.DraftConflicts(tf.ctx, draft(moved, clash))
+	must(t, err)
+	if len(got) != 2 || got[0].Conflicts[0].Other.HeatLabel != "第2组" || got[1].Conflicts[0].Other.HeatLabel != "第1组" {
+		t.Fatalf("draft labels: %+v", got)
+	}
+	// A heat left out of the draft (deleted there) no longer counts.
+	got, err = tf.svc.DraftConflicts(tf.ctx, draft(saved(1)))
+	must(t, err)
+	if len(got) != 0 {
+		t.Fatalf("deleted heat counted: %+v", got)
+	}
+	if d := tf.detail(); d.Rounds[0].Heats[0].Base != r.Heats[0].Base {
+		t.Fatal("checking a draft wrote")
+	}
+}
+
+func TestTimetablePeopleOrderAndDays(t *testing.T) {
+	tf := newTimetableFixture(t)
+	in := track()
+	in.Discipline, in.Prelim, in.AdvanceByPlace = "200m", true, 2
+	e, err := tf.svc.SaveEvent(tf.ctx, ui, tf.meet, "", in)
+	must(t, err)
+	tf.on(e.ID).enter(tf.athletes[:3]...)
+	empty, err := tf.svc.Schedule(tf.ctx, tf.meet)
+	must(t, err)
+	// Unscheduled: rounds with heats first, then those without.
+	var heats []int
+	for _, r := range empty.Unscheduled {
+		heats = append(heats, r.HeatCount)
+	}
+	if fmt.Sprint(heats) != "[2 1 1 1 0 0]" {
+		t.Fatalf("unscheduled order: %v", heats)
+	}
+	byRound := map[string]TimetableRound{}
+	for _, r := range empty.Unscheduled {
+		byRound[r.EventID+r.RoundLabel] = r
+	}
+	prelim, final := byRound[e.ID+"预赛"], byRound[e.ID+"决赛"]
+	if prelim.People != 3 || !prelim.PeopleEntered || final.People != 0 || final.PeopleEntered {
+		t.Fatalf("entered people: %+v %+v", prelim, final)
+	}
+	if relay := byRound[tf.relay+"决赛"]; relay.People != 1 || relay.PeopleEntered {
+		t.Fatalf("placed people: %+v", relay)
+	}
+
+	// Across midnight: the round is listed on its first day, later times carry their date.
+	roundStart(t, tf.on(tf.sprint), "2026-11-12T23:55")
+	r := tf.detail().Rounds[0]
+	ten := 10
+	editHeat(t, tf.fixture, HeatEdit{EventID: tf.sprint, HeatID: r.Heats[1].ID, Base: r.Heats[1].Base, ScheduledAt: "2026-11-13T00:05", DurationMinutes: &ten})
+	editHeat(t, tf.fixture, HeatEdit{EventID: tf.sprint, HeatID: r.Heats[0].ID, Base: r.Heats[0].Base, DurationMinutes: &ten})
+	tt, err := tf.svc.Schedule(tf.ctx, tf.meet)
+	must(t, err)
+	if len(tt.Days) != 1 || tt.Days[0].Day != "2026-11-12" {
+		t.Fatalf("days: %+v", tt.Days)
+	}
+	heat1, heat2 := tt.Days[0].Rounds[0].Heats[0], tt.Days[0].Rounds[0].Heats[1]
+	if heat1.ScheduledText != "23:55" || heat1.EndText != "2026-11-13 00:05" || heat2.ScheduledText != "2026-11-13 00:05" || heat2.EndText != "2026-11-13 00:15" {
+		t.Fatalf("midnight texts: %+v / %+v", heat1, heat2)
+	}
+
+	// A heat that competed while following the round keeps saying so when the round moves.
+	must(t, tf.svc.SaveResults(tf.ctx, ui, heat1.ID, []ResultInput{{Position: 1, Mark: "12.34"}}))
+	roundStart(t, tf.fixture, "2026-11-12T15:00")
+	tt, err = tf.svc.Schedule(tf.ctx, tf.meet)
+	must(t, err)
+	got := tt.Days[0].Rounds[0].Heats[0]
+	if got.ScheduledText != "15:00" || !got.ScheduleInherited || got.KeepReason != "已有成绩" {
+		t.Fatalf("scored inherited heat: %+v", got)
+	}
+
+	// An empty meet has no days and nothing unscheduled.
+	m, err := tf.svc.CreateMeet(tf.ctx, ui, MeetInput{Name: "空赛事", StartDate: "2026-11-12"})
+	must(t, err)
+	none, err := tf.svc.Schedule(tf.ctx, m.ID)
+	must(t, err)
+	if len(none.Days) != 0 || len(none.Unscheduled) != 0 || len(none.Conflicts) != 0 {
+		t.Fatalf("empty meet: %+v", none)
+	}
+	html, err := tf.svc.RenderReport(tf.ctx, ReportStartList, m.ID, nil)
+	must(t, err)
+	if strings.Contains(html, "竞赛日程表") {
+		t.Fatal("empty schedule printed")
 	}
 }

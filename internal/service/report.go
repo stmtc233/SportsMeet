@@ -112,7 +112,7 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 	}
 	book := &report.Book{Meet: meet.Name, Dates: domain.DateRangeText(meet.StartDate, meet.EndDate), Location: meet.Location,
 		PrintedAt: domain.RecordedText(s.store.Now(), s.zone)}
-	book.Schedule = scheduleBook(newMeetPlan(*meet, events, rounds, teams, athletes, 0).timetable(only))
+	book.Schedule = scheduleBook(newMeetPlan(*meet, events, rounds, teams, athletes, entries, 0).timetable(only))
 	for _, e := range domain.ScheduleOrder(events, rounds, meet.StartDate) {
 		if len(only) > 0 && !only[e.ID] {
 			continue
@@ -259,8 +259,8 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 	return book, nil
 }
 
-// scheduleBook is the 竞赛日程表: the timetable's rounds by day and time,
-// the rounds with no time last.
+// scheduleBook is the 竞赛日程表: the timetable's scheduled rounds by day
+// and time; rounds with no time are not printed.
 func scheduleBook(t *Timetable) []report.ScheduleDay {
 	rows := func(list []TimetableRound) []report.ScheduleRow {
 		out := make([]report.ScheduleRow, 0, len(list))
@@ -272,9 +272,6 @@ func scheduleBook(t *Timetable) []report.ScheduleDay {
 	var out []report.ScheduleDay
 	for _, d := range t.Days {
 		out = append(out, report.ScheduleDay{Day: d.Day, Rows: rows(d.Rounds)})
-	}
-	if len(t.Unscheduled) > 0 {
-		out = append(out, report.ScheduleDay{Day: "未安排时间", Rows: rows(t.Unscheduled)})
 	}
 	return out
 }

@@ -91,7 +91,7 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
     // detail plus a 跳远 round at 09:00 and an unscheduled 跳高 round. With
     // options.conflicts, 运动员1 is in the 100m 第1组 and the 跳远 heat.
     (globalThis as any).__heatEdits = [];
-    const ref = (eventId: string, eventName: string, roundId: string, heatId: string, heatLabel: string, timeText: string) => ({ eventId, eventName, roundId, roundLabel: "决赛", heatId, heatLabel, timeText });
+    const ref = (eventId: string, eventName: string, roundId: string, heatId: string, heatLabel: string, timeText: string) => ({ eventId, eventName, roundId, roundLabel: "决赛", heatId, heatLabel, timeText, text: `${timeText} ${eventName} 决赛 ${heatLabel}` });
     const conflicts = () => options.conflicts ? [{ athleteId: "a0", athleteName: "运动员1", overlap: true, gapMinutes: -5, text: "时间重叠",
       first: ref("event", event.name, "round", "heat", "第1组", "2026-11-12 09:00"), second: ref("jump", "男子跳远", "jump-round", "jump-heat", "第1组", "2026-11-12 09:00") }] : [];
     const heatConflicts = (heatId: string) => conflicts().filter((c) => c.first.heatId === heatId || c.second.heatId === heatId)
@@ -103,12 +103,12 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
       const heats = r.heats.map(timetableHeat);
       const startAt = heats.map((h) => h.effectiveAt).filter(Boolean).sort()[0] ?? "";
       const sprint = { eventId: event.id, eventName: event.name, roundId: r.id, roundLabel: r.label, day: startAt.slice(0, 10), scheduledAt: r.scheduledAt, scheduledText: r.scheduledText,
-        startAt, startText: startAt ? shown(startAt) : "", heatCount: heats.length, people: heats.reduce((n, h) => n + h.people, 0), heats };
+        startAt, startText: startAt ? shown(startAt) : "", heatCount: heats.length, people: heats.reduce((n, h) => n + h.people, 0), peopleEntered: false, heats };
       const jumpHeat = { id: "jump-heat", label: "第1组", name: "", base: "jump-base", scheduledAt: "", durationMinutes: 30, effectiveAt: "2026-11-12T09:00", scheduleInherited: true, scheduledText: "09:00",
         durationText: "30 分钟", endAt: "2026-11-12T09:30", endText: "09:30", keepReason: "", people: 1, conflicts: heatConflicts("jump-heat") };
       const jump = { eventId: "jump", eventName: "男子跳远", roundId: "jump-round", roundLabel: "决赛", day: "2026-11-12", scheduledAt: "2026-11-12T09:00", scheduledText: "09:00",
-        startAt: "2026-11-12T09:00", startText: "09:00", heatCount: 1, people: 1, heats: [jumpHeat] };
-      const high = { eventId: "high", eventName: "男子跳高", roundId: "high-round", roundLabel: "决赛", day: "", scheduledAt: "", scheduledText: "", startAt: "", startText: "", heatCount: 0, people: 0, heats: [] };
+        startAt: "2026-11-12T09:00", startText: "09:00", heatCount: 1, people: 1, peopleEntered: false, heats: [jumpHeat] };
+      const high = { eventId: "high", eventName: "男子跳高", roundId: "high-round", roundLabel: "决赛", day: "", scheduledAt: "", scheduledText: "", startAt: "", startText: "", heatCount: 0, people: 12, peopleEntered: true, heats: [] };
       const day = [sprint, jump].filter((x) => x.day).sort((a, b) => a.startAt.localeCompare(b.startAt));
       return { minRestMinutes: prefs.minRestMinutes, days: [{ day: "2026-11-12", rounds: day }], unscheduled: sprint.day ? [high] : [sprint, high], conflicts: conflicts() };
     };
@@ -231,7 +231,14 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
             return p;
           }
           case "Arrange.MeetSchedule": return timetable();
-          case "Arrange.HeatConflicts": return detail.rounds[0]!.heats.map((h) => ({ heatId: h.id, conflicts: heatConflicts(h.id) })).filter((h) => h.conflicts.length > 0);
+          case "Arrange.DraftConflicts": {
+            // The draft's own heats by key; 运动员1 placed in a heat at 09:00 meets the 跳远 heat.
+            (globalThis as any).__draftConflictCalls = ((globalThis as any).__draftConflictCalls ?? 0) + 1;
+            if (!options.conflicts) return [];
+            const r = detail.rounds[0]!;
+            return args[0].heats.filter((h: any) => h.competitors.includes("a0") && (h.scheduledAt || r.scheduledAt || (r.heats.find((x) => x.id === h.key)?.effectiveAt ?? "")) === "2026-11-12T09:00")
+              .map((h: any) => ({ heatId: h.key, conflicts: heatConflicts("heat") }));
+          }
           case "Arrange.EditHeat": {
             const input = args[0];
             (globalThis as any).__heatEdits.push(structuredClone(input));
@@ -239,7 +246,7 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
             const heat = r.heats.find((h) => h.id === input.heatId)!;
             if (heat.base !== input.base) return error("E_STALE");
             Object.assign(heat, times(r.scheduledAt, input.scheduledAt, input.durationMinutes), { name: input.name, base: heat.base + "-edited" });
-            changed("heats", "meet", "event"); return null;
+            changed("heats", "meet", "event"); return { base: heat.base, warnings: [], conflicts: [] };
           }
           case "Arrange.Schedule":
             (globalThis as any).__scheduleCalls.save++;

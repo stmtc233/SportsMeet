@@ -38,12 +38,13 @@ func (a Arrange) MeetSchedule(ctx context.Context, meetID string) (*service.Time
 	return a.Svc.Schedule(ctx, meetID)
 }
 
-// HeatConflicts lists the athlete time conflicts of an event's heats.
-func (a Arrange) HeatConflicts(ctx context.Context, eventID string) ([]service.HeatConflicts, error) {
-	return a.Svc.EventConflicts(ctx, eventID)
+// EditHeat saves one heat's name, time and duration from the schedule page.
+func (a Arrange) EditHeat(ctx context.Context, in service.HeatEdit) (*service.HeatEditResult, error) {
+	return a.Svc.EditHeat(ctx, ui, in)
 }
 
-// EditHeat saves one heat's name, time and duration from the schedule page.
-func (a Arrange) EditHeat(ctx context.Context, in service.HeatEdit) error {
-	return a.Svc.EditHeat(ctx, ui, in)
+// DraftConflicts lists the conflicts of the arrange page's draft heats,
+// unsaved changes included, by heat key.
+func (a Arrange) DraftConflicts(ctx context.Context, in service.DraftConflictRequest) ([]service.HeatConflicts, error) {
+	return a.Svc.DraftConflicts(ctx, in)
 }

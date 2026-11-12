@@ -95,6 +95,7 @@
 | `get_schedule` | 赛事竞赛日程(只读):按天、按生效时间的轮次与组,未安排时间的轮次,全部冲突 |
 | `list_conflicts` | 赛事运动员时间冲突(只读),附所用最短休息时间 |
 | `set_round_start` | 设置或清除一个轮次的开始时间;直接写入,返回 `warnings` |
+| `set_heat_time` | 设置一个组的单独时间与预计用时;带组指纹,直接写入,返回新指纹、`warnings` 与该组的冲突 |
 | `preview_schedule` → `schedule_heats` | 批量排一个轮次,或按顺序连排同一赛事的多个轮次的计划时间与预计用时,跳过已比赛的组 |
 | `preview_results` → `set_results` | 成绩与逐次记录,空成绩可直接提交 |
 | `preview_delete_meet/unit/event/athletes/heat` → `delete_meet/unit/event/athletes/heat` | 各实体删除,按对应工具传赛事 / 项目 / 组 / 运动员 ID |
@@ -108,14 +109,20 @@
 
 ## 日程与冲突
 
-- `get_schedule {meetId}` 返回 `Timetable`:`days[]`(`day` 与当天的 `rounds[]`)、`unscheduled[]`、`conflicts[]` 与 `minRestMinutes`。轮次给出项目、轮次名、开始时间 `scheduledAt` / `scheduledText`、最早计划时间 `startAt` / `startText`、组数 `heatCount`、人数 `people`(队伍按队员计);组给出 `scheduledAt`、`effectiveAt`、`scheduleInherited`、`durationMinutes`、`endAt` / `endText`、`keepReason`(非空即已比赛)、`people` 与该组的冲突。
-- `list_conflicts {meetId}` 返回 `{minRestMinutes, conflicts}`;每项冲突给出运动员、`overlap`、`gapMinutes`(重叠时为负)、文本 `text`(「时间重叠」/「间隔 N 分钟」)与两个组 `first` / `second`(项目、轮次、组的 ID 与名称,带日期的时间 `timeText`)。规则见 [arrange.md](arrange.md)「冲突检查」;冲突只提示,任何写入都不因它被拒绝。
+- `get_schedule {meetId}` 返回 `Timetable`:`days[]`(`day` 与当天的 `rounds[]`)、`unscheduled[]`(全部没有时间的轮次,有组的在前)、`conflicts[]` 与 `minRestMinutes`。轮次给出项目、轮次名、开始时间 `scheduledAt` / `scheduledText`、最早计划时间 `startAt` / `startText`、组数 `heatCount`、人数 `people` 与 `peopleEntered`(口径见 [arrange.md](arrange.md)「竞赛日程」);组给出 `scheduledAt`、`effectiveAt`、`scheduleInherited`、`durationMinutes`、`endAt` / `endText`、`keepReason`(非空即已比赛)、`people` 与该组的冲突。
+- `list_conflicts {meetId}` 返回 `{minRestMinutes, conflicts}`;每项冲突给出运动员、`overlap`、`gapMinutes`(重叠时为负)、文本 `text`(「时间重叠」/「间隔 N 分钟」)与两个组 `first` / `second`(项目、轮次、组的 ID 与名称,带日期的时间 `timeText`,完整名称 `text`)。规则见 [arrange.md](arrange.md)「冲突检查」;冲突只提示,任何写入都不因它被拒绝。
 - 最短休息时间只能在应用「设置 → 编排」修改,MCP 不改设置。
 
 ## 轮次开始时间
 
 - `set_round_start` 接受 `input: {eventId, roundId, scheduledAt}`,`scheduledAt` 为本地 `YYYY-MM-DDTHH:mm`,空字符串清除。它只改一个轮次字段、不改组与成绩,所以直接写入、不走预览;值不变时不写日志。返回 `{warnings}`,判断与界面的保存前提示相同(→ [domain.md](domain.md)「时间」),只提示不拦截。
-- 组的单独时间与预计用时由 `auto_arrange` / `advance` 新建的组为空,之后经 `schedule_heats` 批量写入;MCP 没有逐组改时间的工具。
+- 组的单独时间与预计用时由 `auto_arrange` / `advance` 新建的组为空,之后经 `schedule_heats` 批量写入,或经 `set_heat_time` 逐组修改。
+
+## 逐组改时间
+
+- `set_heat_time` 接受 `input: {eventId, heatId, base, scheduledAt, durationMinutes}`。`base` 是 `get_event` 里该组的指纹;组在此之后有任何变化(位置、成绩、名称、时间)返回 `E_STALE`,须重新读取。`scheduledAt` 为本地 `YYYY-MM-DDTHH:mm`,空字符串表示沿用轮次开始时间;`durationMinutes` 为 1–1440 或 `null`。
+- 只改这一组的时间与预计用时,组名、位置、成绩、名次不变;已比赛的组也可改。它与界面的「编辑组」共用 service(`SetHeatTime` / `EditHeat`),经编排保存的同一路径写入,日志动作 `board.saved`、来源 `mcp`。单个字段、不动成绩,所以直接写入、不走预览。
+- 返回 `{base, warnings, conflicts}`:`base` 是改后的新指纹,可直接用于下一次修改;`warnings` 如「时间不在赛事日期内」;`conflicts` 是改后该组的时间冲突(运动员、`text`、另一组 `other`)。提示与冲突都不拦截写入,客户端须转告用户。
 
 ## 客户端连接
 

@@ -5,7 +5,7 @@ import { errorText, isStale } from "../../lib/errors";
 import type { EntryView, EventDetail } from "../../mygo";
 import { AddEntriesDialog } from "../event/AddEntriesDialog";
 import { AutoDialog } from "./AutoDialog";
-import { ArrangeController, useHeatConflicts } from "./controller";
+import { ArrangeController, useDraftConflicts } from "./controller";
 import { addHeat, appendPlanned, deleteHeat, diff, editHeat, fromDetail, heatChanged, isLocked, merge, moveHeat, place, placedIn, pushHistory, redo, resetAll, undo, unlock, unplace, type ArrangeDraft, type DraftHeat, type Edit, type History } from "./draft";
 import { AthleteChip, dragType, HeatCard } from "./HeatCard";
 import { HeatDialog } from "./HeatDialog";
@@ -113,7 +113,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   const loadedRound = loaded.rounds.find((r) => r.roundId === roundView?.id);
   const entries = useMemo(() => new Map<string, EntryView>(detail.entries.map((e) => [e.competitorId, e])), [detail.entries]);
   const placed = useMemo(() => placedIn(round), [round]);
-  const conflicts = useHeatConflicts(event.id, meetId);
+  const conflicts = useDraftConflicts(event.id, meetId, draft.rounds);
   if (!roundView || !round) return <StEmpty>没有轮次</StEmpty>;
   const firstOpen = roundView.heats.find((h) => !h.keepReason);
   const free = detail.entries.filter((e) => !placed.has(e.competitorId));
@@ -185,7 +185,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
           {round.heats.length === 0 && <StEmpty action={<StButton variant="primary" onClick={() => setAuto(true)}>自动编排</StButton>}>{draft.reset ? "保存后将删除全部组" : "还没有组"}</StEmpty>}
           <div className="heats">
             {round.heats.map((h, i) => (
-              <HeatCard key={h.key} heat={h} index={i} count={round.heats.length} positions={positionsOf(h)} locked={isLocked(draft, h)} conflicts={conflicts.get(h.id)}
+              <HeatCard key={h.key} heat={h} index={i} count={round.heats.length} positions={positionsOf(h)} locked={isLocked(draft, h)} conflicts={conflicts.get(h.key)}
                 changed={heatChanged(h, loadedRound?.heats.find((x) => x.key === h.key))} entries={entries} picked={picked}
                 onPick={(id) => setPicked(picked === id ? "" : id)}
                 onPlace={(pos, id) => tryEdit(place(draft, round.roundId, h.key, pos, id, laned))}

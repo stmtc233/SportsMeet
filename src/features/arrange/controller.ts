@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Arrange, type BoardSave, type HeatConflict, type PlanRequest, type RoundStart } from "../../mygo";
+import { Arrange, events, type BoardSave, type HeatConflict, type HeatConflicts, type PlanRequest, type RoundStart } from "../../mygo";
 import { act } from "../../lib/action";
-import { useData } from "../../lib/useData";
+import { draftTimes, type DraftRound } from "./draft";
 
 export const ArrangeController = {
   save: (input: BoardSave) => Arrange.save(input),
@@ -24,10 +24,22 @@ export function useScheduleWarning(eventId: string, at: string) {
 }
 
 /**
- * The athlete time conflicts of the event's heats, by heat id. Any change
- * in the meet can move them, and so can the minimum rest in the settings.
+ * The athlete time conflicts of the draft's heats, by heat key: Go checks
+ * the draft (unsaved changes included) against the meet's saved times.
+ * Draft changes and data changes in the meet (or the minimum rest) are
+ * merged into one call after a short pause.
  */
-export function useHeatConflicts(eventId: string, meetId: string): Map<string, HeatConflict[]> {
-  const { data } = useData(() => Arrange.heatConflicts(eventId), [eventId], (c) => c.meetId === meetId || c.kind === "settings");
-  return useMemo(() => new Map((data ?? []).map((h) => [h.heatId, h.conflicts])), [data]);
+export function useDraftConflicts(eventId: string, meetId: string, rounds: DraftRound[]): Map<string, HeatConflict[]> {
+  const request = JSON.stringify(draftTimes(eventId, rounds));
+  const [tick, setTick] = useState(0);
+  const [data, setData] = useState<HeatConflicts[]>([]);
+  useEffect(() => events.dataChanged.on((c) => { if (c.meetId === meetId || c.kind === "settings") setTick((n) => n + 1); }), [meetId]);
+  useEffect(() => {
+    let live = true;
+    const timer = setTimeout(() => {
+      void Arrange.draftConflicts(JSON.parse(request)).then((list) => { if (live) setData(list ?? []); }).catch(() => { if (live) setData([]); });
+    }, 300);
+    return () => { live = false; clearTimeout(timer); };
+  }, [request, tick]);
+  return useMemo(() => new Map(data.map((h) => [h.heatId, h.conflicts])), [data]);
 }

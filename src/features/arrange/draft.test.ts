@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { addHeat, deleteHeat, diff, editHeat, merge, moveHeat, place, pushHistory, redo, resetAll, undo, unlock, unplace, type ArrangeDraft, type DraftHeat } from "./draft";
+import { addHeat, deleteHeat, diff, draftTimes, editHeat, merge, moveHeat, place, pushHistory, redo, resetAll, undo, unlock, unplace, type ArrangeDraft, type DraftHeat } from "./draft";
 
 function heat(id: string, slots: [number, string][], keepReason = ""): DraftHeat {
   return { key: id, id, base: `base-${id}`, label: id, name: "", scheduledAt: "", durationMinutes: null, scheduledText: "", scheduleInherited: false,
@@ -135,4 +135,13 @@ test("a round start changed elsewhere shows on local heats without their own tim
   expect(heats.map((h) => [h.scheduledText, h.scheduleInherited])).toEqual([["14:00", true], ["10:00", false], ["14:00", true]]);
   expect(slots(out.draft, 0)).toBe("1a 2x");
   expect(diff(out.draft, fresh, "e").count).toBe(3);
+});
+
+test("draftTimes sends every draft heat with its key, time and competitors, not deleted ones", () => {
+  const d = ok(deleteHeat(addHeat(board(heat("h1", [[2, "a"], [1, "b"]]), heat("h2", [])), "r"), "r", "h2"));
+  const withTime = ok({ draft: editHeat(d, "r", "h1", { name: "甲", scheduledAt: "2026-11-12T09:00", durationMinutes: 5, scheduledText: "09:00", scheduleInherited: false, durationText: "5 分钟" }) });
+  const req = draftTimes("e", withTime.rounds);
+  expect(req.eventId).toBe("e");
+  expect(req.heats.map((h) => h.key)).toEqual(["h1", withTime.rounds[0]!.heats[1]!.key]);
+  expect(req.heats[0]).toEqual({ key: "h1", roundId: "r", name: "甲", scheduledAt: "2026-11-12T09:00", durationMinutes: 5, competitors: ["a", "b"] });
 });

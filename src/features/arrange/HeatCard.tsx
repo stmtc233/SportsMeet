@@ -31,7 +31,7 @@ interface HeatCardProps {
   positions: number[];
   locked: boolean;
   changed: boolean;
-  /** Saved times only: a warning, never a block. */
+  /** From the draft, unsaved changes included: a warning, never a block. */
   conflicts?: HeatConflict[];
   entries: Map<string, EntryView>;
   picked: string;
@@ -111,6 +111,6 @@ export function HeatCard({ heat, index, count, positions, locked, changed, confl
 
 /** Marks a heat with athlete time conflicts; the title lists who and with which heat. */
 export function ConflictTag({ conflicts }: { conflicts: HeatConflict[] }) {
-  const lines = conflicts.map((c) => `${c.athleteName}：${c.text}，${c.other.timeText} ${c.other.eventName} ${c.other.roundLabel} ${c.other.heatLabel}`);
+  const lines = conflicts.map((c) => `${c.athleteName}：${c.text}，${c.other.text}`);
   return <span className="conflict-tag" title={lines.join("\n")} data-conflict><StTag tone="danger">冲突 {conflicts.length}</StTag></span>;
 }

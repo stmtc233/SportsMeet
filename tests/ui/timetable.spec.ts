@@ -24,10 +24,25 @@ for (const width of [1280, 800]) {
       const day = page.getByRole("region", { name: "2026-11-12", exact: true });
       await expect(day.getByText("男子100m 初中组 决赛", { exact: true })).toBeVisible();
       await expect(day.getByText("男子跳远 决赛", { exact: true })).toBeVisible();
-      await expect(page.getByRole("region", { name: "未安排时间", exact: true }).getByText("男子跳高 决赛", { exact: true })).toBeVisible();
+      // Unscheduled rounds are folded, the count in the title.
+      const unscheduled = page.getByRole("region", { name: "未安排时间", exact: true });
+      await expect(unscheduled.getByText("男子跳高 决赛", { exact: true })).toHaveCount(0);
+      await unscheduled.getByRole("button", { name: "展开", exact: true }).click();
+      await expect(unscheduled.getByText("男子跳高 决赛", { exact: true })).toBeVisible();
+      await expect(unscheduled.getByText("报名 12 人", { exact: true })).toBeVisible();
+      await unscheduled.getByRole("button", { name: "收起", exact: true }).click();
+      await expect(unscheduled.getByText("男子跳高 决赛", { exact: true })).toHaveCount(0);
+      // Conflicts show who, why and both heats in full at either width.
       const conflicts = page.locator("[data-conflicts]");
       await expect(conflicts.getByText("运动员1", { exact: true })).toBeVisible();
       await expect(conflicts.getByText("时间重叠", { exact: true })).toBeVisible();
+      for (const text of ["2026-11-12 09:00 男子100m 初中组 决赛 第1组", "2026-11-12 09:00 男子跳远 决赛 第1组"]) {
+        const cell = conflicts.getByText(text, { exact: true });
+        await expect(cell).toBeVisible();
+        expect(await cell.evaluate((el) => el.scrollWidth <= el.clientWidth && el.getBoundingClientRect().right <= innerWidth)).toBe(true);
+      }
+      // A heat that has competed says so, whatever time it follows.
+      await expect(day.getByRole("row").filter({ hasText: "第2组" }).getByText("已有成绩", { exact: true })).toBeVisible();
       await expect(day.locator("[data-conflict]")).toHaveCount(2);
       await noOverflow(page);
       await page.locator(".app__side").getByRole("button", { name: "日程", exact: true }).click();
@@ -90,11 +105,41 @@ test("多轮次连排预览冲突后保存", async ({ page }) => {
 
 test("从冲突跳到编排页并在组上标出", async ({ page }) => {
   await openTimetable(page);
-  await page.locator("[data-conflicts]").getByRole("button", { name: /男子100m 初中组 决赛 第1组/ }).click();
+  await page.locator(".conflicts__heat").filter({ hasText: "男子100m 初中组 决赛 第1组" }).getByRole("button", { name: "编排", exact: true }).click();
   await expect(page.getByRole("radio", { name: "编排", exact: true })).toBeChecked();
   const tag = page.locator(".heats [data-conflict]");
   await expect(tag).toHaveCount(1);
   await expect(tag).toHaveAttribute("title", /运动员1：时间重叠，2026-11-12 09:00 男子跳远 决赛 第1组/);
+  // The draft counts before it is saved: moving the heat to 10:00 clears the tag.
+  await page.locator(".heats").getByRole("button", { name: "更多", exact: true }).first().click();
+  await page.getByRole("menuitem", { name: "编辑组…", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "编辑组", exact: true });
+  await dialog.getByLabel("时间", { exact: true }).fill("10:00");
+  await dialog.getByRole("button", { name: "确定", exact: true }).click();
+  await expect(tag).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => (globalThis as any).__heatEdits)).toEqual([]);
+});
+
+test("连排顺序可调整并按调整后的顺序预览", async ({ page }) => {
+  await openTimetable(page);
+  await page.getByRole("button", { name: "连排…", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "连排轮次", exact: true });
+  await dialog.getByText("男子100m 初中组 决赛", { exact: true }).click();
+  await dialog.getByText("男子跳远 决赛", { exact: true }).click();
+  const order = dialog.getByRole("list", { name: "连排顺序" });
+  await expect(order.getByRole("button", { name: "上移「男子100m 初中组 决赛」", exact: true })).toBeDisabled();
+  // Keyboard: focus the button and press Enter.
+  await order.getByRole("button", { name: "上移「男子跳远 决赛」", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(order.getByRole("listitem").first()).toContainText("男子跳远 决赛");
+  await dialog.getByRole("button", { name: "预览", exact: true }).click();
+  await expect(dialog.getByRole("button", { name: "保存", exact: true })).toBeVisible();
+  const request = await page.evaluate(() => (globalThis as any).__scheduleCalls.request);
+  expect(request.rounds).toEqual([{ eventId: "jump", roundId: "jump-round" }, { eventId: "event", roundId: "round" }]);
+  // Reordering drops the preview.
+  await order.getByRole("button", { name: "下移「男子跳远 决赛」", exact: true }).click();
+  await expect(dialog.getByRole("button", { name: "保存", exact: true })).toHaveCount(0);
 });
 
 test("设置里的最短休息时间与竞赛日程表", async ({ page }) => {

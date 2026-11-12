@@ -15,7 +15,7 @@ header h1 { font-size: 22px; margin: 0 0 4px; }
 header p { margin: 2px 0; color: #444; }
 .schedule { margin-bottom: 20px; }
 .schedule > h2 { font-size: 15px; margin: 0 0 6px; padding-bottom: 4px; border-bottom: 1.5px solid #111; }
-.schedule > h3 { font-size: 13px; margin: 10px 0 4px; }
+.schedule > h3 { font-size: 13px; margin: 10px 0 4px; break-after: avoid; page-break-after: avoid; }
 .schedule .time { width: 4.2em; }
 .event { margin-bottom: 20px; }
 .event > h2 { font-size: 15px; margin: 0 0 6px; padding-bottom: 4px; border-bottom: 1.5px solid #111; display: flex; justify-content: space-between; align-items: baseline; }
@@ -27,7 +27,9 @@ header p { margin: 2px 0; color: #444; }
 .heat h4 { font-size: 12px; margin: 0 0 2px; display: flex; justify-content: space-between; }
 .heat h4 small { font-weight: 400; color: #444; }
 table { width: 100%; border-collapse: collapse; break-inside: auto; }
-tr { break-inside: avoid; }
+thead { display: table-header-group; }
+/* page-break-* for WebKit, which ignores break-inside on table rows. */
+tr { break-inside: avoid; page-break-inside: avoid; }
 th, td { border: 1px solid #999; padding: 3px 6px; text-align: left; }
 th { background: #f0f0f0; font-weight: 600; }
 .num { text-align: right; width: 3.2em; }

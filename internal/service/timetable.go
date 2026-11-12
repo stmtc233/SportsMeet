@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/stmtc233/sportsmeet/internal/arrange"
 	"github.com/stmtc233/sportsmeet/internal/domain"
@@ -20,12 +21,13 @@ type meetPlan struct {
 	rounds   map[string][]domain.Round
 	teams    map[string]domain.Team
 	athletes map[string]domain.Athlete
+	entered  map[string]int // event id → people entered; a team counts its members
 	minRest  int
 }
 
-func newMeetPlan(meet domain.Meet, events []domain.Event, rounds map[string][]domain.Round, teams []domain.Team, athletes []domain.Athlete, minRest int) *meetPlan {
+func newMeetPlan(meet domain.Meet, events []domain.Event, rounds map[string][]domain.Round, teams []domain.Team, athletes []domain.Athlete, entries []domain.Entry, minRest int) *meetPlan {
 	p := &meetPlan{meet: meet, rounds: rounds, minRest: minRest, eventBy: map[string]domain.Event{},
-		teams: map[string]domain.Team{}, athletes: map[string]domain.Athlete{}}
+		teams: map[string]domain.Team{}, athletes: map[string]domain.Athlete{}, entered: map[string]int{}}
 	p.events = domain.ScheduleOrder(events, rounds, meet.StartDate)
 	for _, e := range events {
 		p.eventBy[e.ID] = e
@@ -35,6 +37,13 @@ func newMeetPlan(meet domain.Meet, events []domain.Event, rounds map[string][]do
 	}
 	for _, a := range athletes {
 		p.athletes[a.ID] = a
+	}
+	for _, en := range entries {
+		if en.TeamID != "" {
+			p.entered[en.EventID] += len(p.teams[en.TeamID].MemberIDs)
+		} else {
+			p.entered[en.EventID]++
+		}
 	}
 	return p
 }
@@ -61,11 +70,15 @@ func (s *Service) loadMeetPlan(ctx context.Context, meetID string) (*meetPlan, e
 	if err != nil {
 		return nil, err
 	}
+	entries, err := s.store.ListEntries(ctx, sc)
+	if err != nil {
+		return nil, err
+	}
 	prefs, err := s.Preferences(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return newMeetPlan(*meet, events, rounds, teams, athletes, prefs.MinRestMinutes), nil
+	return newMeetPlan(*meet, events, rounds, teams, athletes, entries, prefs.MinRestMinutes), nil
 }
 
 // meetOfEvent is the meet an event belongs to.
@@ -147,6 +160,8 @@ type ScheduleHeatRef struct {
 	HeatLabel  string `json:"heatLabel"`
 	// TimeText is the heat's effective time with its date.
 	TimeText string `json:"timeText"`
+	// Text names the heat in full: 2026-11-12 09:00 男子100m 决赛 第1组.
+	Text string `json:"text"`
 }
 
 // ConflictView is one athlete in two heats too close together.
@@ -187,8 +202,10 @@ func (p *meetPlan) ref(place heatPlace, changed map[string]planned) ScheduleHeat
 		h.ScheduledAt = c.at
 	}
 	at, _ := domain.EffectiveScheduled(place.round, h)
-	return ScheduleHeatRef{EventID: place.event.ID, EventName: place.event.Name, RoundID: place.round.ID, RoundLabel: place.round.Label(),
+	ref := ScheduleHeatRef{EventID: place.event.ID, EventName: place.event.Name, RoundID: place.round.ID, RoundLabel: place.round.Label(),
 		HeatID: h.ID, HeatLabel: domain.HeatLabel(h.Ordinal, h.Name), TimeText: domain.ScheduledText(at, "")}
+	ref.Text = strings.TrimSpace(strings.Join([]string{ref.TimeText, ref.EventName, ref.RoundLabel, ref.HeatLabel}, " "))
+	return ref
 }
 
 func (p *meetPlan) conflictViews(list []arrange.Conflict, changed map[string]planned) []ConflictView {
@@ -229,29 +246,6 @@ func (s *Service) MeetConflicts(ctx context.Context, meetID string) (*ConflictLi
 	return &ConflictList{MinRestMinutes: p.minRest, Conflicts: p.conflictViews(p.conflicts(nil), nil)}, nil
 }
 
-// EventConflicts lists the conflicts of an event's heats, for the arrange
-// page's heat cards.
-func (s *Service) EventConflicts(ctx context.Context, eventID string) ([]HeatConflicts, error) {
-	meetID, err := s.meetOfEvent(ctx, eventID)
-	if err != nil {
-		return nil, err
-	}
-	p, err := s.loadMeetPlan(ctx, meetID)
-	if err != nil {
-		return nil, err
-	}
-	grouped := byHeat(p.conflictViews(p.conflicts(nil), nil))
-	out := []HeatConflicts{}
-	for _, r := range p.rounds[eventID] {
-		for _, h := range r.Heats {
-			if list := grouped[h.ID]; len(list) > 0 {
-				out = append(out, HeatConflicts{HeatID: h.ID, Conflicts: list})
-			}
-		}
-	}
-	return out, nil
-}
-
 // Timetable is a meet's competition schedule: its rounds by day and
 // effective time, those with no time at all apart, and every conflict.
 type Timetable struct {
@@ -281,11 +275,15 @@ type TimetableRound struct {
 	ScheduledText string `json:"scheduledText"`
 	// StartAt is the earliest planned time of the round (its start or a
 	// heat's own time); StartText shows it.
-	StartAt   string          `json:"startAt"`
-	StartText string          `json:"startText"`
-	HeatCount int             `json:"heatCount"`
-	People    int             `json:"people"` // athletes placed; a team counts its members
-	Heats     []TimetableHeat `json:"heats"`
+	StartAt   string `json:"startAt"`
+	StartText string `json:"startText"`
+	HeatCount int    `json:"heatCount"`
+	// People is how many athletes the round has, a team counting its
+	// members: those placed in its heats once it has heats; for an event's
+	// first round without heats, those entered (PeopleEntered); else 0.
+	People        int             `json:"people"`
+	PeopleEntered bool            `json:"peopleEntered"`
+	Heats         []TimetableHeat `json:"heats"`
 }
 
 // TimetableHeat is one heat of the schedule.
@@ -342,7 +340,7 @@ func (p *meetPlan) timetable(only map[string]bool) *Timetable {
 		if len(only) > 0 && !only[e.ID] {
 			continue
 		}
-		for _, r := range p.rounds[e.ID] {
+		for ri, r := range p.rounds[e.ID] {
 			start := domain.EarliestScheduled([]domain.Round{r})
 			day := domain.ScheduledDay(start)
 			tr := TimetableRound{EventID: e.ID, EventName: e.Name, RoundID: r.ID, RoundLabel: r.Label(), Day: day,
@@ -357,6 +355,9 @@ func (p *meetPlan) timetable(only map[string]bool) *Timetable {
 					EndText: domain.ScheduledText(times.EndAt, day), KeepReason: h.Facts().KeepReason(), People: people,
 					Conflicts: []HeatConflict{}})
 			}
+			if len(r.Heats) == 0 && ri == 0 {
+				tr.People, tr.PeopleEntered = p.entered[e.ID], true
+			}
 			if day == "" {
 				t.Unscheduled = append(t.Unscheduled, tr)
 				continue
@@ -370,6 +371,10 @@ func (p *meetPlan) timetable(only map[string]bool) *Timetable {
 			return timed[i].round.StartAt < timed[j].round.StartAt
 		}
 		return timed[i].order < timed[j].order
+	})
+	// Unscheduled: rounds that have heats first, then those without.
+	sort.SliceStable(t.Unscheduled, func(i, j int) bool {
+		return t.Unscheduled[i].HeatCount > 0 && t.Unscheduled[j].HeatCount == 0
 	})
 	for _, pl := range timed {
 		if n := len(t.Days); n == 0 || t.Days[n-1].Day != pl.round.Day {
@@ -392,34 +397,164 @@ type HeatEdit struct {
 	DurationMinutes *int   `json:"durationMinutes"`
 }
 
+// HeatTimeEdit changes one heat's own time and expected duration only (MCP
+// set_heat_time); its name, slots and results stay.
+type HeatTimeEdit struct {
+	EventID         string `json:"eventId"`
+	HeatID          string `json:"heatId"`
+	Base            string `json:"base" jsonschema:"get_event 里该组的 base（组指纹）；组在此之后有任何变化即返回 E_STALE"`
+	ScheduledAt     string `json:"scheduledAt" jsonschema:"组单独的本地时间，YYYY-MM-DDTHH:mm，无时区；空字符串表示沿用轮次开始时间"`
+	DurationMinutes *int   `json:"durationMinutes" jsonschema:"预计用时，1 至 1440 分钟；null 表示不填"`
+}
+
+// HeatEditResult is what an edit leaves: the heat's new fingerprint, the
+// warnings its time raises and the conflicts it is now in. Warnings and
+// conflicts never block the write.
+type HeatEditResult struct {
+	Base      string         `json:"base"`
+	Warnings  []string       `json:"warnings"`
+	Conflicts []HeatConflict `json:"conflicts"`
+}
+
 // EditHeat saves a heat's name, time and duration the way the arrange
 // page saves them: as a board save of that one heat, its slots unchanged.
 // A heat changed since it was shown returns ErrStale.
-func (s *Service) EditHeat(ctx context.Context, src store.Source, in HeatEdit) error {
+func (s *Service) EditHeat(ctx context.Context, src store.Source, in HeatEdit) (*HeatEditResult, error) {
+	return s.editHeat(ctx, src, in.EventID, in.HeatID, in.Base, &in.Name, in.ScheduledAt, in.DurationMinutes)
+}
+
+// SetHeatTime is EditHeat keeping the heat's name.
+func (s *Service) SetHeatTime(ctx context.Context, src store.Source, in HeatTimeEdit) (*HeatEditResult, error) {
+	return s.editHeat(ctx, src, in.EventID, in.HeatID, in.Base, nil, in.ScheduledAt, in.DurationMinutes)
+}
+
+func (s *Service) editHeat(ctx context.Context, src store.Source, eventID, heatID, base string, name *string, at string, minutes *int) (*HeatEditResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	st, err := s.loadEvent(ctx, in.EventID)
+	st, err := s.loadEvent(ctx, eventID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	for _, r := range st.rounds {
-		for _, h := range r.Heats {
-			if h.ID != in.HeatID {
-				continue
+	var round *domain.Round
+	var heat *domain.Heat
+	for i := range st.rounds {
+		for j := range st.rounds[i].Heats {
+			if st.rounds[i].Heats[j].ID == heatID {
+				round, heat = &st.rounds[i], &st.rounds[i].Heats[j]
 			}
-			if arrange.Fingerprint(h) != in.Base {
-				return ErrStale
-			}
-			rs := RoundSave{RoundID: r.ID, Order: []string{}, Changed: []HeatSave{{ID: h.ID, Base: in.Base, Name: in.Name,
-				ScheduledAt: in.ScheduledAt, DurationMinutes: in.DurationMinutes, Slots: []SlotSave{}}}}
-			for _, other := range r.Heats {
-				rs.Order = append(rs.Order, other.ID)
-			}
-			for _, sl := range h.Slots {
-				rs.Changed[0].Slots = append(rs.Changed[0].Slots, SlotSave{Position: sl.Position, AthleteID: sl.AthleteID, TeamID: sl.TeamID})
-			}
-			return s.saveBoard(ctx, src, BoardSave{EventID: in.EventID, Rounds: []RoundSave{rs}})
 		}
 	}
-	return invalid("组不存在或已删除")
+	if heat == nil {
+		return nil, invalid("组不存在或已删除")
+	}
+	if arrange.Fingerprint(*heat) != base {
+		return nil, ErrStale
+	}
+	save := HeatSave{ID: heat.ID, Base: base, Name: heat.Name, ScheduledAt: at, DurationMinutes: minutes, Slots: []SlotSave{}}
+	if name != nil {
+		save.Name = *name
+	}
+	for _, sl := range heat.Slots {
+		save.Slots = append(save.Slots, SlotSave{Position: sl.Position, AthleteID: sl.AthleteID, TeamID: sl.TeamID})
+	}
+	rs := RoundSave{RoundID: round.ID, Order: []string{}, Changed: []HeatSave{save}}
+	for _, other := range round.Heats {
+		rs.Order = append(rs.Order, other.ID)
+	}
+	if err := s.saveBoard(ctx, src, BoardSave{EventID: eventID, Rounds: []RoundSave{rs}}); err != nil {
+		return nil, err
+	}
+	p, err := s.loadMeetPlan(ctx, st.event.MeetID)
+	if err != nil {
+		return nil, err
+	}
+	out := &HeatEditResult{Warnings: []string{}, Conflicts: []HeatConflict{}}
+	for _, r := range p.rounds[eventID] {
+		for _, h := range r.Heats {
+			if h.ID != heatID {
+				continue
+			}
+			out.Base = arrange.Fingerprint(h)
+			effective, _ := domain.EffectiveScheduled(r, h)
+			if domain.OutsideMeet(effective, p.meet) {
+				out.Warnings = append(out.Warnings, "时间"+outsideMeetWarning)
+			}
+		}
+	}
+	if list := byHeat(p.conflictViews(p.conflicts(nil), nil))[heatID]; list != nil {
+		out.Conflicts = list
+	}
+	return out, nil
+}
+
+// DraftConflictRequest is the arrange page's draft of one event: every
+// heat of every round as it would be saved (deleted heats left out).
+type DraftConflictRequest struct {
+	EventID string      `json:"eventId"`
+	Heats   []DraftTime `json:"heats"`
+}
+
+// DraftTime is one draft heat: Key is its id, or the page's key for a heat
+// not saved yet; Competitors are athlete ids, or team ids in a team event.
+type DraftTime struct {
+	Key             string   `json:"key"`
+	RoundID         string   `json:"roundId"`
+	Name            string   `json:"name"`
+	ScheduledAt     string   `json:"scheduledAt"`
+	DurationMinutes *int     `json:"durationMinutes"`
+	Competitors     []string `json:"competitors"`
+}
+
+// DraftConflicts checks the meet's saved times with this event's heats
+// replaced by the draft, so unsaved changes count, and lists the conflicts
+// of the draft heats by key. It reads only; heats are labelled by their
+// place in the draft round, as the page shows them.
+func (s *Service) DraftConflicts(ctx context.Context, in DraftConflictRequest) ([]HeatConflicts, error) {
+	meetID, err := s.meetOfEvent(ctx, in.EventID)
+	if err != nil {
+		return nil, err
+	}
+	p, err := s.loadMeetPlan(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	e := p.eventBy[in.EventID]
+	rounds := append([]domain.Round(nil), p.rounds[in.EventID]...)
+	index := map[string]int{}
+	for i := range rounds {
+		index[rounds[i].ID] = i
+		rounds[i].Heats = nil
+	}
+	keys := []string{}
+	for _, d := range in.Heats {
+		i, ok := index[d.RoundID]
+		if !ok || d.Key == "" {
+			continue // a round deleted meanwhile; the page reloads
+		}
+		h := domain.Heat{ID: d.Key, RoundID: d.RoundID, Ordinal: len(rounds[i].Heats) + 1, Name: d.Name, DurationMinutes: d.DurationMinutes}
+		if domain.ValidScheduled(d.ScheduledAt) {
+			h.ScheduledAt = d.ScheduledAt
+		}
+		if !domain.ValidDuration(h.DurationMinutes) {
+			h.DurationMinutes = nil
+		}
+		for n, id := range d.Competitors {
+			sl := domain.Slot{Position: n + 1, AthleteID: id}
+			if e.IsTeam() {
+				sl = domain.Slot{Position: n + 1, TeamID: id}
+			}
+			h.Slots = append(h.Slots, sl)
+		}
+		rounds[i].Heats = append(rounds[i].Heats, h)
+		keys = append(keys, d.Key)
+	}
+	p.rounds[in.EventID] = rounds
+	grouped := byHeat(p.conflictViews(p.conflicts(nil), nil))
+	out := []HeatConflicts{}
+	for _, k := range keys {
+		if list := grouped[k]; len(list) > 0 {
+			out = append(out, HeatConflicts{HeatID: k, Conflicts: list})
+		}
+	}
+	return out, nil
 }

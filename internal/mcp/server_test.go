@@ -339,9 +339,26 @@ func TestSDKClientToolsAndConfirmation(t *testing.T) {
 	if cs := schedule["conflicts"].([]any); len(cs) != 1 || cs[0].(map[string]any)["text"] != "时间重叠" {
 		t.Fatalf("schedule conflicts: %+v", schedule["conflicts"])
 	}
+	// One heat's time over MCP: fingerprint checked, slots kept, warnings and conflicts returned.
+	relayDetail := call("get_event", map[string]any{"eventId": relayID}, false)
+	relayHeat := relayDetail["rounds"].([]any)[0].(map[string]any)["heats"].([]any)[0].(map[string]any)
+	heatTime := map[string]any{"input": map[string]any{"eventId": relayID, "heatId": relayHeat["id"], "base": relayHeat["base"], "scheduledAt": "2026-11-13T10:00", "durationMinutes": 4}}
+	moved := call("set_heat_time", heatTime, false)
+	if w := moved["warnings"].([]any); len(w) != 1 || w[0] != "时间不在赛事日期内" || len(moved["conflicts"].([]any)) != 0 || moved["base"] == relayHeat["base"] {
+		t.Fatalf("set_heat_time: %+v", moved)
+	}
+	call("set_heat_time", heatTime, true) // the old fingerprint is stale
+	heatTime["input"].(map[string]any)["base"], heatTime["input"].(map[string]any)["scheduledAt"] = moved["base"], "2026-11-12T23:58"
+	back := call("set_heat_time", heatTime, false)
+	if c := back["conflicts"].([]any); len(c) != 1 || c[0].(map[string]any)["other"].(map[string]any)["eventId"] != eventID {
+		t.Fatalf("set_heat_time conflicts: %+v", back)
+	}
 	rd, err = svc.GetEvent(ctx, relayID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if h := rd.Rounds[0].Heats[0]; h.ScheduledAt != "2026-11-12T23:58" || len(h.Slots) != 1 || h.Slots[0].TeamID != teamID {
+		t.Fatalf("set_heat_time persisted: %+v", h)
 	}
 	rh := rd.Rounds[0].Heats[0]
 	call("set_results", map[string]any{"heatId": rh.ID, "results": []any{map[string]any{"position": rh.Slots[0].Position, "mark": "49.12"}}}, false)

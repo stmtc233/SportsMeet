@@ -108,8 +108,22 @@
 
 /* Schedule page */
 .timetable__day { display: flex; flex-direction: column; gap: var(--st-space-12); }
+.timetable__day-head { display: flex; align-items: center; gap: var(--st-space-8); }
 .timetable__day-title { margin: 0; font-size: var(--st-text-title); }
 .timetable__round { display: inline-flex; align-items: baseline; gap: var(--st-space-8); flex-wrap: wrap; min-width: 0; }
 .timetable__time { min-width: 3.5em; font-weight: 600; }
 .timetable__state { display: inline-flex; gap: var(--st-space-4); flex-wrap: wrap; }
-.timetable__conflicts { max-height: 320px; overflow: auto; display: flex; flex-direction: column; }
+.timetable__conflicts { max-height: 360px; overflow-y: auto; }
+.conflicts { list-style: none; margin: 0; padding: 0; }
+.conflicts__row { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr 2fr; gap: var(--st-space-4) var(--st-space-12); align-items: center; padding: var(--st-space-8) var(--st-space-16); border-top: 1px solid var(--st-outline); }
+.conflicts__row:first-child { border-top: 0; }
+.conflicts__who { display: flex; align-items: center; gap: var(--st-space-8); flex-wrap: wrap; min-width: 0; }
+.conflicts__heat { display: flex; align-items: center; gap: var(--st-space-4); min-width: 0; }
+.conflicts__text { flex: 1; min-width: 0; overflow-wrap: break-word; }
+.schedule-order { list-style: none; margin: 0; padding: var(--st-space-4) var(--st-space-8); }
+.schedule-order__row { display: flex; align-items: center; gap: var(--st-space-8); padding: var(--st-space-2) 0; }
+.schedule-order__index { width: 2em; text-align: end; color: var(--st-text-muted); }
+.schedule-order__label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .conflicts__row { grid-template-columns: 1fr; }
+}

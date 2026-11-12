@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { StButton, StCheckbox, StDateField, StDialog, StEmpty, StNotice, StRow, StSection, StTable, StTextField, StTimeField } from "../../design";
+import { IconDown, IconUp, StButton, StCheckbox, StDateField, StDialog, StEmpty, StIconButton, StNotice, StRow, StSection, StTable, StTextField, StTimeField, iconStroke } from "../../design";
 import { joinScheduled, splitScheduled } from "../../lib/wallTime";
-import type { ConflictView, ScheduleChange, SchedulePreview, ScheduleRequest, ScheduleSkip } from "../../mygo";
+import type { ScheduleChange, SchedulePreview, ScheduleRequest, ScheduleSkip } from "../../mygo";
+import { ConflictList } from "./ConflictList";
+import { moveItem, toggleItem } from "./scheduleOrder";
 import { ScheduleController } from "./scheduleController";
 
 /** A round the dialog can schedule; firstAt and minutes seed the fields. */
@@ -17,8 +19,8 @@ export interface ScheduleOption {
 
 /**
  * Schedules the unscored heats of one round, or of several rounds one after
- * another (multi: the rounds are picked here, in the listed order, with a
- * gap between rounds). The plan, its conflicts and the confirmed write all
+ * another (multi: the rounds are picked here and put in order, with a gap
+ * between rounds; Go schedules them in that order). The plan, its conflicts and the confirmed write all
  * come from Go, including all time arithmetic. version is the data the
  * options were read from: when it changes, the preview is dropped.
  */
@@ -35,7 +37,8 @@ export function ScheduleDialog({ options, multi = false, day, version, onClose }
   const [time, setTime] = useState(first.time || "09:00");
   const [interval, setInterval] = useState(String(seed?.minutes ?? 5));
   const [gap, setGap] = useState("0");
-  const [picked, setPicked] = useState<Set<string>>(() => new Set(multi ? [] : options.slice(0, 1).map((o) => o.roundId)));
+  // The rounds to schedule, in order: picking appends, 上移 / 下移 reorder.
+  const [order, setOrder] = useState<string[]>(() => (multi ? [] : options.slice(0, 1).map((o) => o.roundId)));
   const [preview, setPreview] = useState<SchedulePreview | null>(null);
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -63,13 +66,14 @@ export function ScheduleDialog({ options, multi = false, day, version, onClose }
   };
   const toggle = (roundId: string) => {
     invalidate();
-    setPicked((old) => {
-      const next = new Set(old);
-      if (!next.delete(roundId)) next.add(roundId);
-      return next;
-    });
+    setOrder((old) => toggleItem(old, roundId));
   };
-  const chosen = options.filter((o) => picked.has(o.roundId));
+  const move = (roundId: string, delta: -1 | 1) => {
+    invalidate();
+    setOrder((old) => moveItem(old, roundId, delta));
+  };
+  const byId = new Map(options.map((o) => [o.roundId, o]));
+  const chosen = order.flatMap((id) => byId.get(id) ?? []);
   const only = !multi && chosen.length === 1 ? chosen[0] : undefined;
   const request: ScheduleRequest = only
     ? { eventId: only.eventId, roundId: only.roundId, startAt: joinScheduled(date, time), intervalMinutes: Number(interval) }
@@ -112,9 +116,21 @@ export function ScheduleDialog({ options, multi = false, day, version, onClose }
       </StRow>
       {multi && <StSection title={`轮次 ${chosen.length}/${options.length}`}>
         <div className="schedule-rounds">
-          {options.map((o) => <StCheckbox key={o.roundId} checked={picked.has(o.roundId)} disabled={busy} onChange={() => toggle(o.roundId)} label={o.label} />)}
+          {options.map((o) => <StCheckbox key={o.roundId} checked={order.includes(o.roundId)} disabled={busy} onChange={() => toggle(o.roundId)} label={o.label} />)}
           {options.length === 0 && <StEmpty>没有轮次</StEmpty>}
         </div>
+      </StSection>}
+      {multi && chosen.length > 1 && <StSection title="连排顺序" padded={false}>
+        <ol className="schedule-order" aria-label="连排顺序">
+          {chosen.map((o, i) => (
+            <li key={o.roundId} className="schedule-order__row">
+              <span className="schedule-order__index">{i + 1}</span>
+              <span className="schedule-order__label">{o.label}</span>
+              <StIconButton size="small" label={`上移「${o.label}」`} disabled={busy || i === 0} onClick={() => move(o.roundId, -1)}><IconUp size={16} strokeWidth={iconStroke} /></StIconButton>
+              <StIconButton size="small" label={`下移「${o.label}」`} disabled={busy || i === chosen.length - 1} onClick={() => move(o.roundId, 1)}><IconDown size={16} strokeWidth={iconStroke} /></StIconButton>
+            </li>
+          ))}
+        </ol>
       </StSection>}
       {notice && <StNotice tone="warning">{notice}</StNotice>}
       {preview?.errors.map((error) => <StNotice key={error} tone="danger">{error}</StNotice>)}
@@ -131,15 +147,8 @@ export function ScheduleDialog({ options, multi = false, day, version, onClose }
             ]} />
         </div>
       </StSection>}
-      {ready && preview.conflicts.length > 0 && <StSection title={`冲突 ${preview.conflicts.length} 处`}>
-        <div className="preview-table schedule-table">
-          <StTable<ConflictView> dense fill rows={preview.conflicts} rowKey={(row) => `${row.athleteId}|${row.first.heatId}|${row.second.heatId}`} columns={[
-            { key: "athlete", title: "运动员", render: (row) => row.athleteName },
-            { key: "text", title: "冲突", render: (row) => row.text },
-            { key: "first", title: "组", width: "2fr", render: (row) => <HeatRefText value={row.first} /> },
-            { key: "second", title: "组", width: "2fr", render: (row) => <HeatRefText value={row.second} /> },
-          ]} />
-        </div>
+      {ready && preview.conflicts.length > 0 && <StSection title={`冲突 ${preview.conflicts.length} 处`} padded={false}>
+        <ConflictList conflicts={preview.conflicts} />
       </StSection>}
       {ready && preview.skipped.length > 0 && <StSection title={`跳过 ${preview.skipped.length} 组`}>
         <div className="preview-table schedule-table">
@@ -154,8 +163,3 @@ export function ScheduleDialog({ options, multi = false, day, version, onClose }
   );
 }
 
-/** A heat named in a conflict: 「09:00 男子100m 决赛 第1组」. */
-export function HeatRefText({ value }: { value: ConflictView["first"] }) {
-  const text = `${value.timeText} ${value.eventName} ${value.roundLabel} ${value.heatLabel}`;
-  return <span title={text}>{text}</span>;
-}

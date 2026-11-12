@@ -22,8 +22,7 @@ type Book struct {
 	Combineds []Combined
 }
 
-// ScheduleDay is one day of the 竞赛日程表; Day is "未安排时间" for the
-// rounds with no time.
+// ScheduleDay is one day of the 竞赛日程表.
 type ScheduleDay struct {
 	Day  string
 	Rows []ScheduleRow
@@ -31,7 +30,7 @@ type ScheduleDay struct {
 
 // ScheduleRow is one round in the 竞赛日程表.
 type ScheduleRow struct {
-	Time   string // 09:30, "" when unscheduled
+	Time   string // 09:30
 	Event  string
 	Round  string
 	Heats  int

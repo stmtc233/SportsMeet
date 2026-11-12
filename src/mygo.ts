@@ -279,6 +279,28 @@ export interface ConflictView {
 
 export type DistanceMode = "" | "jump" | "throw";
 
+/**
+ * DraftConflictRequest is the arrange page's draft of one event: every
+ * heat of every round as it would be saved (deleted heats left out).
+ */
+export interface DraftConflictRequest {
+  eventId: string;
+  heats: DraftTime[];
+}
+
+/**
+ * DraftTime is one draft heat: Key is its id, or the page's key for a heat
+ * not saved yet; Competitors are athlete ids, or team ids in a team event.
+ */
+export interface DraftTime {
+  key: string;
+  roundId: string;
+  name: string;
+  scheduledAt: string;
+  durationMinutes: number | null;
+  competitors: string[];
+}
+
 /** EntryInput enters an athlete or relay team; Seed is the typed entry mark, "" = none. */
 export interface EntryInput {
   athleteId?: string;
@@ -448,6 +470,17 @@ export interface HeatEdit {
   name: string;
   scheduledAt: string;
   durationMinutes: number | null;
+}
+
+/**
+ * HeatEditResult is what an edit leaves: the heat's new fingerprint, the
+ * warnings its time raises and the conflicts it is now in. Warnings and
+ * conflicts never block the write.
+ */
+export interface HeatEditResult {
+  base: string;
+  warnings: string[];
+  conflicts: HeatConflict[];
 }
 
 /**
@@ -837,6 +870,8 @@ export interface ScheduleHeatRef {
   heatLabel: string;
   /** TimeText is the heat's effective time with its date. */
   timeText: string;
+  /** Text names the heat in full: 2026-11-12 09:00 男子100m 决赛 第1组. */
+  text: string;
 }
 
 export interface SchedulePreview {
@@ -1037,8 +1072,13 @@ export interface TimetableRound {
   startAt: string;
   startText: string;
   heatCount: number;
-  /** athletes placed; a team counts its members */
+  /**
+   * People is how many athletes the round has, a team counting its
+   * members: those placed in its heats once it has heats; for an event's
+   * first round without heats, those entered (PeopleEntered); else 0.
+   */
   people: number;
+  peopleEntered: boolean;
   heats: TimetableHeat[];
 }
 
@@ -1227,13 +1267,16 @@ export const Entries = {
 
 /** Arrange plans and saves heats. */
 export const Arrange = {
-  /** EditHeat saves one heat's name, time and duration from the schedule page. */
-  editHeat(in_: HeatEdit): Promise<void> {
-    return call("Arrange.EditHeat", in_);
+  /**
+   * DraftConflicts lists the conflicts of the arrange page's draft heats,
+   * unsaved changes included, by heat key.
+   */
+  draftConflicts(in_: DraftConflictRequest): Promise<HeatConflicts[]> {
+    return call("Arrange.DraftConflicts", in_);
   },
-  /** HeatConflicts lists the athlete time conflicts of an event's heats. */
-  heatConflicts(eventID: string): Promise<HeatConflicts[]> {
-    return call("Arrange.HeatConflicts", eventID);
+  /** EditHeat saves one heat's name, time and duration from the schedule page. */
+  editHeat(in_: HeatEdit): Promise<HeatEditResult | null> {
+    return call("Arrange.EditHeat", in_);
   },
   /**
    * HeatPlan checks the heat dialog's time and duration (minutes as typed)

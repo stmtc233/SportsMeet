@@ -4,7 +4,7 @@
 // heats that differ from what was loaded, and a data change merges heat by
 // heat on that fingerprint. Arrangement rules (seeding, ordinals, what a
 // result locks) stay in Go; this file only moves athletes between slots.
-import type { BoardSave, EventDetail, HeatRef, HeatSave, PlannedHeat, RoundSave } from "../../mygo";
+import type { BoardSave, DraftConflictRequest, EventDetail, HeatRef, HeatSave, PlannedHeat, RoundSave } from "../../mygo";
 
 export interface DraftSlot {
   position: number;
@@ -365,4 +365,10 @@ export function undo(h: History): History {
 export function redo(h: History): History {
   const next = h.future[0];
   return next ? { past: [...h.past, h.present], present: next, future: h.future.slice(1) } : h;
+}
+
+/** The draft as Go checks it for time conflicts: every heat of every round, deleted ones left out. */
+export function draftTimes(eventId: string, rounds: DraftRound[]): DraftConflictRequest {
+  return { eventId, heats: rounds.flatMap((r) => r.heats.map((h) => ({ key: h.key, roundId: r.roundId, name: h.name, scheduledAt: h.scheduledAt,
+    durationMinutes: h.durationMinutes, competitors: h.slots.map((s) => s.competitorId) }))) };
 }

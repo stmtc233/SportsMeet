@@ -46,8 +46,8 @@
 - 组卡片与成绩页共用 `HeatTime` 显示草稿里的 `scheduledText` / `scheduleInherited`,另显示 `durationText`。草稿轮次带 `startAt` / `startText`,新组与没有单独时间的组按它显示沿用的时间,不在前端拼时间文本。
 - 「编辑组…」以已有日期、轮次开始日期或 `EventDetail.day` 作默认日期,确定时经 `ArrangeController.heatPlan` 由 Go 校验时间与预计用时(输入原文传给 Go)并取回显示文本,一并写进草稿;校验失败留在对话框。
 - 轮次开始时间经 `RoundStartDialog` 与 `ArrangeController.setRoundStart` 立即写入;两个时间对话框经 `useScheduleWarning`(调用 `Arrange.scheduleWarning`)在保存前显示 Go 给出的提示。
-- `features/arrange/ScheduleDialog.tsx` 经 `scheduleController.ts` 调用生成的 `Arrange.previewSchedule` / `Arrange.schedule` 绑定,与 MCP 共用 Go 预览和提交。它接收轮次选项 `ScheduleOption[]`:编排页传当前轮次(单轮次请求),日程页以 `multi` 传全部轮次(多轮次请求,可勾选、填轮次间隔);`version` 传读取选项的数据对象,它变化即清除预览。入口与草稿限制见 [arrange.md](arrange.md)「批量排时间」。
-- 编排页组卡片的冲突标签经 `ArrangeController` 旁的 `useHeatConflicts`(调用 `Arrange.heatConflicts`)读取,随赛事任意变化与设置变化重读。
+- `features/arrange/ScheduleDialog.tsx` 经 `scheduleController.ts` 调用生成的 `Arrange.previewSchedule` / `Arrange.schedule` 绑定,与 MCP 共用 Go 预览和提交。它接收轮次选项 `ScheduleOption[]`:编排页传当前轮次(单轮次请求),日程页以 `multi` 传全部轮次(多轮次请求,可勾选、调整先后、填轮次间隔;顺序的增删与移动是 `scheduleOrder.ts` 的纯函数,有单测);`version` 传读取选项的数据对象,它变化即清除预览。入口与草稿限制见 [arrange.md](arrange.md)「批量排时间」。
+- 编排页组卡片的冲突标签经 `controller.ts` 的 `useDraftConflicts` 读取:草稿经 `draft.ts` 的 `draftTimes`(纯函数,有单测)转成请求,草稿变化与赛事数据 / 设置变化停顿 300ms 后合并为一次 `Arrange.draftConflicts` 调用,标签按组键对应。冲突列表(日程页与连排预览)共用 `arrange/ConflictList.tsx`。
 - 请求期间禁用日期、时间、间隔与取消操作;过期预览或提交失败后保留输入,清除确认状态并要求重新预览。保存成功经 `heats` 事件重读,页面不自行改时间。
 
 ## 日程页
