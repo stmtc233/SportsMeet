@@ -2,19 +2,20 @@ import type { Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; eventConfig?: "group" | "throw"; emptyBoard?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false };
     let mcp = { enabled: false, running: false, port: 18765, address: "http://127.0.0.1:18765/mcp", error: "" };
     const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1 };
-    const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0 };
+    const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0, participantMode: "athlete", teamSize: 0, scoreDecimals: 0, rankDirection: "", attemptMode: "" };
     const athletes = Array.from({ length: 24 }, (_, i) => ({ id: `a${i}`, meetId: "meet", name: `运动员${i + 1}`, gender: "男", bib: String(100 + i), studentNumber: "", unitId: "unit", className: "一班", grade: "", birthDate: "", note: "", createdAt: 1 }));
     const entries = athletes.map((a) => ({ athleteId: a.id, competitorId: a.id, name: a.name, gender: "男", bib: a.bib, unitId: "unit", unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" }));
-    const rules = { timed: true, usesLanes: true, positionLabel: "道次", attemptLabel: "", startLabel: "分道", defaultPerHeat: 8 };
+    const rules = { timed: true, usesLanes: true, positionLabel: "道次", attemptLabel: "", startLabel: "分道", defaultPerHeat: 8, team: false, multipleAttempts: false, markLabel: "成绩", unit: "" };
     const detail = { rules, event, teams: [] as any[], entries, rounds: [{ id: "round", stage: "final", ordinal: 1, name: "", label: "决赛", advance: null, complete: false, standings: [], heats: [{ id: "heat", ordinal: 1, name: "", label: "第1组", scheduledAt: "2026-11-12T09:00", base: "base", keepReason: "", slots: entries.slice(0, 8).map((a, i) => ({ position: i + 1, athleteId: a.athleteId, competitorId: a.competitorId, result: null })) }] }] };
     if (options.relay) {
-      Object.assign(event, { relayLegCount: 4, kind: "relay", name: "男子4×100m", discipline: "4×100m", groupLabel: "" });
+      Object.assign(event, { relayLegCount: 4, participantMode: "team", kind: "relay", name: "男子4×100m", discipline: "4×100m", groupLabel: "" });
+      rules.team = true;
       detail.entries.length = 0;
       detail.rounds[0]!.heats.length = 0;
     }
@@ -25,7 +26,21 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
     }
     if (options.eventConfig === "throw") {
       Object.assign(event, { discipline: "铅球", name: "男子铅球", kind: "distance", startMode: "", distanceMode: "throw" });
-      Object.assign(rules, { timed: false, usesLanes: false, positionLabel: "顺序", attemptLabel: "试投", startLabel: "", defaultPerHeat: 12 });
+      Object.assign(rules, { timed: false, usesLanes: false, positionLabel: "顺序", attemptLabel: "试投", multipleAttempts: true, startLabel: "", defaultPerHeat: 12 });
+    }
+    if (options.eventConfig === "count" || options.eventConfig === "teamCount") {
+      Object.assign(event, { discipline: "跳绳", name: "男子跳绳", kind: "count", startMode: "", attemptMode: "best", rankDirection: "desc", attemptCount: 3 });
+      Object.assign(rules, { timed: false, usesLanes: false, positionLabel: "顺序", multipleAttempts: true, attemptLabel: "尝试", markLabel: "次数", unit: "次", startLabel: "", defaultPerHeat: 12 });
+      if (options.eventConfig === "teamCount") {
+        Object.assign(event, { participantMode: "team", teamSize: 2, discipline: "集体跳绳", name: "男子集体跳绳" });
+        rules.team = true;
+        detail.entries.length = 0;
+        detail.rounds[0]!.heats.length = 0;
+      }
+    }
+    if (options.eventConfig === "score") {
+      Object.assign(event, { discipline: "技巧评分", name: "男子技巧评分", kind: "score", startMode: "", attemptMode: "single", rankDirection: "desc", scoreDecimals: 2, attemptCount: 1 });
+      Object.assign(rules, { timed: false, usesLanes: false, positionLabel: "顺序", multipleAttempts: false, markLabel: "分数", unit: "分", startLabel: "", defaultPerHeat: 12 });
     }
     if (options.emptyBoard) detail.rounds[0]!.heats[0]!.slots = [];
     const presets = [
@@ -83,9 +98,13 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
             const e = args[0];
             const timed = e.kind === "track" || e.kind === "relay";
             const usesLanes = timed && e.startMode !== "group";
-            return { timed, usesLanes, positionLabel: usesLanes ? "道次" : "顺序", attemptLabel: e.kind === "distance" ? (e.distanceMode === "throw" ? "试投" : "试跳") : "", defaultPerHeat: usesLanes ? e.laneCount : 12 };
+            return { timed, usesLanes, team: e.kind === "relay" || e.participantMode === "team", multipleAttempts: e.kind === "distance" || ((e.kind === "count" || e.kind === "score") && e.attemptMode && e.attemptMode !== "single"), markLabel: e.kind === "count" ? "次数" : e.kind === "score" ? "分数" : "成绩", positionLabel: usesLanes ? "道次" : "顺序", attemptLabel: e.kind === "distance" ? (e.distanceMode === "throw" ? "试投" : "试跳") : "尝试", defaultPerHeat: usesLanes ? e.laneCount : 12 };
           }
-          case "Events.TeamSizeWarning": return args[0].relayLegCount > 0 && args[0].relayLegCount !== args[1] ? "棒数与项目建议不符" : "";
+          case "Events.TeamWarnings": {
+            const n = args[1].length;
+            return event.relayLegCount > 0 && event.relayLegCount !== n ? ["棒数与项目建议不符"] : event.teamSize > 0 && event.teamSize !== n ? ["人数与项目建议不符"] : [];
+          }
+          case "Events.TeamSizeWarning": return args[0].relayLegCount > 0 && args[0].relayLegCount !== args[1] ? "棒数与项目建议不符" : args[0].teamSize > 0 && args[0].teamSize !== args[1] ? "人数与项目建议不符" : "";
           case "Events.Save": {
             (globalThis as any).__eventCalls.push(structuredClone(args));
             Object.assign(event, args[2], { name: args[2].name || `${args[2].gender === "混合" ? "混合" : args[2].gender === "女" ? "女子" : "男子"}${args[2].discipline}` });
@@ -114,20 +133,21 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
           }
           case "Arrange.Plan":
             (globalThis as any).__relayCalls.push({ method, args });
-            return [{ slots: detail.entries.map((e, i) => ({ position: 4 + i, competitorId: e.competitorId })) }];
+            return [{ slots: detail.entries.map((e, i) => ({ position: (rules.usesLanes ? 4 : 1) + i, competitorId: e.competitorId })) }];
           case "Arrange.Save": {
             (globalThis as any).__relayCalls.push({ method, args });
-            detail.rounds[0]!.heats = args[0].rounds[0].added.map((h: any, i: number) => ({ id: `heat${i}`, ordinal: i + 1, name: "", label: `第${i + 1}组`, base: `saved${i}`, keepReason: "", scheduledAt: "", slots: h.slots.map((sl: any) => ({ ...sl, athleteId: options.relay ? "" : sl.competitorId, teamId: options.relay ? sl.competitorId : "", result: null })) }));
+            detail.rounds[0]!.heats = args[0].rounds[0].added.map((h: any, i: number) => ({ id: `heat${i}`, ordinal: i + 1, name: "", label: `第${i + 1}组`, base: `saved${i}`, keepReason: "", scheduledAt: "", slots: h.slots.map((sl: any) => ({ ...sl, athleteId: rules.team ? "" : sl.competitorId, teamId: rules.team ? sl.competitorId : "", result: null })) }));
             for (const t of detail.teams) t.placed = true;
             changed("heats", "meet", "event"); return structuredClone(detail);
           }
+          case "Marks.NormalizeEvent": return args[0].kind === "score" ? Number(args[1]).toFixed(args[0].scoreDecimals ?? 0) : args[1];
           case "Marks.Normalize": return args[1];
           case "Results.Save": {
             (globalThis as any).__relayCalls.push({ method, args });
             const h = detail.rounds[0]!.heats.find((h) => h.id === args[0])!;
             for (const input of args[1]) {
               const sl = h.slots.find((sl) => sl.position === input.position)!;
-              (sl as any).result = { status: "OK", mark: 50120, markText: input.mark, rank: 1, qualify: "", attempts: input.attempts ?? [], bars: [], note: "" };
+              (sl as any).result = { status: "OK", mark: 50120, markText: event.kind === "score" ? Number(input.mark).toFixed(event.scoreDecimals) : event.kind === "count" ? String(Math.max(...(input.attempts ?? []).map(Number).filter(Number.isFinite))) : input.mark, rank: 1, qualify: "", attempts: input.attempts ?? [], bars: [], note: "" };
             }
             h.keepReason = "已有成绩";
             for (const t of detail.teams) t.keepReason = "已有成绩";
@@ -146,6 +166,8 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
             }
             changed("heats", "meet", "event");
             return structuredClone(schedulePreview);
+          case "Reports.Targets": return [{ id: event.id, name: event.name }];
+          case "Combined.List": return [];
           case "Reports.Render": return "<!DOCTYPE html><html><body><h1>秋季运动会</h1><p>秩序册</p></body></html>";
           case "Marks.EventName": return `${args[0] === "混合" ? "混合" : args[0] === "女" ? "女子" : "男子"}${args[1]}${args[2] ? ` ${args[2]}` : ""}`;
           default: return error(`未模拟的方法：${method}`);

@@ -62,20 +62,20 @@ func NewServer(svc *service.Service) *sdk.Server {
 		err := svc.UpdateMeet(ctx, store.SourceMCP, in.MeetID, in.Input)
 		return map[string]bool{"saved": err == nil}, err
 	})
-	addTool(s, "save_unit", "创建或更新一个参赛单位。id 留空创建；更新时 input 是全部字段。startMode 为 lanes（分道）、group（不分道）、break（分道后抢道）；distanceMode 为 jump 或 throw；relayLegCount 是建议棒数，0 为未指定。", false, func(ctx context.Context, in saveUnitArg) (any, error) {
+	addTool(s, "save_unit", "创建或更新一个参赛单位。id 留空创建；更新时 input 是全部字段。", false, func(ctx context.Context, in saveUnitArg) (any, error) {
 		return svc.SaveUnit(ctx, store.SourceMCP, in.MeetID, in.ID, in.Input)
 	})
-	addTool(s, "save_athlete", "创建或更新一个运动员。id 留空创建；学号、号码布赛事内唯一。更新时 input 是全部字段。startMode 为 lanes（分道）、group（不分道）、break（分道后抢道）；distanceMode 为 jump 或 throw；relayLegCount 是建议棒数，0 为未指定。", false, func(ctx context.Context, in saveAthleteArg) (any, error) {
+	addTool(s, "save_athlete", "创建或更新一个运动员。id 留空创建；学号、号码布赛事内唯一。更新时 input 是全部字段。", false, func(ctx context.Context, in saveAthleteArg) (any, error) {
 		return svc.SaveAthleteWithWarnings(ctx, store.SourceMCP, in.MeetID, in.ID, in.Input)
 	})
-	addTool(s, "save_team", "创建或更新接力队伍。eventId 指定接力项目，id 留空创建；input 是完整队名、参赛单位和按棒次顺序的 memberIds（可为空）。同一运动员在一个接力项目只能属于一队，已有比赛记录不能改棒次。保存队伍后用 add_entries 的 teamId 报名。", false, func(ctx context.Context, in struct {
+	addTool(s, "save_team", "创建或更新队伍。eventId 指定队伍项目，id 留空创建；input 是完整队名、参赛单位和按棒次顺序的 memberIds（可为空）。同一运动员在一个项目只能属于一队，已有比赛记录不能改棒次。保存队伍后用 add_entries 的 teamId 报名。", false, func(ctx context.Context, in struct {
 		EventID string            `json:"eventId"`
 		ID      string            `json:"id,omitempty"`
 		Input   service.TeamInput `json:"input"`
 	}) (any, error) {
 		return svc.SaveTeam(ctx, store.SourceMCP, in.EventID, in.ID, in.Input)
 	})
-	addTool(s, "save_event", "创建或更新一个项目。id 留空创建；必须有性别、项目名与类型。更新时 input 是全部字段。startMode 为 lanes（分道）、group（不分道）、break（分道后抢道）；distanceMode 为 jump 或 throw；relayLegCount 是建议棒数，0 为未指定。", false, func(ctx context.Context, in saveEventArg) (any, error) {
+	addTool(s, "save_event", "创建或更新一个项目。id 留空创建；必须有性别、项目名与类型。更新时 input 是全部字段。startMode 为 lanes（分道）、group（不分道）、break（分道后抢道）；distanceMode 为 jump 或 throw；relayLegCount 是建议棒数，0 为未指定。participantMode 为 athlete 或 team；count/score 支持 rankDirection（asc/desc）、attemptMode（single/best/sum）；scoreDecimals 为计分小数位 0–3。", false, func(ctx context.Context, in saveEventArg) (any, error) {
 		return svc.SaveEvent(ctx, store.SourceMCP, in.MeetID, in.ID, in.Input)
 	})
 	addTool(s, "set_seed", "设置一个报名成绩；seed 留空清除。", false, func(ctx context.Context, in struct {
@@ -100,6 +100,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 		html, err := svc.RenderReport(ctx, in.Kind, in.MeetID, in.EventIDs)
 		return map[string]string{"html": html}, err
 	})
+	registerCombined(s, svc)
 	registerMutations(s, svc)
 	return s
 }

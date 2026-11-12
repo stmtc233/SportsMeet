@@ -28,10 +28,16 @@
 - 读走单独的只读连接(`Store.Query`),大列表查询不会把写入排在后面。
 - 迁移文件按「行尾分号」切成语句逐条执行,迁移里不写触发器,也不写跨行且含行尾分号的字符串。
 
-## 接力数据
+## 全能与队伍数据
 
-- 使用 `teams` / `team_members` 与 `entries.team_id`、`slots.team_id`,棒次为从 1 开始的连续 `leg`;个人项目只写 `athlete_id`。现有数据库使用同一结构,无需新增迁移。
-- `ListTeams` 对整个查询范围读取队伍与成员,固定两次查询;运动员使用计数合并个人报名与经接力队取得的报名和位置。名单删除保护由 service 完成,见 [domain.md](domain.md)「接力」。
+- `0003_scalar_events.sql` 的 `events.config_json` 保存参赛方式、建议人数、小数位、汇总方式与排名方向；缺省 JSON 为 `{}`，按领域默认解释。
+- `0004_combined.sql` 的 `combined_events`、`combined_components`、`combined_entries` 保存全能、规则与统一名单；`events.combined_id` 外键级联分项。`Store.ListCombined` 对查询范围固定读取父项、分项和报名三次，不逐个全能查询。
+- 全能读取一次加载赛事项目、轮次、运动员和单位，计分与打印在内存组装，查询次数不随分项或组数增长。完整规则见 [combined.md](combined.md)。
+
+## 队伍名单
+
+- 使用 `teams` / `team_members` 与 `entries.team_id`、`slots.team_id`,棒次为从 1 开始的连续 `leg`;个人项目只写 `athlete_id`。普通队伍与接力共用这组外键与名单结构。
+- `ListTeams` 对整个查询范围读取队伍与成员,固定两次查询;运动员使用计数合并个人报名与经队伍取得的报名和位置。名单删除保护由 service 完成,见 [domain.md](domain.md)「队伍与接力」。
 
 ## 查询
 

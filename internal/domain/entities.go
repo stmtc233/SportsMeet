@@ -36,6 +36,8 @@ type Athlete struct {
 
 // Event is one single item: gender + discipline + optional group.
 type Event struct {
+	CompetitionConfig
+	CombinedID    string       `json:"combinedId,omitempty"`
 	ID            string       `json:"id"`
 	MeetID        string       `json:"meetId"`
 	Name          string       `json:"name"`
@@ -77,7 +79,7 @@ type Result struct {
 	Note     string    `json:"note"`
 }
 
-// Team belongs to a relay event. MemberIDs are ordered by leg.
+// Team belongs to a team-participant event; relay members are ordered by leg.
 type Team struct {
 	ID        string   `json:"id"`
 	EventID   string   `json:"eventId"`
@@ -86,7 +88,7 @@ type Team struct {
 	MemberIDs []string `json:"memberIds"`
 }
 
-// Entry puts an athlete or a relay team into an event's pool.
+// Entry puts an athlete or a team into an event's pool.
 type Entry struct {
 	EventID   string `json:"eventId"`
 	AthleteID string `json:"athleteId"`

@@ -39,7 +39,11 @@ func positionLabel(event domain.Event, pos int) string {
 }
 
 // buildResult turns typed input into a result, or nil to remove it.
-func buildResult(kind domain.EventKind, in ResultInput) (*domain.Result, error) {
+func buildResultEvent(event domain.Event, in ResultInput) (*domain.Result, error) {
+	kind := event.Kind
+	if kind.Scalar() && event.MultipleAttempts() && strings.TrimSpace(in.Mark) != "" {
+		return nil, invalid("请逐次录入成绩")
+	}
 	r := &domain.Result{Status: domain.Status(strings.ToUpper(strings.TrimSpace(in.Status))), Note: strings.TrimSpace(in.Note)}
 	if r.Status != "" && !r.Status.Valid() {
 		return nil, invalid("状态不正确")
@@ -52,7 +56,7 @@ func buildResult(kind domain.EventKind, in ResultInput) (*domain.Result, error) 
 		if strings.TrimSpace(text) == "" {
 			return nil, invalid("第 %d 次未填", i+1)
 		}
-		a, err := scoring.ParseAttempt(kind, text)
+		a, err := scoring.ParseEventAttempt(event, text)
 		if err != nil {
 			return nil, invalid("第 %d 次「%s」格式不正确", i+1, text)
 		}
@@ -77,22 +81,29 @@ func buildResult(kind domain.EventKind, in ResultInput) (*domain.Result, error) 
 			return nil, invalid("高度应从低到高")
 		}
 	}
-	if len(r.Attempts) > 0 && kind != domain.KindDistance || len(r.Bars) > 0 && kind != domain.KindHeight {
+	if len(r.Attempts) > 0 && !event.MultipleAttempts() || len(r.Bars) > 0 && kind != domain.KindHeight {
 		return nil, invalid("逐次记录与项目类型不符")
 	}
 
 	mark, hasMark := int64(0), false
 	switch {
 	case len(r.Attempts) > 0:
-		mark, hasMark = scoring.BestAttempt(r.Attempts)
+		var err error
+		mark, hasMark, err = scoring.Aggregate(event, r.Attempts)
+		if err != nil {
+			return nil, invalid("成绩超出范围")
+		}
 	case len(r.Bars) > 0:
 		mark, hasMark = scoring.ClearedHeight(r.Bars)
 	case strings.TrimSpace(in.Mark) != "":
-		m, err := scoring.ParseMark(kind, in.Mark)
+		m, err := scoring.ParseEventMark(event, in.Mark)
 		if err != nil {
 			return nil, invalid("成绩「%s」格式不正确", in.Mark)
 		}
 		mark, hasMark = m, true
+	}
+	if event.AttemptCount > 0 && len(r.Attempts) > event.AttemptCount {
+		return nil, invalid("逐次成绩超过设置次数")
 	}
 	record := len(r.Attempts) > 0 || len(r.Bars) > 0
 	switch {
@@ -184,12 +195,12 @@ type ResultChange struct {
 	AfterRecord  *domain.Result `json:"afterRecord,omitempty"`
 }
 
-func resultText(kind domain.EventKind, r *domain.Result) string {
+func resultTextEvent(event domain.Event, r *domain.Result) string {
 	switch {
 	case r == nil:
 		return ""
 	case r.Status == domain.StatusOK && r.Mark != nil:
-		return scoring.FormatMark(kind, *r.Mark)
+		return scoring.FormatEventMark(event, *r.Mark)
 	}
 	return string(r.Status)
 }
@@ -212,7 +223,6 @@ func (s *Service) SaveResults(ctx context.Context, src store.Source, heatID stri
 		return err
 	}
 	round := st.round(rows.Values[0][1].(string))
-	kind := st.event.Kind
 	before := storedResults(round.Heats)
 	heats := copyHeats(round.Heats)
 	var heat *domain.Heat
@@ -237,19 +247,19 @@ func (s *Service) SaveResults(ctx context.Context, src store.Source, heatID stri
 		if slot == nil || slot.CompetitorID() == "" {
 			return ErrStale
 		}
-		r, err := buildResult(kind, in)
+		r, err := buildResultEvent(st.event, in)
 		if err != nil {
 			return invalid("%s:%s", positionLabel(st.event, in.Position), err)
 		}
 		if r != nil && slot.Result != nil {
 			r.Wind = slot.Result.Wind
 		}
-		if a, b := resultText(kind, slot.Result), resultText(kind, r); !reflect.DeepEqual(slot.Result, r) {
+		if a, b := resultTextEvent(st.event, slot.Result), resultTextEvent(st.event, r); !reflect.DeepEqual(slot.Result, r) {
 			changes = append(changes, ResultChange{Athlete: st.competitorName(slot.CompetitorID()), Before: a, After: b, BeforeRecord: slot.Result, AfterRecord: r})
 		}
 		slot.Result = r
 	}
-	rescore(kind, round.Advance, heats)
+	rescoreEvent(st.event, round.Advance, heats)
 	stmts := resultWrites(before, heats, nil, s.store.Now())
 	if len(stmts) == 0 {
 		return nil

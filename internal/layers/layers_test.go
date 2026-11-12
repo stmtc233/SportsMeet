@@ -26,7 +26,7 @@ var allowed = map[string][]string{
 	"domain":      {},
 	"arrange":     {"domain"},
 	"scoring":     {"domain"},
-	"interchange": {"domain"},
+	"interchange": {"domain", "scoring"},
 	"report":      {},
 	"store":       {"domain"},
 	"service":     {"arrange", "domain", "interchange", "report", "scoring", "store"},

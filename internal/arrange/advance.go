@@ -18,7 +18,7 @@ type Finisher struct {
 // byPlace of each heat, q for the byMark best of the others. Competitors
 // tied on the last place or on the last mark all advance, since nothing in
 // the results separates them; the referee removes the extra one by hand.
-func Qualify(kind domain.EventKind, heats [][]Finisher, byPlace, byMark int) map[string]string {
+func QualifyEvent(event domain.Event, heats [][]Finisher, byPlace, byMark int) map[string]string {
 	out := map[string]string{}
 	var rest []Finisher
 	for _, heat := range heats {
@@ -33,7 +33,7 @@ func Qualify(kind domain.EventKind, heats [][]Finisher, byPlace, byMark int) map
 		}
 	}
 	sort.SliceStable(rest, func(i, j int) bool {
-		if kind.Timed() {
+		if event.Ascending() {
 			return rest[i].Mark < rest[j].Mark
 		}
 		return rest[i].Mark > rest[j].Mark
@@ -45,4 +45,8 @@ func Qualify(kind domain.EventKind, heats [][]Finisher, byPlace, byMark int) map
 		out[f.ID] = "q"
 	}
 	return out
+}
+
+func Qualify(kind domain.EventKind, h [][]Finisher, p, m int) map[string]string {
+	return QualifyEvent(domain.Event{Kind: kind}, h, p, m)
 }

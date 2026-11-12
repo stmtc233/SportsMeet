@@ -12,17 +12,19 @@ import (
 
 // Mutation is an internal union used by the MCP adapters. Each tool exposes only its own fields.
 type Mutation struct {
-	Action  string        `json:"action"`
-	MeetID  string        `json:"meetId,omitempty"`
-	EventID string        `json:"eventId,omitempty"`
-	HeatID  string        `json:"heatId,omitempty"`
-	ID      string        `json:"id,omitempty"`
-	IDs     []string      `json:"ids,omitempty"`
-	Entries []EntryInput  `json:"entries,omitempty"`
-	Results []ResultInput `json:"results,omitempty"`
-	Plan    PlanRequest   `json:"plan,omitempty"`
-	Table   AthleteImport `json:"table,omitempty"`
-	Data    string        `json:"data,omitempty"`
+	CombinedID string        `json:"combinedId,omitempty"`
+	Combined   CombinedInput `json:"combined,omitempty"`
+	Action     string        `json:"action"`
+	MeetID     string        `json:"meetId,omitempty"`
+	EventID    string        `json:"eventId,omitempty"`
+	HeatID     string        `json:"heatId,omitempty"`
+	ID         string        `json:"id,omitempty"`
+	IDs        []string      `json:"ids,omitempty"`
+	Entries    []EntryInput  `json:"entries,omitempty"`
+	Results    []ResultInput `json:"results,omitempty"`
+	Plan       PlanRequest   `json:"plan,omitempty"`
+	Table      AthleteImport `json:"table,omitempty"`
+	Data       string        `json:"data,omitempty"`
 }
 
 // MutationPreview shows the complete affected data and carries an opaque confirmation hash.
@@ -107,6 +109,16 @@ func (s *Service) ApplyMutation(ctx context.Context, in Mutation, hash string, c
 
 func (s *Service) mutationSnapshot(ctx context.Context, in Mutation) (any, error) {
 	meetID := in.MeetID
+	if in.CombinedID != "" {
+		d, err := s.GetCombined(ctx, in.CombinedID)
+		if err != nil {
+			return nil, err
+		}
+		if meetID != "" && meetID != d.Combined.MeetID {
+			return nil, invalid("全能不属于本赛事")
+		}
+		meetID = d.Combined.MeetID
+	}
 	eventID := in.EventID
 	if in.Action == "auto_arrange" || in.Action == "advance" {
 		eventID = in.Plan.EventID

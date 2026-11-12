@@ -8,7 +8,7 @@
 
 ## 1. 项目概览
 
-SportsMeet 是一款开源的**单机离线**田径运动会编排软件:一台电脑完成「赛事 → 报名 → 编排 → 秩序册 → 录入成绩 → 排名 → 成绩册」全流程。
+SportsMeet 是一款开源的**单机离线**田径与校园运动会编排软件:一台电脑完成「赛事 → 报名 → 编排 → 秩序册 → 录入成绩 → 排名 → 成绩册」全流程。
 
 - **框架**:[mygo](https://github.com/egoist/mygo)(网页界面模式),深度使用其绑定、事件、SQLite 插件、对话框、打包与自动更新,不为替换框架做抽象层(用户要求)。
 - **技术栈**:Go(版本以 `go.mod` 为准,本机较旧时 Go 自动下载对应工具链;业务全部在 Go)+ Bun + Vite + TypeScript + React 前端(跑在系统 WebView 中)。mygo 版本见 `go.mod` 与 `package.json`(`mygo-cli` / `mygo-runtime` 同版本)。
@@ -25,13 +25,16 @@ SportsMeet 是一款开源的**单机离线**田径运动会编排软件:一台�
 | **参赛单位** | `unit` | 学校 / 班级 / 代表队,运动员的所属 |
 | **运动员** | `athlete` | 属于赛事,各项目共用 |
 | **项目** | `event` | 一个单项 = 性别(男 / 女 / 混合)+ 项目名(`discipline`)+ 可选组别(`groupLabel`) |
-| **项目类型** | `EventKind` | `track` 径赛计时 / `relay` 接力 / `distance` 远度 / `height` 高度 |
-| **接力队** | `team` | 属于一个接力项目，成员按棒次（`leg`）顺序排列 |
-| **报名** | `entry` | 运动员(接力为队伍)进入某项目 |
+| **项目类型** | `EventKind` | `track` 径赛计时 / `relay` 接力 / `distance` 远度 / `height` 高度 / `count` 计次 / `score` 计分 |
+| **队伍** | `team` | 属于一个队伍项目；接力队成员按棒次（`leg`）顺序排列 |
+| **全能** | `combined` | 统一报名、汇总多个个人分项积分的比赛 |
+| **分项** | `component` | 全能拥有的一个项目，有独立编排与原始成绩 |
+| **积分** | `points` | 分项成绩按计分表换算的全能积分 |
+| **报名** | `entry` | 运动员或队伍进入某项目 |
 | **轮次** | `round` | 预赛 / 次赛 / 半决赛 / 决赛;单轮项目只有一个轮次 |
 | **组** | `heat` | 轮次中的一组(径赛一组一次起跑,田赛一组一起比) |
 | **位置** | `slot` | 组内的起跑道次(分道项目)或顺序(不分道项目、田赛) |
-| **成绩** | `result` / `mark` | 位置上的成绩;`mark` 为整数,径赛毫秒、田赛毫米 |
+| **成绩** | `result` / `mark` | 位置上的成绩;`mark` 为整数,计时毫秒、田赛毫米、计次次数、计分按小数位缩放 |
 | **编排** | arrange | 把报名者排进组和位置;不用来指整个系统 |
 
 「组」不叫「组次」;「项目」不叫「比赛项」。
@@ -47,15 +50,15 @@ SportsMeet/
 ├── package.json · vite.config.ts · tsconfig.json · index.html
 ├── resources/icon.png       ← 1024×1024 应用图标
 ├── internal/
-│   ├── domain/              ← 实体、枚举与项目配置(纯数据 + 校验,无 IO)
+│   ├── domain/              ← 实体、枚举、项目配置与全能规则(纯数据 + 校验,无 IO)
 │   ├── store/               ← SQLite 访问(mygo sqlite 插件,库文件 sportsmeet.db 在 mygo.PathUserData)
 │   │   ├── migrations/      ← NNNN_名称.sql,嵌入二进制,启动时按序执行
 │   │   └── schema.sql       ← 当前完整结构快照
 │   ├── arrange/             ← 自动编排(分组、排道)、组序号、组指纹、晋级判定;纯函数
-│   ├── scoring/             ← 成绩解析与格式化、排名、并列判定、田赛逐次记录
-│   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配
+│   ├── scoring/             ← 成绩解析与格式化、逐次汇总、排名、全能积分与总排名
+│   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配;复用 scoring 校验逐次汇总
 │   ├── report/              ← 秩序册 / 成绩册(HTML 模板);检录单、号码布待实现
-│   ├── service/             ← 唯一写入口:写锁、校验、操作日志、变更通知;含项目预设、表格导入、编排保存、批量排时、成绩、导入导出
+│   ├── service/             ← 唯一写入口:写锁、校验、操作日志、变更通知;含项目预设、全能与计分规则、表格导入、编排保存、批量排时、成绩、导入导出
 │   ├── mcp/                 ← MCP 服务与监听生命周期(仅 127.0.0.1,默认关)
 │   ├── layers/              ← 分层测试:各包允许的依赖、纯计算包不碰 mygo、bind / mcp 不越过 service
 │   └── bind/                ← 给前端的 mygo 服务 + `dataChanged` 事件(薄层,只转调 service,另加文件对话框与打印窗口)
@@ -64,7 +67,7 @@ SportsMeet/
 │   ├── mygo.ts              ← `mygo generate` 生成物,勿手改
 │   ├── app/                 ← nav.tsx(页面路由状态、离开前确认)、app.css(外壳与页面布局,只用 token)
 │   ├── design/              ← tokens.css、components.css、`St*` 组件、icons.ts;经 index.ts 统一导出
-│   ├── features/            ← meets/ units/ athletes/ events/ event/(项目工作区:报名与接力队伍)arrange/ results/ reports/ exchange/ settings/ about/
+│   ├── features/            ← meets/ units/ athletes/ events/ event/(项目工作区:报名与队伍)combined/(全能)arrange/ results/ reports/ exchange/ settings/ about/
 │   └── lib/                 ← coalesce.ts(事件刷新合并)、useData.ts、action.ts、errors.ts、labels.ts
 ├── .agents/skills/          ← mygo 自带的 agent 技能
 ├── tests/ui/                ← Playwright 页面冒烟测试(模拟 mygo 桥接)
@@ -73,7 +76,7 @@ SportsMeet/
 ├── .github/workflows/check.yml      ← CI:`bun run check`、绑定生成物比对、页面冒烟测试
 ├── docs/
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
-│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json
+│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json
 │   ├── examples/sample-meet.json
 │   └── agents/                        ← 专题细则(§5)
 └── testdata/interchange/              ← 编解码黄金文件
@@ -110,6 +113,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 |---|---|
 | `internal/domain/`、`internal/service/`、`internal/scoring/`、报名 / 组 / 成绩 / 排名 / 晋级 / 删除 / 操作日志 | [domain.md](docs/agents/domain.md) |
 | `internal/arrange/`、`src/features/arrange/` | [arrange.md](docs/agents/arrange.md) + [domain.md](docs/agents/domain.md) |
+| 全能、分项、计分表、`src/features/combined/`、`internal/service/combined*.go` | [combined.md](docs/agents/combined.md) + [domain.md](docs/agents/domain.md) |
 | `internal/mcp/` | [mcp.md](docs/agents/mcp.md) |
 | `internal/interchange/`、导入导出 | [interchange-format.md](docs/interchange-format.md) + [mcp.md](docs/agents/mcp.md)「导入」 |
 | `internal/store/`、迁移、查询性能 | [storage.md](docs/agents/storage.md) |
@@ -133,7 +137,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 - 项目 = 一个单项,必带性别与项目名、必属于赛事;男女、不同距离不得混在一个项目。
 - 运动员属于赛事,经报名进项目;排进位置即自动报名,取消报名不动已排位置;学号 / 号码布赛事内唯一。
-- 成绩 `mark` 存整数(径赛毫秒、田赛毫米),并列同名次、下一名顺延。
+- 成绩 `mark` 存整数(计时毫秒、田赛毫米、计次次数、计分按精度缩放),并列同名次、下一名顺延。
 - 位置在分道与分道后抢道项目中表示起跑道次,在不分道项目和田赛中表示顺序;同一轮次里一人只占一个位置,组名只存自定义名称。
 - 常用项目预设只提供初始配置;起跑方式、跳跃 / 投掷与建议棒数独立保存,已有数据不按项目名推断。
 - 有成绩的组锁定,不能删除、不被自动编排覆盖;判定只有 `HeatFacts.KeepReason` 一处。
@@ -141,7 +145,8 @@ bun run test:ui                      # 先 bunx playwright install chromium
 - 自动编排只排未分组的人、只追加新组;随机带 `seed` 可复现。
 - 批量排时间只改当前轮次未比赛的组,界面与 MCP 共用预览和确认提交,数据变化须重新预览。
 - 新建项目自带决赛轮次,可加一个预赛;名次与 `Q` / `q` 在每次写成绩时由 Go 重算并存储,晋级只读成绩。
-- 接力按队报名、排道与计时;同一项目一人只属一队,已有比赛记录的队伍锁定棒次(→ domain.md)。
+- 队伍按队报名、编排和录成绩;同一项目一人只属一队,已有比赛记录的队伍锁定名单(→ domain.md)。
+- 全能拥有独立分项并统一报名,积分与总排名由原始成绩和保存的计分表计算,规则修改须预览确认(→ [combined.md](docs/agents/combined.md))。
 - 每个写操作写操作日志(来源 `ui` / `mcp` / `system`),日志失败不影响业务。
 
 ### 5.3 MCP → [mcp.md](docs/agents/mcp.md)
@@ -166,7 +171,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 ### 5.6 未实现与后续计划
 
-当前已实现:基础数据(赛事、参赛单位、运动员含表格导入、项目含 30 个预设与自定义配置、报名)、编排(预赛 + 决赛、自动编排、手动调整、草稿保存、批量排时间)、径赛 / 接力 / 远度 / 高度成绩录入与排名晋级、秩序册与成绩册打印、交换格式导入导出、设置(通用 / 编排 / 打印 / MCP / 关于)、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
+当前已实现:基础数据(赛事、参赛单位、运动员含表格导入、项目含 35 个预设与自定义配置、报名)、编排(预赛 + 决赛、自动编排、手动调整、草稿保存、批量排时间)、计时 / 田赛 / 计次 / 计分成绩录入与排名晋级、普通队伍项目、全能分项与积分总排名、秩序册与成绩册打印、交换格式导入导出、设置(通用 / 编排 / 打印 / MCP / 关于)、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
 
 **待验证**
 - WebView 中的手动拖放、完整现场操作流程与 800 宽原生窗口;浏览器 1280 / 800、浅色 / 深色已由自动测试覆盖。

@@ -92,6 +92,34 @@ func (m Meets) Update(ctx context.Context, id string, in service.MeetInput) erro
 // Delete removes a meet and everything in it.
 func (m Meets) Delete(ctx context.Context, id string) error { return m.Svc.DeleteMeet(ctx, ui, id) }
 
+// Combined manages owned all-around components and their shared roster.
+type Combined struct{ *Core }
+
+func (c Combined) List(ctx context.Context, meetID string) ([]service.CombinedRowSummary, error) {
+	return c.Svc.ListCombined(ctx, meetID)
+}
+func (c Combined) Get(ctx context.Context, id string) (*service.CombinedDetail, error) {
+	return c.Svc.GetCombined(ctx, id)
+}
+func (c Combined) Save(ctx context.Context, meetID, id string, in service.CombinedInput) (*domain.Combined, error) {
+	return c.Svc.SaveCombined(ctx, ui, meetID, id, in)
+}
+func (c Combined) Entries(ctx context.Context, id string, athleteIDs []string) error {
+	return c.Svc.SetCombinedEntries(ctx, ui, id, athleteIDs)
+}
+func (c Combined) Delete(ctx context.Context, id string) error {
+	return c.Svc.DeleteCombined(ctx, ui, id)
+}
+func (c Combined) ParseRule(in service.EventInput, rule service.PointRuleInput) (*service.PointRulePreview, error) {
+	return c.Svc.ParsePointRule(in, rule)
+}
+func (c Combined) PreviewRules(ctx context.Context, req service.CombinedRulesRequest) (*service.CombinedRulesPreview, error) {
+	return c.Svc.PreviewCombinedRules(ctx, req)
+}
+func (c Combined) ApplyRules(ctx context.Context, req service.CombinedRulesRequest, hash string, confirmed bool) (*service.CombinedRulesPreview, error) {
+	return c.Svc.ApplyCombinedRules(ctx, ui, req, hash, confirmed)
+}
+
 // Units manages 参赛单位.
 type Units struct{ *Core }
 
@@ -157,6 +185,10 @@ func (a Athletes) Import(ctx context.Context, meetID string, in service.AthleteI
 
 // Events manages 项目.
 type Events struct{ *Core }
+
+func (e Events) TeamWarnings(ctx context.Context, eventID string, memberIDs []string) ([]string, error) {
+	return e.Svc.TeamWarnings(ctx, eventID, memberIDs)
+}
 
 func (e Events) Presets() []service.EventPreset { return e.Svc.EventPresets() }
 
@@ -239,6 +271,10 @@ func (r Results) Save(ctx context.Context, heatID string, inputs []service.Resul
 
 // Reports renders and prints 秩序册 and 成绩册.
 type Reports struct{ *Core }
+
+func (r Reports) Targets(ctx context.Context, meetID string) ([]service.ReportTarget, error) {
+	return r.Svc.ReportTargets(ctx, meetID)
+}
 
 // Render returns the report as an HTML document, for the preview.
 func (r Reports) Render(ctx context.Context, kind, meetID string, eventIDs []string) (string, error) {
@@ -356,6 +392,17 @@ func (Marks) Parse(kind domain.EventKind, input string) (int64, error) {
 }
 
 // Format shows a mark of kind.
+func (Marks) NormalizeEvent(event domain.Event, input string) (string, error) {
+	if err := event.NormalizeConfig(); err != nil {
+		return "", err
+	}
+	mark, err := scoring.ParseEventMark(event, input)
+	if err != nil {
+		return "", err
+	}
+	return scoring.FormatEventMark(event, mark), nil
+}
+
 func (Marks) Format(kind domain.EventKind, mark int64) string { return scoring.FormatMark(kind, mark) }
 
 // Normalize parses typed input and returns it as marks are shown, so a

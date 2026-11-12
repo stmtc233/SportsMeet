@@ -55,13 +55,13 @@ export function AutoDialog({ open, detail, round, exclude, onClose, onPlanned }:
       {canAdvance && (
         <StSegmented label="来源" value={source} onChange={setSource} options={[{ value: "advance", label: `${prev!.label}晋级者` }, { value: "entries", label: "全部报名" }]} />
       )}
-      <StTextField label={detail.event.kind === "relay" ? "每组队数" : "每组人数"} inputMode="numeric" value={perHeat} onChange={setPerHeat} width="narrow" suffix={detail.event.kind === "relay" ? "队" : "人"} />
+      <StTextField label={detail.rules.team ? "每组队数" : "每组人数"} inputMode="numeric" value={perHeat} onChange={setPerHeat} width="narrow" suffix={detail.rules.team ? "队" : "人"} />
       <StSegmented label="排列顺序" value={order} onChange={setOrder} options={[{ value: "seed", label: source === "advance" ? "按上一轮成绩" : "按报名成绩" }, { value: "random", label: "随机" }]} />
       <StSegmented label="位置分配" value={lanes} onChange={setLanes}
         options={laned ? [{ value: "center", label: "好成绩排中间道" }, { value: "sequential", label: "依次" }, { value: "random", label: "随机" }] : [{ value: "sequential", label: "依次" }, { value: "random", label: "随机" }]} />
       <div>
         <StSwitchItem title="同单位分散" subtitle="同单位尽量不同组" checked={separate} onChange={setSeparate} />
-        <StSwitchItem title={detail.event.kind === "relay" ? "均衡队数" : "均衡人数"} checked={balance} onChange={setBalance} />
+        <StSwitchItem title={detail.rules.team ? "均衡队数" : "均衡人数"} checked={balance} onChange={setBalance} />
       </div>
     </StDialog>
   );

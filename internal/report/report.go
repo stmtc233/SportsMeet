@@ -11,12 +11,13 @@ import (
 
 // Book is one meet's printable content.
 type Book struct {
-	NewPage  bool   // Start each event on a new printed page.
-	Title    string // 秩序册 / 成绩册
-	Meet     string
-	Dates    string // 2026-11-12 or 2026-11-12 – 2026-11-13
-	Location string
-	Events   []Event
+	NewPage   bool   // Start each event on a new printed page.
+	Title     string // 秩序册 / 成绩册
+	Meet      string
+	Dates     string // 2026-11-12 or 2026-11-12 – 2026-11-13
+	Location  string
+	Events    []Event
+	Combineds []Combined
 }
 
 // Event is one item.
@@ -24,6 +25,7 @@ type Event struct {
 	Name          string
 	Date          string
 	Relay         bool
+	RosterLabel   string
 	PositionLabel string
 	AttemptLabel  string
 	Configuration string
@@ -103,4 +105,24 @@ func StartList(b Book) (string, error) {
 func Results(b Book) (string, error) {
 	b.Title = "成绩册"
 	return render(resultsTmpl, b)
+}
+
+type Combined struct {
+	Name   string
+	State  string
+	Roster []Line
+	Tables []CombinedTable
+}
+type CombinedTable struct {
+	Label   string
+	Headers []string
+	Rows    []CombinedRow
+}
+type CombinedRow struct {
+	Name  string
+	Bib   string
+	Unit  string
+	Rank  string
+	Total string
+	Cells []string
 }

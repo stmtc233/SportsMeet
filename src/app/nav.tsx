@@ -9,6 +9,8 @@ export type Route =
   | { page: "meets" }
   | { page: "settings"; section: SettingsSection | null; returnTo?: Route }
   | { page: "meet"; meetId: string; tab: MeetTab }
+  | { page: "combineds"; meetId: string }
+  | { page: "combined"; meetId: string; combinedId: string }
   | { page: "event"; meetId: string; eventId: string; tab: EventTab };
 
 interface Nav {

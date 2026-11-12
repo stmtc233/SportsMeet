@@ -11,6 +11,19 @@ import (
 func (s *Service) planMutation(ctx context.Context, in Mutation, before any) (any, bool, error) {
 	const src = store.SourceMCP
 	switch in.Action {
+	case "save_combined":
+		c, err := s.SaveCombined(ctx, src, in.MeetID, in.CombinedID, in.Combined)
+		return c, false, err
+	case "combined_entries":
+		err := s.SetCombinedEntries(ctx, src, in.CombinedID, in.IDs)
+		return in.IDs, false, err
+	case "delete_combined":
+		detail, err := s.GetCombined(ctx, in.CombinedID)
+		if err != nil {
+			return nil, false, err
+		}
+		return detail, false, s.DeleteCombined(ctx, src, in.CombinedID)
+
 	case "add_entries":
 		err := s.AddEntries(ctx, src, in.EventID, in.Entries)
 		return in.Entries, false, err
@@ -185,7 +198,7 @@ func (s *Service) prepareResults(ctx context.Context, in Mutation) (any, bool, e
 				}
 				seen[input.Position] = true
 				// MCP cannot clear a result: deletion of competition records stays in the UI.
-				after, err := buildResult(d.Event.Kind, input)
+				after, err := buildResultEvent(d.Event, input)
 				if err != nil {
 					return nil, false, err
 				}

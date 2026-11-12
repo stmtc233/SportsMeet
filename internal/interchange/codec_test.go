@@ -1,6 +1,7 @@
 package interchange
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"reflect"
@@ -43,7 +44,7 @@ func TestDecodeRejects(t *testing.T) {
 	cases := []struct {
 		name, from, to, want string
 	}{
-		{"newer version", `"version": 1`, `"version": 3`, ""},
+		{"newer version", `"version": 1`, `"version": 4`, ""},
 		{"wrong format", `"sportsmeet-interchange"`, `"other"`, "format"},
 		{"OK without mark", `"status": "OK", "mark": 12650`, `"status": "OK", "mark": null`, "mark 必填"},
 		{"unknown athlete", `"athleteId": "a3", "seedMark": 13100`, `"athleteId": "zz", "seedMark": 13100`, "找不到运动员 zz"},
@@ -81,7 +82,7 @@ func TestV2ConfigurationAndV1Defaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.Version != Version || f.Events[3].StartMode != "group" || f.Events[4].DistanceMode != "throw" || f.Events[5].RelayLegCount != 4 {
+	if f.Version != 2 || f.Events[3].StartMode != "group" || f.Events[4].DistanceMode != "throw" || f.Events[5].RelayLegCount != 4 {
 		t.Fatal("v2 config lost")
 	}
 	encoded, err := Encode(f)
@@ -111,3 +112,54 @@ func TestV2ConfigurationAndV1Defaults(t *testing.T) {
 		t.Fatal("v1 unknown fields interpreted")
 	}
 }
+
+func TestV3ScalarTeamsAndCombined(t *testing.T) {
+	data, err := os.ReadFile("../../testdata/interchange/sample-meet-v3.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Version != Version || len(f.Combineds) != 1 {
+		t.Fatal("v3 metadata")
+	}
+	out, err := Encode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := Decode(out)
+	if err != nil || !reflect.DeepEqual(f, again) {
+		t.Fatalf("v3 roundtrip %v", err)
+	}
+	for _, mutate := range []func(*File){
+		func(f *File) { f.Combineds[0].Components[0].EventID = "missing" },
+		func(f *File) { f.Combineds[0].AthleteIDs = nil },
+		func(f *File) { f.Combineds[0].Components[0].Rule.Bands[0].Points = -1 },
+		func(f *File) { f.Events[len(f.Events)-2].Rounds[0].Heats[0].Slots[0].Result.Mark = ptrMark(1) },
+	} {
+		var invalid File
+		if err := json.Unmarshal(data, &invalid); err != nil {
+			t.Fatal(err)
+		}
+		mutate(&invalid)
+		if len(Validate(&invalid)) == 0 {
+			t.Fatal("invalid v3 accepted")
+		}
+	}
+	legacy, err := os.ReadFile("../../testdata/interchange/sample-meet-v2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := strings.Replace(string(legacy), `"version": 2`, `"version": 2, "combineds": {"extension":true}`, 1)
+	text = strings.Replace(text, `"kind": "track"`, `"kind": "track", "participantMode": 12, "scoreDecimals": "extension"`, 1)
+	old, err := Decode([]byte(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(old.Combineds) != 0 || old.Events[0].ParticipantMode != "" {
+		t.Fatal("v2 extension interpreted")
+	}
+}
+func ptrMark(n int64) *int64 { return &n }

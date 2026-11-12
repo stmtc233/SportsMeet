@@ -333,7 +333,7 @@ func matchEvent(events []domain.Event, token string, gender domain.Gender) strin
 	name, disc := domain.NormalizeText(token), domain.DisciplineKey(token)
 	found := ""
 	for _, e := range events {
-		if e.Kind == domain.KindRelay {
+		if e.IsTeam() || e.CombinedID != "" {
 			continue
 		}
 		if domain.NormalizeText(e.Name) == name {

@@ -42,6 +42,21 @@ func (s *Service) EventPresets() []EventPreset {
 	for _, name := range []string{"铅球", "垒球", "实心球", "标枪", "铁饼", "链球"} {
 		add("投掷", name, "distance", "", domain.DistanceThrow, 0)
 	}
+	add("计次", "跳绳", "count", "", "", 0)
+	add("计次", "定点投篮", "count", "", "", 0)
+	add("计分", "技巧评分", "score", "", "", 0)
+	out[len(out)-1].Input.ScoreDecimals = 2
+	add("团体", "两人三足", "track", domain.StartLanes, "", 0)
+	out[len(out)-1].Input.ParticipantMode = "team"
+	out[len(out)-1].Input.TeamSize = 2
+	add("团体", "集体跳绳", "count", "", "", 0)
+	out[len(out)-1].Input.ParticipantMode = "team"
+	out[len(out)-1].Input.TeamSize = 10
+	for i := range out {
+		if domain.EventKind(out[i].Input.Kind).Scalar() {
+			out[i].Input.AttemptCount = 1
+		}
+	}
 	return out
 }
 

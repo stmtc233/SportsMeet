@@ -171,7 +171,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
             {free.length === 0 && <StEmpty>{detail.entries.length === 0 ? "还没有报名" : picked ? "点这里移出" : "都已分组"}</StEmpty>}
           </div>
           <div className="split__side-foot">
-            <StButton icon={<IconAdd size={16} strokeWidth={iconStroke} />} onClick={() => setAdding(true)}>{detail.event.kind === "relay" ? "管理队伍" : "从赛事添加"}</StButton>
+            <StButton icon={<IconAdd size={16} strokeWidth={iconStroke} />} disabled={Boolean(event.combinedId)} onClick={() => setAdding(true)}>{detail.rules.team ? "管理队伍" : "从赛事添加"}</StButton>
           </div>
         </aside>
         <div className="split__main" onClick={() => setPicked("")}>

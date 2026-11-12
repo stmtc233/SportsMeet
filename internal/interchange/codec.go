@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/stmtc233/sportsmeet/internal/domain"
+	"github.com/stmtc233/sportsmeet/internal/scoring"
 )
 
 // Problems lists every validation error of a file (spec §6: report all,
@@ -41,15 +42,22 @@ func Decode(data []byte) (*File, error) {
 	}
 	var f File
 	var decodeErr error
-	if head.Version == 1 {
-		// Configuration is unknown in v1, including extension values of other types.
+	if head.Version < 3 {
+		// New fields are unknown to published formats, regardless of their JSON types.
 		var legacy struct {
 			File
-			Events []struct {
+			Combineds json.RawMessage `json:"combineds"`
+			Events    []struct {
 				Event
-				StartMode     json.RawMessage `json:"startMode"`
-				DistanceMode  json.RawMessage `json:"distanceMode"`
-				RelayLegCount json.RawMessage `json:"relayLegCount"`
+				ParticipantMode json.RawMessage `json:"participantMode"`
+				TeamSize        json.RawMessage `json:"teamSize"`
+				ScoreDecimals   json.RawMessage `json:"scoreDecimals"`
+				RankDirection   json.RawMessage `json:"rankDirection"`
+				AttemptMode     json.RawMessage `json:"attemptMode"`
+				CombinedID      json.RawMessage `json:"combinedId"`
+				StartMode       json.RawMessage `json:"startMode"`
+				DistanceMode    json.RawMessage `json:"distanceMode"`
+				RelayLegCount   json.RawMessage `json:"relayLegCount"`
 			} `json:"events"`
 		}
 		decodeErr = json.Unmarshal(data, &legacy)
@@ -58,6 +66,19 @@ func Decode(data []byte) (*File, error) {
 			f.Events = make([]Event, len(legacy.Events))
 			for i, event := range legacy.Events {
 				f.Events[i] = event.Event
+				if head.Version == 2 && decodeErr == nil {
+					for _, field := range []struct {
+						Raw    json.RawMessage
+						Target any
+					}{{event.StartMode, &f.Events[i].StartMode}, {event.DistanceMode, &f.Events[i].DistanceMode}, {event.RelayLegCount, &f.Events[i].RelayLegCount}} {
+						if len(field.Raw) > 0 {
+							if err := json.Unmarshal(field.Raw, field.Target); err != nil {
+								decodeErr = err
+								break
+							}
+						}
+					}
+				}
 			}
 		}
 	} else {
@@ -168,14 +189,14 @@ func Validate(f *File) Problems {
 		if strings.TrimSpace(e.Discipline) == "" {
 			add("%s.discipline 不能为空", at)
 		}
-		item := e.Gender + "|" + domain.DisciplineKey(e.Discipline) + "|" + domain.NormalizeText(e.GroupLabel)
+		item := e.CombinedID + "|" + e.Gender + "|" + domain.DisciplineKey(e.Discipline) + "|" + domain.NormalizeText(e.GroupLabel)
 		if items[item] {
 			add("%s 与其他项目的性别、项目名、组别重复", at)
 		}
 		items[item] = true
 		kind := domain.EventKind(e.Kind)
-		if !kind.Valid() {
-			add("%s.kind 只能为 track、relay、distance 或 height", at)
+		if !kind.Valid() || (f.Version < 3 && kind.Scalar()) {
+			add("%s.kind 项目类型不正确", at)
 			continue
 		}
 		if e.Date != nil && !dateRe.MatchString(*e.Date) {
@@ -183,13 +204,21 @@ func Validate(f *File) Problems {
 		}
 		p = append(p, validateEvent(at, kind, &e, athletes, units, f.Version >= 2)...)
 	}
+	p = append(p, validateCombineds(f, athletes)...)
 	return p
 }
 
 func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units map[string]bool, strictPositions bool) Problems {
 	var p Problems
 	add := func(format string, a ...any) { p = append(p, fmt.Sprintf(format, a...)) }
-	config := domain.Event{Kind: kind, StartMode: domain.StartMode(e.StartMode), DistanceMode: domain.DistanceMode(e.DistanceMode), RelayLegCount: e.RelayLegCount}
+	config := domain.Event{CompetitionConfig: e.CompetitionConfig, Kind: kind, StartMode: domain.StartMode(e.StartMode), DistanceMode: domain.DistanceMode(e.DistanceMode), RelayLegCount: e.RelayLegCount}
+	config.AttemptCount = 3
+	if kind.Scalar() {
+		config.AttemptCount = 1
+	}
+	if e.AttemptCount != nil {
+		config.AttemptCount = *e.AttemptCount
+	}
 	if err := config.NormalizeConfig(); err != nil {
 		add("%s：%s", at, err)
 	}
@@ -200,14 +229,14 @@ func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units m
 	if e.AttemptCount != nil && *e.AttemptCount < 1 {
 		add("%s.attemptCount 至少为 1", at)
 	}
-	relay := kind == domain.KindRelay
+	relay := config.IsTeam()
 
 	teams := map[string]bool{}
 	teamNames := map[string]bool{}
 	memberTeam := map[string]string{}
 	for i, t := range e.Teams {
 		if !relay {
-			add("%s.teams 只用于接力项目", at)
+			add("%s.teams 只用于队伍项目", at)
 			break
 		}
 		if t.ID == "" || teams[t.ID] {
@@ -241,7 +270,7 @@ func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units m
 		case athleteID != "" && teamID != "":
 			add("%s 不能同时有 athleteId 与 teamId", where)
 		case relay && teamID == "":
-			add("%s 接力项目必须用 teamId", where)
+			add("%s 队伍项目必须用 teamId", where)
 		case !relay && athleteID == "":
 			add("%s 个人项目必须用 athleteId", where)
 		case relay && !teams[teamID]:
@@ -311,7 +340,7 @@ func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units m
 					inRound[key] = true
 				}
 				if s.Result != nil {
-					p = append(p, validateResult(sat+".result", kind, s.Result)...)
+					p = append(p, validateResult(sat+".result", config, s.Result)...)
 				}
 			}
 		}
@@ -319,8 +348,9 @@ func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units m
 	return p
 }
 
-func validateResult(at string, kind domain.EventKind, r *Result) Problems {
+func validateResult(at string, event domain.Event, r *Result) Problems {
 	var p Problems
+	kind := event.Kind
 	add := func(format string, a ...any) { p = append(p, fmt.Sprintf(format, a...)) }
 	status := domain.Status(r.Status)
 	switch {
@@ -334,12 +364,25 @@ func validateResult(at string, kind domain.EventKind, r *Result) Problems {
 	if r.Qualify != nil && *r.Qualify != "Q" && *r.Qualify != "q" {
 		add("%s.qualify 只能为 Q、q 或 null", at)
 	}
-	if len(r.Attempts) > 0 && kind != domain.KindDistance {
-		add("%s.attempts 只用于远度项目", at)
+	if len(r.Attempts) > 0 && !event.MultipleAttempts() {
+		add("%s.attempts 不适用于该项目", at)
+	}
+	if event.Kind.Scalar() && len(r.Attempts) > event.AttemptCount {
+		add("%s.attempts 超过设置次数", at)
+	}
+	if event.Kind.Scalar() && len(r.Attempts) > 0 && r.Status == "OK" {
+		attempts := make([]domain.Attempt, len(r.Attempts))
+		for i, a := range r.Attempts {
+			attempts[i] = domain.Attempt{Outcome: a.Outcome, Mark: a.Mark, Wind: a.Wind}
+		}
+		mark, ok, err := scoring.Aggregate(event, attempts)
+		if err != nil || !ok || r.Mark == nil || mark != *r.Mark {
+			add("%s.mark 与逐次成绩不符", at)
+		}
 	}
 	for i, a := range r.Attempts {
 		switch {
-		case a.Outcome == "valid" && a.Mark == nil:
+		case a.Outcome == "valid" && (a.Mark == nil || *a.Mark < 0):
 			add("%s.attempts[%d] 有效尝试必须有 mark", at, i)
 		case a.Outcome != "valid" && a.Outcome != "foul" && a.Outcome != "pass":
 			add("%s.attempts[%d].outcome 不正确", at, i)

@@ -12,7 +12,7 @@ import (
 func TestEventPresetsAndCustomConfiguration(t *testing.T) {
 	svc, _ := newTestService(t)
 	presets := svc.EventPresets()
-	if len(presets) != 30 {
+	if len(presets) != 35 {
 		t.Fatalf("presets: %d", len(presets))
 	}
 	seen := map[string]bool{}
@@ -81,7 +81,7 @@ func TestGroupStartFlowAndConfigProtection(t *testing.T) {
 	// Import/export retains the actual mode rather than deriving it from the name.
 	file, err := f.svc.ExportMeet(f.ctx, f.meet)
 	must(t, err)
-	if file.Version != 2 || file.Events[0].StartMode != "group" {
+	if file.Version != interchange.Version || file.Events[0].StartMode != "group" {
 		t.Fatalf("export %+v", file.Events[0])
 	}
 	data, err := interchange.Encode(file)

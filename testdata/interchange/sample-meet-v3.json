@@ -1,0 +1,726 @@
+{
+  "format": "sportsmeet-interchange",
+  "version": 3,
+  "exportedAt": "2026-11-12T18:05:31+08:00",
+  "generator": {
+    "name": "SportsMeet",
+    "version": "0.1.0"
+  },
+  "meet": {
+    "id": "m1",
+    "name": "2026 年秋季田径运动会",
+    "startDate": "2026-11-12",
+    "endDate": "2026-11-13",
+    "location": "第一中学田径场",
+    "note": ""
+  },
+  "units": [
+    {
+      "id": "u1",
+      "name": "初二(1)班",
+      "shortName": "初二1"
+    },
+    {
+      "id": "u2",
+      "name": "初二(2)班",
+      "shortName": "初二2"
+    }
+  ],
+  "athletes": [
+    {
+      "id": "a1",
+      "name": "张三",
+      "gender": "男",
+      "bib": "1001",
+      "studentNumber": "20240101",
+      "unitId": "u1",
+      "affiliation": "初二(1)班",
+      "className": "初二(1)班",
+      "grade": "初二"
+    },
+    {
+      "id": "a2",
+      "name": "李四",
+      "gender": "男",
+      "bib": "1002",
+      "studentNumber": "20240102",
+      "unitId": "u1",
+      "affiliation": "初二(1)班",
+      "className": "初二(1)班",
+      "grade": "初二"
+    },
+    {
+      "id": "a3",
+      "name": "王五",
+      "gender": "男",
+      "bib": "2001",
+      "studentNumber": "20240201",
+      "unitId": "u2",
+      "affiliation": "初二(2)班",
+      "className": "初二(2)班",
+      "grade": "初二"
+    },
+    {
+      "id": "a4",
+      "name": "赵六",
+      "gender": "女",
+      "bib": "2002",
+      "studentNumber": "20240202",
+      "unitId": "u2",
+      "affiliation": "初二(2)班",
+      "className": "初二(2)班",
+      "grade": "初二"
+    },
+    {
+      "id": "a5",
+      "name": "孙七",
+      "gender": "女",
+      "bib": "1003",
+      "studentNumber": "20240103",
+      "unitId": "u1",
+      "affiliation": "初二(1)班",
+      "className": "初二(1)班",
+      "grade": "初二"
+    }
+  ],
+  "events": [
+    {
+      "id": "e1",
+      "name": "男子100m 初中组",
+      "gender": "男",
+      "discipline": "100m",
+      "groupLabel": "初中组",
+      "kind": "track",
+      "laneCount": 8,
+      "entries": [
+        {
+          "athleteId": "a1",
+          "seedMark": 12800
+        },
+        {
+          "athleteId": "a2",
+          "seedMark": null
+        },
+        {
+          "athleteId": "a3",
+          "seedMark": 13100
+        }
+      ],
+      "rounds": [
+        {
+          "id": "r1",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "h1",
+              "ordinal": 1,
+              "scheduledAt": "2026-11-12T09:30",
+              "wind": 12,
+              "slots": [
+                {
+                  "position": 3,
+                  "athleteId": "a2",
+                  "result": {
+                    "status": "DNS",
+                    "mark": null,
+                    "rank": null
+                  }
+                },
+                {
+                  "position": 4,
+                  "athleteId": "a1",
+                  "result": {
+                    "status": "OK",
+                    "mark": 12650,
+                    "rank": 1
+                  }
+                },
+                {
+                  "position": 5,
+                  "athleteId": "a3",
+                  "result": {
+                    "status": "OK",
+                    "mark": 13020,
+                    "rank": 2
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "startMode": "lanes"
+    },
+    {
+      "id": "e2",
+      "gender": "女",
+      "discipline": "跳远",
+      "groupLabel": "初中组",
+      "kind": "distance",
+      "attemptCount": 3,
+      "entries": [
+        {
+          "athleteId": "a4"
+        },
+        {
+          "athleteId": "a5"
+        }
+      ],
+      "rounds": [
+        {
+          "id": "r2",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "h2",
+              "ordinal": 1,
+              "scheduledAt": "2026-11-12T10:00",
+              "slots": [
+                {
+                  "position": 1,
+                  "athleteId": "a4",
+                  "result": {
+                    "status": "OK",
+                    "mark": 4320,
+                    "rank": 1,
+                    "attempts": [
+                      {
+                        "outcome": "valid",
+                        "mark": 4210
+                      },
+                      {
+                        "outcome": "foul",
+                        "mark": null
+                      },
+                      {
+                        "outcome": "valid",
+                        "mark": 4320
+                      }
+                    ]
+                  }
+                },
+                {
+                  "position": 2,
+                  "athleteId": "a5",
+                  "result": {
+                    "status": "NM",
+                    "mark": null,
+                    "rank": null,
+                    "attempts": [
+                      {
+                        "outcome": "foul",
+                        "mark": null
+                      },
+                      {
+                        "outcome": "foul",
+                        "mark": null
+                      },
+                      {
+                        "outcome": "foul",
+                        "mark": null
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "distanceMode": "jump"
+    },
+    {
+      "id": "e3",
+      "gender": "男",
+      "discipline": "跳高",
+      "groupLabel": "初中组",
+      "kind": "height",
+      "entries": [
+        {
+          "athleteId": "a1"
+        },
+        {
+          "athleteId": "a3"
+        }
+      ],
+      "rounds": [
+        {
+          "id": "r3",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "h3",
+              "ordinal": 1,
+              "scheduledAt": null,
+              "slots": [
+                {
+                  "position": 1,
+                  "athleteId": "a1",
+                  "result": {
+                    "status": "OK",
+                    "mark": 1450,
+                    "rank": 1,
+                    "bars": [
+                      {
+                        "height": 1300,
+                        "trials": "O"
+                      },
+                      {
+                        "height": 1400,
+                        "trials": "XO"
+                      },
+                      {
+                        "height": 1450,
+                        "trials": "O"
+                      },
+                      {
+                        "height": 1500,
+                        "trials": "XXX"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "position": 2,
+                  "athleteId": "a3",
+                  "result": {
+                    "status": "OK",
+                    "mark": 1400,
+                    "rank": 2,
+                    "bars": [
+                      {
+                        "height": 1300,
+                        "trials": "-"
+                      },
+                      {
+                        "height": 1400,
+                        "trials": "O"
+                      },
+                      {
+                        "height": 1450,
+                        "trials": "XX-"
+                      },
+                      {
+                        "height": 1500,
+                        "trials": "X"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e1500",
+      "gender": "混合",
+      "discipline": "1500m",
+      "kind": "track",
+      "startMode": "group",
+      "laneCount": 8,
+      "entries": [
+        {
+          "athleteId": "a1"
+        },
+        {
+          "athleteId": "a2"
+        },
+        {
+          "athleteId": "a3"
+        },
+        {
+          "athleteId": "a4"
+        },
+        {
+          "athleteId": "a5"
+        }
+      ],
+      "rounds": []
+    },
+    {
+      "id": "eshot",
+      "gender": "女",
+      "discipline": "铅球",
+      "groupLabel": "初中组",
+      "kind": "distance",
+      "attemptCount": 3,
+      "entries": [
+        {
+          "athleteId": "a4"
+        },
+        {
+          "athleteId": "a5"
+        }
+      ],
+      "rounds": [
+        {
+          "id": "shot-r2",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "shot-h2",
+              "ordinal": 1,
+              "scheduledAt": "2026-11-12T10:00",
+              "slots": [
+                {
+                  "position": 1,
+                  "athleteId": "a4",
+                  "result": {
+                    "status": "OK",
+                    "mark": 4320,
+                    "rank": 1,
+                    "attempts": [
+                      {
+                        "outcome": "valid",
+                        "mark": 4210
+                      },
+                      {
+                        "outcome": "foul",
+                        "mark": null
+                      },
+                      {
+                        "outcome": "valid",
+                        "mark": 4320
+                      }
+                    ]
+                  }
+                },
+                {
+                  "position": 2,
+                  "athleteId": "a5",
+                  "result": {
+                    "status": "NM",
+                    "mark": null,
+                    "rank": null,
+                    "attempts": [
+                      {
+                        "outcome": "foul",
+                        "mark": null
+                      },
+                      {
+                        "outcome": "foul",
+                        "mark": null
+                      },
+                      {
+                        "outcome": "foul",
+                        "mark": null
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "distanceMode": "throw"
+    },
+    {
+      "id": "emixedrelay",
+      "gender": "混合",
+      "discipline": "4×400m",
+      "kind": "relay",
+      "startMode": "break",
+      "relayLegCount": 4,
+      "laneCount": 8,
+      "teams": [
+        {
+          "id": "t1",
+          "name": "联合队",
+          "memberIds": [
+            "a1",
+            "a2",
+            "a3",
+            "a4",
+            "a5"
+          ]
+        }
+      ],
+      "entries": [
+        {
+          "teamId": "t1"
+        }
+      ],
+      "rounds": []
+    },
+    {
+      "id": "combinedpart0",
+      "combinedId": "cschool",
+      "gender": "男",
+      "discipline": "100m",
+      "groupLabel": "全能组",
+      "kind": "track",
+      "entries": [
+        {
+          "athleteId": "a1"
+        }
+      ],
+      "rounds": [
+        {
+          "id": "combinedpart0r",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "combinedpart0h",
+              "ordinal": 1,
+              "slots": [
+                {
+                  "position": 1,
+                  "athleteId": "a1",
+                  "result": {
+                    "status": "OK",
+                    "mark": 12500,
+                    "rank": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "startMode": "lanes",
+      "laneCount": 8
+    },
+    {
+      "id": "combinedpart1",
+      "combinedId": "cschool",
+      "gender": "男",
+      "discipline": "跳远",
+      "groupLabel": "全能组",
+      "kind": "distance",
+      "entries": [
+        {
+          "athleteId": "a1"
+        }
+      ],
+      "rounds": [
+        {
+          "id": "combinedpart1r",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "combinedpart1h",
+              "ordinal": 1,
+              "slots": [
+                {
+                  "position": 1,
+                  "athleteId": "a1",
+                  "result": {
+                    "status": "OK",
+                    "mark": 5000,
+                    "rank": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "distanceMode": "jump",
+      "attemptCount": 3
+    },
+    {
+      "id": "erope",
+      "gender": "混合",
+      "discipline": "集体跳绳",
+      "kind": "count",
+      "participantMode": "team",
+      "teamSize": 2,
+      "attemptMode": "sum",
+      "rankDirection": "desc",
+      "attemptCount": 3,
+      "teams": [
+        {
+          "id": "ropeA",
+          "name": "联合队A",
+          "memberIds": [
+            "a1",
+            "a2"
+          ]
+        },
+        {
+          "id": "ropeB",
+          "name": "联合队B",
+          "memberIds": [
+            "a3",
+            "a4"
+          ]
+        }
+      ],
+      "entries": [
+        {
+          "teamId": "ropeA"
+        },
+        {
+          "teamId": "ropeB"
+        }
+      ],
+      "rounds": [
+        {
+          "id": "eroper",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "eropeh",
+              "ordinal": 1,
+              "slots": [
+                {
+                  "position": 1,
+                  "teamId": "ropeA",
+                  "result": {
+                    "status": "OK",
+                    "mark": 366,
+                    "rank": 1,
+                    "attempts": [
+                      {
+                        "outcome": "valid",
+                        "mark": 120
+                      },
+                      {
+                        "outcome": "valid",
+                        "mark": 124
+                      },
+                      {
+                        "outcome": "valid",
+                        "mark": 122
+                      }
+                    ]
+                  }
+                },
+                {
+                  "position": 2,
+                  "teamId": "ropeB",
+                  "result": {
+                    "status": "OK",
+                    "mark": 0,
+                    "rank": 1,
+                    "attempts": [
+                      {
+                        "outcome": "valid",
+                        "mark": 0
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "escore",
+      "gender": "男",
+      "discipline": "技巧评分",
+      "kind": "score",
+      "participantMode": "athlete",
+      "scoreDecimals": 2,
+      "attemptMode": "single",
+      "rankDirection": "desc",
+      "entries": [
+        {
+          "athleteId": "a1"
+        }
+      ],
+      "rounds": [
+        {
+          "id": "escorer",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "escoreh",
+              "ordinal": 1,
+              "slots": [
+                {
+                  "position": 1,
+                  "athleteId": "a1",
+                  "result": {
+                    "status": "OK",
+                    "mark": 1250,
+                    "rank": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "combineds": [
+    {
+      "id": "cschool",
+      "name": "校园两项全能",
+      "gender": "男",
+      "groupLabel": "全能组",
+      "ruleVersion": 1,
+      "athleteIds": [
+        "a1"
+      ],
+      "components": [
+        {
+          "eventId": "combinedpart0",
+          "ordinal": 1,
+          "rule": {
+            "bands": [
+              {
+                "mark": 12000,
+                "points": 100
+              },
+              {
+                "mark": 13000,
+                "points": 80
+              }
+            ],
+            "invalidPolicies": {
+              "DNS": "zero",
+              "DNF": "zero",
+              "DQ": "zero",
+              "NM": "zero"
+            }
+          }
+        },
+        {
+          "eventId": "combinedpart1",
+          "ordinal": 2,
+          "rule": {
+            "bands": [
+              {
+                "mark": 5000,
+                "points": 100
+              },
+              {
+                "mark": 4000,
+                "points": 80
+              }
+            ],
+            "invalidPolicies": {
+              "DNS": "zero",
+              "DNF": "zero",
+              "DQ": "zero",
+              "NM": "zero"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

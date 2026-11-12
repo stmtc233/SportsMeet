@@ -189,7 +189,7 @@ func (s *Service) GetEvent(ctx context.Context, eventID string) (*EventDetail, e
 }
 
 func (st *eventState) view() *EventDetail {
-	kind := st.event.Kind
+	event := st.event
 	placed := map[string]bool{}
 	rounds := make([]RoundView, len(st.rounds))
 	for i, r := range st.rounds {
@@ -201,11 +201,11 @@ func (st *eventState) view() *EventDetail {
 				Slots: make([]SlotView, len(h.Slots))}
 			for k, sl := range h.Slots {
 				placed[sl.CompetitorID()] = true
-				hv.Slots[k] = SlotView{Position: sl.Position, AthleteID: sl.AthleteID, TeamID: sl.TeamID, CompetitorID: sl.CompetitorID(), Result: resultView(kind, sl.Result)}
+				hv.Slots[k] = SlotView{Position: sl.Position, AthleteID: sl.AthleteID, TeamID: sl.TeamID, CompetitorID: sl.CompetitorID(), Result: resultViewEvent(event, sl.Result)}
 			}
 			rv.Heats[j] = hv
 		}
-		rv.Standings, rv.Complete = standings(kind, r)
+		rv.Standings, rv.Complete = standingsEvent(event, r)
 		rounds[i] = rv
 	}
 	teams := st.teamViews()
@@ -223,7 +223,7 @@ func (st *eventState) view() *EventDetail {
 			UnitName: st.unitName(a.UnitID), SeedMark: e.SeedMark, Placed: placed[a.ID],
 			GenderMismatch: a.Gender != "" && st.event.Gender != domain.GenderMixed && a.Gender != st.event.Gender}
 		if e.SeedMark != nil {
-			v.SeedText = scoring.FormatMark(kind, *e.SeedMark)
+			v.SeedText = scoring.FormatEventMark(event, *e.SeedMark)
 		}
 		if e.TeamID != "" {
 			v.GenderMismatch = mismatch[e.TeamID]
@@ -233,20 +233,20 @@ func (st *eventState) view() *EventDetail {
 	return &EventDetail{Event: st.event, Rules: st.event.Rules(), Teams: teams, Entries: entries, Rounds: rounds}
 }
 
-func resultView(kind domain.EventKind, r *domain.Result) *ResultView {
+func resultViewEvent(event domain.Event, r *domain.Result) *ResultView {
 	if r == nil {
 		return nil
 	}
 	v := &ResultView{Status: r.Status, Mark: r.Mark, Rank: r.Rank, Qualify: r.Qualify, Note: r.Note,
 		Attempts: make([]string, len(r.Attempts)), Bars: make([]BarView, len(r.Bars))}
 	if r.Mark != nil {
-		v.MarkText = scoring.FormatMark(kind, *r.Mark)
+		v.MarkText = scoring.FormatEventMark(event, *r.Mark)
 	}
 	for i, a := range r.Attempts {
-		v.Attempts[i] = scoring.FormatAttempt(kind, a)
+		v.Attempts[i] = scoring.FormatEventAttempt(event, a)
 	}
 	for i, b := range r.Bars {
-		v.Bars[i] = BarView{Height: b.Height, HeightText: scoring.FormatMark(kind, b.Height), Trials: b.Trials}
+		v.Bars[i] = BarView{Height: b.Height, HeightText: scoring.FormatEventMark(event, b.Height), Trials: b.Trials}
 	}
 	return v
 }
@@ -262,7 +262,7 @@ func ranked(key string, r *domain.Result) scoring.Ranked {
 
 // standings orders a round's results across its heats. complete is true
 // when the round has results for everyone placed in it.
-func standings(kind domain.EventKind, r domain.Round) (list []Standing, complete bool) {
+func standingsEvent(event domain.Event, r domain.Round) (list []Standing, complete bool) {
 	var all []scoring.Ranked
 	list = []Standing{}
 	placed := 0
@@ -276,12 +276,12 @@ func standings(kind domain.EventKind, r domain.Round) (list []Standing, complete
 			row := Standing{AthleteID: sl.AthleteID, TeamID: sl.TeamID, CompetitorID: sl.CompetitorID(), HeatLabel: domain.HeatLabel(h.Ordinal, h.Name),
 				Position: sl.Position, Status: sl.Result.Status, Qualify: sl.Result.Qualify}
 			if sl.Result.Mark != nil {
-				row.MarkText = scoring.FormatMark(kind, *sl.Result.Mark)
+				row.MarkText = scoring.FormatEventMark(event, *sl.Result.Mark)
 			}
 			list = append(list, row)
 		}
 	}
-	places := scoring.Rank(kind, all)
+	places := scoring.RankEvent(event, all)
 	for i := range list {
 		if p, ok := places[list[i].CompetitorID]; ok {
 			list[i].Rank = &p
@@ -304,7 +304,7 @@ func standings(kind domain.EventKind, r domain.Round) (list []Standing, complete
 // memory: each result's place inside its heat, and Q / q once the round is
 // complete and has an advancement rule. It replaces the Result values it
 // changes, so callers can compare pointers' contents with what is stored.
-func rescore(kind domain.EventKind, advance *domain.Advance, heats []domain.Heat) {
+func rescoreEvent(event domain.Event, advance *domain.Advance, heats []domain.Heat) {
 	complete := true
 	placed := 0
 	finishers := make([][]arrange.Finisher, len(heats))
@@ -318,7 +318,7 @@ func rescore(kind domain.EventKind, advance *domain.Advance, heats []domain.Heat
 			}
 			list = append(list, ranked(sl.CompetitorID(), sl.Result))
 		}
-		places := scoring.Rank(kind, list)
+		places := scoring.RankEvent(event, list)
 		for k, sl := range h.Slots {
 			if sl.Result == nil {
 				continue
@@ -336,7 +336,7 @@ func rescore(kind domain.EventKind, advance *domain.Advance, heats []domain.Heat
 	if advance == nil || !complete || placed == 0 {
 		return
 	}
-	q := arrange.Qualify(kind, finishers, advance.ByPlace, advance.ByMark)
+	q := arrange.QualifyEvent(event, finishers, advance.ByPlace, advance.ByMark)
 	for i, h := range heats {
 		for k, sl := range h.Slots {
 			if sl.Result != nil {

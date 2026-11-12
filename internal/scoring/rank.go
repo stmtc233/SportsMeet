@@ -69,6 +69,8 @@ func Rank(kind domain.EventKind, list []Ranked) map[string]int {
 
 func rankKey(kind domain.EventKind, r Ranked) []int64 {
 	switch kind {
+	case domain.KindCount, domain.KindScore:
+		return []int64{r.Mark}
 	case domain.KindDistance:
 		key := []int64{r.Mark}
 		var rest []int64

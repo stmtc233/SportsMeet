@@ -39,13 +39,15 @@ const (
 	KindTrack    EventKind = "track"    // timed, milliseconds, lower is better
 	KindRelay    EventKind = "relay"    // timed teams
 	KindDistance EventKind = "distance" // millimetres, higher is better, attempts
-	KindHeight   EventKind = "height"   // millimetres, higher is better, bars
+	KindCount    EventKind = "count"
+	KindScore    EventKind = "score"
+	KindHeight   EventKind = "height" // millimetres, higher is better, bars
 )
 
 // Valid reports whether k is a known kind.
 func (k EventKind) Valid() bool {
 	switch k {
-	case KindTrack, KindRelay, KindDistance, KindHeight:
+	case KindTrack, KindRelay, KindDistance, KindHeight, KindCount, KindScore:
 		return true
 	}
 	return false
@@ -202,7 +204,7 @@ func StageOrder(s Stage) int {
 func (s Status) Label() string {
 	switch s {
 	case StatusDNS:
-		return "未起跑"
+		return "弃权"
 	case StatusDNF:
 		return "未完成"
 	case StatusDQ:
@@ -224,6 +226,10 @@ func (k EventKind) Label() string {
 		return "远度"
 	case KindHeight:
 		return "高度"
+	case KindCount:
+		return "计次"
+	case KindScore:
+		return "计分"
 	}
 	return ""
 }

@@ -31,7 +31,7 @@ export function ResultsTab({ detail }: { detail: EventDetail }) {
             <StTable<Standing> dense rows={round.standings} rowKey={(s) => s.competitorId}
               columns={[
                 { key: "rank", title: "名次", width: "64px", align: "end", render: (s) => s.rank ?? "" },
-                { key: "name", title: detail.event.kind === "relay" ? "队伍" : "姓名", render: (s) => <span className="cell-strong">{entries.get(s.competitorId)?.name}</span> },
+                { key: "name", title: detail.rules.team ? "队伍" : "姓名", render: (s) => <span className="cell-strong">{entries.get(s.competitorId)?.name}</span> },
                 { key: "unit", title: "单位", render: (s) => entries.get(s.competitorId)?.unitName },
                 { key: "heat", title: "组", width: "96px", render: (s) => s.heatLabel },
                 { key: "mark", title: "成绩", width: "112px", align: "end", render: (s) => (s.status === "OK" ? s.markText : statusLabels[s.status]) },

@@ -11,7 +11,7 @@
   <p>{{.Title}}</p>
   <p>{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
 </header>
-{{range .Events}}{{$position := .PositionLabel}}{{$attempt := .AttemptLabel}}{{$relay := .Relay}}
+{{range .Events}}{{$position := .PositionLabel}}{{$attempt := .AttemptLabel}}{{$relay := .Relay}}{{$roster := .RosterLabel}}
 <section class="event">
   <h2>{{.Name}}{{if .Date}}<small>{{.Date}}</small>{{end}}</h2>
   {{if .Configuration}}<p>{{.Configuration}}</p>{{end}}
@@ -24,7 +24,7 @@
       <div class="heat">
         <h4>{{.Label}}{{if .Time}}<small>{{.Time}}</small>{{end}}</h4>
         <table>
-          <thead><tr><th class="num">{{$position}}</th><th>{{if $relay}}队伍 / 棒次{{else}}姓名{{end}}</th><th>单位</th><th class="mark">成绩</th>{{if $attempt}}<th>逐次{{$attempt}}</th>{{end}}<th class="num">名次</th><th class="num">晋级</th></tr></thead>
+          <thead><tr><th class="num">{{$position}}</th><th>{{if $relay}}队伍 / {{$roster}}{{else}}姓名{{end}}</th><th>单位</th><th class="mark">成绩</th>{{if $attempt}}<th>逐次{{$attempt}}</th>{{end}}<th class="num">名次</th><th class="num">晋级</th></tr></thead>
           <tbody>
             {{range .Lines}}<tr><td class="num">{{.Position}}</td><td>{{.Name}}{{range .Members}}<div class="member">{{.}}</div>{{end}}</td><td>{{.Unit}}</td><td class="mark">{{.Mark}}</td>{{if $attempt}}<td>{{range $i, $a := .Attempts}}{{if $i}} / {{end}}{{$a}}{{end}}</td>{{end}}<td class="num">{{.Rank}}</td><td class="num">{{.Qualify}}</td></tr>
             {{end}}
@@ -35,7 +35,7 @@
     </div>
     {{else if .Standings}}
     <table>
-      <thead><tr><th class="num">名次</th><th class="narrow">号码</th><th>{{if $relay}}队伍 / 棒次{{else}}姓名{{end}}</th><th>单位</th><th class="mark">成绩</th>{{if $attempt}}<th>逐次{{$attempt}}</th>{{end}}<th class="narrow">组</th></tr></thead>
+      <thead><tr><th class="num">名次</th><th class="narrow">号码</th><th>{{if $relay}}队伍 / {{$roster}}{{else}}姓名{{end}}</th><th>单位</th><th class="mark">成绩</th>{{if $attempt}}<th>逐次{{$attempt}}</th>{{end}}<th class="narrow">组</th></tr></thead>
       <tbody>
         {{range .Standings}}<tr><td class="num">{{.Rank}}</td><td>{{.Bib}}</td><td>{{.Name}}{{range .Members}}<div class="member">{{.}}</div>{{end}}</td><td>{{.Unit}}</td><td class="mark">{{.Mark}}</td>{{if $attempt}}<td>{{range $i, $a := .Attempts}}{{if $i}} / {{end}}{{$a}}{{end}}</td>{{end}}<td>{{.Heat}}</td></tr>
         {{end}}
@@ -47,5 +47,13 @@
 </section>
 {{else}}<p class="empty">没有项目</p>
 {{end}}
+{{range .Combineds}}
+<section class="event">
+<h2>{{.Name}}<small>{{.State}}</small></h2>
+{{range .Tables}}{{if .Label}}<h3>{{.Label}}</h3>{{end}}
+<table><thead><tr><th class="num">名次</th><th>姓名</th><th>单位</th>{{range .Headers}}<th>{{.}}</th>{{end}}<th class="num">总分</th></tr></thead>
+<tbody>{{range .Rows}}<tr><td class="num">{{.Rank}}</td><td>{{.Name}}</td><td>{{.Unit}}</td>{{range .Cells}}<td>{{.}}</td>{{end}}<td class="num">{{.Total}}</td></tr>{{end}}</tbody></table>
+{{end}}
+</section>{{end}}
 </body>
 </html>

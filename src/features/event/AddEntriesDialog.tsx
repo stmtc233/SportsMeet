@@ -9,7 +9,7 @@ import { useUnits } from "../units/UnitsPage";
 /** Picks athletes of the meet to enter into the event, several at once. */
 type Props = { open: boolean; detail: EventDetail; meetId: string; onClose: () => void };
 export function AddEntriesDialog(props: Props) {
- return props.detail.event.kind === "relay" ? <AddTeamsDialog {...props} /> : <AddAthletesDialog {...props} />;
+ return props.detail.rules.team ? <AddTeamsDialog {...props} /> : <AddAthletesDialog {...props} />;
 }
 function AddAthletesDialog({ open, detail, meetId, onClose }: Props) {
   const { data: athletes } = useAthletes(meetId);

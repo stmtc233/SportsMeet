@@ -42,7 +42,7 @@ func TestSDKEventConfiguration(t *testing.T) {
 	if err := json.Unmarshal(data, &list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 30 {
+	if len(list) != 35 {
 		t.Fatalf("catalogue: %s", data)
 	}
 	var meet map[string]any

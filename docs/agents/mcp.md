@@ -46,7 +46,7 @@
 
 - `preview_import` / `import_meet` 的 `data` 参数是完整的交换格式 JSON 文本,`meetId` 留空表示新赛事;内容遵循交换格式([interchange-format.md](../interchange-format.md))。
 - 界面的「导入赛事文件」/「导入到本赛事」走同一组 service 方法(`PreviewImport` / `ImportMeet`)。
-- 导入到已有赛事时:项目按性别 + 项目名 + 组别复用,轮次按阶段、组按序号对应;已有组的位置与文件一致才写入成绩,不一致则跳过该组并警告;文件里的名次原样保留。v2 项目配置与目标不符时拒绝整份导入，v1 保留目标配置；见交换格式 §7。接力队伍按项目内的规范化队名与单位复用,棒次必须一致,冲突时整份拒绝。
+- 导入到已有赛事时:项目按全能归属 + 性别 + 项目名 + 组别复用,轮次按阶段、组按序号对应;已有组的位置与文件一致才写入成绩,不一致则跳过该组并警告;文件里的名次原样保留。v2／v3 项目配置与目标不符时拒绝整份导入，v1 保留目标配置；见交换格式 §7。队伍按项目内的规范化队名与单位复用,名单必须一致,冲突时整份拒绝。
 - 一次导入只针对一个赛事(已有赛事 id,或文件里的新赛事);每个项目必带性别与项目名;运动员性别与项目不符、组名里写着另一性别等混放情形,MCP 预览即报错;这项附加校验位于 service 的 MCP 入口,普通界面文件导入仍遵循交换格式中的警告规则。
 - 文件里的成绩照常导入,预览里分别列出新增与覆盖的成绩条数;有覆盖时逐条列出「原成绩 → 新成绩」。
 - 导入在单个 SQLite 事务里完成,失败不留半成品。
@@ -69,7 +69,7 @@
 
 ## 工具目录
 
-接力与个人项目共用报名、编排、计划时间、成绩及晋级工具;接力按队使用 ID,不将运动员直接排进接力道次。
+队伍与个人项目共用报名、编排、计划时间、成绩及晋级工具;队伍按队使用 ID,不将运动员直接排进接力道次。
 
 单条保存的 `input` 表示完整字段;更新前先读取,省略可选字段会使用空值。项目配置字段 `startMode`、`distanceMode`、`relayLegCount` 的取值与默认见 [domain.md](domain.md)「项目配置与预设」；`get_event.rules` 返回位置与尝试显示规则，队伍返回 `sizeWarning`。`save_athlete` 返回 `athlete` 与 `warnings`,同名仅警告。业务状态和整数成绩单位见 [domain.md](domain.md)。
 
@@ -78,16 +78,16 @@
 | `list_meets` / `get_meet` | 赛事列表 / 详情 |
 | `list_event_presets` | 读取常用项目初始 `input`，可调整后交给 `save_event` |
 | `list_units` / `list_athletes` / `list_events` | 按赛事读取基础数据与进度 |
-| `get_event` | 接力队伍与棒次、报名、轮次、组、位置、成绩、总排名与晋级 |
+| `get_event` | 队伍名单、报名、轮次、组、位置、成绩、总排名与晋级 |
 | `create_meet` / `update_meet` | 创建 / 更新一个赛事 |
 | `save_unit` / `save_athlete` / `save_event` | 创建 / 更新单条数据;`id` 留空创建 |
-| `save_team` | 创建 / 更新一个接力队及完整棒次名单;规则见 [domain.md](domain.md)「接力」 |
+| `save_team` | 创建 / 更新一个队伍及完整成员名单;规则见 [domain.md](domain.md)「队伍与接力」 |
 | `set_seed` | 更新一个报名成绩;个人传 `athleteId`,接力传 `teamId` |
 | `parse_table` | CSV / TSV 解析与列映射;导入只传数据行 |
 | `export_meet` / `render_report` | 完整交换格式对象 / 秩序册或成绩册 HTML |
 | `preview_entries` → `add_entries` | 批量报名;每项二选一 `athleteId` / `teamId` |
 | `preview_remove_entries` → `remove_entries` | 取消报名;个人传 `athleteIds`,接力传 `teamIds` |
-| `preview_delete_team` → `delete_team` | 传 `eventId` 与 `id`,删除未排进组的接力队及其报名 |
+| `preview_delete_team` → `delete_team` | 传 `eventId` 与 `id`,删除未排进组的队伍及其报名 |
 | `preview_athletes` → `import_athletes` | 表格运动员、单位与报名导入 |
 | `preview_import` → `import_meet` | 交换格式导入 |
 | `preview_arrange` → `auto_arrange` | 只追加新组,排除已保存的排位 |
@@ -105,3 +105,10 @@
 ## 客户端连接
 
 在「设置 → MCP」开启后点「复制连接信息」,将应用生成的 `mcpServers.sportsmeet` 地址与 Authorization 请求头配置到支持 Streamable HTTP 的客户端。没有令牌的请求返回 401,非本机 Origin / Host 返回 403。应用不为客户端提供云模型或自动传输赛事数据。
+
+## 全能与计次、计分
+
+- `save_event` 支持 `count / score`，以及 `participantMode`、`teamSize`、`scoreDecimals`、`rankDirection`、`attemptMode`；`set_results` 使用项目配置解析、汇总和排名，多次模式须提交逐次成绩。普通队伍使用 `teamId`，规则与接力一致。
+- `list_combined / get_combined / parse_point_rule` 查询；`preview_save_combined → save_combined` 保存全能及独立分项；`preview_combined_entries → set_combined_entries` 保存完整名单；`preview_delete_combined → delete_combined` 删除无成绩全能。批量操作沿用赛事快照指纹。
+- `preview_combined_rules → apply_combined_rules` 接受 `request: {combinedId, rules: [{eventId, rule: {table, invalidPolicies}}]}`，必须给出所有分项；预览包含每人原、新逐项积分、总分、名次和资格，确认时携带 `previewHash`、`confirmed=true`。原始成绩不被规则修改覆盖，数据变化须重新预览。
+- 全能分项不能经 `save_event / add_entries / remove_entries / delete_event` 绕过归属与统一报名；成绩仍用普通成绩工具，覆盖保护不变。完整规则见 [combined.md](combined.md)。

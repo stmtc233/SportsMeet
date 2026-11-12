@@ -1,3 +1,5 @@
+import { CombinedList } from "./features/combined/CombinedList";
+import { CombinedWorkspace } from "./features/combined/CombinedWorkspace";
 import { useEffect } from "react";
 import { usePreferences } from "./features/settings/controller";
 import { NavProvider, useNav, type MeetTab } from "./app/nav";
@@ -39,6 +41,8 @@ function Shell() {
         <StListItem title="全部赛事" leading={<IconBack size={18} strokeWidth={iconStroke} />} onClick={() => go({ page: "meets" })} />
       </nav>
       <main className="app__main">
+        {route.page === "combineds" && <CombinedList meetId={meetId} />}
+        {route.page === "combined" && <CombinedWorkspace key={route.combinedId} meetId={meetId} combinedId={route.combinedId} />}
         {route.page === "event" && <EventWorkspace key={route.eventId} meetId={meetId} eventId={route.eventId} tab={route.tab} />}
         {route.page === "meet" && route.tab === "events" && <EventsPage meetId={meetId} />}
         {route.page === "meet" && route.tab === "athletes" && <AthletesPage meetId={meetId} />}

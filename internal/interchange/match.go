@@ -8,17 +8,19 @@ import (
 
 // Existing is what a meet already holds, for matching a file against it.
 type Existing struct {
-	Units    []domain.Unit
-	Athletes []domain.Athlete
-	Events   []domain.Event
+	Combineds []domain.Combined
+	Units     []domain.Unit
+	Athletes  []domain.Athlete
+	Events    []domain.Event
 }
 
 // Match maps the file's ids to the meet's: a missing key means the entity
 // is new (spec §7).
 type Match struct {
-	Units    map[string]string
-	Athletes map[string]string
-	Events   map[string]string
+	Combineds map[string]string
+	Units     map[string]string
+	Athletes  map[string]string
+	Events    map[string]string
 	// Conflicts lists athletes that fit more than one existing athlete;
 	// any conflict rejects the whole file.
 	Conflicts []string
@@ -45,7 +47,7 @@ func AffiliationOf(f *File, a Athlete) string {
 // group label with disciplines compared loosely. Texts are compared
 // trimmed, with runs of spaces merged and ASCII case ignored.
 func MatchExisting(f *File, ex Existing) Match {
-	m := Match{Units: map[string]string{}, Athletes: map[string]string{}, Events: map[string]string{}}
+	m := Match{Combineds: map[string]string{}, Units: map[string]string{}, Athletes: map[string]string{}, Events: map[string]string{}}
 
 	unitNames := map[string]string{}
 	unitByID := map[string]string{}
@@ -89,12 +91,24 @@ func MatchExisting(f *File, ex Existing) Match {
 		}
 	}
 
+	combineds := map[string]string{}
+	for _, c := range ex.Combineds {
+		combineds[domain.CombinedKey(c.Gender, c.Name, c.GroupLabel)] = c.ID
+	}
+	for _, c := range f.Combineds {
+		if id, ok := combineds[domain.CombinedKey(domain.Gender(c.Gender), c.Name, c.GroupLabel)]; ok {
+			m.Combineds[c.ID] = id
+		}
+	}
 	events := map[string]string{}
 	for _, e := range ex.Events {
-		events[domain.EventKey(e.Gender, e.Discipline, e.GroupLabel)] = e.ID
+		events[e.CombinedID+"|"+domain.EventKey(e.Gender, e.Discipline, e.GroupLabel)] = e.ID
 	}
 	for _, e := range f.Events {
-		if id, ok := events[domain.EventKey(domain.Gender(e.Gender), e.Discipline, e.GroupLabel)]; ok {
+		if e.CombinedID != "" && m.Combineds[e.CombinedID] == "" {
+			continue
+		}
+		if id, ok := events[m.Combineds[e.CombinedID]+"|"+domain.EventKey(domain.Gender(e.Gender), e.Discipline, e.GroupLabel)]; ok {
 			m.Events[e.ID] = id
 		}
 	}

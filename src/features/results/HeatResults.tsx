@@ -22,8 +22,10 @@ function nextRow(e: KeyboardEvent<HTMLInputElement>) {
 /** One heat's results: typed per position, saved together. Places come back from Go. */
 export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventDetail; heat: HeatView; entries: Map<string, EntryView>; onDirty: (heatId: string, dirty: boolean) => void }) {
   const kind = detail.event.kind;
-  const timed = kind === "track" || kind === "relay";
-  const initial = useMemo(() => toRows(heat.slots, kind === "distance" ? detail.event.attemptCount : 0), [heat, kind, detail.event.attemptCount]);
+  const timed = detail.rules.timed;
+  const attempts = detail.rules.multipleAttempts;
+  const direct = kind !== "height" && !attempts;
+  const initial = useMemo(() => toRows(heat.slots, attempts ? detail.event.attemptCount : 0), [heat, attempts, detail.event.attemptCount]);
   const [rows, setRows] = useState<Rows>(initial);
   const [extra, setExtra] = useState<string[]>([]);
   const [height, setHeight] = useState("");
@@ -67,7 +69,7 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
     const loaded = base.current;
     const inputs: ResultInput[] = heat.slots.filter((s) => !sameRow(rows[s.position], initial[s.position])).map((s) => {
       const r = rows[s.position]!;
-      return { position: s.position, status: r.status, mark: timed ? r.mark : "", attempts: kind === "distance" ? r.attempts : [], note: s.result?.note ?? "",
+      return { position: s.position, status: r.status, mark: direct ? r.mark : "", attempts: attempts ? r.attempts : [], note: s.result?.note ?? "",
         bars: kind === "height" ? heights.map((h) => ({ height: h, trials: r.bars[h] ?? "" })) : [] };
     });
     setBusy(true);
@@ -82,9 +84,9 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
     }
   };
 
-  const inputCols = timed ? 1 : kind === "distance" ? detail.event.attemptCount : heights.length;
+  const inputCols = direct ? 1 : attempts ? detail.event.attemptCount : heights.length;
   const style: CSSProperties = { gridTemplateColumns: `36px minmax(88px, 1.2fr) minmax(72px, 1fr) repeat(${inputCols}, minmax(64px, 88px)) 112px 72px 48px 40px` };
-  const statuses: Status[] = timed ? ["DNS", "DNF", "DQ"] : ["DNS", "DQ", "NM"];
+  const statuses: Status[] = timed ? ["DNS", "DNF", "DQ"] : kind === "count" || kind === "score" ? ["DNS", "DNF", "DQ", "NM"] : ["DNS", "DQ", "NM"];
   return (
     <StSection padded={false}
       title={
@@ -107,13 +109,13 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
       }>
       <div className="result-grid" style={style}>
         <span className="head num">{detail.rules.positionLabel}</span>
-        <span className="head">{kind === "relay" ? "队伍" : "姓名"}</span>
+        <span className="head">{detail.rules.team ? "队伍" : "姓名"}</span>
         <span className="head">单位</span>
-        {timed && <span className="head num">成绩</span>}
-        {kind === "distance" && Array.from({ length: inputCols }, (_, i) => <span key={i} className="head num">{detail.rules.attemptLabel} {i + 1}</span>)}
+        {direct && <span className="head num">{detail.rules.markLabel}</span>}
+        {attempts && Array.from({ length: inputCols }, (_, i) => <span key={i} className="head num">{detail.rules.attemptLabel} {i + 1}</span>)}
         {kind === "height" && heights.map((h) => <span key={h} className="head num">{h}</span>)}
         <span className="head">状态</span>
-        <span className="head num">{timed ? "" : "成绩"}</span>
+        <span className="head num">{direct ? "" : detail.rules.markLabel}</span>
         <span className="head num">名次</span>
         <span className="head" />
         {heat.slots.map((s, i) => {
@@ -124,18 +126,18 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
             <span key={`p${s.position}`} className="num">{s.position}</span>,
             <span key={`n${s.position}`} className="name">{e?.name}</span>,
             <span key={`u${s.position}`} className="name st-muted">{e?.unitName}</span>,
-            timed && <StMarkField key={`m${s.position}`} kind={kind} name={`m:${i}`} value={row.mark} disabled={off} width="fill" aria-label="成绩" onChange={(mark) => set(s.position, { mark })} onKeyDown={nextRow} />,
-            kind === "distance" && row.attempts.slice(0, inputCols).map((a, j) => (
-              <StMarkField key={`a${s.position}-${j}`} kind={kind} name={`a${j}:${i}`} value={a} disabled={off} width="fill" accept={isAttemptWord} aria-label={`${detail.rules.attemptLabel} ${j + 1}`} onKeyDown={nextRow}
+            direct && <StMarkField key={`m${s.position}`} event={detail.event} kind={kind} name={`m:${i}`} value={row.mark} disabled={off} width="fill" aria-label={detail.rules.markLabel} onChange={(mark) => set(s.position, { mark })} onKeyDown={nextRow} />,
+            attempts && row.attempts.slice(0, inputCols).map((a, j) => (
+              <StMarkField key={`a${s.position}-${j}`} event={detail.event} kind={kind} name={`a${j}:${i}`} value={a} disabled={off} width="fill" accept={isAttemptWord} aria-label={`${detail.rules.attemptLabel} ${j + 1}`} onKeyDown={nextRow}
                 onChange={(v) => set(s.position, { attempts: row.attempts.map((old, k) => (k === j ? v : old)) })} />
             )),
             kind === "height" && heights.map((h, j) => (
-              <StMarkField key={`b${s.position}-${h}`} kind={kind} name={`b${j}:${i}`} value={row.bars[h] ?? ""} disabled={off} width="fill" accept={isTrials} placeholder="OX-" aria-label={h} onKeyDown={nextRow}
+              <StMarkField key={`b${s.position}-${h}`} event={detail.event} kind={kind} name={`b${j}:${i}`} value={row.bars[h] ?? ""} disabled={off} width="fill" accept={isTrials} placeholder="OX-" aria-label={h} onKeyDown={nextRow}
                 onChange={(v) => set(s.position, { bars: { ...row.bars, [h]: v.toUpperCase() } })} />
             )),
             <StSelect key={`s${s.position}`} size="small" width="fill" value={row.status} placeholder="正常" onChange={(status) => set(s.position, { status })}
               options={[{ value: "", label: "正常" }, ...statuses.map((v) => ({ value: v as string, label: statusLabels[v] }))]} />,
-            <span key={`r${s.position}`} className="result-mark">{timed ? "" : s.result?.markText}</span>,
+            <span key={`r${s.position}`} className="result-mark">{direct ? "" : s.result?.markText}</span>,
             <span key={`k${s.position}`} className="num">{s.result?.rank ?? ""}</span>,
             <span key={`q${s.position}`}>{s.result?.qualify && <StTag tone="success">{s.result.qualify}</StTag>}</span>,
           ];

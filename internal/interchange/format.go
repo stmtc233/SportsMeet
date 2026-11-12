@@ -2,22 +2,25 @@
 // (docs/interchange-format.md). Field names and order follow the spec.
 package interchange
 
+import "github.com/stmtc233/sportsmeet/internal/domain"
+
 // Format and Version identify the file (spec §2).
 const (
 	Format  = "sportsmeet-interchange"
-	Version = 2
+	Version = 3
 )
 
 // File is one meet's full snapshot.
 type File struct {
-	Format     string    `json:"format"`
-	Version    int       `json:"version"`
-	ExportedAt string    `json:"exportedAt"`
-	Generator  Generator `json:"generator"`
-	Meet       Meet      `json:"meet"`
-	Units      []Unit    `json:"units"`
-	Athletes   []Athlete `json:"athletes"`
-	Events     []Event   `json:"events"`
+	Combineds  []Combined `json:"combineds,omitempty"`
+	Format     string     `json:"format"`
+	Version    int        `json:"version"`
+	ExportedAt string     `json:"exportedAt"`
+	Generator  Generator  `json:"generator"`
+	Meet       Meet       `json:"meet"`
+	Units      []Unit     `json:"units"`
+	Athletes   []Athlete  `json:"athletes"`
+	Events     []Event    `json:"events"`
 }
 
 type Generator struct {
@@ -55,6 +58,8 @@ type Athlete struct {
 }
 
 type Event struct {
+	domain.CompetitionConfig
+	CombinedID    string  `json:"combinedId,omitempty"`
 	StartMode     string  `json:"startMode,omitempty"`
 	DistanceMode  string  `json:"distanceMode,omitempty"`
 	RelayLegCount int     `json:"relayLegCount,omitempty"`
@@ -136,4 +141,21 @@ type Attempt struct {
 type Bar struct {
 	Height int64  `json:"height"`
 	Trials string `json:"trials"`
+}
+
+// Combined references the owned component events in events[].
+type Combined struct {
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Gender      string              `json:"gender"`
+	GroupLabel  string              `json:"groupLabel,omitempty"`
+	Note        string              `json:"note,omitempty"`
+	RuleVersion int                 `json:"ruleVersion"`
+	Components  []CombinedComponent `json:"components"`
+	AthleteIDs  []string            `json:"athleteIds"`
+}
+type CombinedComponent struct {
+	EventID string           `json:"eventId"`
+	Ordinal int              `json:"ordinal"`
+	Rule    domain.PointRule `json:"rule"`
 }

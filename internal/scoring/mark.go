@@ -5,6 +5,7 @@ package scoring
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -18,6 +19,9 @@ var ErrBadMark = errors.New("成绩格式不正确")
 //   - timed: 12.34 / 12.3 / 1:05.67 / 1:02:03.4 → milliseconds;
 //   - field: 6.52 / 6.5 / 6 → millimetres (metres in, at most 3 decimals).
 func ParseMark(kind domain.EventKind, s string) (int64, error) {
+	if kind.Scalar() {
+		return ParseEventMark(domain.Event{Kind: kind}, s)
+	}
 	s = strings.TrimSpace(strings.NewReplacer("：", ":", "。", ".", "m", "", "M", "", "s", "", "秒", "", "米", "").Replace(s))
 	if s == "" {
 		return 0, ErrBadMark
@@ -77,6 +81,9 @@ func parseDecimal(s string, scale int) (int64, error) {
 	for range scale {
 		unit *= 10
 	}
+	if w > (math.MaxInt64-f)/unit {
+		return 0, ErrBadMark
+	}
 	return w*unit + f, nil
 }
 
@@ -84,6 +91,9 @@ func parseDecimal(s string, scale int) (int64, error) {
 // up as athletics rules require), field marks as 6.52 (centimetres,
 // rounded down).
 func FormatMark(kind domain.EventKind, mark int64) string {
+	if kind.Scalar() {
+		return FormatEventMark(domain.Event{Kind: kind}, mark)
+	}
 	if kind.Timed() {
 		cs := (mark + 9) / 10
 		sec, hund := cs/100, cs%100

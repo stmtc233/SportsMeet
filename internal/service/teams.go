@@ -61,7 +61,7 @@ type competitor struct {
 }
 
 func (st *eventState) competitor(id string) (competitor, bool) {
-	if st.event.Kind != domain.KindRelay {
+	if !st.event.IsTeam() {
 		a, ok := st.athletes[id]
 		return competitor{ID: a.ID, Name: a.Name, UnitID: a.UnitID, Bib: a.Bib, Gender: a.Gender}, ok
 	}
@@ -71,7 +71,7 @@ func (st *eventState) competitor(id string) (competitor, bool) {
 func (st *eventState) competitorName(id string) string { a, _ := st.competitor(id); return a.Name }
 func (st *eventState) slot(pos int, id string, r *domain.Result) domain.Slot {
 	sl := domain.Slot{Position: pos, Result: r}
-	if st.event.Kind == domain.KindRelay {
+	if st.event.IsTeam() {
 		sl.TeamID = id
 	} else {
 		sl.AthleteID = id
@@ -100,8 +100,8 @@ func (s *Service) SaveTeam(ctx context.Context, src store.Source, eventID, id st
 	if err != nil {
 		return nil, err
 	}
-	if st.event.Kind != domain.KindRelay {
-		return nil, invalid("请在接力项目里添加队伍")
+	if !st.event.IsTeam() {
+		return nil, invalid("请在队伍项目里添加队伍")
 	}
 	t := domain.Team{ID: id, EventID: eventID, Name: strings.TrimSpace(in.Name), UnitID: in.UnitID, MemberIDs: append([]string{}, in.MemberIDs...)}
 	if t.Name == "" {
@@ -137,14 +137,20 @@ func (s *Service) SaveTeam(ctx context.Context, src store.Source, eventID, id st
 			return nil, invalid("运动员不属于本赛事")
 		}
 		if seen[m] {
-			return nil, invalid("「%s」重复担任棒次", a.Name)
+			if st.event.Kind == domain.KindRelay {
+				return nil, invalid("「%s」重复担任棒次", a.Name)
+			}
+			return nil, invalid("「%s」在队内重复", a.Name)
 		}
 		seen[m] = true
 	}
 	if old != nil && !slices.Equal(old.MemberIDs, t.MemberIDs) {
 		for _, v := range st.teamViews() {
 			if v.ID == id && v.KeepReason != "" {
-				return nil, invalid("队伍已有比赛记录，不能改棒次")
+				if st.event.Kind == domain.KindRelay {
+					return nil, invalid("队伍已有比赛记录，不能改棒次")
+				}
+				return nil, invalid("已有比赛记录，不能改名单")
 			}
 		}
 	}
@@ -186,8 +192,32 @@ func (s *Service) DeleteTeam(ctx context.Context, src store.Source, eventID, id 
 }
 
 func (st *eventState) competitorLabel() string {
-	if st.event.Kind == domain.KindRelay {
+	if st.event.IsTeam() {
 		return "队伍"
 	}
 	return "运动员"
+}
+
+// TeamWarnings validates the draft roster using the same event and athlete data as saves.
+func (s *Service) TeamWarnings(ctx context.Context, eventID string, memberIDs []string) ([]string, error) {
+	st, err := s.loadEvent(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	warnings := []string{}
+	if warning := st.event.TeamSizeWarning(len(memberIDs)); warning != "" {
+		warnings = append(warnings, warning)
+	}
+	mismatch := false
+	for _, id := range memberIDs {
+		a, ok := st.athletes[id]
+		if !ok {
+			return nil, invalid("运动员不属于本赛事")
+		}
+		mismatch = mismatch || (a.Gender != "" && st.event.Gender != domain.GenderMixed && a.Gender != st.event.Gender)
+	}
+	if mismatch {
+		warnings = append(warnings, "成员性别与项目不符")
+	}
+	return warnings, nil
 }

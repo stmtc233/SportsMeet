@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/plugins/sqlite"
-	"github.com/stmtc233/sportsmeet/internal/domain"
 	"github.com/stmtc233/sportsmeet/internal/scoring"
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
@@ -21,7 +20,7 @@ func (st *eventState) parseSeed(text string) (any, error) {
 	if strings.TrimSpace(text) == "" {
 		return nil, nil
 	}
-	m, err := scoring.ParseMark(st.event.Kind, text)
+	m, err := scoring.ParseEventMark(st.event, text)
 	if err != nil {
 		return nil, invalid("报名成绩「%s」格式不正确", text)
 	}
@@ -37,11 +36,14 @@ func (s *Service) AddEntries(ctx context.Context, src store.Source, eventID stri
 	if err != nil {
 		return err
 	}
+	if st.event.CombinedID != "" {
+		return invalid("请在全能中统一报名")
+	}
 	var stmts []sqlite.Statement
 	var names []string
 	seen := map[string]bool{}
 	for _, in := range list {
-		if (in.AthleteID == "") == (in.TeamID == "") || (st.event.Kind == domain.KindRelay) != (in.TeamID != "") {
+		if (in.AthleteID == "") == (in.TeamID == "") || (st.event.IsTeam()) != (in.TeamID != "") {
 			return invalid("报名类型与项目不符")
 		}
 		id := in.AthleteID
@@ -89,7 +91,7 @@ func (s *Service) setSeed(ctx context.Context, src store.Source, eventID, compet
 		return err
 	}
 	if typed != nil {
-		if (typed.AthleteID == "") == (typed.TeamID == "") || (st.event.Kind == domain.KindRelay) != (typed.TeamID != "") {
+		if (typed.AthleteID == "") == (typed.TeamID == "") || (st.event.IsTeam()) != (typed.TeamID != "") {
 			return invalid("报名类型与项目不符")
 		}
 		competitorID = typed.AthleteID
@@ -129,6 +131,9 @@ func (s *Service) RemoveEntries(ctx context.Context, src store.Source, eventID s
 			}
 		}
 	}
+	if st.event.CombinedID != "" {
+		return invalid("请在全能中取消报名")
+	}
 	var stmts []sqlite.Statement
 	var names []string
 	for _, id := range athleteIDs {
@@ -151,7 +156,7 @@ func (s *Service) RemoveEntries(ctx context.Context, src store.Source, eventID s
 }
 
 func (st *eventState) entryColumn() string {
-	if st.event.Kind == domain.KindRelay {
+	if st.event.IsTeam() {
 		return "team_id"
 	}
 	return "athlete_id"

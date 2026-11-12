@@ -206,7 +206,14 @@ func (s *Service) DeleteAthletes(ctx context.Context, src store.Source, meetID s
 		for _, member := range t.MemberIDs {
 			for _, id := range ids {
 				if member == id {
-					return invalid("运动员已在接力队，请先移出队伍")
+					event, err := s.store.ListEvents(ctx, store.Scope{EventID: t.EventID})
+					if err != nil {
+						return err
+					}
+					if len(event) > 0 && event[0].Kind == domain.KindRelay {
+						return invalid("运动员已在接力队，请先移出队伍")
+					}
+					return invalid("运动员已在队伍，请先移出")
 				}
 			}
 		}

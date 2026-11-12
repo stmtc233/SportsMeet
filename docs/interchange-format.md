@@ -1,8 +1,8 @@
-# 交换格式规范 v2
+# 交换格式规范 v3
 
 SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的完整快照**:参赛单位、运动员、项目、报名、轮次、组、成绩。
 
-- 机器可读定义：[v2](schema/interchange-v2.schema.json)；兼容读取 [v1](schema/interchange-v1.schema.json)（JSON Schema 2020-12）
+- 机器可读定义：[v3](schema/interchange-v3.schema.json)；兼容读取 [v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)（JSON Schema 2020-12）
 - 示例:[examples/sample-meet.json](examples/sample-meet.json)
 
 ## 1. 文件
@@ -18,12 +18,12 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ## 2. 版本
 
 ```json
-{ "format": "sportsmeet-interchange", "version": 2 }
+{ "format": "sportsmeet-interchange", "version": 3 }
 ```
 
 - `format` 固定,不符即拒绝读取。
 - `version` 为正整数。增删字段、改字段含义、改单位、改枚举取值均须 +1。
-- 写出方总是写 v2；读取方支持 v1、v2。v1 不解释项目配置字段，计时项目按分道、远度按跳跃、接力不指定建议棒数；不根据项目名推断。
+- 写出方总是写 v3；读取方支持 v1、v2、v3。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段，即使这些未知字段使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
 - 读取方必须能读所有已发布版本;遇到比自己新的版本直接拒绝,并提示升级软件(不尝试猜测读取)。
 
 ## 3. 基本约定
@@ -55,6 +55,8 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 |---|---|---|
 | `track`、`relay` | 毫秒 | 12.34 秒 → `12340`;1:58.20 → `118200` |
 | `distance`、`height` | 毫米 | 6.52 米 → `6520`;1.85 米 → `1850` |
+| `count` | 次数整数 | 125 次 → `125`，0 为有效成绩 |
+| `score` | 分数乘以 `10^scoreDecimals` | 两位小数时 12.50 分 → `1250` |
 
 手计成绩按毫秒存(12.3 → `12300`),精度由显示决定,不在文件里另记。
 
@@ -63,13 +65,14 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ```jsonc
 {
   "format": "sportsmeet-interchange",
-  "version": 2,
+  "version": 3,
   "exportedAt": "2026-11-12T18:05:31+08:00",
   "generator": { "name": "SportsMeet", "version": "0.1.0" },
   "meet": { ... },
   "units": [ ... ],
   "athletes": [ ... ],
-  "events": [ ... ]
+  "events": [ ... ],
+  "combineds": [ ... ]
 }
 ```
 
@@ -80,6 +83,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `generator` | ✓ | 写出该文件的软件名与版本,用于排查问题 |
 | `meet` | ✓ | §5.1 |
 | `units` / `athletes` / `events` | ✓ | 数组,可为空 |
+| `combineds` | | 全能数组，省略表示无全能，见 §5.11 |
 
 ## 5. 实体
 
@@ -129,28 +133,34 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `gender` | string | ✓ | §3.3 |
 | `discipline` | string | ✓ | 项目名,如 `100m`、`4×100m`、`跳远`、`跳高` |
 | `groupLabel` | string | | 组别,如「初中组」 |
-| `kind` | string | ✓ | `track` / `relay` / `distance` / `height` |
+| `kind` | string | ✓ | `track` / `relay` / `distance` / `height` / `count` / `score` |
 | `date` | 日期 \| null | | 省略 = 赛事开始日期 |
 | `startMode` | string | | 仅计时项目：`lanes` 分道 / `group` 不分道 / `break` 分道后抢道，默认 `lanes` |
 | `distanceMode` | string | | 仅远度：`jump` 跳跃 / `throw` 投掷，默认 `jump` |
 | `relayLegCount` | integer | | 仅接力：非负建议棒数，默认 0（未指定），不强制名单人数 |
 | `laneCount` | integer | | 径赛、接力的道数，默认 8；不分道时保留但不限制每组人数 |
-| `attemptCount` | integer | | 远度项目每人试跳 / 试掷次数,默认 3 |
+| `attemptCount` | integer | | 远度项目每人尝试次数默认 3；计次／计分默认 1，多次模式按此字段录入 |
 | `note` | string | | |
-| `teams` | Team[] | | 仅 `relay`,§5.5 |
+| `participantMode` | string | | `athlete` 个人 / `team` 队伍，接力固定为队伍，其余默认个人 |
+| `teamSize` | integer | | 普通队伍的非负建议人数，0 为未指定，接力使用建议棒数 |
+| `scoreDecimals` | integer | | 计分小数位 0–3，默认 0，计次固定 0 |
+| `rankDirection` | string | | 计次／计分的 `desc` 多／高值优先，或 `asc` 少／低值优先，默认 `desc` |
+| `attemptMode` | string | | 计次／计分的 `single` 一次 / `best` 取最好 / `sum` 求和，默认 `single` |
+| `combinedId` | string | | 全能分项所属的 `combineds[].id`，普通项目为空 |
+| `teams` | Team[] | | 队伍项目，§5.5 |
 | `entries` | Entry[] | ✓ | §5.6 |
 | `rounds` | Round[] | ✓ | §5.7,可为空(尚未编排) |
 
-同一文件内 `gender + discipline + groupLabel` 不得重复。
+同一文件内 `combinedId + gender + discipline + groupLabel` 不得重复，普通项目 `combinedId` 为空。配置不适用于该项目类型时拒绝导入，取值与限制见 [领域细则](agents/domain.md)。
 
-### 5.5 接力队 `teams[]`
+### 5.5 队伍 `teams[]`
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|:---:|---|
 | `id` | string | ✓ | 在本项目内唯一 |
 | `name` | string | ✓ | 如「一中 A 队」 |
 | `unitId` | string \| null | | |
-| `memberIds` | string[] | ✓ | 引用 `athletes[].id`,按棒次顺序;可为空(未定名单) |
+| `memberIds` | string[] | ✓ | 引用 `athletes[].id`,接力按棒次顺序，其他队伍按名单顺序；可为空(未定名单) |
 
 同一项目、同一参赛单位内队名规范化后唯一;同一运动员在该项目只能属于一队,每队内不得重复担任棒次。
 
@@ -159,7 +169,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|:---:|---|
 | `athleteId` | string | 二选一 | 个人项目 |
-| `teamId` | string | 二选一 | 接力项目,引用本项目 `teams[].id` |
+| `teamId` | string | 二选一 | 队伍项目，引用本项目 `teams[].id` |
 | `seedMark` | integer \| null | | 报名成绩,用于分组排道 |
 
 同一运动员(或队)在一个项目里只能报名一次。
@@ -200,16 +210,16 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|:---:|---|
-| `status` | string | ✓ | `OK` 有效 / `DNS` 未起跑(弃权)/ `DNF` 未完成 / `DQ` 犯规取消 / `NM` 无有效成绩(田赛) |
+| `status` | string | ✓ | `OK` 有效 / `DNS` 未起跑(弃权)/ `DNF` 未完成 / `DQ` 犯规取消 / `NM` 无有效成绩 |
 | `mark` | integer \| null | | `status = OK` 时必填;其余为 `null` |
 | `rank` | integer \| null | | 组内名次,经裁判确认的值,读取方原样保留不重算 |
 | `qualify` | string \| null | | `Q` 按名次晋级 / `q` 按成绩晋级 / `null` |
 | `wind` | integer \| null | | 个人风速(田赛最好一跳、或覆盖整组风速),单位同 §5.8 |
-| `attempts` | Attempt[] | | 远度项目逐次成绩 |
+| `attempts` | Attempt[] | | 远度及多次计次／计分项目的逐次成绩 |
 | `bars` | Bar[] | | 高度项目逐高度记录 |
 | `note` | string | | |
 
-远度 `attempts[]`(按次序):
+逐次 `attempts[]`(按次序，单位随项目类型):
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -224,7 +234,26 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `height` | integer | 毫米 |
 | `trials` | string | 1–3 个字符,由 `O`(成功)、`X`(失败)、`-`(免跳)组成,如 `"XO"`、`"XXX"`、`"-"`;在某高度失败后免跳,剩余次数带到下一高度,所以下一高度可能只有 `"X"` |
 
-`result.mark` 是最终成绩(远度为最好一次,高度为最后成功高度),写出方必须与逐次记录一致,读取方以 `mark` 为准。
+`result.mark` 是最终成绩：远度为最好一次，高度为最后成功高度，计次／计分多次模式按 `attemptMode` 汇总。犯规和免试不作为有效零值；全无有效尝试记 `NM`。计次／计分的有效最终值须与已有逐次记录一致，解析与求和检查整数溢出。
+
+### 5.11 全能 `combineds[]`
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|:---:|---|
+| `id` | string | ✓ | 文件内唯一 |
+| `name` | string | ✓ | 全能名称 |
+| `gender` | string | ✓ | 男 / 女 / 混合 |
+| `groupLabel` | string | | 组别 |
+| `note` | string | | |
+| `ruleVersion` | integer | ✓ | 正整数，赛事内规则版本 |
+| `athleteIds` | string[] | ✓ | 统一报名，引用运动员，可为空，不能重复 |
+| `components` | object[] | ✓ | 至少两项，按顺序排列，结构见下文 |
+
+每个分项为 `{eventId, ordinal, rule}`：`eventId` 引用 `events[].id`，该项目的 `combinedId` 必须回指本全能；`ordinal` 从 1 连续递增。分项继承全能的性别与组别，只能个人参赛，只含一个无晋级规则的决赛轮次，报名须与全能一致。一个项目只属于一个全能，不能悬空引用。
+
+`rule` 为 `{bands, invalidPolicies}`：`bands` 每档包含整数 `mark`（单位同分项）与非负整数 `points`；按高标准到低标准排列，阈值严格单向，积分不能随标准降低而增加。达到某档得该档积分，不插值，低于最低标准得零分。`invalidPolicies` 必须给出 `DNS / DNF / DQ / NM` 各自的 `zero`（该项零分）或 `exclude`（不列总排名）。
+
+未录入成绩不算零分；总分与总排名由分项原始成绩和计分表计算，不另存可编辑的累计值。完整规则见 [全能细则](agents/combined.md)。
 
 ## 6. 校验
 
@@ -234,7 +263,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 2. 必填字段齐全,类型正确,枚举取值合法。
 3. 所有引用(`unitId`、`athleteId`、`teamId`、`memberIds`)都能找到。
 4. §5 中的唯一性约束。
-5. `slots[].athleteId` / `teamId` 已在本项目报名;接力的 `slots` 只能用 `teamId`,个人项目只能用 `athleteId`。
+5. `slots[].athleteId` / `teamId` 已在本项目报名;队伍项目的 `slots` 只能用 `teamId`,个人项目只能用 `athleteId`。
 6. `status = OK` 时 `mark` 非空,否则 `mark` 为 `null`。
 
 以下只给**警告**,不阻止导入:运动员性别与项目性别不符、`seedMark` 缺失、运动员未报任何项目。
@@ -251,9 +280,11 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 
 找到 0 个则新建,1 个则复用,多于 1 个则报冲突、整份拒绝。比较前去掉首尾空白、合并连续空白、忽略英文大小写。
 
-接力队伍在所属项目内按规范化的 `name + unitId` 识别,单位先匹配到目标赛事;成员也先匹配到目标运动员,按棒次顺序完全一致才复用。名单不符、匹配不唯一或成员已在该项目其他队伍时整份拒绝,避免把已有比赛记录对应到另一份名单。预览分别统计队伍新建与复用数量。
+队伍在所属项目内按规范化的 `name + unitId` 识别,单位先匹配到目标赛事;成员也先匹配到目标运动员,名单顺序完全一致才复用。名单不符、匹配不唯一或成员已在该项目其他队伍时整份拒绝,避免把已有比赛记录对应到另一份名单。预览分别统计队伍新建与复用数量。
 
-项目按 `gender + discipline + groupLabel` 识别。`discipline` 宽松比较:`100 米` = `100m`,`4x100M` = `4×100m`。
+全能按 `gender + name + groupLabel` 识别；分项先匹配所属全能，项目再按 `combinedId + gender + discipline + groupLabel` 识别。`discipline` 宽松比较:`100 米` = `100m`,`4x100M` = `4×100m`。
 
 
-同名项目的配置冲突：v2 导入复用项目时，起跑方式、跳跃 / 投掷、建议棒数，以及计时项目道数、远度尝试次数须与目标一致（缺省值先按 §5.4 解释），不一致则整份拒绝，避免把顺序当道次或隐藏逐次成绩。v1 文件复用目标项目时保留目标配置。导入新赛事时使用文件配置与兼容默认值。v2 的分道位置不得超过道数；v1 位置按文件保留。
+同名项目的配置冲突：v2／v3 导入复用项目时，起跑方式、跳跃 / 投掷、建议棒数，以及计时项目道数、远度尝试次数须与目标一致（缺省值先按 §5.4 解释），不一致则整份拒绝，避免把顺序当道次或隐藏逐次成绩。v1 文件复用目标项目时保留目标配置。导入新赛事时使用文件配置与兼容默认值。v2／v3 的分道位置不得超过道数；v1 位置按文件保留。
+
+v3 同赛事导入复用项目时，规范化后的参赛方式、建议人数、小数位、排名方向与汇总方式须相同；复用全能时分项及计分表须一致。计分表冲突整份拒绝，修改规则须走重算预览确认，避免文件导入绕过规则版本与操作记录。

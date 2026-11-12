@@ -16,7 +16,8 @@ function progress(row: EventRow) {
 
 export function EventsPage({ meetId }: { meetId: string }) {
   const { go } = useNav();
-  const { data: rows } = useEvents(meetId);
+  const { data: allRows } = useEvents(meetId);
+  const rows = allRows?.filter((r) => !r.event.combinedId);
   const [editing, setEditing] = useState<{ row?: EventRow } | null>(null);
   const [deleting, setDeleting] = useState<{ row: EventRow; counts: MeetCounts } | null>(null);
   const open = (row: EventRow, tab: EventTab) => go({ page: "event", meetId, eventId: row.event.id, tab });
@@ -28,6 +29,7 @@ export function EventsPage({ meetId }: { meetId: string }) {
     <StPage flush
       toolbar={
         <StToolbar title="项目" subtitle={rows ? `${rows.length} 项` : ""}>
+          <StButton onClick={() => go({ page: "combineds", meetId })}>全能</StButton>
           <StButton variant="primary" icon={<IconAdd size={16} strokeWidth={iconStroke} />} onClick={() => setEditing({})}>添加项目</StButton>
         </StToolbar>
       }>

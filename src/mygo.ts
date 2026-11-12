@@ -130,6 +130,97 @@ export interface Change {
   eventId: string;
 }
 
+/** Combined owns independently arranged component events and one shared roster. */
+export interface Combined {
+  id: string;
+  meetId: string;
+  name: string;
+  gender: Gender;
+  groupLabel: string;
+  note: string;
+  ruleVersion: number;
+}
+
+export interface CombinedCell {
+  eventId: string;
+  markText: string;
+  status: Status;
+  points: number | null;
+  pending: boolean;
+  excluded: boolean;
+}
+
+export interface CombinedComponentInput {
+  eventId?: string;
+  event: EventInput;
+  rule: PointRuleInput;
+}
+
+export interface CombinedComponentView {
+  event: Event;
+  ordinal: number;
+  rule: PointRule;
+  input: PointRuleInput;
+}
+
+export interface CombinedDetail {
+  combined: Combined;
+  components: CombinedComponentView[];
+  athleteIds: string[];
+  athletes: Athlete[];
+  rows: CombinedRow[];
+  complete: boolean;
+  hasPlacements: boolean;
+  heats: number;
+  results: number;
+}
+
+export interface CombinedInput {
+  name: string;
+  gender: string;
+  groupLabel?: string;
+  note?: string;
+  components: CombinedComponentInput[];
+}
+
+export interface CombinedRow {
+  genderMismatch: boolean;
+  athleteId: string;
+  cells: CombinedCell[];
+  total: number;
+  rank: number | null;
+  pending: boolean;
+  excluded: boolean;
+  name: string;
+  bib: string;
+  unitName: string;
+}
+
+export interface CombinedRowSummary {
+  combined: Combined;
+  components: number;
+  entries: number;
+  results: number;
+}
+
+export interface CombinedRuleChange {
+  eventId: string;
+  rule: PointRuleInput;
+}
+
+export interface CombinedRulesPreview {
+  previewHash: string;
+  ruleVersion: number;
+  before: CombinedRow[];
+  after: CombinedRow[];
+  changed: boolean;
+}
+
+export interface CombinedRulesRequest {
+  combinedId: string;
+  rules: CombinedRuleChange[];
+}
+
 export type DistanceMode = "" | "jump" | "throw";
 
 /** EntryInput enters an athlete or relay team; Seed is the typed entry mark, "" = none. */
@@ -160,6 +251,12 @@ export interface EntryView {
 
 /** Event is one single item: gender + discipline + optional group. */
 export interface Event {
+  participantMode?: string;
+  teamSize?: number;
+  scoreDecimals?: number;
+  rankDirection?: string;
+  attemptMode?: string;
+  combinedId?: string;
   id: string;
   meetId: string;
   name: string;
@@ -194,6 +291,11 @@ export interface EventDetail {
  * the final, advancing by AdvanceByPlace and AdvanceByMark.
  */
 export interface EventInput {
+  participantMode?: string;
+  teamSize?: number;
+  scoreDecimals?: number;
+  rankDirection?: string;
+  attemptMode?: string;
   startMode?: string;
   distanceMode?: string;
   relayLegCount?: number;
@@ -213,7 +315,7 @@ export interface EventInput {
 }
 
 /** EventKind decides how marks are measured and ranked. */
-export type EventKind = "track" | "relay" | "distance" | "height";
+export type EventKind = "track" | "relay" | "distance" | "count" | "score" | "height";
 
 /** EventPreset supplies initial input only; events retain their own configuration. */
 export interface EventPreset {
@@ -244,6 +346,10 @@ export interface EventRules {
   attemptLabel: string;
   startLabel: string;
   defaultPerHeat: number;
+  team: boolean;
+  multipleAttempts: boolean;
+  markLabel: string;
+  unit: string;
 }
 
 /** Gender of an athlete ("" = unknown) or of an event (男 / 女 / 混合). */
@@ -287,6 +393,7 @@ export interface HeatView {
  * shown.
  */
 export interface ImportPreview {
+  combineds: Tally;
   meetName: string;
   newMeet: boolean;
   teams: Tally;
@@ -395,12 +502,42 @@ export interface PlannedSlot {
   competitorId: string;
 }
 
+export interface PointBand {
+  mark: number;
+  points: number;
+}
+
+export interface PointBandView {
+  markText: string;
+  points: number;
+}
+
+export interface PointRule {
+  bands: PointBand[];
+  invalidPolicies: Record<string, string>;
+}
+
+export interface PointRuleInput {
+  table: string;
+  invalidPolicies: Record<string, string>;
+}
+
+export interface PointRulePreview {
+  rule: PointRule;
+  rows: PointBandView[];
+}
+
 /** Preferences contains only settings used by the app. MCP secrets have a separate API. */
 export interface Preferences {
   theme: string;
   separateUnits: boolean;
   balance: boolean;
   printNewPage: boolean;
+}
+
+export interface ReportTarget {
+  id: string;
+  name: string;
 }
 
 /** Result is the mark at a slot. Mark is ms (timed) or mm (field). */
@@ -572,7 +709,7 @@ export interface Tally {
   reused: number;
 }
 
-/** Team belongs to a relay event. MemberIDs are ordered by leg. */
+/** Team belongs to a team-participant event; relay members are ordered by leg. */
 export interface Team {
   id: string;
   eventId: string;
@@ -737,6 +874,37 @@ export const Events = {
   teamSizeWarning(event: Event, count: number): Promise<string> {
     return call("Events.TeamSizeWarning", event, count);
   },
+  teamWarnings(eventID: string, memberIDs: string[]): Promise<string[]> {
+    return call("Events.TeamWarnings", eventID, memberIDs);
+  },
+} as const;
+
+/** Combined manages owned all-around components and their shared roster. */
+export const Combined = {
+  applyRules(req: CombinedRulesRequest, hash: string, confirmed: boolean): Promise<CombinedRulesPreview | null> {
+    return call("Combined.ApplyRules", req, hash, confirmed);
+  },
+  delete(id: string): Promise<void> {
+    return call("Combined.Delete", id);
+  },
+  entries(id: string, athleteIDs: string[]): Promise<void> {
+    return call("Combined.Entries", id, athleteIDs);
+  },
+  get(id: string): Promise<CombinedDetail | null> {
+    return call("Combined.Get", id);
+  },
+  list(meetID: string): Promise<CombinedRowSummary[]> {
+    return call("Combined.List", meetID);
+  },
+  parseRule(in_: EventInput, rule: PointRuleInput): Promise<PointRulePreview | null> {
+    return call("Combined.ParseRule", in_, rule);
+  },
+  previewRules(req: CombinedRulesRequest): Promise<CombinedRulesPreview | null> {
+    return call("Combined.PreviewRules", req);
+  },
+  save(meetID: string, id: string, in_: CombinedInput): Promise<Combined | null> {
+    return call("Combined.Save", meetID, id, in_);
+  },
 } as const;
 
 /** Entries manages 报名. */
@@ -795,6 +963,9 @@ export const Reports = {
   render(kind: string, meetID: string, eventIDs: string[]): Promise<string> {
     return call("Reports.Render", kind, meetID, eventIDs);
   },
+  targets(meetID: string): Promise<ReportTarget[]> {
+    return call("Reports.Targets", meetID);
+  },
 } as const;
 
 /** Exchange imports and exports interchange files (.meet.json). */
@@ -832,7 +1003,6 @@ export const Marks = {
   eventName(gender: Gender, discipline: string, group: string): Promise<string> {
     return call("Marks.EventName", gender, discipline, group);
   },
-  /** Format shows a mark of kind. */
   format(kind: EventKind, mark: number): Promise<string> {
     return call("Marks.Format", kind, mark);
   },
@@ -842,6 +1012,10 @@ export const Marks = {
    */
   normalize(kind: EventKind, input: string): Promise<string> {
     return call("Marks.Normalize", kind, input);
+  },
+  /** Format shows a mark of kind. */
+  normalizeEvent(event: Event, input: string): Promise<string> {
+    return call("Marks.NormalizeEvent", event, input);
   },
   /** Parse reads typed input as a mark of kind. */
   parse(kind: EventKind, input: string): Promise<number> {

@@ -35,6 +35,7 @@ const (
 // Options of an automatic arrangement.
 type Options struct {
 	Kind          domain.EventKind `json:"kind"`
+	RankDirection string           `json:"rankDirection"`
 	StartMode     domain.StartMode `json:"startMode"`
 	LaneCount     int              `json:"laneCount"` // starting lanes, ignored for group starts
 	PerHeat       int              `json:"perHeat"`
@@ -91,7 +92,9 @@ func Plan(opts Options, entrants []Entrant) ([]PlannedHeat, error) {
 	list := append([]Entrant(nil), entrants...)
 	rng.Shuffle(n, func(i, j int) { list[i], list[j] = list[j], list[i] })
 	if opts.Order == OrderSeed {
-		sort.SliceStable(list, func(i, j int) bool { return seedBefore(opts.Kind, list[i].Seed, list[j].Seed) })
+		sort.SliceStable(list, func(i, j int) bool {
+			return seedBeforeEvent(domain.Event{Kind: opts.Kind, CompetitionConfig: domain.CompetitionConfig{RankDirection: opts.RankDirection}}, list[i].Seed, list[j].Seed)
+		})
 	}
 
 	h := (n + opts.PerHeat - 1) / opts.PerHeat
@@ -162,13 +165,13 @@ func Plan(opts Options, entrants []Entrant) ([]PlannedHeat, error) {
 }
 
 // seedBefore orders entry marks best first; a missing mark comes last.
-func seedBefore(kind domain.EventKind, a, b *int64) bool {
+func seedBeforeEvent(event domain.Event, a, b *int64) bool {
 	switch {
 	case a == nil:
 		return false
 	case b == nil:
 		return true
-	case kind.Timed():
+	case event.Ascending():
 		return *a < *b
 	}
 	return *a > *b

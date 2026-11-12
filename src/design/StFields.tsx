@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { isCallError } from "mygo-runtime";
-import { Marks, type EventKind } from "../mygo";
+import type { Event, EventKind } from "../mygo";
+import { normalizeMark } from "../lib/marks";
 import { IconCheck, IconSearch, iconStroke } from "./icons";
 
 interface FieldShellProps {
@@ -68,6 +69,7 @@ export function StTextArea({ label, hint, value, onChange, rows = 8, placeholder
 }
 
 interface StMarkFieldProps {
+ event?: Event;
   kind: EventKind;
   label?: ReactNode;
   value: string;
@@ -88,7 +90,7 @@ interface StMarkFieldProps {
  * A mark as typed (12.34, 1:05.67, 6.52). Parsing and formatting are Go's
  * (scoring), asked on blur; this component has no parser of its own.
  */
-export function StMarkField({ kind, label, value, onChange, onCommit, disabled, placeholder, width = "mark", accept, onKeyDown, name, ...rest }: StMarkFieldProps) {
+export function StMarkField({ event, kind, label, value, onChange, onCommit, disabled, placeholder, width = "mark", accept, onKeyDown, name, ...rest }: StMarkFieldProps) {
   const [error, setError] = useState("");
   const id = useId();
   useEffect(() => {
@@ -103,7 +105,7 @@ export function StMarkField({ kind, label, value, onChange, onCommit, disabled, 
       return;
     }
     try {
-      const tidy = await Marks.normalize(kind, text);
+      const tidy = await normalizeMark(kind, text, event);
       setError("");
       if (tidy !== value) onChange(tidy);
       onCommit?.(tidy);

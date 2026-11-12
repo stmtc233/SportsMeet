@@ -47,3 +47,13 @@ export const EventsController = {
   removeEntries: (eventId: string, competitorIds: string[]) => act(() => Entries.remove(eventId, competitorIds)),
   setSeed: (eventId: string, competitorId: string, seed: string) => act(() => Entries.setSeed(eventId, competitorId, seed)),
 };
+
+export function useTeamWarnings(event: Event, memberIds: string[]) {
+  const [warnings, setWarnings] = useState<string[]>([]);
+  useEffect(() => {
+    let live = true;
+    void Events.teamWarnings(event.id, memberIds).then((list) => { if (live) setWarnings(list); }).catch(() => {});
+    return () => { live = false; };
+  }, [event, memberIds]);
+  return warnings;
+}

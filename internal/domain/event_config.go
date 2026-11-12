@@ -22,6 +22,9 @@ const (
 
 // NormalizeConfig supplies compatibility defaults without interpreting Discipline.
 func (e *Event) NormalizeConfig() error {
+	if err := e.normalizeCompetition(); err != nil {
+		return err
+	}
 	if e.Kind.Timed() {
 		if e.StartMode == "" {
 			e.StartMode = StartLanes
@@ -57,16 +60,20 @@ func (e Event) UsesLanes() bool { return e.Kind.Timed() && e.StartMode != StartG
 
 // EventRules is the presentation and arrangement configuration shared by clients.
 type EventRules struct {
-	Timed          bool   `json:"timed"`
-	UsesLanes      bool   `json:"usesLanes"`
-	PositionLabel  string `json:"positionLabel"`
-	AttemptLabel   string `json:"attemptLabel"`
-	StartLabel     string `json:"startLabel"`
-	DefaultPerHeat int    `json:"defaultPerHeat"`
+	Timed            bool   `json:"timed"`
+	UsesLanes        bool   `json:"usesLanes"`
+	PositionLabel    string `json:"positionLabel"`
+	AttemptLabel     string `json:"attemptLabel"`
+	StartLabel       string `json:"startLabel"`
+	DefaultPerHeat   int    `json:"defaultPerHeat"`
+	Team             bool   `json:"team"`
+	MultipleAttempts bool   `json:"multipleAttempts"`
+	MarkLabel        string `json:"markLabel"`
+	Unit             string `json:"unit"`
 }
 
 func (e Event) Rules() EventRules {
-	r := EventRules{Timed: e.Kind.Timed(), UsesLanes: e.UsesLanes(), PositionLabel: "顺序", DefaultPerHeat: 12}
+	r := EventRules{Team: e.IsTeam(), MultipleAttempts: e.MultipleAttempts(), MarkLabel: "成绩", Timed: e.Kind.Timed(), UsesLanes: e.UsesLanes(), PositionLabel: "顺序", DefaultPerHeat: 12}
 	if r.UsesLanes {
 		r.PositionLabel, r.DefaultPerHeat = "道次", e.LaneCount
 	}
@@ -86,12 +93,24 @@ func (e Event) Rules() EventRules {
 			r.AttemptLabel = "试投"
 		}
 	}
+	if e.Kind == KindCount {
+		r.MarkLabel, r.Unit = "次数", "次"
+	}
+	if e.Kind == KindScore {
+		r.MarkLabel, r.Unit = "分数", "分"
+	}
+	if e.Kind.Scalar() && e.MultipleAttempts() {
+		r.AttemptLabel = "尝试"
+	}
 	return r
 }
 
 func (e Event) TeamSizeWarning(count int) string {
 	if e.Kind == KindRelay && e.RelayLegCount > 0 && count != e.RelayLegCount {
 		return "棒数与项目建议不符"
+	}
+	if e.IsTeam() && e.TeamSize > 0 && count != e.TeamSize {
+		return "人数与项目建议不符"
 	}
 	return ""
 }

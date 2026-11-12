@@ -15,21 +15,26 @@ func itoa(n int) string { return strconv.Itoa(n) }
 // EventInput creates or updates an event. Prelim asks for a 预赛 before
 // the final, advancing by AdvanceByPlace and AdvanceByMark.
 type EventInput struct {
-	StartMode      string `json:"startMode,omitempty"`
-	DistanceMode   string `json:"distanceMode,omitempty"`
-	RelayLegCount  int    `json:"relayLegCount,omitempty"`
-	Name           string `json:"name,omitempty"` // "" = composed from the fields below
-	Gender         string `json:"gender"`
-	Discipline     string `json:"discipline"`
-	GroupLabel     string `json:"groupLabel,omitempty"`
-	Kind           string `json:"kind"`
-	Date           string `json:"date,omitempty"`
-	LaneCount      int    `json:"laneCount,omitempty"`
-	AttemptCount   int    `json:"attemptCount,omitempty"`
-	Note           string `json:"note,omitempty"`
-	Prelim         bool   `json:"prelim,omitempty"`
-	AdvanceByPlace int    `json:"advanceByPlace,omitempty"`
-	AdvanceByMark  int    `json:"advanceByMark,omitempty"`
+	ParticipantMode string `json:"participantMode,omitempty"`
+	TeamSize        int    `json:"teamSize,omitempty"`
+	ScoreDecimals   int    `json:"scoreDecimals,omitempty"`
+	RankDirection   string `json:"rankDirection,omitempty"`
+	AttemptMode     string `json:"attemptMode,omitempty"`
+	StartMode       string `json:"startMode,omitempty"`
+	DistanceMode    string `json:"distanceMode,omitempty"`
+	RelayLegCount   int    `json:"relayLegCount,omitempty"`
+	Name            string `json:"name,omitempty"` // "" = composed from the fields below
+	Gender          string `json:"gender"`
+	Discipline      string `json:"discipline"`
+	GroupLabel      string `json:"groupLabel,omitempty"`
+	Kind            string `json:"kind"`
+	Date            string `json:"date,omitempty"`
+	LaneCount       int    `json:"laneCount,omitempty"`
+	AttemptCount    int    `json:"attemptCount,omitempty"`
+	Note            string `json:"note,omitempty"`
+	Prelim          bool   `json:"prelim,omitempty"`
+	AdvanceByPlace  int    `json:"advanceByPlace,omitempty"`
+	AdvanceByMark   int    `json:"advanceByMark,omitempty"`
 }
 
 // EventRow is an event in the meet's list, with its progress.
@@ -84,22 +89,27 @@ func (s *Service) ListEvents(ctx context.Context, meetID string) ([]EventRow, er
 
 func (in EventInput) event() (domain.Event, error) {
 	e := domain.Event{
-		Name:         strings.TrimSpace(in.Name),
-		Discipline:   strings.TrimSpace(in.Discipline),
-		GroupLabel:   strings.TrimSpace(in.GroupLabel),
-		Kind:         domain.EventKind(in.Kind),
-		Date:         strings.TrimSpace(in.Date),
-		LaneCount:    in.LaneCount,
-		AttemptCount: in.AttemptCount,
-		Note:         strings.TrimSpace(in.Note),
-		StartMode:    domain.StartMode(in.StartMode), DistanceMode: domain.DistanceMode(in.DistanceMode), RelayLegCount: in.RelayLegCount,
+		CompetitionConfig: domain.CompetitionConfig{ParticipantMode: in.ParticipantMode, TeamSize: in.TeamSize, ScoreDecimals: in.ScoreDecimals, RankDirection: in.RankDirection, AttemptMode: in.AttemptMode},
+		Name:              strings.TrimSpace(in.Name),
+		Discipline:        strings.TrimSpace(in.Discipline),
+		GroupLabel:        strings.TrimSpace(in.GroupLabel),
+		Kind:              domain.EventKind(in.Kind),
+		Date:              strings.TrimSpace(in.Date),
+		LaneCount:         in.LaneCount,
+		AttemptCount:      in.AttemptCount,
+		Note:              strings.TrimSpace(in.Note),
+		StartMode:         domain.StartMode(in.StartMode), DistanceMode: domain.DistanceMode(in.DistanceMode), RelayLegCount: in.RelayLegCount,
 	}
 	g, ok := domain.NormalizeEventGender(in.Gender)
 	if e.LaneCount == 0 {
 		e.LaneCount = 8
 	}
 	if e.AttemptCount == 0 {
-		e.AttemptCount = 3
+		if e.Kind.Scalar() {
+			e.AttemptCount = 1
+		} else {
+			e.AttemptCount = 3
+		}
 	}
 	switch {
 	case !ok:
@@ -138,9 +148,9 @@ func insertRound(r domain.Round) sqlite.Statement {
 
 func insertEvent(e domain.Event, now int64) sqlite.Statement {
 	return store.Stmt(`INSERT INTO events(id, meet_id, name, gender, discipline, group_label, kind, date,
-		lane_count, attempt_count, note, start_mode, distance_mode, relay_leg_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		lane_count, attempt_count, note, start_mode, distance_mode, relay_leg_count, config_json, combined_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		e.ID, e.MeetID, e.Name, string(e.Gender), e.Discipline, e.GroupLabel, string(e.Kind), e.Date,
-		e.LaneCount, e.AttemptCount, e.Note, string(e.StartMode), string(e.DistanceMode), e.RelayLegCount, now)
+		e.LaneCount, e.AttemptCount, e.Note, string(e.StartMode), string(e.DistanceMode), e.RelayLegCount, store.EventConfigJSON(e), nullable(e.CombinedID), now)
 }
 
 // SaveEvent creates an event (id "") or updates one. A new event gets its
@@ -160,12 +170,17 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 	if err != nil {
 		return nil, err
 	}
+	for _, existing := range events {
+		if existing.ID == id && existing.CombinedID != "" {
+			return nil, invalid("请在全能中编辑分项")
+		}
+	}
 	var old *domain.Event
 	key := domain.EventKey(e.Gender, e.Discipline, e.GroupLabel)
 	for _, o := range events {
 		if o.ID == id {
 			old = &o
-		} else if domain.EventKey(o.Gender, o.Discipline, o.GroupLabel) == key {
+		} else if o.CombinedID == "" && domain.EventKey(o.Gender, o.Discipline, o.GroupLabel) == key {
 			return nil, invalid("已有相同的项目「%s」", o.Name)
 		}
 	}
@@ -190,6 +205,9 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 		if old == nil {
 			return nil, invalid("项目不存在或已删除")
 		}
+		if old.CombinedID != "" {
+			return nil, invalid("请在全能中编辑分项")
+		}
 		rounds, err := s.store.LoadRounds(ctx, store.Scope{EventID: id})
 		if err != nil {
 			return nil, err
@@ -204,7 +222,7 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 				results += h.Facts().Results
 			}
 		}
-		if (e.Kind == domain.KindRelay) != (old.Kind == domain.KindRelay) {
+		if e.IsTeam() != old.IsTeam() || (e.Kind == domain.KindRelay) != (old.Kind == domain.KindRelay) {
 			entries, err := s.store.ListEntries(ctx, store.Scope{EventID: id})
 			if err != nil {
 				return nil, err
@@ -220,7 +238,21 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 				}
 			}
 			if len(entries) > 0 || len(teams) > 0 || occupied {
-				return nil, invalid("已有报名或队伍，不能切换接力类型")
+				if (e.Kind == domain.KindRelay) != (old.Kind == domain.KindRelay) {
+					return nil, invalid("已有报名或队伍，不能切换接力类型")
+				}
+				return nil, invalid("已有报名，不能改参赛方式")
+			}
+		}
+		if e.Kind != old.Kind || e.ScoreDecimals != old.ScoreDecimals {
+			entries, err := s.store.ListEntries(ctx, store.Scope{EventID: id})
+			if err != nil {
+				return nil, err
+			}
+			for _, entry := range entries {
+				if entry.SeedMark != nil {
+					return nil, invalid("已有报名成绩，不能改单位")
+				}
 			}
 		}
 		if e.Kind != old.Kind && results > 0 {
@@ -235,18 +267,21 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 					if e.UsesLanes() && sl.Position > e.LaneCount {
 						return nil, invalid("已有道次超过所选道数")
 					}
-					if e.Kind == domain.KindDistance && sl.Result != nil && len(sl.Result.Attempts) > e.AttemptCount {
+					if e.MultipleAttempts() && sl.Result != nil && len(sl.Result.Attempts) > e.AttemptCount {
 						return nil, invalid("已有逐次成绩，不能减少次数")
 					}
 				}
 			}
 		}
+		if results > 0 && e.Kind.Scalar() && (e.ScoreDecimals != old.ScoreDecimals || e.AttemptMode != old.AttemptMode || e.RankDirection != old.RankDirection) {
+			return nil, invalid("已有成绩，不能改计分规则")
+		}
 		if results > 0 && e.Rules().StartLabel != old.Rules().StartLabel {
 			return nil, invalid("已有成绩，不能改起跑方式")
 		}
 		stmts = append(stmts, store.Stmt(`UPDATE events SET name = ?, gender = ?, discipline = ?, group_label = ?,
-			kind = ?, date = ?, lane_count = ?, attempt_count = ?, note = ?, start_mode = ?, distance_mode = ?, relay_leg_count = ? WHERE id = ?`,
-			e.Name, string(e.Gender), e.Discipline, e.GroupLabel, string(e.Kind), e.Date, e.LaneCount, e.AttemptCount, e.Note, string(e.StartMode), string(e.DistanceMode), e.RelayLegCount, id))
+			kind = ?, date = ?, lane_count = ?, attempt_count = ?, note = ?, start_mode = ?, distance_mode = ?, relay_leg_count = ?, config_json = ? WHERE id = ?`,
+			e.Name, string(e.Gender), e.Discipline, e.GroupLabel, string(e.Kind), e.Date, e.LaneCount, e.AttemptCount, e.Note, string(e.StartMode), string(e.DistanceMode), e.RelayLegCount, store.EventConfigJSON(e), id))
 		switch {
 		case in.Prelim && prelim == nil:
 			// Later rounds move up by one to make room for the 预赛.
@@ -290,6 +325,9 @@ func (s *Service) DeleteEvent(ctx context.Context, src store.Source, id string, 
 		return invalid("项目不存在或已删除")
 	}
 	e := events[0]
+	if e.CombinedID != "" {
+		return invalid("请在全能中删除分项")
+	}
 	counts, err := s.store.Count(ctx, store.Scope{EventID: id})
 	if err != nil {
 		return err

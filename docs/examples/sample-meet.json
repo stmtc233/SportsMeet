@@ -1,6 +1,6 @@
 {
   "format": "sportsmeet-interchange",
-  "version": 2,
+  "version": 3,
   "exportedAt": "2026-11-12T18:05:31+08:00",
   "generator": {
     "name": "SportsMeet",
@@ -452,6 +452,275 @@
         }
       ],
       "rounds": []
+    },
+    {
+      "id": "combinedpart0",
+      "combinedId": "cschool",
+      "gender": "男",
+      "discipline": "100m",
+      "groupLabel": "全能组",
+      "kind": "track",
+      "entries": [
+        {
+          "athleteId": "a1"
+        }
+      ],
+      "rounds": [
+        {
+          "id": "combinedpart0r",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "combinedpart0h",
+              "ordinal": 1,
+              "slots": [
+                {
+                  "position": 1,
+                  "athleteId": "a1",
+                  "result": {
+                    "status": "OK",
+                    "mark": 12500,
+                    "rank": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "startMode": "lanes",
+      "laneCount": 8
+    },
+    {
+      "id": "combinedpart1",
+      "combinedId": "cschool",
+      "gender": "男",
+      "discipline": "跳远",
+      "groupLabel": "全能组",
+      "kind": "distance",
+      "entries": [
+        {
+          "athleteId": "a1"
+        }
+      ],
+      "rounds": [
+        {
+          "id": "combinedpart1r",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "combinedpart1h",
+              "ordinal": 1,
+              "slots": [
+                {
+                  "position": 1,
+                  "athleteId": "a1",
+                  "result": {
+                    "status": "OK",
+                    "mark": 5000,
+                    "rank": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "distanceMode": "jump",
+      "attemptCount": 3
+    },
+    {
+      "id": "erope",
+      "gender": "混合",
+      "discipline": "集体跳绳",
+      "kind": "count",
+      "participantMode": "team",
+      "teamSize": 2,
+      "attemptMode": "sum",
+      "rankDirection": "desc",
+      "attemptCount": 3,
+      "teams": [
+        {
+          "id": "ropeA",
+          "name": "联合队A",
+          "memberIds": [
+            "a1",
+            "a2"
+          ]
+        },
+        {
+          "id": "ropeB",
+          "name": "联合队B",
+          "memberIds": [
+            "a3",
+            "a4"
+          ]
+        }
+      ],
+      "entries": [
+        {
+          "teamId": "ropeA"
+        },
+        {
+          "teamId": "ropeB"
+        }
+      ],
+      "rounds": [
+        {
+          "id": "eroper",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "eropeh",
+              "ordinal": 1,
+              "slots": [
+                {
+                  "position": 1,
+                  "teamId": "ropeA",
+                  "result": {
+                    "status": "OK",
+                    "mark": 366,
+                    "rank": 1,
+                    "attempts": [
+                      {
+                        "outcome": "valid",
+                        "mark": 120
+                      },
+                      {
+                        "outcome": "valid",
+                        "mark": 124
+                      },
+                      {
+                        "outcome": "valid",
+                        "mark": 122
+                      }
+                    ]
+                  }
+                },
+                {
+                  "position": 2,
+                  "teamId": "ropeB",
+                  "result": {
+                    "status": "OK",
+                    "mark": 0,
+                    "rank": 1,
+                    "attempts": [
+                      {
+                        "outcome": "valid",
+                        "mark": 0
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "escore",
+      "gender": "男",
+      "discipline": "技巧评分",
+      "kind": "score",
+      "participantMode": "athlete",
+      "scoreDecimals": 2,
+      "attemptMode": "single",
+      "rankDirection": "desc",
+      "entries": [
+        {
+          "athleteId": "a1"
+        }
+      ],
+      "rounds": [
+        {
+          "id": "escorer",
+          "stage": "final",
+          "ordinal": 1,
+          "advance": null,
+          "heats": [
+            {
+              "id": "escoreh",
+              "ordinal": 1,
+              "slots": [
+                {
+                  "position": 1,
+                  "athleteId": "a1",
+                  "result": {
+                    "status": "OK",
+                    "mark": 1250,
+                    "rank": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "combineds": [
+    {
+      "id": "cschool",
+      "name": "校园两项全能",
+      "gender": "男",
+      "groupLabel": "全能组",
+      "ruleVersion": 1,
+      "athleteIds": [
+        "a1"
+      ],
+      "components": [
+        {
+          "eventId": "combinedpart0",
+          "ordinal": 1,
+          "rule": {
+            "bands": [
+              {
+                "mark": 12000,
+                "points": 100
+              },
+              {
+                "mark": 13000,
+                "points": 80
+              }
+            ],
+            "invalidPolicies": {
+              "DNS": "zero",
+              "DNF": "zero",
+              "DQ": "zero",
+              "NM": "zero"
+            }
+          }
+        },
+        {
+          "eventId": "combinedpart1",
+          "ordinal": 2,
+          "rule": {
+            "bands": [
+              {
+                "mark": 5000,
+                "points": 100
+              },
+              {
+                "mark": 4000,
+                "points": 80
+              }
+            ],
+            "invalidPolicies": {
+              "DNS": "zero",
+              "DNF": "zero",
+              "DQ": "zero",
+              "NM": "zero"
+            }
+          }
+        }
+      ]
     }
   ]
 }

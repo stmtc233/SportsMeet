@@ -61,7 +61,7 @@ func (s *Service) PlanHeats(ctx context.Context, req PlanRequest) ([]arrange.Pla
 		if prev == nil || prev.Advance == nil {
 			return nil, invalid("上一轮没有晋级规则")
 		}
-		if _, complete := standings(st.event.Kind, *prev); !complete {
+		if _, complete := standingsEvent(st.event, *prev); !complete {
 			return nil, invalid("%s成绩未录完", prev.Label())
 		}
 		for _, h := range prev.Heats {
@@ -77,7 +77,7 @@ func (s *Service) PlanHeats(ctx context.Context, req PlanRequest) ([]arrange.Pla
 		}
 	}
 	plan, err := arrange.Plan(arrange.Options{
-		Kind: st.event.Kind, StartMode: st.event.StartMode, LaneCount: st.event.LaneCount, PerHeat: req.PerHeat, Order: req.Order, Lanes: req.Lanes,
+		Kind: st.event.Kind, StartMode: st.event.StartMode, RankDirection: st.event.RankDirection, LaneCount: st.event.LaneCount, PerHeat: req.PerHeat, Order: req.Order, Lanes: req.Lanes,
 		SeparateUnits: req.SeparateUnits, Balance: req.Balance, Seed: req.Seed,
 	}, entrants)
 	if err != nil {
@@ -164,11 +164,13 @@ func (st *eventState) buildSlots(label string, in []SlotSave, old *domain.Heat) 
 	out := make([]domain.Slot, 0, len(in))
 	positions, members := map[int]bool{}, map[string]bool{}
 	for _, sl := range in {
-		if (sl.TeamID != "" && st.event.Kind != domain.KindRelay) || (sl.AthleteID != "" && st.event.Kind == domain.KindRelay) || (sl.TeamID != "" && sl.AthleteID != "") || (sl.ID != "" && ((sl.TeamID != "" && sl.ID != sl.TeamID) || (sl.AthleteID != "" && sl.ID != sl.AthleteID))) {
+		if (sl.TeamID != "" && !st.event.IsTeam()) || (sl.AthleteID != "" && st.event.IsTeam()) || (sl.TeamID != "" && sl.AthleteID != "") || (sl.ID != "" && ((sl.TeamID != "" && sl.ID != sl.TeamID) || (sl.AthleteID != "" && sl.ID != sl.AthleteID))) {
 			return nil, invalid("报名类型与项目不符")
 		}
 		a, ok := st.competitor(sl.CompetitorID())
 		switch {
+		case st.event.CombinedID != "" && st.entered[sl.CompetitorID()] == nil:
+			return nil, invalid("请先在全能中报名")
 		case !ok:
 			return nil, invalid("%s不存在或已删除", st.competitorLabel())
 		case sl.Position < 1 || positions[sl.Position]:
@@ -378,7 +380,7 @@ func (s *Service) SaveBoard(ctx context.Context, src store.Source, in BoardSave)
 				}
 			}
 		}
-		rescore(st.event.Kind, round.Advance, final)
+		rescoreEvent(st.event, round.Advance, final)
 		stmts = append(stmts, resultWrites(before, final, rewritten, now)...)
 	}
 	if len(stmts) == 0 {

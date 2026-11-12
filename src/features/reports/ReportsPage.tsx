@@ -1,21 +1,17 @@
 import { useEffect, useState } from "react";
 import { IconPrint, StButton, StCheckbox, StPage, StSegmented, StToolbar, iconStroke } from "../../design";
-import { act } from "../../lib/action";
-import { useData } from "../../lib/useData";
-import { Reports } from "../../mygo";
-import { useEvents } from "../events/controller";
+import { ReportsController, useReportHTML, useReportTargets } from "./controller";
 
 /** 秩序册 and 成绩册: rendered by Go, previewed in a frame, printed from a window of their own. */
 export function ReportsPage({ meetId }: { meetId: string }) {
-  const { data: events } = useEvents(meetId);
+  const { data: events } = useReportTargets(meetId);
   const [kind, setKind] = useState("startlist");
   const [skipped, setSkipped] = useState(new Set<string>());
   const [busy, setBusy] = useState(false);
   const all = events ?? [];
-  const chosen = all.filter((r) => !skipped.has(r.event.id)).map((r) => r.event.id);
+  const chosen = all.filter((r) => !skipped.has(r.id)).map((r) => r.id);
   const ids = skipped.size === 0 ? [] : chosen;
-  const key = ids.join();
-  const { data: html } = useData(() => (all.length > 0 && chosen.length === 0 ? Promise.resolve("") : Reports.render(kind, meetId, ids)), [kind, meetId, key, all.length], (c) => c.meetId === meetId || c.kind === "settings");
+  const { data: html } = useReportHTML(kind, meetId, ids, all.length, chosen.length);
   useEffect(() => setSkipped(new Set()), [meetId]);
   const toggle = (id: string) => setSkipped((old) => {
     const next = new Set(old);
@@ -24,7 +20,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   });
   const print = async () => {
     setBusy(true);
-    await act(() => Reports.print(kind, meetId, ids));
+    await ReportsController.print(kind, meetId, ids);
     setBusy(false);
   };
   return (
@@ -39,13 +35,13 @@ export function ReportsPage({ meetId }: { meetId: string }) {
         <aside className="split__side">
           <div className="split__side-head">
             <span>项目</span>
-            <StButton size="small" variant="ghost" reserveWidthFor={["全选", "取消全选"]} onClick={() => setSkipped(skipped.size === 0 ? new Set(all.map((r) => r.event.id)) : new Set())}>
+            <StButton size="small" variant="ghost" reserveWidthFor={["全选", "取消全选"]} onClick={() => setSkipped(skipped.size === 0 ? new Set(all.map((r) => r.id)) : new Set())}>
               {skipped.size === 0 ? "取消全选" : "全选"}
             </StButton>
           </div>
           <div className="split__side-list">
             {all.map((r) => (
-              <StCheckbox key={r.event.id} checked={!skipped.has(r.event.id)} onChange={() => toggle(r.event.id)} label={r.event.name} />
+              <StCheckbox key={r.id} checked={!skipped.has(r.id)} onChange={() => toggle(r.id)} label={r.name} />
             ))}
           </div>
         </aside>

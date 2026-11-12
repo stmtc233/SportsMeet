@@ -88,6 +88,24 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 		only[id] = true
 	}
 
+	parents, err := s.store.ListCombined(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	combinedState := &combinedMeetState{parents: parents, events: map[string]domain.Event{}, rounds: rounds, athletes: athletes, units: map[string]string{}}
+	for _, e := range events {
+		combinedState.events[e.ID] = e
+	}
+	for _, u := range units {
+		combinedState.units[u.ID] = u.Name
+	}
+	for _, p := range parents {
+		if only[p.Combined.ID] {
+			for _, c := range p.Components {
+				only[c.EventID] = true
+			}
+		}
+	}
 	book := &report.Book{Meet: meet.Name, Dates: meet.StartDate, Location: meet.Location}
 	if meet.EndDate != "" && meet.EndDate != meet.StartDate {
 		book.Dates += " – " + meet.EndDate
@@ -102,31 +120,44 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 		}
 		st.event = e
 		rules := e.Rules()
-		ev := report.Event{Name: e.Name, Date: date, PositionLabel: rules.PositionLabel, AttemptLabel: rules.AttemptLabel, Configuration: rules.StartLabel, Relay: e.Kind == domain.KindRelay}
+		ev := report.Event{Name: e.Name, Date: date, PositionLabel: rules.PositionLabel, AttemptLabel: rules.AttemptLabel, Configuration: rules.StartLabel, Relay: e.IsTeam(), RosterLabel: "成员"}
+		if e.Kind == domain.KindRelay {
+			ev.RosterLabel = "棒次"
+		}
 		if rules.AttemptLabel != "" {
 			ev.Configuration = fmt.Sprintf("%s %d 次", rules.AttemptLabel, e.AttemptCount)
 		}
 		if e.Kind == domain.KindRelay && e.RelayLegCount > 0 {
 			ev.Configuration += fmt.Sprintf(" · 建议 %d 棒", e.RelayLegCount)
 		}
+		if e.IsTeam() && e.Kind != domain.KindRelay && e.TeamSize > 0 {
+			ev.Configuration += fmt.Sprintf(" · 建议 %d 人", e.TeamSize)
+		}
+		if e.Kind.Scalar() {
+			method := map[string]string{"single": "一次", "best": "取最好", "sum": "求和"}[e.AttemptMode]
+			ev.Configuration = e.Kind.Label() + " · " + method
+			if e.MultipleAttempts() {
+				ev.Configuration += fmt.Sprintf(" · %d 次", e.AttemptCount)
+			}
+		}
 		line := func(sl domain.Slot) report.Line {
 			a, _ := st.competitor(sl.CompetitorID())
 			l := report.Line{Position: sl.Position, Bib: a.Bib, Name: a.Name, Unit: st.unitName(a.UnitID)}
 			if sl.TeamID != "" {
 				for i, id := range st.teams[sl.TeamID].MemberIDs {
-					l.Members = append(l.Members, fmt.Sprintf("%d棒 %s", i+1, st.athletes[id].Name))
+					l.Members = append(l.Members, teamMemberLabel(e, i, st.athletes[id].Name))
 				}
 			}
 			if seed := seeds[e.ID+"|"+a.ID]; seed != nil {
-				l.Seed = scoring.FormatMark(e.Kind, *seed)
+				l.Seed = scoring.FormatEventMark(e, *seed)
 			}
 			if r := sl.Result; r != nil {
 				l.Mark, l.Qualify = r.Status.Label(), r.Qualify
 				for _, a := range r.Attempts {
-					l.Attempts = append(l.Attempts, scoring.FormatAttempt(e.Kind, a))
+					l.Attempts = append(l.Attempts, scoring.FormatEventAttempt(e, a))
 				}
 				if r.Status == domain.StatusOK && r.Mark != nil {
-					l.Mark = scoring.FormatMark(e.Kind, *r.Mark)
+					l.Mark = scoring.FormatEventMark(e, *r.Mark)
 				}
 				if r.Rank != nil {
 					l.Rank = strconv.Itoa(*r.Rank)
@@ -150,7 +181,7 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 				}
 				rr.Heats = append(rr.Heats, heat)
 			}
-			list, _ := standings(e.Kind, r)
+			list, _ := standingsEvent(e, r)
 			for _, row := range list {
 				l := bySlot[row.CompetitorID]
 				l.Rank = ""
@@ -165,6 +196,64 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 			ev.Rounds = append(ev.Rounds, rr)
 		}
 		book.Events = append(book.Events, ev)
+	}
+	for _, parent := range parents {
+		if len(only) > 0 && !only[parent.Combined.ID] {
+			continue
+		}
+		d, err := combinedState.detail(parent, nil)
+		if err != nil {
+			return nil, err
+		}
+		c := report.Combined{Name: parent.Combined.Name, State: "暂列排名", Tables: []report.CombinedTable{}, Roster: []report.Line{}}
+		if d.Complete {
+			c.State = "正式排名"
+		}
+		headers := []string{}
+		rows := []report.CombinedRow{}
+		for _, part := range d.Components {
+			headers = append(headers, part.Event.Discipline+" / 积分")
+		}
+		for _, id := range parent.AthleteIDs {
+			a := st.athletes[id]
+			c.Roster = append(c.Roster, report.Line{Name: a.Name, Bib: a.Bib, Unit: st.unitName(a.UnitID)})
+		}
+		for _, row := range d.Rows {
+			r := report.CombinedRow{Name: row.Name, Bib: row.Bib, Unit: row.UnitName, Total: strconv.FormatInt(row.Total, 10), Cells: []string{}}
+			if row.Rank != nil {
+				r.Rank = strconv.Itoa(*row.Rank)
+			}
+			for _, cell := range row.Cells {
+				text := "待录"
+				if !cell.Pending {
+					if cell.Excluded {
+						text = cell.MarkText + " / 不列名次"
+					} else {
+						text = cell.MarkText + " / " + strconv.FormatInt(*cell.Points, 10)
+					}
+				}
+				r.Cells = append(r.Cells, text)
+			}
+			rows = append(rows, r)
+		}
+		for start := 0; start < len(headers); start += 4 {
+			end := min(start+4, len(headers))
+			table := report.CombinedTable{Headers: headers[start:end], Rows: []report.CombinedRow{}}
+			if len(headers) > 4 {
+				if end == start+1 {
+					table.Label = fmt.Sprintf("分项 %d", end)
+				} else {
+					table.Label = fmt.Sprintf("分项 %d–%d", start+1, end)
+				}
+			}
+			for _, row := range rows {
+				copy := row
+				copy.Cells = row.Cells[start:end]
+				table.Rows = append(table.Rows, copy)
+			}
+			c.Tables = append(c.Tables, table)
+		}
+		book.Combineds = append(book.Combineds, c)
 	}
 	return book, nil
 }
@@ -194,4 +283,37 @@ func heatTime(scheduledAt, eventDate string) string {
 		return clock
 	}
 	return day + " " + clock
+}
+
+func teamMemberLabel(e domain.Event, index int, name string) string {
+	if e.Kind == domain.KindRelay {
+		return fmt.Sprintf("%d棒 %s", index+1, name)
+	}
+	return name
+}
+
+type ReportTarget struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func (s *Service) ReportTargets(ctx context.Context, meetID string) ([]ReportTarget, error) {
+	events, err := s.store.ListEvents(ctx, store.Scope{MeetID: meetID})
+	if err != nil {
+		return nil, err
+	}
+	parents, err := s.store.ListCombined(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	out := []ReportTarget{}
+	for _, e := range events {
+		if e.CombinedID == "" {
+			out = append(out, ReportTarget{ID: e.ID, Name: e.Name})
+		}
+	}
+	for _, p := range parents {
+		out = append(out, ReportTarget{ID: p.Combined.ID, Name: p.Combined.Name})
+	}
+	return out, nil
 }
