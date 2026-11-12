@@ -121,13 +121,14 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 			ev.Entries = []interchange.Entry{}
 		}
 		for _, r := range rounds[e.ID] {
-			round := interchange.Round{ID: r.ID, Stage: string(r.Stage), Ordinal: r.Ordinal, Name: r.Name, Heats: []interchange.Heat{}}
+			round := interchange.Round{ID: r.ID, Stage: string(r.Stage), Ordinal: r.Ordinal, Name: r.Name,
+				ScheduledAt: optStr(r.ScheduledAt), Heats: []interchange.Heat{}}
 			if r.Advance != nil {
 				round.Advance = &interchange.Advance{ByPlace: r.Advance.ByPlace, ByMark: r.Advance.ByMark}
 			}
 			for _, h := range r.Heats {
 				heat := interchange.Heat{ID: h.ID, Ordinal: h.Ordinal, Name: h.Name, ScheduledAt: optStr(h.ScheduledAt),
-					Wind: h.Wind, Slots: []interchange.Slot{}}
+					DurationMinutes: h.DurationMinutes, Wind: h.Wind, Slots: []interchange.Slot{}}
 				for _, sl := range h.Slots {
 					if sl.CompetitorID() == "" {
 						continue
@@ -540,6 +541,9 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 				roundID = old.ID
 			} else {
 				n := domain.Round{ID: roundID, EventID: eventID, Stage: stage, Name: r.Name}
+				if r.ScheduledAt != nil {
+					n.ScheduledAt = *r.ScheduledAt
+				}
 				if r.Advance != nil {
 					n.Advance = &domain.Advance{ByPlace: r.Advance.ByPlace, ByMark: r.Advance.ByMark}
 				}
@@ -606,8 +610,8 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 				if h.ScheduledAt != nil {
 					sched = *h.ScheduledAt
 				}
-				add(`INSERT INTO heats(id, round_id, ordinal, name, scheduled_at, wind) VALUES (?, ?, ?, ?, ?, ?)`,
-					heatID, roundID, h.Ordinal, domain.NormalizeHeatName(h.Name), sched, optArg(h.Wind))
+				add(`INSERT INTO heats(id, round_id, ordinal, name, scheduled_at, duration_minutes, wind) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+					heatID, roundID, h.Ordinal, domain.NormalizeHeatName(h.Name), sched, optArg(h.DurationMinutes), optArg(h.Wind))
 				for _, sl := range slots {
 					placedElsewhere[sl.CompetitorID()] = h.Ordinal
 					plan.stmts = append(plan.stmts, insertSlot(heatID, sl))

@@ -249,3 +249,35 @@ func TestImportIntoExistingMeet(t *testing.T) {
 		t.Fatal("an invalid file was imported")
 	}
 }
+
+// A v4 file brings its round starts and heat durations, and exports them again.
+func TestImportV4RoundStartAndDuration(t *testing.T) {
+	svc, _ := newTestService(t)
+	ctx := t.Context()
+	data, err := os.ReadFile("../../testdata/interchange/sample-meet-v4.json")
+	must(t, err)
+	p, err := svc.PreviewImport(ctx, data, "")
+	must(t, err)
+	if len(p.Errors) != 0 {
+		t.Fatalf("preview = %+v", p.Errors)
+	}
+	done, err := svc.ImportMeet(ctx, ui, data, "", p.Hash)
+	must(t, err)
+	out, err := svc.ExportMeet(ctx, done.MeetID)
+	must(t, err)
+	if out.Version != interchange.Version {
+		t.Fatalf("export version %d", out.Version)
+	}
+	var start, duration bool
+	for _, e := range out.Events {
+		for _, r := range e.Rounds {
+			start = start || (r.ScheduledAt != nil && *r.ScheduledAt == "2026-11-12T14:00")
+			for _, h := range r.Heats {
+				duration = duration || (h.DurationMinutes != nil && *h.DurationMinutes == 10)
+			}
+		}
+	}
+	if !start || !duration {
+		t.Fatal("round start or heat duration lost on import")
+	}
+}

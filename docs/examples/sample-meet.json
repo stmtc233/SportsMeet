@@ -1,6 +1,6 @@
 {
   "format": "sportsmeet-interchange",
-  "version": 3,
+  "version": 4,
   "exportedAt": "2026-11-12T18:05:31+08:00",
   "generator": {
     "name": "SportsMeet",
@@ -117,6 +117,7 @@
               "id": "h1",
               "ordinal": 1,
               "scheduledAt": "2026-11-12T09:30",
+              "durationMinutes": 10,
               "wind": 12,
               "slots": [
                 {
@@ -252,6 +253,7 @@
           "id": "r3",
           "stage": "final",
           "ordinal": 1,
+          "scheduledAt": "2026-11-12T14:00",
           "advance": null,
           "heats": [
             {

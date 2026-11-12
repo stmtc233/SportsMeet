@@ -19,7 +19,8 @@ const (
 )
 
 // RenderReport returns a printable HTML document for the meet. eventIDs
-// limits it to some events (in the meet's order); empty means all.
+// limits it to some events (in the list's order, domain.ScheduleOrder);
+// empty means all.
 func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventIDs []string) (string, error) {
 	book, err := s.reportBook(ctx, meetID, eventIDs)
 	if err != nil {
@@ -30,6 +31,9 @@ func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventID
 		return "", err
 	}
 	book.NewPage = prefs.PrintNewPage
+	if kind != ReportStartList || !prefs.PrintSchedule {
+		book.Schedule = nil
+	}
 	switch kind {
 	case ReportStartList:
 		return report.StartList(*book)
@@ -106,18 +110,14 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 			}
 		}
 	}
-	book := &report.Book{Meet: meet.Name, Dates: meet.StartDate, Location: meet.Location}
-	if meet.EndDate != "" && meet.EndDate != meet.StartDate {
-		book.Dates += " – " + meet.EndDate
-	}
-	for _, e := range events {
+	book := &report.Book{Meet: meet.Name, Dates: domain.DateRangeText(meet.StartDate, meet.EndDate), Location: meet.Location,
+		PrintedAt: domain.RecordedText(s.store.Now(), s.zone)}
+	book.Schedule = scheduleBook(newMeetPlan(*meet, events, rounds, teams, athletes, 0).timetable(only))
+	for _, e := range domain.ScheduleOrder(events, rounds, meet.StartDate) {
 		if len(only) > 0 && !only[e.ID] {
 			continue
 		}
-		date := e.Date
-		if date == "" {
-			date = meet.StartDate
-		}
+		date := domain.PlannedDay(e, rounds[e.ID], meet.StartDate)
 		st.event = e
 		rules := e.Rules()
 		ev := report.Event{Name: e.Name, Date: date, PositionLabel: rules.PositionLabel, AttemptLabel: rules.AttemptLabel, Configuration: rules.StartLabel, Relay: e.IsTeam(), RosterLabel: "成员"}
@@ -172,7 +172,8 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 			}
 			bySlot := map[string]report.Line{}
 			for _, h := range r.Heats {
-				heat := report.Heat{Label: domain.HeatLabel(h.Ordinal, h.Name), Time: heatTime(h.ScheduledAt, date)}
+				at, _ := domain.EffectiveScheduled(r, h)
+				heat := report.Heat{Label: domain.HeatLabel(h.Ordinal, h.Name), Time: domain.ScheduledText(at, date)}
 				for _, sl := range h.Slots {
 					l := line(sl)
 					heat.Lines = append(heat.Lines, l)
@@ -258,6 +259,26 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 	return book, nil
 }
 
+// scheduleBook is the 竞赛日程表: the timetable's rounds by day and time,
+// the rounds with no time last.
+func scheduleBook(t *Timetable) []report.ScheduleDay {
+	rows := func(list []TimetableRound) []report.ScheduleRow {
+		out := make([]report.ScheduleRow, 0, len(list))
+		for _, r := range list {
+			out = append(out, report.ScheduleRow{Time: r.StartText, Event: r.EventName, Round: r.RoundLabel, Heats: r.HeatCount, People: r.People})
+		}
+		return out
+	}
+	var out []report.ScheduleDay
+	for _, d := range t.Days {
+		out = append(out, report.ScheduleDay{Day: d.Day, Rows: rows(d.Rounds)})
+	}
+	if len(t.Unscheduled) > 0 {
+		out = append(out, report.ScheduleDay{Day: "未安排时间", Rows: rows(t.Unscheduled)})
+	}
+	return out
+}
+
 func advanceText(a domain.Advance) string {
 	var parts []string
 	if a.ByPlace > 0 {
@@ -270,19 +291,6 @@ func advanceText(a domain.Advance) string {
 		return ""
 	}
 	return strings.Join(parts, "与") + "晋级"
-}
-
-// heatTime shortens a scheduled time to HH:mm when it is on the event's
-// day.
-func heatTime(scheduledAt, eventDate string) string {
-	day, clock, ok := strings.Cut(scheduledAt, "T")
-	if !ok {
-		return ""
-	}
-	if day == eventDate {
-		return clock
-	}
-	return day + " " + clock
 }
 
 func teamMemberLabel(e domain.Event, index int, name string) string {
@@ -306,8 +314,16 @@ func (s *Service) ReportTargets(ctx context.Context, meetID string) ([]ReportTar
 	if err != nil {
 		return nil, err
 	}
+	meet, err := s.GetMeet(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	rounds, err := s.store.LoadRounds(ctx, store.Scope{MeetID: meetID})
+	if err != nil {
+		return nil, err
+	}
 	out := []ReportTarget{}
-	for _, e := range events {
+	for _, e := range domain.ScheduleOrder(events, rounds, meet.StartDate) {
 		if e.CombinedID == "" {
 			out = append(out, ReportTarget{ID: e.ID, Name: e.Name})
 		}

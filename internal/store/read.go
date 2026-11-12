@@ -122,13 +122,13 @@ func ResultDetailJSON(r domain.Result) string {
 // four queries, and returns them by event id, ordered by ordinal.
 func (s *Store) LoadRounds(ctx context.Context, sc Scope) (map[string][]domain.Round, error) {
 	cond, arg := sc.events("event_id")
-	rr, err := s.Query(ctx, `SELECT id, event_id, stage, ordinal, name, advance_by_place, advance_by_mark
+	rr, err := s.Query(ctx, `SELECT id, event_id, stage, ordinal, name, advance_by_place, advance_by_mark, scheduled_at
 		FROM rounds WHERE `+cond+` ORDER BY ordinal`, arg)
 	if err != nil {
 		return nil, err
 	}
 	inRounds := "round_id IN (SELECT id FROM rounds WHERE " + cond + ")"
-	hr, err := s.Query(ctx, `SELECT id, round_id, ordinal, name, scheduled_at, wind FROM heats
+	hr, err := s.Query(ctx, `SELECT id, round_id, ordinal, name, scheduled_at, wind, duration_minutes FROM heats
 		WHERE `+inRounds+` ORDER BY ordinal`, arg)
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func (s *Store) LoadRounds(ctx context.Context, sc Scope) (map[string][]domain.R
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.Query(ctx, `SELECT heat_id, position, status, mark, rank, qualify, wind, detail_json, note
+	res, err := s.Query(ctx, `SELECT heat_id, position, status, mark, rank, qualify, wind, detail_json, note, updated_at
 		FROM results WHERE `+inHeats, arg)
 	if err != nil {
 		return nil, err
@@ -149,7 +149,9 @@ func (s *Store) LoadRounds(ctx context.Context, sc Scope) (map[string][]domain.R
 		pos  int
 	}
 	results := make(map[slotKey]*domain.Result, len(res.Values))
+	updated := map[string]int64{}
 	for _, r := range res.Values {
+		updated[str(r[0])] = max(updated[str(r[0])], i64(r[9]))
 		v := &domain.Result{Status: domain.Status(str(r[2])), Mark: optI64(r[3]), Rank: optInt(r[4]),
 			Qualify: str(r[5]), Wind: optInt(r[6]), Note: str(r[8])}
 		var d resultDetail
@@ -166,7 +168,7 @@ func (s *Store) LoadRounds(ctx context.Context, sc Scope) (map[string][]domain.R
 	heats := map[string][]domain.Heat{}
 	for _, r := range hr.Values {
 		h := domain.Heat{ID: str(r[0]), RoundID: str(r[1]), Ordinal: int(i64(r[2])), Name: str(r[3]),
-			ScheduledAt: str(r[4]), Wind: optInt(r[5]), Slots: slots[str(r[0])]}
+			ScheduledAt: str(r[4]), Wind: optInt(r[5]), DurationMinutes: optInt(r[6]), Slots: slots[str(r[0])], ResultsUpdatedAt: updated[str(r[0])]}
 		if h.Slots == nil {
 			h.Slots = []domain.Slot{}
 		}
@@ -175,7 +177,7 @@ func (s *Store) LoadRounds(ctx context.Context, sc Scope) (map[string][]domain.R
 	out := map[string][]domain.Round{}
 	for _, r := range rr.Values {
 		round := domain.Round{ID: str(r[0]), EventID: str(r[1]), Stage: domain.Stage(str(r[2])),
-			Ordinal: int(i64(r[3])), Name: str(r[4]), Heats: heats[str(r[0])]}
+			Ordinal: int(i64(r[3])), Name: str(r[4]), ScheduledAt: str(r[7]), Heats: heats[str(r[0])]}
 		if round.Heats == nil {
 			round.Heats = []domain.Heat{}
 		}

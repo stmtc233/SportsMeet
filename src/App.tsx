@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { usePreferences } from "./features/settings/controller";
 import { ErrorBoundary } from "./app/ErrorBoundary";
 import { NavProvider, useNav, type MeetTab } from "./app/nav";
-import { IconAthletes, IconBack, IconEvent, IconExport, IconPrint, IconSettings, IconUnit, StListItem, StToastHost, iconStroke } from "./design";
+import { IconAthletes, IconBack, IconEvent, IconExport, IconPrint, IconSettings, IconTime, IconUnit, StListItem, StToastHost, iconStroke } from "./design";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { AthletesPage } from "./features/athletes/AthletesPage";
 import { EventWorkspace } from "./features/event/EventWorkspace";
@@ -13,11 +13,12 @@ import { ExchangePage } from "./features/exchange/ExchangePage";
 import { MeetsPage } from "./features/meets/MeetsPage";
 import { useMeet } from "./features/meets/data";
 import { ReportsPage } from "./features/reports/ReportsPage";
+import { SchedulePage } from "./features/schedule/SchedulePage";
 import { UnitsPage } from "./features/units/UnitsPage";
-import { dateRange } from "./lib/labels";
 
 const tabs: { tab: MeetTab; label: string; icon: typeof IconEvent }[] = [
   { tab: "events", label: "项目", icon: IconEvent },
+  { tab: "schedule", label: "日程", icon: IconTime },
   { tab: "athletes", label: "运动员", icon: IconAthletes },
   { tab: "units", label: "参赛单位", icon: IconUnit },
   { tab: "reports", label: "打印", icon: IconPrint },
@@ -46,6 +47,7 @@ function Shell() {
         {route.page === "combined" && <CombinedWorkspace key={route.combinedId} meetId={meetId} combinedId={route.combinedId} />}
         {route.page === "event" && <EventWorkspace key={route.eventId} meetId={meetId} eventId={route.eventId} tab={route.tab} />}
         {route.page === "meet" && route.tab === "events" && <EventsPage meetId={meetId} />}
+        {route.page === "meet" && route.tab === "schedule" && <SchedulePage meetId={meetId} />}
         {route.page === "meet" && route.tab === "athletes" && <AthletesPage meetId={meetId} />}
         {route.page === "meet" && route.tab === "units" && <UnitsPage meetId={meetId} />}
         {route.page === "meet" && route.tab === "reports" && <ReportsPage meetId={meetId} />}
@@ -59,7 +61,7 @@ function MeetHeader({ meetId }: { meetId: string }) {
   const meet = useMeet(meetId).data;
   return (
     <div className="app__meet">
-      <StListItem title={<strong>{meet?.name ?? ""}</strong>} subtitle={meet ? dateRange(meet.startDate, meet.endDate) : ""} />
+      <StListItem title={<strong>{meet?.name ?? ""}</strong>} subtitle={meet?.datesText ?? ""} />
     </div>
   );
 }

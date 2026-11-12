@@ -19,7 +19,14 @@ export interface DraftHeat {
   base: string;
   label: string;
   name: string;
+  /** The heat's own time; "" = it follows the round's start. */
   scheduledAt: string;
+  durationMinutes: number | null;
+  /** How Go shows the effective time (own, else the round's); "" = unscheduled. */
+  scheduledText: string;
+  /** The time shown is the round's start. */
+  scheduleInherited: boolean;
+  durationText: string;
   slots: DraftSlot[];
   /** Why the heat is locked ("" = it is not). */
   keepReason: string;
@@ -27,6 +34,9 @@ export interface DraftHeat {
 
 export interface DraftRound {
   roundId: string;
+  /** The round's start and how Go shows it; heats without a time of their own follow it. */
+  startAt: string;
+  startText: string;
   heats: DraftHeat[];
   deleted: HeatRef[];
 }
@@ -37,6 +47,16 @@ export interface ArrangeDraft {
   unlocked: string[];
   /** 「全部重置」: heats with results may be deleted. */
   reset: boolean;
+}
+
+/** What 「编辑组」 changes; the texts come from Go with it (`Arrange.heatTimes`). */
+export interface HeatPatch {
+  name: string;
+  scheduledAt: string;
+  durationMinutes: number | null;
+  scheduledText: string;
+  scheduleInherited: boolean;
+  durationText: string;
 }
 
 export type Edit = { draft: ArrangeDraft; error?: undefined } | { draft?: undefined; error: string };
@@ -53,6 +73,8 @@ export function fromDetail(detail: EventDetail): ArrangeDraft {
     reset: false,
     rounds: detail.rounds.map((r) => ({
       roundId: r.id,
+      startAt: r.scheduledAt,
+      startText: r.scheduledText,
       deleted: [],
       heats: r.heats.map((h) => ({
         key: h.id,
@@ -61,6 +83,10 @@ export function fromDetail(detail: EventDetail): ArrangeDraft {
         label: h.label,
         name: h.name,
         scheduledAt: h.scheduledAt,
+        durationMinutes: h.durationMinutes,
+        scheduledText: h.scheduledText,
+        scheduleInherited: h.scheduleInherited,
+        durationText: h.durationText,
         keepReason: h.keepReason,
         slots: h.slots.map((s) => ({ position: s.position, competitorId: s.competitorId })),
       })),
@@ -73,7 +99,8 @@ function sameSlots(a: DraftSlot[], b: DraftSlot[]): boolean {
 }
 
 export function heatChanged(h: DraftHeat, loaded: DraftHeat | undefined): boolean {
-  return !loaded || h.name !== loaded.name || h.scheduledAt !== loaded.scheduledAt || !sameSlots(h.slots, loaded.slots);
+  return !loaded || h.name !== loaded.name || h.scheduledAt !== loaded.scheduledAt ||
+    h.durationMinutes !== loaded.durationMinutes || !sameSlots(h.slots, loaded.slots);
 }
 
 export function isLocked(draft: ArrangeDraft, heat: DraftHeat): boolean {
@@ -143,18 +170,26 @@ export function unplace(draft: ArrangeDraft, roundId: string, competitorId: stri
   return { draft: withRound(draft, roundId, (old) => ({ ...old, heats })) };
 }
 
-function blankHeat(slots: DraftSlot[] = []): DraftHeat {
-  return { key: newHeatKey(), id: "", base: "", label: "", name: "", scheduledAt: "", keepReason: "", slots };
+/** A heat's times as its round shows them when it has no time of its own. */
+function inherited(h: DraftHeat, r: DraftRound): DraftHeat {
+  return { ...h, scheduledText: r.startText, scheduleInherited: r.startAt !== "" };
+}
+
+function blankHeat(r: DraftRound, slots: DraftSlot[] = []): DraftHeat {
+  return inherited({ key: newHeatKey(), id: "", base: "", label: "", name: "", scheduledAt: "", durationMinutes: null,
+    scheduledText: "", scheduleInherited: false, durationText: "", keepReason: "", slots }, r);
 }
 
 export function addHeat(draft: ArrangeDraft, roundId: string): ArrangeDraft {
-  return withRound(draft, roundId, (r) => ({ ...r, heats: [...r.heats, blankHeat()] }));
+  return withRound(draft, roundId, (r) => ({ ...r, heats: [...r.heats, blankHeat(r)] }));
 }
 
 /** Appends heats planned by Go's arrange as they are. */
 export function appendPlanned(draft: ArrangeDraft, roundId: string, planned: PlannedHeat[]): ArrangeDraft {
-  const heats = planned.map((p) => blankHeat(sorted(p.slots.map((s) => ({ position: s.position, competitorId: s.competitorId })))));
-  return withRound(draft, roundId, (r) => ({ ...r, heats: [...r.heats, ...heats] }));
+  return withRound(draft, roundId, (r) => ({
+    ...r,
+    heats: [...r.heats, ...planned.map((p) => blankHeat(r, sorted(p.slots.map((s) => ({ position: s.position, competitorId: s.competitorId })))))],
+  }));
 }
 
 export function deleteHeat(draft: ArrangeDraft, roundId: string, key: string): Edit {
@@ -181,7 +216,7 @@ export function moveHeat(draft: ArrangeDraft, roundId: string, key: string, delt
   });
 }
 
-export function editHeat(draft: ArrangeDraft, roundId: string, key: string, patch: { name: string; scheduledAt: string }): ArrangeDraft {
+export function editHeat(draft: ArrangeDraft, roundId: string, key: string, patch: HeatPatch): ArrangeDraft {
   return withRound(draft, roundId, (r) => ({ ...r, heats: r.heats.map((h) => (h.key === key ? { ...h, ...patch } : h)) }));
 }
 
@@ -195,7 +230,7 @@ export function resetAll(draft: ArrangeDraft): ArrangeDraft {
     unlocked: [],
     reset: true,
     rounds: draft.rounds.map((r) => ({
-      roundId: r.roundId,
+      ...r,
       heats: [],
       deleted: [...r.deleted, ...r.heats.filter((h) => h.id).map((h) => ({ id: h.id, base: h.base }))],
     })),
@@ -203,7 +238,8 @@ export function resetAll(draft: ArrangeDraft): ArrangeDraft {
 }
 
 function toSave(h: DraftHeat): HeatSave {
-  return { id: h.id, key: h.id ? "" : h.key, base: h.base, name: h.name, scheduledAt: h.scheduledAt, slots: h.slots };
+  return { id: h.id, key: h.id ? "" : h.key, base: h.base, name: h.name, scheduledAt: h.scheduledAt,
+    durationMinutes: h.durationMinutes, slots: h.slots };
 }
 
 /** What saving would submit, and how many heats it touches. */
@@ -224,6 +260,17 @@ export function diff(draft: ArrangeDraft, loaded: ArrangeDraft, eventId: string)
     rounds.push({ roundId: r.roundId, order, changed, added, deleted: r.deleted });
   }
   return { save: { eventId, rounds, unlocked: draft.unlocked, reset: draft.reset }, count };
+}
+
+/**
+ * A local heat's shown time after fresh data: without a time of its own it
+ * follows the fresh round's start; with the same own time as now, it takes
+ * the fresh text (the event's shown day may have moved).
+ */
+function refreshTimes(h: DraftHeat, r: DraftRound, now?: DraftHeat): DraftHeat {
+  if (h.scheduledAt === "") return inherited(h, r);
+  if (now && now.scheduledAt === h.scheduledAt) return { ...h, scheduledText: now.scheduledText, scheduleInherited: now.scheduleInherited };
+  return h;
 }
 
 /**
@@ -252,7 +299,7 @@ export function merge(draft: ArrangeDraft, loaded: ArrangeDraft, fresh: ArrangeD
     if (draft.reset) {
       // A reset deletes whatever is there now.
       const all = f.heats.map((h) => ({ id: h.id, base: h.base }));
-      return { roundId: f.roundId, heats: mine.heats.filter((h) => !h.id), deleted: all };
+      return { ...f, heats: mine.heats.filter((h) => !h.id).map((h) => refreshTimes(h, f)), deleted: all };
     }
     const gone = new Set(deleted.map((d) => d.id));
 
@@ -263,7 +310,7 @@ export function merge(draft: ArrangeDraft, loaded: ArrangeDraft, fresh: ArrangeD
       const local = mineBy.get(key);
       const before = wasBy.get(key);
       if (local && before && heatChanged(local, before)) {
-        if (before.base === now.base) return { ...local, keepReason: now.keepReason, label: now.label };
+        if (before.base === now.base) return refreshTimes({ ...local, keepReason: now.keepReason, label: now.label }, f, now);
         if (heatChanged(local, now)) dropped = true; // the same content means this was our own save
       }
       fromFresh.add(key);
@@ -275,10 +322,10 @@ export function merge(draft: ArrangeDraft, loaded: ArrangeDraft, fresh: ArrangeD
     const reordered = localOrder.join() !== loadedOrder.join();
     let heats: DraftHeat[];
     if (reordered) {
-      heats = mine.heats.flatMap((h) => (h.id ? resolve(h.key) ?? [] : h));
+      heats = mine.heats.flatMap((h) => (h.id ? resolve(h.key) ?? [] : refreshTimes(h, f)));
       for (const h of f.heats) if (!mineBy.has(h.key) && !gone.has(h.key)) heats.push(resolve(h.key)!);
     } else {
-      heats = [...f.heats.flatMap((h) => resolve(h.key) ?? []), ...mine.heats.filter((h) => !h.id)];
+      heats = [...f.heats.flatMap((h) => resolve(h.key) ?? []), ...mine.heats.filter((h) => !h.id).map((h) => refreshTimes(h, f))];
     }
     for (const h of mine.heats) if (h.id && !freshBy.has(h.key) && heatChanged(h, wasBy.get(h.key))) dropped = true;
 
@@ -291,7 +338,7 @@ export function merge(draft: ArrangeDraft, loaded: ArrangeDraft, fresh: ArrangeD
       if (slots.length !== h.slots.length) dropped = true;
       return slots.length === h.slots.length ? h : { ...h, slots };
     });
-    return { roundId: f.roundId, heats, deleted };
+    return { ...f, heats, deleted };
   });
   const keys = new Set(rounds.flatMap((r) => r.heats.map((h) => h.key)));
   return { draft: { rounds, reset: draft.reset, unlocked: draft.unlocked.filter((k) => keys.has(k)) }, dropped };

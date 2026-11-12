@@ -9,8 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"regexp"
 	"sync"
+	"time"
 
 	"github.com/egoist/mygo/plugins/sqlite"
 	"github.com/stmtc233/sportsmeet/internal/store"
@@ -32,6 +32,8 @@ type Service struct {
 	mu sync.Mutex
 	// pending is set only on a request-local planner while the real service holds mu.
 	pending *preparedWrite
+	// zone shows recorded times; nil is the computer's local zone. Tests set it.
+	zone *time.Location
 }
 
 // New returns a service; notify is called after each committed write.
@@ -78,11 +80,6 @@ func invalid(format string, a ...any) error { return &InputError{Msg: fmt.Sprint
 // reloads and merges instead of overwriting. The text is a code the
 // frontend maps to a message (src/lib/errors.ts).
 var ErrStale = errors.New("E_STALE")
-
-var (
-	dateRe   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-	minuteRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$`)
-)
 
 func newID() string {
 	b := make([]byte, 16)

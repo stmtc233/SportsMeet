@@ -16,8 +16,26 @@ type Book struct {
 	Meet      string
 	Dates     string // 2026-11-12 or 2026-11-12 – 2026-11-13
 	Location  string
+	PrintedAt string        // 2026-11-12 09:31, local time
+	Schedule  []ScheduleDay // 竞赛日程表, start lists only; empty = not printed
 	Events    []Event
 	Combineds []Combined
+}
+
+// ScheduleDay is one day of the 竞赛日程表; Day is "未安排时间" for the
+// rounds with no time.
+type ScheduleDay struct {
+	Day  string
+	Rows []ScheduleRow
+}
+
+// ScheduleRow is one round in the 竞赛日程表.
+type ScheduleRow struct {
+	Time   string // 09:30, "" when unscheduled
+	Event  string
+	Round  string
+	Heats  int
+	People int
 }
 
 // Event is one item.
@@ -45,7 +63,7 @@ type Round struct {
 // Heat is one group.
 type Heat struct {
 	Label string
-	Time  string // 09:30, with the date when it differs from the event's
+	Time  string // 09:30, with the date when it differs from the event's day
 	Lines []Line
 }
 
@@ -86,7 +104,7 @@ type page struct {
 func render(t *template.Template, b Book) (string, error) {
 	css := style
 	if b.NewPage {
-		css += "\n@media print { .event ~ .event { break-before: page; } }"
+		css += "\n@media print { .event ~ .event, .schedule + .event { break-before: page; } }"
 	}
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, page{Book: b, Style: template.CSS(css)}); err != nil {

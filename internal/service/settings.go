@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
+	"github.com/stmtc233/sportsmeet/internal/domain"
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
@@ -15,6 +16,11 @@ type Preferences struct {
 	SeparateUnits bool   `json:"separateUnits"`
 	Balance       bool   `json:"balance"`
 	PrintNewPage  bool   `json:"printNewPage"`
+	// PrintSchedule puts the competition schedule at the start of the 秩序册.
+	PrintSchedule bool `json:"printSchedule"`
+	// MinRestMinutes is the shortest rest an athlete needs between two
+	// heats; 0 checks overlaps only (docs/agents/arrange.md「冲突检查」).
+	MinRestMinutes int `json:"minRestMinutes"`
 }
 
 type MCPConfig struct {
@@ -24,7 +30,7 @@ type MCPConfig struct {
 }
 
 func (s *Service) Preferences(ctx context.Context) (Preferences, error) {
-	p := Preferences{Theme: "system", SeparateUnits: true, Balance: true}
+	p := Preferences{Theme: "system", SeparateUnits: true, Balance: true, PrintSchedule: true}
 	raw, err := s.store.GetSetting(ctx, "preferences")
 	if err != nil {
 		return p, err
@@ -38,6 +44,9 @@ func (s *Service) Preferences(ctx context.Context) (Preferences, error) {
 func (s *Service) SavePreferences(ctx context.Context, p Preferences) error {
 	if p.Theme != "system" && p.Theme != "light" && p.Theme != "dark" {
 		return invalid("请选择外观")
+	}
+	if p.MinRestMinutes < 0 || p.MinRestMinutes > domain.MaxDurationMinutes {
+		return invalid("最短休息时间须为 0–%d 分钟", domain.MaxDurationMinutes)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()

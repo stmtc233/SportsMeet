@@ -61,7 +61,8 @@ func TestSchedulePreviewCommitAndNoop(t *testing.T) {
 			t.Fatalf("time %d: %s", i, c.After)
 		}
 	}
-	if p.Changes[0].BeforeText != "未安排" || p.Changes[1].Before != "2026-11-12T10:30" || p.Changes[1].AfterText != "2026-11-13 00:01" {
+	if p.Changes[0].BeforeText != "未安排" || p.Changes[1].Before != "2026-11-12T10:30" || p.Changes[1].AfterText != "2026-11-13 00:01 · 3 分钟" ||
+		p.Changes[0].BeforeMinutes != nil || p.Changes[0].AfterMinutes != 3 {
 		t.Fatal("missing before/after")
 	}
 	a, _ := json.Marshal(before)
@@ -80,8 +81,11 @@ func TestSchedulePreviewCommitAndNoop(t *testing.T) {
 	_, err = f.svc.ApplySchedule(f.ctx, ui, in, p.PreviewHash, true)
 	must(t, err)
 	after := f.detail()
-	if after.Rounds[0].Heats[1].ScheduledAt != h2.ScheduledAt {
+	if after.Rounds[0].Heats[1].ScheduledAt != h2.ScheduledAt || after.Rounds[0].Heats[1].DurationMinutes != nil {
 		t.Fatal("scored heat time changed")
+	}
+	if d := after.Rounds[0].Heats[2].DurationMinutes; d == nil || *d != 3 || after.Rounds[0].Heats[2].EndAt != "2026-11-13T00:04" {
+		t.Fatal("interval not written as the heats' duration")
 	}
 	if len(*f.changes) != changesBefore+1 || (*f.changes)[changesBefore].Kind != "heats" {
 		t.Fatal("missing change notification")

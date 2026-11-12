@@ -40,6 +40,12 @@ func Decode(data []byte) (*File, error) {
 	if head.Version < 1 {
 		return nil, Problems{"version 必须为正整数"}
 	}
+	if head.Version < 4 {
+		var err error
+		if data, err = withoutV4Fields(data); err != nil {
+			return nil, fmt.Errorf("不是有效的 JSON:%w", err)
+		}
+	}
 	var f File
 	var decodeErr error
 	if head.Version < 3 {
@@ -93,6 +99,37 @@ func Decode(data []byte) (*File, error) {
 	return &f, nil
 }
 
+// withoutV4Fields drops the round start and heat duration from a file of an
+// earlier version: they are unknown fields there, whatever their JSON types.
+// Parts that are not shaped as the spec says are left for Validate.
+func withoutV4Fields(data []byte) ([]byte, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	var doc map[string]any
+	if err := dec.Decode(&doc); err != nil {
+		return nil, err
+	}
+	events, _ := doc["events"].([]any)
+	for _, e := range events {
+		event, _ := e.(map[string]any)
+		rounds, _ := event["rounds"].([]any)
+		for _, r := range rounds {
+			round, ok := r.(map[string]any)
+			if !ok {
+				continue
+			}
+			delete(round, "scheduledAt")
+			heats, _ := round["heats"].([]any)
+			for _, h := range heats {
+				if heat, ok := h.(map[string]any); ok {
+					delete(heat, "durationMinutes")
+				}
+			}
+		}
+	}
+	return json.Marshal(doc)
+}
+
 // Encode writes f as indented JSON with a trailing newline.
 func Encode(f *File) ([]byte, error) {
 	var buf bytes.Buffer
@@ -106,8 +143,6 @@ func Encode(f *File) ([]byte, error) {
 }
 
 var (
-	dateRe   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-	minuteRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$`)
 	trialsRe = regexp.MustCompile(`^[OX-]{1,3}$`)
 )
 
@@ -120,10 +155,10 @@ func Validate(f *File) Problems {
 	if strings.TrimSpace(f.Meet.Name) == "" {
 		add("meet.name 不能为空")
 	}
-	if !dateRe.MatchString(f.Meet.StartDate) {
+	if !domain.ValidDate(f.Meet.StartDate) {
 		add("meet.startDate 应为 YYYY-MM-DD")
 	}
-	if f.Meet.EndDate != nil && !dateRe.MatchString(*f.Meet.EndDate) {
+	if f.Meet.EndDate != nil && !domain.ValidDate(*f.Meet.EndDate) {
 		add("meet.endDate 应为 YYYY-MM-DD")
 	}
 
@@ -157,7 +192,7 @@ func Validate(f *File) Problems {
 		if a.UnitID != nil && !units[*a.UnitID] {
 			add("athletes[%d].unitId 找不到参赛单位 %s", i, *a.UnitID)
 		}
-		if a.BirthDate != nil && !dateRe.MatchString(*a.BirthDate) {
+		if a.BirthDate != nil && !domain.ValidDate(*a.BirthDate) {
 			add("athletes[%d].birthDate 应为 YYYY-MM-DD", i)
 		}
 		if k := domain.NormalizeText(a.Bib); k != "" {
@@ -199,7 +234,7 @@ func Validate(f *File) Problems {
 			add("%s.kind 项目类型不正确", at)
 			continue
 		}
-		if e.Date != nil && !dateRe.MatchString(*e.Date) {
+		if e.Date != nil && !domain.ValidDate(*e.Date) {
 			add("%s.date 应为 YYYY-MM-DD", at)
 		}
 		p = append(p, validateEvent(at, kind, &e, athletes, units, f.Version >= 2)...)
@@ -303,6 +338,9 @@ func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units m
 			add("%s.ordinal 应从 1 开始且不重复", rat)
 		}
 		rounds[r.Ordinal] = true
+		if r.ScheduledAt != nil && !domain.ValidScheduled(*r.ScheduledAt) {
+			add("%s.scheduledAt 应为 YYYY-MM-DDTHH:mm", rat)
+		}
 		heats := map[int]bool{}
 		inRound := map[string]bool{}
 		for hi, h := range r.Heats {
@@ -311,8 +349,11 @@ func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units m
 				add("%s.ordinal 应从 1 开始且不重复", hat)
 			}
 			heats[h.Ordinal] = true
-			if h.ScheduledAt != nil && !minuteRe.MatchString(*h.ScheduledAt) {
+			if h.ScheduledAt != nil && !domain.ValidScheduled(*h.ScheduledAt) {
 				add("%s.scheduledAt 应为 YYYY-MM-DDTHH:mm", hat)
+			}
+			if !domain.ValidDuration(h.DurationMinutes) {
+				add("%s.durationMinutes 应为 1–%d", hat, domain.MaxDurationMinutes)
 			}
 			positions := map[int]bool{}
 			for si, s := range h.Slots {

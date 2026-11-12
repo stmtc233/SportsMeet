@@ -18,6 +18,11 @@ func (s Settings) Preferences(ctx context.Context) (service.Preferences, error) 
 func (s Settings) SavePreferences(ctx context.Context, p service.Preferences) error {
 	return s.Svc.SavePreferences(ctx, p)
 }
+
+// AuditLog reads a page of the operation log, newest first; read-only.
+func (s Settings) AuditLog(ctx context.Context, q service.AuditQuery) (*service.AuditPage, error) {
+	return s.Svc.ListAudit(ctx, q)
+}
 func (s Settings) MCPStatus() mcp.Status { return s.MCP.Status() }
 func (s Settings) ConfigureMCP(ctx context.Context, enabled bool, port int, rotate bool) error {
 	return s.MCP.Configure(ctx, enabled, port, rotate)

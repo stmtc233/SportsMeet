@@ -13,6 +13,10 @@ body {
 header { text-align: center; margin-bottom: 20px; }
 header h1 { font-size: 22px; margin: 0 0 4px; }
 header p { margin: 2px 0; color: #444; }
+.schedule { margin-bottom: 20px; }
+.schedule > h2 { font-size: 15px; margin: 0 0 6px; padding-bottom: 4px; border-bottom: 1.5px solid #111; }
+.schedule > h3 { font-size: 13px; margin: 10px 0 4px; }
+.schedule .time { width: 4.2em; }
 .event { margin-bottom: 20px; }
 .event > h2 { font-size: 15px; margin: 0 0 6px; padding-bottom: 4px; border-bottom: 1.5px solid #111; display: flex; justify-content: space-between; align-items: baseline; }
 .event > h2 small { font-size: 11px; font-weight: 400; color: #444; }
@@ -30,5 +34,6 @@ th { background: #f0f0f0; font-weight: 600; }
 .mark { text-align: right; width: 6em; }
 .narrow { width: 4.2em; }
 .empty { color: #666; margin: 4px 0; }
+.printed { margin-top: 16px; text-align: right; font-size: 10px; color: #666; }
 
 .member { font-size: 9pt; color: #555; }

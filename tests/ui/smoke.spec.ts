@@ -24,7 +24,7 @@ for (const width of [1280, 800]) {
       await page.getByText("秋季运动会", { exact: true }).click();
       await expect(page.getByRole("heading", { name: "项目", exact: true })).toBeVisible();
       await noOverflow(page);
-      for (const label of ["运动员", "参赛单位", "打印", "导入导出"]) {
+      for (const label of ["日程", "运动员", "参赛单位", "打印", "导入导出"]) {
         await page.getByRole("button", { name: label, exact: true }).click();
         await expect(page.getByRole("heading", { name: label, exact: true })).toBeVisible();
         await noOverflow(page);
@@ -38,7 +38,7 @@ for (const width of [1280, 800]) {
       }
       await page.getByRole("button", { name: "设置", exact: true }).click();
       const nav = page.getByRole("navigation", { name: "设置分类" });
-      for (const section of ["通用", "编排", "打印", "MCP", "关于"]) {
+      for (const section of ["通用", "编排", "打印", "MCP", "操作日志", "关于"]) {
         await nav.getByRole("button", { name: section, exact: true }).click();
         await expect(page.getByRole("heading", { name: section, exact: true })).toBeVisible();
         await noOverflow(page);

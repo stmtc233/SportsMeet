@@ -111,12 +111,14 @@ type RoundSave struct {
 // HeatSave is a heat's new content. Changed heats carry ID and Base, added
 // ones a Key that Order refers to.
 type HeatSave struct {
-	ID          string     `json:"id"`
-	Key         string     `json:"key"`
-	Base        string     `json:"base"`
-	Name        string     `json:"name"`
-	ScheduledAt string     `json:"scheduledAt"`
-	Slots       []SlotSave `json:"slots"`
+	ID          string `json:"id"`
+	Key         string `json:"key"`
+	Base        string `json:"base"`
+	Name        string `json:"name"`
+	ScheduledAt string `json:"scheduledAt"` // own time; "" = the round's start
+	// DurationMinutes is the expected duration, 1–1440 minutes; nil = not given.
+	DurationMinutes *int       `json:"durationMinutes"`
+	Slots           []SlotSave `json:"slots"`
 }
 
 // SlotSave places an athlete or relay team; ID is the UI's opaque competitor ID.
@@ -197,6 +199,11 @@ func (s *Service) SaveBoard(ctx context.Context, src store.Source, in BoardSave)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.saveBoard(ctx, src, in)
+}
+
+// saveBoard is SaveBoard with the write lock held.
+func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave) error {
 	st, err := s.loadEvent(ctx, in.EventID)
 	if err != nil {
 		return err
@@ -285,10 +292,14 @@ func (s *Service) SaveBoard(ctx context.Context, src store.Source, in BoardSave)
 				ordinals = append(ordinals, h.Ordinal)
 			}
 			if save != nil {
-				if save.ScheduledAt != "" && !minuteRe.MatchString(save.ScheduledAt) {
+				if save.ScheduledAt != "" && !domain.ValidScheduled(save.ScheduledAt) {
 					return invalid("计划时间格式不正确")
 				}
+				if !domain.ValidDuration(save.DurationMinutes) {
+					return invalid("预计用时须为 1–%d 分钟", domain.MaxDurationMinutes)
+				}
 				bh.heat.Name, bh.heat.ScheduledAt = domain.NormalizeHeatName(save.Name), save.ScheduledAt
+				bh.heat.DurationMinutes = save.DurationMinutes
 				label := domain.HeatLabel(len(heats)+1, bh.heat.Name)
 				if bh.old != nil {
 					label = domain.HeatLabel(bh.old.Ordinal, bh.heat.Name)
@@ -353,11 +364,12 @@ func (s *Service) SaveBoard(ctx context.Context, src store.Source, in BoardSave)
 			switch {
 			case bh.old == nil:
 				detail.Added++
-				stmts = append(stmts, store.Stmt(`INSERT INTO heats(id, round_id, ordinal, name, scheduled_at) VALUES (?, ?, ?, ?, ?)`,
-					h.ID, h.RoundID, h.Ordinal, h.Name, h.ScheduledAt))
-			case h.Ordinal != bh.old.Ordinal || h.Name != bh.old.Name || h.ScheduledAt != bh.old.ScheduledAt:
-				stmts = append(stmts, store.Stmt(`UPDATE heats SET ordinal = ?, name = ?, scheduled_at = ? WHERE id = ?`,
-					h.Ordinal, h.Name, h.ScheduledAt, h.ID))
+				stmts = append(stmts, store.Stmt(`INSERT INTO heats(id, round_id, ordinal, name, scheduled_at, duration_minutes) VALUES (?, ?, ?, ?, ?, ?)`,
+					h.ID, h.RoundID, h.Ordinal, h.Name, h.ScheduledAt, optArg(h.DurationMinutes)))
+			case h.Ordinal != bh.old.Ordinal || h.Name != bh.old.Name || h.ScheduledAt != bh.old.ScheduledAt ||
+				!samePtr(h.DurationMinutes, bh.old.DurationMinutes):
+				stmts = append(stmts, store.Stmt(`UPDATE heats SET ordinal = ?, name = ?, scheduled_at = ?, duration_minutes = ? WHERE id = ?`,
+					h.Ordinal, h.Name, h.ScheduledAt, optArg(h.DurationMinutes), h.ID))
 			}
 			if bh.old != nil && (bh.slots || bh.submitted) {
 				detail.Changed++

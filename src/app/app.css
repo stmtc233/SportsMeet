@@ -104,3 +104,12 @@
 }
 
 .schedule-table { display: flex; flex-direction: column; min-height: 0; }
+.schedule-rounds { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: var(--st-space-4); }
+
+/* Schedule page */
+.timetable__day { display: flex; flex-direction: column; gap: var(--st-space-12); }
+.timetable__day-title { margin: 0; font-size: var(--st-text-title); }
+.timetable__round { display: inline-flex; align-items: baseline; gap: var(--st-space-8); flex-wrap: wrap; min-width: 0; }
+.timetable__time { min-width: 3.5em; font-weight: 600; }
+.timetable__state { display: inline-flex; gap: var(--st-space-4); flex-wrap: wrap; }
+.timetable__conflicts { max-height: 320px; overflow: auto; display: flex; flex-direction: column; }

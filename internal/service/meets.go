@@ -28,9 +28,9 @@ func (in MeetInput) meet() (domain.Meet, error) {
 	switch {
 	case m.Name == "":
 		return m, invalid("请填写赛事名称")
-	case !dateRe.MatchString(m.StartDate):
+	case !domain.ValidDate(m.StartDate):
 		return m, invalid("开始日期格式不正确")
-	case m.EndDate != "" && !dateRe.MatchString(m.EndDate):
+	case m.EndDate != "" && !domain.ValidDate(m.EndDate):
 		return m, invalid("结束日期格式不正确")
 	case m.EndDate != "" && m.EndDate < m.StartDate:
 		return m, invalid("结束日期早于开始日期")
@@ -38,9 +38,37 @@ func (in MeetInput) meet() (domain.Meet, error) {
 	return m, nil
 }
 
+// MeetView is a meet with its days as shown.
+type MeetView struct {
+	domain.Meet
+	DatesText string `json:"datesText"` // domain.DateRangeText
+}
+
+func meetView(m domain.Meet) MeetView {
+	return MeetView{Meet: m, DatesText: domain.DateRangeText(m.StartDate, m.EndDate)}
+}
+
 // ListMeets returns all meets.
-func (s *Service) ListMeets(ctx context.Context) ([]domain.Meet, error) {
-	return s.store.ListMeets(ctx)
+func (s *Service) ListMeets(ctx context.Context) ([]MeetView, error) {
+	list, err := s.store.ListMeets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]MeetView, len(list))
+	for i, m := range list {
+		out[i] = meetView(m)
+	}
+	return out, nil
+}
+
+// MeetDetail returns one meet as the pages and MCP show it.
+func (s *Service) MeetDetail(ctx context.Context, id string) (*MeetView, error) {
+	m, err := s.GetMeet(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	v := meetView(*m)
+	return &v, nil
 }
 
 // GetMeet returns one meet.

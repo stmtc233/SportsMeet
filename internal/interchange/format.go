@@ -7,7 +7,7 @@ import "github.com/stmtc233/sportsmeet/internal/domain"
 // Format and Version identify the file (spec §2).
 const (
 	Format  = "sportsmeet-interchange"
-	Version = 3
+	Version = 4
 )
 
 // File is one meet's full snapshot.
@@ -92,12 +92,13 @@ type Entry struct {
 }
 
 type Round struct {
-	ID      string   `json:"id"`
-	Stage   string   `json:"stage"`
-	Ordinal int      `json:"ordinal"`
-	Name    string   `json:"name,omitempty"`
-	Advance *Advance `json:"advance"`
-	Heats   []Heat   `json:"heats"`
+	ID          string   `json:"id"`
+	Stage       string   `json:"stage"`
+	Ordinal     int      `json:"ordinal"`
+	Name        string   `json:"name,omitempty"`
+	ScheduledAt *string  `json:"scheduledAt,omitempty"`
+	Advance     *Advance `json:"advance"`
+	Heats       []Heat   `json:"heats"`
 }
 
 type Advance struct {
@@ -106,12 +107,13 @@ type Advance struct {
 }
 
 type Heat struct {
-	ID          string  `json:"id"`
-	Ordinal     int     `json:"ordinal"`
-	Name        string  `json:"name,omitempty"`
-	ScheduledAt *string `json:"scheduledAt,omitempty"`
-	Wind        *int    `json:"wind,omitempty"`
-	Slots       []Slot  `json:"slots"`
+	ID              string  `json:"id"`
+	Ordinal         int     `json:"ordinal"`
+	Name            string  `json:"name,omitempty"`
+	ScheduledAt     *string `json:"scheduledAt,omitempty"`
+	DurationMinutes *int    `json:"durationMinutes,omitempty"`
+	Wind            *int    `json:"wind,omitempty"`
+	Slots           []Slot  `json:"slots"`
 }
 
 type Slot struct {

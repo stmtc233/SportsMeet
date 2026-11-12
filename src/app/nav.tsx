@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { SettingsSection } from "../features/settings/SettingsPage";
 import { StButton, StDialog } from "../design";
 
-export type MeetTab = "events" | "athletes" | "units" | "reports" | "exchange";
+export type MeetTab = "events" | "schedule" | "athletes" | "units" | "reports" | "exchange";
 export type EventTab = "entries" | "arrange" | "results";
 
 export type Route =

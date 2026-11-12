@@ -210,7 +210,13 @@ func TestSDKClientToolsAndConfirmation(t *testing.T) {
 			t.Fatal(err)
 		}
 		if result.IsError != fail {
-			t.Fatalf("%s IsError=%v: %+v", name, result.IsError, result.Content)
+			text := ""
+			for _, c := range result.Content {
+				if tc, ok := c.(*sdk.TextContent); ok {
+					text += tc.Text
+				}
+			}
+			t.Fatalf("%s IsError=%v: %s", name, result.IsError, text)
 		}
 		if fail {
 			return nil
@@ -262,8 +268,17 @@ func TestSDKClientToolsAndConfirmation(t *testing.T) {
 	call("schedule_heats", scheduleArgs, false)
 	scheduled := call("get_event", map[string]any{"eventId": eventID}, false)
 	scheduledHeat := scheduled["rounds"].([]any)[0].(map[string]any)["heats"].([]any)[0].(map[string]any)
-	if scheduledHeat["scheduledAt"] != "2026-11-12T23:58" {
-		t.Fatal("MCP schedule not persisted")
+	if scheduledHeat["scheduledAt"] != "2026-11-12T23:58" || scheduledHeat["durationMinutes"] != float64(3) || scheduledHeat["endAt"] != "2026-11-13T00:01" {
+		t.Fatalf("MCP schedule not persisted: %+v", scheduledHeat)
+	}
+	roundStart := call("set_round_start", map[string]any{"input": map[string]any{"eventId": eventID, "roundId": roundID, "scheduledAt": "2026-11-13T08:00"}}, false)
+	if w := roundStart["warnings"].([]any); len(w) != 1 || w[0] != "时间不在赛事日期内" {
+		t.Fatalf("round start warnings: %+v", roundStart)
+	}
+	call("set_round_start", map[string]any{"input": map[string]any{"eventId": eventID, "roundId": roundID, "scheduledAt": "08:00"}}, true)
+	started := call("get_event", map[string]any{"eventId": eventID}, false)["rounds"].([]any)[0].(map[string]any)
+	if started["scheduledAt"] != "2026-11-13T08:00" || started["heats"].([]any)[0].(map[string]any)["scheduleInherited"] != false {
+		t.Fatalf("round start: %+v", started)
 	}
 
 	resultArgs := map[string]any{"heatId": heat["id"], "results": []map[string]any{{"position": position, "mark": "12.34"}}}
@@ -302,6 +317,28 @@ func TestSDKClientToolsAndConfirmation(t *testing.T) {
 	rp := call("preview_arrange", relayPlan, false)
 	relayPlan["previewHash"], relayPlan["confirmed"] = rp["previewHash"], true
 	call("auto_arrange", relayPlan, false)
+	// Multi-round scheduling: the scored 100m heat is skipped, the relay
+	// heat lands on the same athlete's 100m heat and is reported.
+	multi := map[string]any{"request": map[string]any{"rounds": []any{
+		map[string]any{"eventId": eventID, "roundId": roundID},
+		map[string]any{"eventId": relayID, "roundId": rd.Rounds[0].ID},
+	}, "startAt": "2026-11-12T23:59", "intervalMinutes": 5, "roundGapMinutes": 10}}
+	mp := call("preview_schedule", multi, false)
+	if len(mp["changes"].([]any)) != 1 || len(mp["skipped"].([]any)) != 1 || len(mp["conflicts"].([]any)) != 1 {
+		t.Fatalf("multi-round preview: %+v", mp)
+	}
+	if c := mp["changes"].([]any)[0].(map[string]any); c["after"] != "2026-11-12T23:59" || c["roundId"] != rd.Rounds[0].ID {
+		t.Fatalf("multi-round change: %+v", c)
+	}
+	multi["previewHash"], multi["confirmed"] = mp["previewHash"], true
+	call("schedule_heats", multi, false)
+	if cl := call("list_conflicts", map[string]any{"meetId": meetID}, false); len(cl["conflicts"].([]any)) != 1 || cl["minRestMinutes"] != float64(0) {
+		t.Fatalf("list_conflicts: %+v", cl)
+	}
+	schedule := call("get_schedule", map[string]any{"meetId": meetID}, false)
+	if cs := schedule["conflicts"].([]any); len(cs) != 1 || cs[0].(map[string]any)["text"] != "时间重叠" {
+		t.Fatalf("schedule conflicts: %+v", schedule["conflicts"])
+	}
 	rd, err = svc.GetEvent(ctx, relayID)
 	if err != nil {
 		t.Fatal(err)

@@ -1,15 +1,10 @@
 import { useEffect, useState } from "react";
 import { StButton, StDateField, StDialog, StTextField } from "../../design";
 import type { Meet, MeetInput } from "../../mygo";
+import { today } from "../../lib/wallTime";
 import { MeetsController } from "./controller";
 
 const blank: Required<MeetInput> = { name: "", startDate: "", endDate: "", location: "", note: "" };
-
-function today(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
 
 /** Creates a meet (meet undefined) or edits one. */
 export function MeetDialog({ open, meet, onClose, onSaved }: { open: boolean; meet?: Meet; onClose: () => void; onSaved?: (id: string) => void }) {

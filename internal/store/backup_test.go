@@ -21,7 +21,7 @@ func backups(t *testing.T, dir string) []string {
 }
 
 // unapply makes the database look like one last opened before migration
-// 0005: its row is gone and so are the indexes it creates.
+// 0006: its row is gone and so are the columns and index it adds.
 func unapply(t *testing.T, dir string) {
 	t.Helper()
 	ctx := context.Background()
@@ -31,9 +31,9 @@ func unapply(t *testing.T, dir string) {
 	}
 	defer db.Close()
 	_, err = db.Transaction(ctx, []sqlite.Statement{
-		Stmt("DELETE FROM schema_migrations WHERE version = 5"),
-		Stmt("DROP INDEX idx_slots_team"), Stmt("DROP INDEX idx_entries_team_any"), Stmt("DROP INDEX idx_team_members_athlete"),
-		Stmt("DROP INDEX idx_events_combined"), Stmt("DROP INDEX idx_combined_entries_athlete"),
+		Stmt("DELETE FROM schema_migrations WHERE version = 6"),
+		Stmt("DROP INDEX idx_audit_meet"),
+		Stmt("ALTER TABLE rounds DROP COLUMN scheduled_at"), Stmt("ALTER TABLE heats DROP COLUMN duration_minutes"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -85,21 +85,21 @@ func TestBackupBeforeMigrating(t *testing.T) {
 		t.Fatalf("kept %d backups, want %d: %v", len(got), backupKeep, got)
 	}
 	newest := got[len(got)-1]
-	if filepath.Base(newest)[len("sportsmeet-20060102-150405"):] != "-v0004.db" {
-		t.Fatalf("backup name = %s, want the version before migrating (v0004)", filepath.Base(newest))
+	if filepath.Base(newest)[len("sportsmeet-20060102-150405"):] != "-v0005.db" {
+		t.Fatalf("backup name = %s, want the version before migrating (v0005)", filepath.Base(newest))
 	}
 	copyDB, err := sqlite.Open(ctx, newest, sqlite.OpenOptions{ReadOnly: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer copyDB.Close()
-	rows, err := copyDB.Query(ctx, "SELECT (SELECT name FROM meets WHERE id = 'm1'), (SELECT count(*) FROM schema_migrations WHERE version = 5)")
+	rows, err := copyDB.Query(ctx, "SELECT (SELECT name FROM meets WHERE id = 'm1'), (SELECT count(*) FROM schema_migrations WHERE version = 6)")
 	if err != nil || rows.Values[0][0] != "秋季运动会" || rows.Values[0][1].(int64) != 0 {
-		t.Fatalf("backup content = %v, %v; want the data as it was before migration 5", rows.Values, err)
+		t.Fatalf("backup content = %v, %v; want the data as it was before migration 6", rows.Values, err)
 	}
-	rows, err = s.Query(ctx, "SELECT count(*) FROM schema_migrations WHERE version = 5")
+	rows, err = s.Query(ctx, "SELECT count(*) FROM schema_migrations WHERE version = 6")
 	if err != nil || rows.Values[0][0].(int64) != 1 {
-		t.Fatalf("migration 5 not applied after the backup: %v, %v", rows.Values, err)
+		t.Fatalf("migration 6 not applied after the backup: %v, %v", rows.Values, err)
 	}
 }
 
@@ -125,7 +125,7 @@ func TestMigrationStopsWhenBackupFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	rows, err := db.Query(ctx, "SELECT count(*) FROM schema_migrations WHERE version = 5")
+	rows, err := db.Query(ctx, "SELECT count(*) FROM schema_migrations WHERE version = 6")
 	if err != nil || rows.Values[0][0].(int64) != 0 {
 		t.Fatalf("migrated without a backup: %v, %v", rows.Values, err)
 	}

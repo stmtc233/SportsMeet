@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLeaveGuard } from "../../app/nav";
-import { IconAdd, IconAuto, IconMore, IconRedo, IconUndo, StButton, StConfirmButton, StDialog, StEmpty, StIconButton, StMenu, StSegmented, StTextField, iconStroke, toast } from "../../design";
+import { IconAdd, IconAuto, IconMore, IconRedo, IconTime, IconUndo, StButton, StConfirmButton, StDialog, StEmpty, StIconButton, StMenu, StSegmented, StTextField, iconStroke, toast } from "../../design";
 import { errorText, isStale } from "../../lib/errors";
 import type { EntryView, EventDetail } from "../../mygo";
 import { AddEntriesDialog } from "../event/AddEntriesDialog";
 import { AutoDialog } from "./AutoDialog";
-import { ArrangeController } from "./controller";
+import { ArrangeController, useHeatConflicts } from "./controller";
 import { addHeat, appendPlanned, deleteHeat, diff, editHeat, fromDetail, heatChanged, isLocked, merge, moveHeat, place, placedIn, pushHistory, redo, resetAll, undo, unlock, unplace, type ArrangeDraft, type DraftHeat, type Edit, type History } from "./draft";
 import { AthleteChip, dragType, HeatCard } from "./HeatCard";
 import { HeatDialog } from "./HeatDialog";
+import { RoundStartDialog } from "./RoundStartDialog";
 import { ScheduleDialog } from "./ScheduleDialog";
 
 /** The arrange page: a local draft with undo and redo, saved in one go. */
@@ -24,6 +25,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   const [scheduling, setScheduling] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<DraftHeat | null>(null);
+  const [starting, setStarting] = useState(false);
   const [unlocking, setUnlocking] = useState<DraftHeat | null>(null);
   const [resetting, setResetting] = useState(false);
   const [typed, setTyped] = useState("");
@@ -111,7 +113,9 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   const loadedRound = loaded.rounds.find((r) => r.roundId === roundView?.id);
   const entries = useMemo(() => new Map<string, EntryView>(detail.entries.map((e) => [e.competitorId, e])), [detail.entries]);
   const placed = useMemo(() => placedIn(round), [round]);
+  const conflicts = useHeatConflicts(event.id, meetId);
   if (!roundView || !round) return <StEmpty>没有轮次</StEmpty>;
+  const firstOpen = roundView.heats.find((h) => !h.keepReason);
   const free = detail.entries.filter((e) => !placed.has(e.competitorId));
   const stats = detail.rounds.reduce((n, r) => ({ heats: n.heats + r.heats.length, results: n.results + r.heats.reduce((m, h) => m + h.slots.filter((s) => s.result).length, 0) }), { heats: 0, results: 0 });
 
@@ -124,6 +128,9 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
     <div className="fill" inert={saving}>
       <div className="subbar">
         {detail.rounds.length > 1 && <StSegmented size="small" value={roundView.id} onChange={setRoundId} options={detail.rounds.map((r) => ({ value: r.id, label: r.label }))} />}
+        <StButton variant="ghost" icon={<IconTime size={16} strokeWidth={iconStroke} />} title="轮次开始时间" disabled={saving} onClick={() => setStarting(true)}>
+          {roundView.scheduledText || "开始时间"}
+        </StButton>
         <span className="subbar__spacer" />
         <span className="subbar__count">{dirty ? `${count} 处改动` : ""}</span>
         <StIconButton label="撤销" disabled={history.past.length === 0} onClick={() => setHistory(undo)}>
@@ -178,7 +185,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
           {round.heats.length === 0 && <StEmpty action={<StButton variant="primary" onClick={() => setAuto(true)}>自动编排</StButton>}>{draft.reset ? "保存后将删除全部组" : "还没有组"}</StEmpty>}
           <div className="heats">
             {round.heats.map((h, i) => (
-              <HeatCard key={h.key} heat={h} index={i} count={round.heats.length} positions={positionsOf(h)} locked={isLocked(draft, h)}
+              <HeatCard key={h.key} heat={h} index={i} count={round.heats.length} positions={positionsOf(h)} locked={isLocked(draft, h)} conflicts={conflicts.get(h.id)}
                 changed={heatChanged(h, loadedRound?.heats.find((x) => x.key === h.key))} entries={entries} picked={picked}
                 onPick={(id) => setPicked(picked === id ? "" : id)}
                 onPlace={(pos, id) => tryEdit(place(draft, round.roundId, h.key, pos, id, laned))}
@@ -190,9 +197,11 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
       </div>
       <AutoDialog open={auto} detail={detail} round={roundView} exclude={[...placed.keys()]} onClose={() => setAuto(false)}
         onPlanned={(heats) => (heats.length === 0 ? toast("没有待编排报名", "warning") : apply(appendPlanned(draft, round.roundId, heats)))} />
-      {scheduling && <ScheduleDialog detail={detail} round={roundView} onClose={() => setScheduling(false)} />}
+      {scheduling && <ScheduleDialog day={detail.day} version={detail} onClose={() => setScheduling(false)}
+        options={[{ eventId: event.id, roundId: roundView.id, label: `${event.name} ${roundView.label}`, firstAt: firstOpen?.effectiveAt ?? "", minutes: firstOpen?.durationMinutes ?? null }]} />}
+      {starting && <RoundStartDialog eventId={event.id} round={roundView} day={detail.day} onClose={() => setStarting(false)} />}
       <AddEntriesDialog open={adding} detail={detail} meetId={meetId} onClose={() => setAdding(false)} />
-      <HeatDialog heat={editing} defaultDate={event.date} onClose={() => setEditing(null)} onSave={(patch) => editing && apply(editHeat(draft, round.roundId, editing.key, patch))} />
+      <HeatDialog heat={editing} round={round} eventId={event.id} day={detail.day} onClose={() => setEditing(null)} onSave={(patch) => editing && apply(editHeat(draft, round.roundId, editing.key, patch))} />
       <StDialog open={unlocking !== null} title="解锁位置？" size="small" onClose={() => setUnlocking(null)}
         actions={
           <>

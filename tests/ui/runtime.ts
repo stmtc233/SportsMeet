@@ -2,17 +2,24 @@ import type { Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean; conflicts?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
-    let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false };
+    let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, minRestMinutes: 0 };
     let mcp = { enabled: false, running: false, port: 18765, address: "http://127.0.0.1:18765/mcp", error: "" };
-    const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1 };
+    const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12" };
     const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0, participantMode: "athlete", teamSize: 0, scoreDecimals: 0, rankDirection: "", attemptMode: "" };
     const athletes = Array.from({ length: 24 }, (_, i) => ({ id: `a${i}`, meetId: "meet", name: `运动员${i + 1}`, gender: "男", bib: String(100 + i), studentNumber: "", unitId: "unit", className: "一班", grade: "", birthDate: "", note: "", createdAt: 1 }));
     const entries = athletes.map((a) => ({ athleteId: a.id, competitorId: a.id, name: a.name, gender: "男", bib: a.bib, unitId: "unit", unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" }));
     const rules = { timed: true, usesLanes: true, positionLabel: "道次", attemptLabel: "", startLabel: "分道", defaultPerHeat: 8, team: false, multipleAttempts: false, markLabel: "成绩", unit: "" };
-    const detail = { rules, event, teams: [] as any[], entries, rounds: [{ id: "round", stage: "final", ordinal: 1, name: "", label: "决赛", advance: null, complete: false, standings: [], heats: [{ id: "heat", ordinal: 1, name: "", label: "第1组", scheduledAt: "2026-11-12T09:00", base: "base", keepReason: "", slots: entries.slice(0, 8).map((a, i) => ({ position: i + 1, athleteId: a.athleteId, competitorId: a.competitorId, result: null })) }] }] };
+    // What Go returns with a heat's times (service.HeatTimes): the own time, else the round's start.
+    const shown = (at: string) => (at.startsWith("2026-11-12") ? at.slice(11) : at.replace("T", " "));
+    const times = (roundStart: string, at: string, minutes: number | null) => {
+      const effectiveAt = at || roundStart;
+      return { scheduledAt: at, durationMinutes: minutes, effectiveAt, scheduleInherited: !at && !!roundStart, scheduledText: effectiveAt ? shown(effectiveAt) : "",
+        durationText: minutes === null ? "" : `${minutes} 分钟`, endAt: "" };
+    };
+    const detail = { day: "2026-11-12", rules, event, teams: [] as any[], entries, rounds: [{ id: "round", stage: "final", ordinal: 1, name: "", label: "决赛", advance: null, scheduledAt: "", scheduledText: "", complete: false, standings: [], heats: [{ id: "heat", ordinal: 1, name: "", label: "第1组", ...times("", "2026-11-12T09:00", null), resultsUpdatedText: "", base: "base", keepReason: "", slots: entries.slice(0, 8).map((a, i) => ({ position: i + 1, athleteId: a.athleteId, competitorId: a.competitorId, result: null })) }] }] };
     if (options.relay) {
       Object.assign(event, { relayLegCount: 4, participantMode: "team", kind: "relay", name: "男子4×100m", discipline: "4×100m", groupLabel: "" });
       rules.team = true;
@@ -52,10 +59,16 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
     (globalThis as any).__relayCalls = [];
     if (options.schedule) {
       detail.rounds[0]!.heats.push(
-        { id: "scored", ordinal: 2, name: "", label: "第2组", scheduledAt: "2026-11-12T09:07", base: "scored-base", keepReason: "已有成绩", slots: [] },
-        { id: "later", ordinal: 3, name: "", label: "第3组", scheduledAt: "", base: "later-base", keepReason: "", slots: [] },
+        { id: "scored", ordinal: 2, name: "", label: "第2组", ...times("", "2026-11-12T09:07", null), resultsUpdatedText: "2026-11-12 09:20", base: "scored-base", keepReason: "已有成绩", slots: [] },
+        { id: "later", ordinal: 3, name: "", label: "第3组", ...times("", "", null), resultsUpdatedText: "", base: "later-base", keepReason: "", slots: [] },
       );
     }
+    const actions = [["results.saved", "录入成绩", "mcp"], ["heats.scheduled", "批量排时间", "ui"], ["unit.created", "新建参赛单位", "ui"]] as const;
+    const audit = Array.from({ length: 60 }, (_, i) => {
+      const [action, actionText, source] = actions[i % 3]!;
+      const minute = 59 - i;
+      return { id: 60 - i, at: 1_800_000_000_000 - i * 60_000, atText: `2026-11-12 10:${String(minute).padStart(2, "0")}`, source, sourceText: source === "mcp" ? "MCP" : "界面", action, actionText, meetId: "meet", meetName: "秋季运动会", eventId: "", heatId: "", message: `记录${60 - i}` };
+    });
     const changed = (kind = "settings", meetId = "", eventId = "") => { for (const fn of listeners) fn({ kind, meetId, eventId }); };
     (globalThis as any).__changeToGroupStart = () => {
       Object.assign(event, { startMode: "group" });
@@ -66,12 +79,38 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
     (globalThis as any).__scheduleCalls = { preview: 0, save: 0 };
     (globalThis as any).__scheduleExternalChange = () => changed("heats", "meet", "event");
     const schedulePreview = {
-      previewHash: "schedule-hash", errors: [] as string[],
+      previewHash: "schedule-hash", errors: [] as string[], warnings: ["1 组不在赛事日期内"],
       changes: [
-        { heatId: "heat", label: "第1组", before: "2026-11-12T09:00", after: "2026-11-12T23:58", beforeText: "2026-11-12 09:00", afterText: "2026-11-12 23:58" },
-        { heatId: "later", label: "第3组", before: "", after: "2026-11-13T00:01", beforeText: "未安排", afterText: "2026-11-13 00:01" },
+        { heatId: "heat", label: "第1组", before: "2026-11-12T09:00", after: "2026-11-12T23:58", beforeMinutes: null, afterMinutes: 3, beforeText: "2026-11-12 09:00", afterText: "2026-11-12 23:58 · 3 分钟" },
+        { heatId: "later", label: "第3组", before: "", after: "2026-11-13T00:01", beforeMinutes: null, afterMinutes: 3, beforeText: "未安排", afterText: "2026-11-13 00:01 · 3 分钟" },
       ],
       skipped: [{ heatId: "scored", label: "第2组", reason: "已有成绩" }],
+      conflicts: [] as any[],
+    };
+    // The schedule page's timetable (service.Timetable), built from the event
+    // detail plus a 跳远 round at 09:00 and an unscheduled 跳高 round. With
+    // options.conflicts, 运动员1 is in the 100m 第1组 and the 跳远 heat.
+    (globalThis as any).__heatEdits = [];
+    const ref = (eventId: string, eventName: string, roundId: string, heatId: string, heatLabel: string, timeText: string) => ({ eventId, eventName, roundId, roundLabel: "决赛", heatId, heatLabel, timeText });
+    const conflicts = () => options.conflicts ? [{ athleteId: "a0", athleteName: "运动员1", overlap: true, gapMinutes: -5, text: "时间重叠",
+      first: ref("event", event.name, "round", "heat", "第1组", "2026-11-12 09:00"), second: ref("jump", "男子跳远", "jump-round", "jump-heat", "第1组", "2026-11-12 09:00") }] : [];
+    const heatConflicts = (heatId: string) => conflicts().filter((c) => c.first.heatId === heatId || c.second.heatId === heatId)
+      .map((c) => ({ athleteId: c.athleteId, athleteName: c.athleteName, text: c.text, other: c.first.heatId === heatId ? c.second : c.first }));
+    const timetableHeat = (h: any) => ({ id: h.id, label: h.label, name: h.name, base: h.base, scheduledAt: h.scheduledAt, durationMinutes: h.durationMinutes, effectiveAt: h.effectiveAt,
+      scheduleInherited: h.scheduleInherited, scheduledText: h.scheduledText, durationText: h.durationText, endAt: "", endText: "", keepReason: h.keepReason, people: h.slots.length, conflicts: heatConflicts(h.id) });
+    const timetable = () => {
+      const r = detail.rounds[0]!;
+      const heats = r.heats.map(timetableHeat);
+      const startAt = heats.map((h) => h.effectiveAt).filter(Boolean).sort()[0] ?? "";
+      const sprint = { eventId: event.id, eventName: event.name, roundId: r.id, roundLabel: r.label, day: startAt.slice(0, 10), scheduledAt: r.scheduledAt, scheduledText: r.scheduledText,
+        startAt, startText: startAt ? shown(startAt) : "", heatCount: heats.length, people: heats.reduce((n, h) => n + h.people, 0), heats };
+      const jumpHeat = { id: "jump-heat", label: "第1组", name: "", base: "jump-base", scheduledAt: "", durationMinutes: 30, effectiveAt: "2026-11-12T09:00", scheduleInherited: true, scheduledText: "09:00",
+        durationText: "30 分钟", endAt: "2026-11-12T09:30", endText: "09:30", keepReason: "", people: 1, conflicts: heatConflicts("jump-heat") };
+      const jump = { eventId: "jump", eventName: "男子跳远", roundId: "jump-round", roundLabel: "决赛", day: "2026-11-12", scheduledAt: "2026-11-12T09:00", scheduledText: "09:00",
+        startAt: "2026-11-12T09:00", startText: "09:00", heatCount: 1, people: 1, heats: [jumpHeat] };
+      const high = { eventId: "high", eventName: "男子跳高", roundId: "high-round", roundLabel: "决赛", day: "", scheduledAt: "", scheduledText: "", startAt: "", startText: "", heatCount: 0, people: 0, heats: [] };
+      const day = [sprint, jump].filter((x) => x.day).sort((a, b) => a.startAt.localeCompare(b.startAt));
+      return { minRestMinutes: prefs.minRestMinutes, days: [{ day: "2026-11-12", rounds: day }], unscheduled: sprint.day ? [high] : [sprint, high], conflicts: conflicts() };
     };
     const error = (message: string) => { const e = new Error(message); e.name = "CallError"; throw e; };
     (globalThis as any).mygo = {
@@ -86,13 +125,21 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
             if (args[1] === 9999) return error("端口无法监听，请更换端口");
             mcp = { enabled: args[0], running: args[0], port: args[1], address: `http://127.0.0.1:${args[1]}/mcp`, error: "" }; changed(); return null;
           case "Settings.RevealToken": return "test-token-only";
+          case "Settings.AuditLog": {
+            const q = args[0];
+            const all = audit.filter((r) => (!q.meetId || r.meetId === q.meetId) && (!q.source || r.source === q.source));
+            const start = q.after ? all.findIndex((r) => r.id < q.after.id) : 0;
+            const rows = start < 0 ? [] : all.slice(start, start + q.limit);
+            const last = rows[rows.length - 1];
+            return { rows, next: last && all.indexOf(last) < all.length - 1 ? { at: last.at, id: last.id } : null };
+          }
           case "Settings.CopyToken": case "Settings.CopyConnection": return null;
           case "App.Info": return { version: "0.1.0" };
           case "Meets.List": return [meet];
           case "Meets.Get": return meet;
           case "Units.List": return [{ id: "unit", meetId: "meet", name: "一班", shortName: "" }];
           case "Athletes.List": return athletes.map((athlete) => ({ athlete, unitName: "一班", entries: 1, placed: true }));
-          case "Events.List": return [{ event, autoName: true, prelim: false, advance: null, entries: 24, heats: 1, placed: 8, results: 0 }];
+          case "Events.List": return [{ event, autoName: true, prelim: false, advance: null, entries: 24, heats: 1, placed: 8, results: 0, timeText: "09:00" }];
           case "Events.Presets": return presets;
           case "Events.Rules": {
             const e = args[0];
@@ -136,9 +183,25 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
             return [{ slots: detail.entries.map((e, i) => ({ position: (rules.usesLanes ? 4 : 1) + i, competitorId: e.competitorId })) }];
           case "Arrange.Save": {
             (globalThis as any).__relayCalls.push({ method, args });
-            detail.rounds[0]!.heats = args[0].rounds[0].added.map((h: any, i: number) => ({ id: `heat${i}`, ordinal: i + 1, name: "", label: `第${i + 1}组`, base: `saved${i}`, keepReason: "", scheduledAt: "", slots: h.slots.map((sl: any) => ({ ...sl, athleteId: rules.team ? "" : sl.competitorId, teamId: rules.team ? sl.competitorId : "", result: null })) }));
+            detail.rounds[0]!.heats = args[0].rounds[0].added.map((h: any, i: number) => ({ id: `heat${i}`, ordinal: i + 1, name: "", label: `第${i + 1}组`, base: `saved${i}`, keepReason: "", ...times(detail.rounds[0]!.scheduledAt, "", null), resultsUpdatedText: "", slots: h.slots.map((sl: any) => ({ ...sl, athleteId: rules.team ? "" : sl.competitorId, teamId: rules.team ? sl.competitorId : "", result: null })) }));
             for (const t of detail.teams) t.placed = true;
             changed("heats", "meet", "event"); return structuredClone(detail);
+          }
+          case "Arrange.HeatPlan": {
+            const [roundStart, at, text] = args as [string, string, string];
+            const minutes = text.trim() === "" ? null : Number(text);
+            if (minutes !== null && !(Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440)) return error("预计用时须为 1–1440 分钟");
+            return times(roundStart, at, minutes);
+          }
+          case "Arrange.ScheduleWarning": return args[1] && !args[1].startsWith("2026-11-12") ? "时间不在赛事日期内" : "";
+          case "Arrange.SetRoundStart": {
+            const { roundId, scheduledAt } = args[0];
+            (globalThis as any).__roundStarts = [...((globalThis as any).__roundStarts ?? []), scheduledAt];
+            const round = detail.rounds.find((r) => r.id === roundId)!;
+            Object.assign(round, { scheduledAt, scheduledText: scheduledAt ? shown(scheduledAt) : "" });
+            round.heats = round.heats.map((h: any) => ({ ...h, ...times(scheduledAt, h.scheduledAt, h.durationMinutes) }));
+            changed("heats", "meet", "event");
+            return { warnings: scheduledAt && !scheduledAt.startsWith("2026-11-12") ? ["时间不在赛事日期内"] : [] };
           }
           case "Marks.NormalizeEvent": return args[0].kind === "score" ? Number(args[1]).toFixed(args[0].scoreDecimals ?? 0) : args[1];
           case "Marks.Normalize": return args[1];
@@ -150,18 +213,40 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
               (sl as any).result = { status: "OK", mark: 50120, markText: event.kind === "score" ? Number(input.mark).toFixed(event.scoreDecimals) : event.kind === "count" ? String(Math.max(...(input.attempts ?? []).map(Number).filter(Number.isFinite))) : input.mark, rank: 1, qualify: "", attempts: input.attempts ?? [], bars: [], note: "" };
             }
             h.keepReason = "已有成绩";
+            (h as any).resultsUpdatedText = "2026-11-12 09:31";
             for (const t of detail.teams) t.keepReason = "已有成绩";
             changed("results", "meet", "event"); return null;
           }
-          case "Arrange.PreviewSchedule":
+          case "Arrange.PreviewSchedule": {
             (globalThis as any).__scheduleCalls.preview++;
-            return options.scheduleErrors ? { previewHash: "", changes: [], skipped: [], errors: ["间隔须为 1–1440 分钟"] } : structuredClone(schedulePreview);
+            (globalThis as any).__scheduleCalls.request = structuredClone(args[0]);
+            if (options.scheduleErrors) return { previewHash: "", changes: [], skipped: [], warnings: [], conflicts: [], errors: ["间隔须为 1–1440 分钟"] };
+            const p = structuredClone(schedulePreview);
+            if (args[0].rounds) {
+              p.changes = p.changes.map((c: any) => ({ ...c, eventId: event.id, roundId: "round", round: `${event.name} 决赛` }));
+              p.skipped = p.skipped.map((c: any) => ({ ...c, eventId: event.id, roundId: "round", round: `${event.name} 决赛` }));
+              p.conflicts = conflicts();
+              if (p.conflicts.length) p.warnings = [...p.warnings, `排完后有 ${p.conflicts.length} 处时间冲突`];
+            }
+            return p;
+          }
+          case "Arrange.MeetSchedule": return timetable();
+          case "Arrange.HeatConflicts": return detail.rounds[0]!.heats.map((h) => ({ heatId: h.id, conflicts: heatConflicts(h.id) })).filter((h) => h.conflicts.length > 0);
+          case "Arrange.EditHeat": {
+            const input = args[0];
+            (globalThis as any).__heatEdits.push(structuredClone(input));
+            const r = detail.rounds[0]!;
+            const heat = r.heats.find((h) => h.id === input.heatId)!;
+            if (heat.base !== input.base) return error("E_STALE");
+            Object.assign(heat, times(r.scheduledAt, input.scheduledAt, input.durationMinutes), { name: input.name, base: heat.base + "-edited" });
+            changed("heats", "meet", "event"); return null;
+          }
           case "Arrange.Schedule":
             (globalThis as any).__scheduleCalls.save++;
             if (staleSchedule) { staleSchedule = false; return error("E_STALE"); }
             for (const change of schedulePreview.changes) {
               const heat = detail.rounds[0]!.heats.find((h) => h.id === change.heatId)!;
-              heat.scheduledAt = change.after;
+              Object.assign(heat, times(detail.rounds[0]!.scheduledAt, change.after, change.afterMinutes));
               heat.base += "-scheduled";
             }
             changed("heats", "meet", "event");

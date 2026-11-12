@@ -81,6 +81,33 @@
 - **晋级**:按「各组前 N 名(`Q`)+ 其余成绩最好的 M 名(`q`)」。`Q` / `q` 由 `rescore` 在轮次**全部录完**后写入,没录完时清空;卡在最后一个名额上的并列者全部晋级,由裁判手动去掉多余的人。生成下一轮只新建组、只读上一轮成绩,不改任何成绩。
 - **录入**:径赛填成绩;远度逐次填(成绩 / `X` 犯规 / `-` 免跳),高度逐高度填 `O` `X` `-`,最终成绩由 Go 推出;没有有效成绩的逐次记录记为 `NM`。整行清空即删除该成绩。
 
+## 时间
+
+规则在 `domain/time.go` 与 `domain/schedule.go`,只此一处:service 校验、视图与打印的显示文本、交换格式校验都调用它们;前端不拆分、不拼接显示用的时间文本。
+
+- **三种时间**:
+  - 日期 `YYYY-MM-DD`:赛事起止、项目日期、出生日期。
+  - 计划时间 `YYYY-MM-DDTHH:mm`:轮次开始时间与组的计划时间(用户要求),本地墙上时间、精确到分钟、不带时区。
+  - 记录时间:毫秒时间戳,如成绩的 `updated_at`、操作日志的时刻、创建时间;显示时换算为本机时区。
+- **校验**:日期与计划时间须是真实存在的日历日 / 分钟(`2026-02-30`、`24:00` 拒绝),年份 1–9999,格式严格匹配,不接受空格、秒或时区。只做格式检查会让无效值写进库,之后的排序与运算都会出错。组的预计用时 `durationMinutes` 为 1–1440 分钟的整数,可不填(`ValidDuration`)。
+- **运算**:计划时间按 UTC 解析与加减,只当作日历字段,不经本机时区:换算会在夏令时切换处跳过或重复一小时,批量排时与结束时间就会出错。超出 9999 年拒绝。
+- **生效计划时间**(`EffectiveScheduled`):组自己的 `scheduledAt` 是「单独指定」;没填时沿用所在轮次的 `scheduledAt`(`inherited` 为真)。显示、排序、打印都用生效时间;组的 `scheduledAt` 只存单独指定的值,轮次开始时间改了,沿用它的组跟着变,不需要逐组改写。
+- **结束时间**(`HeatEnd` / `ScheduledEnd`):生效计划时间 + 预计用时;任一缺失就没有结束时间。`HeatView.endAt` 返回它。
+- **时间冲突**:同一运动员(队伍展开为队员,含全能分项)的两个组时间重叠,或间隔不足设置里的最短休息时间,列为冲突;没有预计用时的组按时间点计,没有计划时间的组不参与。只提示,不拦截任何保存(用户要求)。完整规则见 [arrange.md](arrange.md)「冲突检查」。
+- **项目的日子**:`EventDay` = 项目日期,未填时为赛事开始日期。项目日期只是默认日期:界面与打印显示的日子用 `PlannedDay`,即该项目最早计划时间(轮次开始时间与组的单独时间里最早的一个)所在的日子,没有任何时间才用 `EventDay`(`EventDetail.day`)。编排、成绩、打印都以它为参照。
+- **赛事日期外的提示**:轮次或组的计划时间所在日子不在赛事起止日期内(`OutsideMeet`;未填结束日期即只有开始那天)时,保存前提示「时间不在赛事日期内」,批量排时预览提示「N 组不在赛事日期内」;只提示,不拦截保存。判断只在 service(`ScheduleWarning`、`SetRoundStart`、批量排时预览的 `warnings`),界面与 MCP 共用。
+- **显示**:
+  - 计划时间与参照日同一天只显示 `HH:mm`,否则显示 `YYYY-MM-DD HH:mm`;没有参照日(批量排时预览)始终带日期。`HeatView` 内嵌的 `HeatTimes` 给出生效时间 `effectiveAt`、是否沿用轮次 `scheduleInherited`、文本 `scheduledText`、`durationText`(`5 分钟`)与 `endAt`;`RoundView.scheduledText` 显示轮次开始时间。编排草稿里改过的组经绑定 `Arrange.heatPlan` 校验并取得同样的文本。
+  - 批量排时预览的原安排 / 新安排带日期,沿用的时间标「（沿用轮次）」,有预计用时时接「 · N 分钟」(`planText`)。
+  - 日程视图(`Timetable`)里轮次与组的时间以所在那天为参照,只显示时刻;跨到第二天的结束时间带日期。冲突里另一组的时间始终带日期。
+  - 日期范围同一天只显示一个日期,否则 `开始 – 结束`(`MeetView.datesText`、打印页眉)。
+  - 记录时间显示到分钟 `YYYY-MM-DD HH:mm`,不随「今天」变化,页面不重读时文字也不会过时。
+- **每组成绩的最后修改时间**:读取组时一并取该组现有成绩 `updated_at` 的最大值(`Heat.ResultsUpdatedAt`,不存储、不进指纹与 JSON),`HeatView.resultsUpdatedText` 显示。写成绩、排位变化以及重算改动名次或晋级的成绩都会更新;清空的成绩不再计入。
+- **打印时间**:秩序册与成绩册末尾印「打印时间」,取生成 HTML 的时刻,按记录时间显示。
+- **竞赛日程表**:秩序册在项目之前印「竞赛日程表」(「设置 → 打印」可关,默认开),与日程页同一份 `Timetable`:按天、按时间列出时间、项目、轮次、组数与人数,没有时间的轮次印在「未安排时间」;只含本次打印选中的项目(选全能即含其分项)。成绩册不印。
+- **轮次开始时间的写入**:`SetRoundStart`(界面与 MCP `set_round_start` 共用)直接写入、记操作日志 `round.scheduled` 并发出 `heats` 变更;值不变时不写。它不改任何组,所以不影响组指纹与编排草稿,已比赛的组若沿用它,显示的时间也随之变化,位置与成绩不变。
+- **项目列表顺序**(`ScheduleOrder`,项目列表、MCP `list_events`、打印选择与秩序册 / 成绩册共用):普通项目先按 `PlannedDay`,再按该项目最早的计划时间(`EarliestScheduled`:轮次开始时间与组的单独时间),最后按创建顺序;没有日子或时间的排在有的之后。全能分项不参与时间排序,按原顺序排在普通项目之后,分项顺序属于全能。交换格式导出与其他内部读取保持创建顺序,时间变化不会改动导出文件。`EventRow.timeText` 显示最早的计划时间(赛事首日只显示时刻),没有时间时显示非首日的项目日期。
+
 ## 删除与级联
 
 - 删组:删它的位置与成绩。删项目:删它的轮次、组、位置、成绩与报名。删赛事:删以上全部、运动员与参赛单位。级联由外键完成(→ [storage.md](storage.md))。
@@ -91,5 +118,6 @@
 
 - service 的每个写操作写一条日志:时刻、来源(`ui` / `mcp` / `system`)、动作、涉及的项目 / 组、简短说明与 JSON 详情。
 - 日志写入失败只记应用日志,不影响业务。
-- 新增写操作必须同时登记它的日志动作名。现有:`meet.created / updated / deleted / imported`、`unit.created / updated / deleted`、`athlete.created / updated / deleted / imported`、`event.created / updated / deleted`、`team.created / updated / deleted`、`entry.added / removed / seed`、`board.saved / reset`、`heats.scheduled`、`results.saved`、`settings.preferences / mcp`、`combined.created / updated / deleted / entries / rules`。
+- 新增写操作必须同时登记它的日志动作名。现有:`meet.created / updated / deleted / imported`、`unit.created / updated / deleted`、`athlete.created / updated / deleted / imported`、`event.created / updated / deleted`、`team.created / updated / deleted`、`entry.added / removed / seed`、`board.saved / reset`、`heats.scheduled`、`round.scheduled`、`results.saved`、`settings.preferences / mcp`、`combined.created / updated / deleted / entries / rules`。
 - 成绩日志同时保留输入位置的原成绩与新成绩完整记录,包括逐次记录与备注;只修改备注同样可追查。设置日志不含令牌。
+- 日志只读:`ListAudit` 按时刻倒序(同一时刻按写入顺序)分页读取,可按赛事与来源筛选;每页最多 200 条,以上一页最后一行的时刻与 id 继续,固定两次查询(日志与赛事名称),不随条数增长。动作与来源的中文显示文本由 `service/audit.go` 映射,新增动作同时登记显示文本,单测检查没有遗漏。赛事删除后其日志保留,赛事名称为空。

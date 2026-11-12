@@ -11,6 +11,21 @@
   <p>{{.Title}}</p>
   <p>{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
 </header>
+{{if .Schedule}}
+<section class="schedule">
+  <h2>竞赛日程表</h2>
+  {{range .Schedule}}
+  <h3>{{.Day}}</h3>
+  <table>
+    <thead><tr><th class="time">时间</th><th>项目</th><th>轮次</th><th class="num">组数</th><th class="num">人数</th></tr></thead>
+    <tbody>
+      {{range .Rows}}<tr><td class="time">{{.Time}}</td><td>{{.Event}}</td><td>{{.Round}}</td><td class="num">{{.Heats}}</td><td class="num">{{.People}}</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{end}}
+</section>
+{{end}}
 {{range .Events}}{{$position := .PositionLabel}}{{$attempt := .AttemptLabel}}{{$relay := .Relay}}{{$roster := .RosterLabel}}
 <section class="event">
   <h2>{{.Name}}{{if .Date}}<small>{{.Date}}</small>{{end}}</h2>
@@ -43,5 +58,6 @@
 <section class="event"><h2>{{.Name}}</h2>
 <table><thead><tr><th>号码</th><th>姓名</th><th>单位</th></tr></thead><tbody>{{range .Roster}}<tr><td>{{.Bib}}</td><td>{{.Name}}</td><td>{{.Unit}}</td></tr>{{end}}</tbody></table>
 </section>{{end}}
+{{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
 </body>
 </html>

@@ -55,5 +55,6 @@
 <tbody>{{range .Rows}}<tr><td class="num">{{.Rank}}</td><td>{{.Name}}</td><td>{{.Unit}}</td>{{range .Cells}}<td>{{.}}</td>{{end}}<td class="num">{{.Total}}</td></tr>{{end}}</tbody></table>
 {{end}}
 </section>{{end}}
+{{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
 </body>
 </html>

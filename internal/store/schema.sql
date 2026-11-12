@@ -97,7 +97,8 @@ CREATE TABLE rounds (
     ordinal INTEGER NOT NULL,
     name TEXT NOT NULL DEFAULT '',
     advance_by_place INTEGER,
-    advance_by_mark INTEGER
+    advance_by_mark INTEGER,
+    scheduled_at TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX idx_rounds_event ON rounds(event_id, ordinal);
 
@@ -108,7 +109,8 @@ CREATE TABLE heats (
     ordinal INTEGER NOT NULL,
     name TEXT NOT NULL DEFAULT '',
     scheduled_at TEXT NOT NULL DEFAULT '',
-    wind INTEGER
+    wind INTEGER,
+    duration_minutes INTEGER
 );
 CREATE INDEX idx_heats_round ON heats(round_id, ordinal);
 
@@ -152,6 +154,7 @@ CREATE TABLE audit_log (
     detail_json TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX idx_audit_ts ON audit_log(ts);
+CREATE INDEX idx_audit_meet ON audit_log(meet_id, ts);
 
 CREATE TABLE settings (
     key TEXT PRIMARY KEY,

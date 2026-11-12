@@ -63,7 +63,7 @@
 ## 预览实现
 
 - service 持真实写锁创建仅用于本次请求的计划实例,调用界面使用的业务方法;计划实例的 `write` 只收集一批 SQL、日志与通知,不执行写入、不广播。任一校验失败即返回错误,不会留下局部写入。
-- 通用操作的预览指纹覆盖参数和目标赛事完整状态(包含成绩、逐次记录、名次、晋级与备注),不含导出时刻;新赛事导入覆盖输入和赛事列表。相关赛事任意数据变化都会要求重新预览。批量排时间的指纹覆盖目标项目与轮次完整状态,规则见 [arrange.md](arrange.md)「批量排时间」。
+- 通用操作的预览指纹覆盖参数和目标赛事完整状态(包含成绩、逐次记录、名次、晋级与备注),不含导出时刻;新赛事导入覆盖输入和赛事列表。相关赛事任意数据变化都会要求重新预览。批量排时间的指纹覆盖赛事与每个目标轮次所属项目、轮次的完整状态,规则见 [arrange.md](arrange.md)「批量排时间」。
 - 确认提交在同一把 service 写锁内重新生成计划、检查指纹、事务写入,成功后才广播。预览生成的新建实体 ID 不可用于后续操作,以提交返回的 ID 为准。
 - 普通界面赛事导入的指纹同样包含文件内容与目标赛事状态,避免仅有备注等变化时复用确认。
 
@@ -77,8 +77,8 @@
 |---|---|
 | `list_meets` / `get_meet` | 赛事列表 / 详情 |
 | `list_event_presets` | 读取常用项目初始 `input`，可调整后交给 `save_event` |
-| `list_units` / `list_athletes` / `list_events` | 按赛事读取基础数据与进度 |
-| `get_event` | 队伍名单、报名、轮次、组、位置、成绩、总排名与晋级 |
+| `list_units` / `list_athletes` / `list_events` | 按赛事读取基础数据与进度;项目按日期与计划时间排序,见 [domain.md](domain.md)「时间」 |
+| `get_event` | 队伍名单、报名、轮次(含开始时间)、组、位置、成绩、总排名与晋级;组给出单独时间 `scheduledAt`、生效时间 `effectiveAt`、`scheduleInherited`、预计用时 `durationMinutes` 与结束时间 `endAt` |
 | `create_meet` / `update_meet` | 创建 / 更新一个赛事 |
 | `save_unit` / `save_athlete` / `save_event` | 创建 / 更新单条数据;`id` 留空创建 |
 | `save_team` | 创建 / 更新一个队伍及完整成员名单;规则见 [domain.md](domain.md)「队伍与接力」 |
@@ -92,15 +92,30 @@
 | `preview_import` → `import_meet` | 交换格式导入 |
 | `preview_arrange` → `auto_arrange` | 只追加新组,排除已保存的排位 |
 | `preview_advance` → `advance` | 根据上一轮 Q / q 生成下一轮组 |
-| `preview_schedule` → `schedule_heats` | 批量排当前轮次的计划时间,跳过已比赛的组 |
+| `get_schedule` | 赛事竞赛日程(只读):按天、按生效时间的轮次与组,未安排时间的轮次,全部冲突 |
+| `list_conflicts` | 赛事运动员时间冲突(只读),附所用最短休息时间 |
+| `set_round_start` | 设置或清除一个轮次的开始时间;直接写入,返回 `warnings` |
+| `preview_schedule` → `schedule_heats` | 批量排一个轮次,或按顺序连排同一赛事的多个轮次的计划时间与预计用时,跳过已比赛的组 |
 | `preview_results` → `set_results` | 成绩与逐次记录,空成绩可直接提交 |
 | `preview_delete_meet/unit/event/athletes/heat` → `delete_meet/unit/event/athletes/heat` | 各实体删除,按对应工具传赛事 / 项目 / 组 / 运动员 ID |
 
 ## 批量排时间参数
 
-- `preview_schedule` 与 `schedule_heats` 都接受 `request: {eventId, roundId, startAt, intervalMinutes}`。`startAt` 是首个未比赛组的本地时间,格式 `YYYY-MM-DDTHH:mm`;间隔单位为分钟。排序、跳过与日期边界见 [arrange.md](arrange.md)「批量排时间」。
-- 返回类型 `SchedulePreview`:顶层包含 `previewHash`、`errors`、`changes` 与 `skipped`;每项改动给出组 ID、组标签、原时间和新时间及显示文本,每项跳过给出组 ID、标签与原因。没有改动时数组为空。
+- `preview_schedule` 与 `schedule_heats` 都接受 `request: {eventId, roundId, startAt, intervalMinutes}`,排一个轮次;连排多个轮次时改传 `rounds: [{eventId, roundId}, …]`(按顺序,同一赛事)与可选的 `roundGapMinutes`(0–1440),此时不用 `eventId` / `roundId`。`startAt` 是首个未比赛组的本地时间,格式 `YYYY-MM-DDTHH:mm`;间隔单位为分钟。排序、跳过、轮次衔接与日期边界见 [arrange.md](arrange.md)「批量排时间」。
+- 间隔同时写为每个被排组的预计用时 `durationMinutes`。
+- 返回类型 `SchedulePreview`:顶层包含 `previewHash`、`errors`、`warnings`、`changes`、`skipped` 与 `conflicts`;每项改动与跳过都带所属 `eventId`、`roundId` 与显示名 `round`;每项改动给出组 ID、组标签、原单独时间 `before`(空 = 沿用轮次)与新时间 `after`、原 / 新预计用时 `beforeMinutes` / `afterMinutes`,以及显示文本 `beforeText` / `afterText`;每项跳过给出组 ID、标签与原因。`warnings` 如「N 组不在赛事日期内」「排完后有 N 处时间冲突」,只提示不阻止提交,客户端须一并转告用户;`conflicts` 是排完后至少涉及一个被改组的冲突,格式同 `list_conflicts`。没有改动时数组为空。
 - 提交还须同一组 `request`、`previewHash` 与 `confirmed=true`,客户端必须先展示预览并取得用户确认。界面与 MCP 调用同一组 `PreviewSchedule` / `ApplySchedule`,任一入口生成的指纹均可由另一入口验证;日志记录实际提交来源。
+
+## 日程与冲突
+
+- `get_schedule {meetId}` 返回 `Timetable`:`days[]`(`day` 与当天的 `rounds[]`)、`unscheduled[]`、`conflicts[]` 与 `minRestMinutes`。轮次给出项目、轮次名、开始时间 `scheduledAt` / `scheduledText`、最早计划时间 `startAt` / `startText`、组数 `heatCount`、人数 `people`(队伍按队员计);组给出 `scheduledAt`、`effectiveAt`、`scheduleInherited`、`durationMinutes`、`endAt` / `endText`、`keepReason`(非空即已比赛)、`people` 与该组的冲突。
+- `list_conflicts {meetId}` 返回 `{minRestMinutes, conflicts}`;每项冲突给出运动员、`overlap`、`gapMinutes`(重叠时为负)、文本 `text`(「时间重叠」/「间隔 N 分钟」)与两个组 `first` / `second`(项目、轮次、组的 ID 与名称,带日期的时间 `timeText`)。规则见 [arrange.md](arrange.md)「冲突检查」;冲突只提示,任何写入都不因它被拒绝。
+- 最短休息时间只能在应用「设置 → 编排」修改,MCP 不改设置。
+
+## 轮次开始时间
+
+- `set_round_start` 接受 `input: {eventId, roundId, scheduledAt}`,`scheduledAt` 为本地 `YYYY-MM-DDTHH:mm`,空字符串清除。它只改一个轮次字段、不改组与成绩,所以直接写入、不走预览;值不变时不写日志。返回 `{warnings}`,判断与界面的保存前提示相同(→ [domain.md](domain.md)「时间」),只提示不拦截。
+- 组的单独时间与预计用时由 `auto_arrange` / `advance` 新建的组为空,之后经 `schedule_heats` 批量写入;MCP 没有逐组改时间的工具。
 
 ## 客户端连接
 

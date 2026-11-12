@@ -1,12 +1,19 @@
 import { expect, test } from "bun:test";
-import { addHeat, deleteHeat, diff, merge, moveHeat, place, pushHistory, redo, resetAll, undo, unlock, unplace, type ArrangeDraft, type DraftHeat } from "./draft";
+import { addHeat, deleteHeat, diff, editHeat, merge, moveHeat, place, pushHistory, redo, resetAll, undo, unlock, unplace, type ArrangeDraft, type DraftHeat } from "./draft";
 
 function heat(id: string, slots: [number, string][], keepReason = ""): DraftHeat {
-  return { key: id, id, base: `base-${id}`, label: id, name: "", scheduledAt: "", keepReason, slots: slots.map(([position, competitorId]) => ({ position, competitorId })) };
+  return { key: id, id, base: `base-${id}`, label: id, name: "", scheduledAt: "", durationMinutes: null, scheduledText: "", scheduleInherited: false,
+    durationText: "", keepReason, slots: slots.map(([position, competitorId]) => ({ position, competitorId })) };
 }
 
 function board(...heats: DraftHeat[]): ArrangeDraft {
-  return { unlocked: [], reset: false, rounds: [{ roundId: "r", heats, deleted: [] }] };
+  return { unlocked: [], reset: false, rounds: [{ roundId: "r", startAt: "", startText: "", heats, deleted: [] }] };
+}
+
+/** The same board with the round starting at `at`, shown as `text`; heats without their own time follow it. */
+function started(d: ArrangeDraft, at: string, text: string): ArrangeDraft {
+  return { ...d, rounds: d.rounds.map((r) => ({ ...r, startAt: at, startText: text,
+    heats: r.heats.map((h) => (h.scheduledAt ? h : { ...h, scheduledText: text, scheduleInherited: at !== "" })) })) };
 }
 
 const ok = (e: { draft?: ArrangeDraft; error?: string }) => {
@@ -98,4 +105,34 @@ test("history undoes and redoes", () => {
   h = redo(h);
   expect(h.present).toBe(b);
   expect(undo(undo(h)).present).toBe(a);
+});
+
+test("a heat's own time and duration are submitted; a new heat follows the round's start", () => {
+  const loaded = started(board(heat("h1", [[1, "a"]]), heat("h2", [])), "2026-11-12T09:00", "09:00");
+  expect(loaded.rounds[0]!.heats[0]!.scheduleInherited).toBe(true);
+  const patch = { name: "", scheduledAt: "", durationMinutes: 5, scheduledText: "09:00", scheduleInherited: true, durationText: "5 分钟" };
+  let d = editHeat(loaded, "r", "h1", patch);
+  d = addHeat(d, "r");
+  const added = d.rounds[0]!.heats[2]!;
+  expect([added.scheduledText, added.scheduleInherited, added.durationMinutes]).toEqual(["09:00", true, null]);
+  const { save, count } = diff(d, loaded, "e");
+  expect(count).toBe(2);
+  expect(save.rounds[0]!.changed).toEqual([expect.objectContaining({ id: "h1", scheduledAt: "", durationMinutes: 5 })]);
+  expect(save.rounds[0]!.added[0]!.durationMinutes).toBeNull();
+});
+
+test("a round start changed elsewhere shows on local heats without their own time", () => {
+  const loaded = started(board(heat("h1", [[1, "a"]]), heat("h2", [[1, "b"]])), "2026-11-12T09:00", "09:00");
+  let d = ok(place(loaded, "r", "h1", 2, "x", true)); // local change, no own time
+  d = editHeat(d, "r", "h2", { name: "", scheduledAt: "2026-11-12T10:00", durationMinutes: null, scheduledText: "10:00", scheduleInherited: false, durationText: "" });
+  d = addHeat(d, "r");
+  // The fingerprints stay: the round's start is not part of a heat.
+  const fresh = started(loaded, "2026-11-12T14:00", "14:00");
+  const out = merge(d, loaded, fresh);
+  expect(out.dropped).toBe(false);
+  const heats = out.draft.rounds[0]!.heats;
+  expect(out.draft.rounds[0]!.startText).toBe("14:00");
+  expect(heats.map((h) => [h.scheduledText, h.scheduleInherited])).toEqual([["14:00", true], ["10:00", false], ["14:00", true]]);
+  expect(slots(out.draft, 0)).toBe("1a 2x");
+  expect(diff(out.draft, fresh, "e").count).toBe(3);
 });

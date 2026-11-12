@@ -67,11 +67,11 @@ func ignoreCancel(err error) error {
 type Meets struct{ *Core }
 
 // List returns all meets, newest first.
-func (m Meets) List(ctx context.Context) ([]domain.Meet, error) { return m.Svc.ListMeets(ctx) }
+func (m Meets) List(ctx context.Context) ([]service.MeetView, error) { return m.Svc.ListMeets(ctx) }
 
 // Get returns one meet.
-func (m Meets) Get(ctx context.Context, id string) (*domain.Meet, error) {
-	return m.Svc.GetMeet(ctx, id)
+func (m Meets) Get(ctx context.Context, id string) (*service.MeetView, error) {
+	return m.Svc.MeetDetail(ctx, id)
 }
 
 // Count returns what deleting the meet would remove.

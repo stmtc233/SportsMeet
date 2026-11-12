@@ -9,12 +9,17 @@ import (
 	"github.com/stmtc233/sportsmeet/internal/domain"
 )
 
-// Fingerprint identifies a heat's arrangement: ordinal, custom name,
-// scheduled time and slots. The arrange page sends back the one it loaded;
-// a different one now means the heat was changed elsewhere.
+// Fingerprint identifies a heat's arrangement: ordinal, custom name, own
+// scheduled time, expected duration and slots. The arrange page sends back
+// the one it loaded; a different one now means the heat was changed
+// elsewhere. The round's start is not part of it: it changes no heat.
 func Fingerprint(h domain.Heat) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%d\x00%s\x00%s", h.Ordinal, h.Name, h.ScheduledAt)
+	duration := ""
+	if h.DurationMinutes != nil {
+		duration = fmt.Sprint(*h.DurationMinutes)
+	}
+	fmt.Fprintf(&b, "%d\x00%s\x00%s\x00%s", h.Ordinal, h.Name, h.ScheduledAt, duration)
 	for _, s := range h.Slots {
 		fmt.Fprintf(&b, "\x00%d=%s", s.Position, s.AthleteID+"|"+s.TeamID)
 	}

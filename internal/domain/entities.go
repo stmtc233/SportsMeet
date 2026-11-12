@@ -111,7 +111,10 @@ type Round struct {
 	Ordinal int      `json:"ordinal"`
 	Name    string   `json:"name"`
 	Advance *Advance `json:"advance"`
-	Heats   []Heat   `json:"heats"`
+	// ScheduledAt is when the round starts (YYYY-MM-DDTHH:mm wall clock,
+	// "" = unscheduled); a heat without its own time starts then.
+	ScheduledAt string `json:"scheduledAt"`
+	Heats       []Heat `json:"heats"`
 }
 
 // Label is the round's display name.
@@ -127,10 +130,15 @@ type Heat struct {
 	ID          string `json:"id"`
 	RoundID     string `json:"roundId"`
 	Ordinal     int    `json:"ordinal"`
-	Name        string `json:"name"` // custom name only
-	ScheduledAt string `json:"scheduledAt"`
-	Wind        *int   `json:"wind"`
-	Slots       []Slot `json:"slots"`
+	Name        string `json:"name"`        // custom name only
+	ScheduledAt string `json:"scheduledAt"` // own time, YYYY-MM-DDTHH:mm wall clock; "" = the round's
+	// DurationMinutes is how long the heat is expected to take, 1–1440; nil = not given.
+	DurationMinutes *int   `json:"durationMinutes"`
+	Wind            *int   `json:"wind"`
+	Slots           []Slot `json:"slots"`
+	// ResultsUpdatedAt is the latest write among the slots' results (ms,
+	// 0 = none). It is read with the results and never stored on the heat.
+	ResultsUpdatedAt int64 `json:"-"`
 }
 
 // Facts counts what decides whether the heat is locked.

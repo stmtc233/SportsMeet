@@ -141,3 +141,41 @@ func TestEventConfigMigrationKeepsExistingData(t *testing.T) {
 		t.Fatal("migration changed existing result")
 	}
 }
+
+// A database last opened before migration 6 keeps its heats; rounds start
+// unscheduled and heats have no expected duration.
+func TestScheduleMigrationKeepsExistingData(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	s, err := Open(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s.Write(ctx,
+		Stmt(`INSERT INTO meets(id,name,start_date,created_at) VALUES ('m','赛事','2026-11-12',0)`),
+		Stmt(`INSERT INTO events(id,meet_id,name,gender,discipline,kind,created_at) VALUES ('e','m','男子100m','男','100m','track',0)`),
+		Stmt(`INSERT INTO rounds(id,event_id,stage,ordinal) VALUES ('r','e','final',1)`),
+		Stmt(`INSERT INTO heats(id,round_id,ordinal,scheduled_at) VALUES ('h','r',1,'2026-11-12T09:30')`),
+	)
+	s.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	unapply(t, dir)
+	if s, err = Open(ctx, dir); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	rounds, err := s.LoadRounds(ctx, Scope{MeetID: "m"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := rounds["e"][0]
+	if r.ScheduledAt != "" || r.Heats[0].ScheduledAt != "2026-11-12T09:30" || r.Heats[0].DurationMinutes != nil {
+		t.Fatalf("after migration: %+v", r)
+	}
+	rows, err := s.Query(ctx, `SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_audit_meet'`)
+	if err != nil || rows.Values[0][0].(int64) != 1 {
+		t.Fatalf("audit index: %v %v", rows, err)
+	}
+}

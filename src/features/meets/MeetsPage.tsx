@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNav } from "../../app/nav";
 import { IconAdd, IconDelete, IconEdit, IconImport, IconSettings, IconMeet, StButton, StCard, StEmpty, StIconButton, StListItem, StNotice, StPage, StToolbar, iconStroke } from "../../design";
-import { dateRange } from "../../lib/labels";
 import type { Meet, MeetCounts, PickedFile } from "../../mygo";
 import { ImportMeetDialog } from "../exchange/ImportMeetDialog";
 import { MeetsController } from "./controller";
@@ -42,7 +41,7 @@ export function MeetsPage() {
         <StCard padded={false}>
           {meets?.length === 0 && <StEmpty action={<StButton variant="primary" onClick={() => setEditing({})}>新建赛事</StButton>}>还没有赛事</StEmpty>}
           {(meets ?? []).map((m) => (
-            <StListItem key={m.id} title={m.name} subtitle={[dateRange(m.startDate, m.endDate), m.location].filter(Boolean).join(" · ")}
+            <StListItem key={m.id} title={m.name} subtitle={[m.datesText, m.location].filter(Boolean).join(" · ")}
               leading={<IconMeet size={20} strokeWidth={iconStroke} />} onClick={() => open(m.id)}
               trailing={
                 <span onClick={(e) => e.stopPropagation()} className="cell-actions">

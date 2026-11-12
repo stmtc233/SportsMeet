@@ -47,9 +47,14 @@ type EventRow struct {
 	Heats    int             `json:"heats"`
 	Placed   int             `json:"placed"`
 	Results  int             `json:"results"`
+	// TimeText is when the event starts: its earliest planned time, a
+	// round's start or a heat's own (HH:mm on the meet's first day, else
+	// with the date), or its date when nothing has a time and the date is
+	// not the first day; "" otherwise.
+	TimeText string `json:"timeText"`
 }
 
-// ListEvents returns a meet's events.
+// ListEvents returns a meet's events in schedule order (domain.ScheduleOrder).
 func (s *Service) ListEvents(ctx context.Context, meetID string) ([]EventRow, error) {
 	sc := store.Scope{MeetID: meetID}
 	events, err := s.store.ListEvents(ctx, sc)
@@ -64,14 +69,28 @@ func (s *Service) ListEvents(ctx context.Context, meetID string) ([]EventRow, er
 	if err != nil {
 		return nil, err
 	}
+	meet, err := s.store.GetMeet(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	start := ""
+	if meet != nil {
+		start = meet.StartDate
+	}
 	entered := map[string]int{}
 	for _, e := range entries {
 		entered[e.EventID]++
 	}
+	events = domain.ScheduleOrder(events, rounds, start)
 	out := make([]EventRow, len(events))
 	for i, e := range events {
 		row := EventRow{Event: e, Entries: entered[e.ID],
 			AutoName: e.Name == domain.ComposeEventName(e.Gender, e.Discipline, e.GroupLabel)}
+		if first := domain.EarliestScheduled(rounds[e.ID]); first != "" {
+			row.TimeText = domain.ScheduledText(first, start)
+		} else if day := domain.EventDay(e, start); day != start {
+			row.TimeText = day
+		}
 		for _, r := range rounds[e.ID] {
 			if r.Stage == domain.StageHeat {
 				row.Prelim, row.Advance = true, r.Advance
@@ -118,7 +137,7 @@ func (in EventInput) event() (domain.Event, error) {
 		return e, invalid("请填写项目名")
 	case !e.Kind.Valid():
 		return e, invalid("请选择项目类型")
-	case e.Date != "" && !dateRe.MatchString(e.Date):
+	case e.Date != "" && !domain.ValidDate(e.Date):
 		return e, invalid("日期格式不正确")
 	case e.LaneCount < 1 || e.LaneCount > 12:
 		return e, invalid("道数应在 1 到 12 之间")
@@ -142,8 +161,8 @@ func insertRound(r domain.Round) sqlite.Statement {
 	if r.Advance != nil {
 		byPlace, byMark = r.Advance.ByPlace, r.Advance.ByMark
 	}
-	return store.Stmt(`INSERT INTO rounds(id, event_id, stage, ordinal, name, advance_by_place, advance_by_mark)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, r.ID, r.EventID, string(r.Stage), r.Ordinal, r.Name, byPlace, byMark)
+	return store.Stmt(`INSERT INTO rounds(id, event_id, stage, ordinal, name, advance_by_place, advance_by_mark, scheduled_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, r.ID, r.EventID, string(r.Stage), r.Ordinal, r.Name, byPlace, byMark, r.ScheduledAt)
 }
 
 func insertEvent(e domain.Event, now int64) sqlite.Statement {

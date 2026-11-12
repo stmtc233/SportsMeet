@@ -138,6 +138,11 @@ func optArg[T any](p *T) any {
 	return *p
 }
 
+// samePtr reports whether two optional values are both absent or equal.
+func samePtr[T comparable](a, b *T) bool {
+	return (a == nil) == (b == nil) && (a == nil || *a == *b)
+}
+
 type slotRef struct {
 	heat string
 	pos  int

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"sort"
+	"time"
 
 	"github.com/stmtc233/sportsmeet/internal/arrange"
 	"github.com/stmtc233/sportsmeet/internal/domain"
@@ -13,6 +14,9 @@ import (
 // EventDetail is everything the entries, arrange and results pages show
 // for one event.
 type EventDetail struct {
+	// Day is the day the event is shown on (domain.PlannedDay): the day of
+	// its earliest planned time, else its date, else the meet's start.
+	Day     string            `json:"day"`
 	Rules   domain.EventRules `json:"rules"`
 	Teams   []TeamView        `json:"teams"`
 	Event   domain.Event      `json:"event"`
@@ -38,26 +42,59 @@ type EntryView struct {
 
 // RoundView is a round with its heats and overall order.
 type RoundView struct {
-	ID        string          `json:"id"`
-	Stage     domain.Stage    `json:"stage"`
-	Label     string          `json:"label"`
-	Ordinal   int             `json:"ordinal"`
-	Advance   *domain.Advance `json:"advance"`
-	Heats     []HeatView      `json:"heats"`
-	Standings []Standing      `json:"standings"`
-	Complete  bool            `json:"complete"` // every placed athlete has a result
+	ID      string          `json:"id"`
+	Stage   domain.Stage    `json:"stage"`
+	Label   string          `json:"label"`
+	Ordinal int             `json:"ordinal"`
+	Advance *domain.Advance `json:"advance"`
+	// ScheduledAt is when the round starts, "" = unscheduled; ScheduledText
+	// shows it as the heats' times are shown.
+	ScheduledAt   string     `json:"scheduledAt"`
+	ScheduledText string     `json:"scheduledText"`
+	Heats         []HeatView `json:"heats"`
+	Standings     []Standing `json:"standings"`
+	Complete      bool       `json:"complete"` // every placed athlete has a result
 }
 
 // HeatView is a heat; Base is its fingerprint when loaded.
 type HeatView struct {
-	ID          string     `json:"id"`
-	Ordinal     int        `json:"ordinal"`
-	Name        string     `json:"name"`
-	Label       string     `json:"label"`
-	ScheduledAt string     `json:"scheduledAt"`
-	Slots       []SlotView `json:"slots"`
-	KeepReason  string     `json:"keepReason"` // "" = free to change
-	Base        string     `json:"base"`
+	ID      string `json:"id"`
+	Ordinal int    `json:"ordinal"`
+	Name    string `json:"name"`
+	Label   string `json:"label"`
+	// ScheduledAt is the heat's own time, "" = it follows the round's start.
+	ScheduledAt     string `json:"scheduledAt"`
+	DurationMinutes *int   `json:"durationMinutes"`
+	HeatTimes
+	// ResultsUpdatedText is when the heat's results were last written, to the minute; "" = none.
+	ResultsUpdatedText string     `json:"resultsUpdatedText"`
+	Slots              []SlotView `json:"slots"`
+	KeepReason         string     `json:"keepReason"` // "" = free to change
+	Base               string     `json:"base"`
+}
+
+// HeatTimes is a heat's plan as the pages show it (docs/agents/domain.md
+// 「时间」).
+type HeatTimes struct {
+	// EffectiveAt is when the heat starts: its own time, else the round's
+	// start (ScheduleInherited); "" = unscheduled.
+	EffectiveAt       string `json:"effectiveAt"`
+	ScheduleInherited bool   `json:"scheduleInherited"`
+	// ScheduledText shows EffectiveAt: HH:mm on the event's day, else with the date.
+	ScheduledText string `json:"scheduledText"`
+	DurationText  string `json:"durationText"` // "5 分钟", "" = not given
+	// EndAt is EffectiveAt plus the duration, "" when either is missing.
+	EndAt string `json:"endAt"`
+}
+
+// HeatTimesOf works out a heat's plan from its round's start and its own
+// time and duration; day is the event's shown day.
+func HeatTimesOf(roundStart, own string, minutes *int, day string) HeatTimes {
+	r, h := domain.Round{ScheduledAt: roundStart}, domain.Heat{ScheduledAt: own, DurationMinutes: minutes}
+	at, inherited := domain.EffectiveScheduled(r, h)
+	end, _ := domain.HeatEnd(r, h)
+	return HeatTimes{EffectiveAt: at, ScheduleInherited: inherited, ScheduledText: domain.ScheduledText(at, day),
+		DurationText: domain.DurationText(minutes), EndAt: end}
 }
 
 // SlotView is a slot with its result.
@@ -185,19 +222,31 @@ func (s *Service) GetEvent(ctx context.Context, eventID string) (*EventDetail, e
 	if err != nil {
 		return nil, err
 	}
-	return st.view(), nil
+	meet, err := s.store.GetMeet(ctx, st.event.MeetID)
+	if err != nil {
+		return nil, err
+	}
+	start := ""
+	if meet != nil {
+		start = meet.StartDate
+	}
+	return st.view(domain.PlannedDay(st.event, st.rounds, start), s.zone), nil
 }
 
-func (st *eventState) view() *EventDetail {
+func (st *eventState) view(day string, zone *time.Location) *EventDetail {
 	event := st.event
 	placed := map[string]bool{}
 	rounds := make([]RoundView, len(st.rounds))
 	for i, r := range st.rounds {
 		rv := RoundView{ID: r.ID, Stage: r.Stage, Label: r.Label(), Ordinal: r.Ordinal, Advance: r.Advance,
+			ScheduledAt: r.ScheduledAt, ScheduledText: domain.ScheduledText(r.ScheduledAt, day),
 			Heats: make([]HeatView, len(r.Heats))}
 		for j, h := range r.Heats {
 			hv := HeatView{ID: h.ID, Ordinal: h.Ordinal, Name: h.Name, Label: domain.HeatLabel(h.Ordinal, h.Name),
-				ScheduledAt: h.ScheduledAt, KeepReason: h.Facts().KeepReason(), Base: arrange.Fingerprint(h),
+				ScheduledAt: h.ScheduledAt, DurationMinutes: h.DurationMinutes,
+				HeatTimes:          HeatTimesOf(r.ScheduledAt, h.ScheduledAt, h.DurationMinutes, day),
+				ResultsUpdatedText: domain.RecordedText(h.ResultsUpdatedAt, zone),
+				KeepReason:         h.Facts().KeepReason(), Base: arrange.Fingerprint(h),
 				Slots: make([]SlotView, len(h.Slots))}
 			for k, sl := range h.Slots {
 				placed[sl.CompetitorID()] = true
@@ -230,7 +279,7 @@ func (st *eventState) view() *EventDetail {
 		}
 		entries = append(entries, v)
 	}
-	return &EventDetail{Event: st.event, Rules: st.event.Rules(), Teams: teams, Entries: entries, Rounds: rounds}
+	return &EventDetail{Day: day, Event: st.event, Rules: st.event.Rules(), Teams: teams, Entries: entries, Rounds: rounds}
 }
 
 func resultViewEvent(event domain.Event, r *domain.Result) *ResultView {

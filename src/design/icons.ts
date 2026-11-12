@@ -8,6 +8,7 @@ export {
   ChevronDown as IconChevronDown,
   ChevronRight as IconChevronRight,
   ClipboardList as IconEntries,
+  Clock as IconTime,
   Download as IconExport,
   Ellipsis as IconMore,
   FileInput as IconImport,

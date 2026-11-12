@@ -203,16 +203,23 @@ func TestFingerprint(t *testing.T) {
 		t.Error("id and wind are not part of the arrangement")
 	}
 	for name, change := range map[string]func(*domain.Heat){
-		"ordinal": func(h *domain.Heat) { h.Ordinal = 2 },
-		"name":    func(h *domain.Heat) { h.Name = "A" },
-		"time":    func(h *domain.Heat) { h.ScheduledAt = "2026-11-12T09:00" },
-		"slot":    func(h *domain.Heat) { h.Slots = []domain.Slot{{Position: 5, AthleteID: "a"}} },
+		"ordinal":  func(h *domain.Heat) { h.Ordinal = 2 },
+		"name":     func(h *domain.Heat) { h.Name = "A" },
+		"time":     func(h *domain.Heat) { h.ScheduledAt = "2026-11-12T09:00" },
+		"duration": func(h *domain.Heat) { h.DurationMinutes = new(int); *h.DurationMinutes = 5 },
+		"slot":     func(h *domain.Heat) { h.Slots = []domain.Slot{{Position: 5, AthleteID: "a"}} },
 	} {
 		changed := h
 		change(&changed)
 		if Fingerprint(changed) == Fingerprint(h) {
 			t.Errorf("%s change kept the fingerprint", name)
 		}
+	}
+	five, six := h, h
+	five.DurationMinutes, six.DurationMinutes = new(int), new(int)
+	*five.DurationMinutes, *six.DurationMinutes = 5, 6
+	if Fingerprint(five) == Fingerprint(six) {
+		t.Error("a different duration kept the fingerprint")
 	}
 }
 

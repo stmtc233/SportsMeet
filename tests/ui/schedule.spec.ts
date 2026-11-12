@@ -26,7 +26,8 @@ for (const width of [1280, 800]) {
     const dialog = await openSchedule(page);
     await dialog.getByRole("button", { name: "预览", exact: true }).click();
     await expect(dialog.getByRole("heading", { name: "修改 2 组", exact: true })).toBeVisible();
-    await expect(dialog.getByText("2026-11-13 00:01", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("2026-11-13 00:01 · 3 分钟", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("1 组不在赛事日期内", { exact: true })).toBeVisible();
     await expect(dialog.getByRole("heading", { name: "跳过 1 组", exact: true })).toBeVisible();
     await expect(dialog.getByText("已有成绩", { exact: true })).toBeVisible();
     expect(await page.evaluate(() => (globalThis as any).__scheduleCalls.save)).toBe(0);
@@ -40,7 +41,8 @@ for (const width of [1280, 800]) {
     await expect(dialog).toHaveCount(0);
     await expect(page.locator(".heat-slots")).toHaveCount(3);
     await expect(page.locator(".split__main").getByText("23:58", { exact: true })).toBeVisible();
-    await expect(page.locator(".split__main").getByText("00:01", { exact: true })).toBeVisible();
+    await expect(page.locator(".split__main").getByText("2026-11-13 00:01", { exact: true })).toBeVisible();
+    await expect(page.locator(".split__main").getByText("3 分钟", { exact: true })).toHaveCount(2);
     expect(await page.evaluate(() => (globalThis as any).__scheduleCalls.save)).toBe(1);
   });
 }
@@ -83,3 +85,44 @@ test("排时校验错误无法保存", async ({ page }) => {
   await expect(dialog.getByText("间隔须为 1–1440 分钟", { exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "保存", exact: true })).toHaveCount(0);
 });
+
+for (const width of [1280, 800]) {
+  test(`轮次开始时间与组沿用 ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await openArrange(page);
+    // A local draft change stays while the round start is saved.
+    await page.getByRole("button", { name: "添加组", exact: true }).click();
+    await page.locator(".subbar").getByRole("button", { name: "开始时间", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "决赛开始时间", exact: true });
+    await expect(dialog.getByLabel("日期")).toHaveValue("2026-11-12");
+    await dialog.getByLabel("日期").fill("2026-11-13");
+    await dialog.getByLabel("时间", { exact: true }).fill("10:00");
+    await expect(dialog.getByText("时间不在赛事日期内", { exact: true })).toBeVisible();
+    await dialog.getByLabel("日期").fill("2026-11-12");
+    await expect(dialog.getByText("时间不在赛事日期内", { exact: true })).toHaveCount(0);
+    await dialog.getByRole("button", { name: "保存", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(await page.evaluate(() => (globalThis as any).__roundStarts)).toEqual(["2026-11-12T10:00"]);
+    await expect(page.locator(".subbar").getByRole("button", { name: "10:00", exact: true })).toBeVisible();
+    // The heat without its own time and the unsaved new heat follow the round; own times stay tags.
+    const main = page.locator(".split__main");
+    await expect(main.locator("[data-inherited]")).toHaveCount(2);
+    await expect(main.locator("[data-inherited]").first()).toHaveText("10:00");
+    await expect(main.locator(".st-tag", { hasText: "09:00" })).toHaveCount(1);
+    await expect(page.locator(".subbar__count")).toHaveText("1 处改动");
+    // The heat dialog shows what an empty time follows and takes a duration.
+    await page.locator(".heats").getByRole("button", { name: "更多", exact: true }).nth(2).click();
+    await page.getByRole("menuitem", { name: "编辑组…", exact: true }).click();
+    const heat = page.getByRole("dialog", { name: "编辑组", exact: true });
+    await expect(heat.getByText("沿用轮次 10:00", { exact: true })).toBeVisible();
+    await heat.getByLabel("预计用时").fill("0");
+    await heat.getByRole("button", { name: "确定", exact: true }).click();
+    await expect(page.getByText("预计用时须为 1–1440 分钟", { exact: true })).toBeVisible();
+    await heat.getByLabel("预计用时").fill("6");
+    await heat.getByRole("button", { name: "确定", exact: true }).click();
+    await expect(heat).toHaveCount(0);
+    await expect(main.getByText("6 分钟", { exact: true })).toBeVisible();
+    await expect(main.locator("[data-inherited]")).toHaveCount(2);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}

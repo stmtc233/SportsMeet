@@ -90,6 +90,49 @@ export interface Attempt {
   wind: number | null;
 }
 
+/** AuditCursor is where a page ended: the time and id of its last row. */
+export interface AuditCursor {
+  at: number;
+  id: number;
+}
+
+/** AuditPage is a page of the log, newest first; Next is nil on the last page. */
+export interface AuditPage {
+  rows: AuditRow[];
+  next: AuditCursor | null;
+}
+
+/**
+ * AuditQuery selects a page of the operation log. MeetID and Source ""
+ * match everything; After continues from the Next of a previous page.
+ */
+export interface AuditQuery {
+  meetId: string;
+  /** ui | mcp | system, "" = all */
+  source: string;
+  after: AuditCursor | null;
+  /** 1–200, 0 = 50 */
+  limit: number;
+}
+
+/** AuditRow is one log row with its texts as the page shows them. */
+export interface AuditRow {
+  id: number;
+  /** ms */
+  at: number;
+  atText: string;
+  source: Source;
+  sourceText: string;
+  action: string;
+  actionText: string;
+  meetId: string;
+  /** "" when the meet was deleted or the row has none */
+  meetName: string;
+  eventId: string;
+  heatId: string;
+  message: string;
+}
+
 /** Bar is one height in a height event; Trials is made of O, X and -. */
 export interface Bar {
   height: number;
@@ -221,6 +264,19 @@ export interface CombinedRulesRequest {
   rules: CombinedRuleChange[];
 }
 
+/** ConflictView is one athlete in two heats too close together. */
+export interface ConflictView {
+  athleteId: string;
+  athleteName: string;
+  overlap: boolean;
+  /** negative when the heats overlap */
+  gapMinutes: number;
+  /** 时间重叠 / 间隔 5 分钟 */
+  text: string;
+  first: ScheduleHeatRef;
+  second: ScheduleHeatRef;
+}
+
 export type DistanceMode = "" | "jump" | "throw";
 
 /** EntryInput enters an athlete or relay team; Seed is the typed entry mark, "" = none. */
@@ -279,6 +335,11 @@ export interface Event {
  * for one event.
  */
 export interface EventDetail {
+  /**
+   * Day is the day the event is shown on (domain.PlannedDay): the day of
+   * its earliest planned time, else its date, else the meet's start.
+   */
+  day: string;
   rules: EventRules;
   teams: TeamView[];
   event: Event;
@@ -336,6 +397,13 @@ export interface EventRow {
   heats: number;
   placed: number;
   results: number;
+  /**
+   * TimeText is when the event starts: its earliest planned time, a
+   * round's start or a heat's own (HH:mm on the meet's first day, else
+   * with the date), or its date when nothing has a time and the date is
+   * not the first day; "" otherwise.
+   */
+  timeText: string;
 }
 
 /** EventRules is the presentation and arrangement configuration shared by clients. */
@@ -355,6 +423,55 @@ export interface EventRules {
 /** Gender of an athlete ("" = unknown) or of an event (男 / 女 / 混合). */
 export type Gender = "男" | "女" | "混合" | "";
 
+/** HeatConflict is a conflict as one of its heats shows it. */
+export interface HeatConflict {
+  athleteId: string;
+  athleteName: string;
+  text: string;
+  other: ScheduleHeatRef;
+}
+
+/** HeatConflicts lists one heat's conflicts. */
+export interface HeatConflicts {
+  heatId: string;
+  conflicts: HeatConflict[];
+}
+
+/**
+ * HeatEdit changes one heat's custom name, own time and expected duration
+ * from the schedule page; Base is the fingerprint it was shown with.
+ */
+export interface HeatEdit {
+  eventId: string;
+  heatId: string;
+  base: string;
+  name: string;
+  scheduledAt: string;
+  durationMinutes: number | null;
+}
+
+/**
+ * HeatPlan is a heat's own time and expected duration as the heat dialog
+ * submits them, checked as SaveBoard checks them and shown as the event
+ * detail shows them.
+ */
+export interface HeatPlan {
+  scheduledAt: string;
+  durationMinutes: number | null;
+  /**
+   * EffectiveAt is when the heat starts: its own time, else the round's
+   * start (ScheduleInherited); "" = unscheduled.
+   */
+  effectiveAt: string;
+  scheduleInherited: boolean;
+  /** ScheduledText shows EffectiveAt: HH:mm on the event's day, else with the date. */
+  scheduledText: string;
+  /** "5 分钟", "" = not given */
+  durationText: string;
+  /** EndAt is EffectiveAt plus the duration, "" when either is missing. */
+  endAt: string;
+}
+
 /** HeatRef names a heat to delete, with the fingerprint it was loaded with. */
 export interface HeatRef {
   id: string;
@@ -370,7 +487,10 @@ export interface HeatSave {
   key: string;
   base: string;
   name: string;
+  /** own time; "" = the round's start */
   scheduledAt: string;
+  /** DurationMinutes is the expected duration, 1–1440 minutes; nil = not given. */
+  durationMinutes: number | null;
   slots: SlotSave[];
 }
 
@@ -380,7 +500,23 @@ export interface HeatView {
   ordinal: number;
   name: string;
   label: string;
+  /** ScheduledAt is the heat's own time, "" = it follows the round's start. */
   scheduledAt: string;
+  durationMinutes: number | null;
+  /**
+   * EffectiveAt is when the heat starts: its own time, else the round's
+   * start (ScheduleInherited); "" = unscheduled.
+   */
+  effectiveAt: string;
+  scheduleInherited: boolean;
+  /** ScheduledText shows EffectiveAt: HH:mm on the event's day, else with the date. */
+  scheduledText: string;
+  /** "5 分钟", "" = not given */
+  durationText: string;
+  /** EndAt is EffectiveAt plus the duration, "" when either is missing. */
+  endAt: string;
+  /** ResultsUpdatedText is when the heat's results were last written, to the minute; "" = none. */
+  resultsUpdatedText: string;
   slots: SlotView[];
   /** "" = free to change */
   keepReason: string;
@@ -462,6 +598,22 @@ export interface MeetInput {
   note?: string;
 }
 
+/** MeetView is a meet with its days as shown. */
+export interface MeetView {
+  id: string;
+  name: string;
+  /** YYYY-MM-DD */
+  startDate: string;
+  /** YYYY-MM-DD, "" = same day */
+  endDate: string;
+  location: string;
+  note: string;
+  /** ms */
+  createdAt: number;
+  /** domain.DateRangeText */
+  datesText: string;
+}
+
 /** PickedFile is a file chosen for import. */
 export interface PickedFile {
   path: string;
@@ -533,6 +685,13 @@ export interface Preferences {
   separateUnits: boolean;
   balance: boolean;
   printNewPage: boolean;
+  /** PrintSchedule puts the competition schedule at the start of the 秩序册. */
+  printSchedule: boolean;
+  /**
+   * MinRestMinutes is the shortest rest an athlete needs between two
+   * heats; 0 checks overlaps only (docs/agents/arrange.md「冲突检查」).
+   */
+  minRestMinutes: number;
 }
 
 export interface ReportTarget {
@@ -592,6 +751,12 @@ export interface ResultView {
   note: string;
 }
 
+/** RoundRef names one round of a multi-round schedule. */
+export interface RoundRef {
+  eventId: string;
+  roundId: string;
+}
+
 /** RoundSave is one round's changes. */
 export interface RoundSave {
   roundId: string;
@@ -605,6 +770,24 @@ export interface RoundSave {
   deleted: HeatRef[];
 }
 
+/**
+ * RoundStart sets when a round starts; ScheduledAt "" clears it. Heats
+ * without their own time start then.
+ */
+export interface RoundStart {
+  eventId: string;
+  roundId: string;
+  scheduledAt: string;
+}
+
+/**
+ * RoundStartResult carries the warnings the new time raises; they never
+ * block the write.
+ */
+export interface RoundStartResult {
+  warnings: string[];
+}
+
 /** RoundView is a round with its heats and overall order. */
 export interface RoundView {
   id: string;
@@ -612,38 +795,82 @@ export interface RoundView {
   label: string;
   ordinal: number;
   advance: Advance | null;
+  /**
+   * ScheduledAt is when the round starts, "" = unscheduled; ScheduledText
+   * shows it as the heats' times are shown.
+   */
+  scheduledAt: string;
+  scheduledText: string;
   heats: HeatView[];
   standings: Standing[];
   /** every placed athlete has a result */
   complete: boolean;
 }
 
-/** ScheduleChange is one actual time change, with display text computed in Go. */
+/**
+ * ScheduleChange is one heat whose own time or expected duration changes,
+ * with display text computed in Go. Before is the heat's own time ("" =
+ * it follows the round's start); BeforeText shows the time it actually had.
+ */
 export interface ScheduleChange {
+  eventId: string;
+  roundId: string;
+  /** event name and round label */
+  round: string;
   heatId: string;
   label: string;
   before: string;
   after: string;
+  beforeMinutes: number | null;
+  afterMinutes: number;
   beforeText: string;
   afterText: string;
+}
+
+/** ScheduleHeatRef names a heat for a conflict line. */
+export interface ScheduleHeatRef {
+  eventId: string;
+  eventName: string;
+  roundId: string;
+  roundLabel: string;
+  heatId: string;
+  heatLabel: string;
+  /** TimeText is the heat's effective time with its date. */
+  timeText: string;
 }
 
 export interface SchedulePreview {
   previewHash: string;
   errors: string[];
+  /** shown, never blocking */
+  warnings: string[];
   changes: ScheduleChange[];
   skipped: ScheduleSkip[];
+  /**
+   * Conflicts are the athlete time conflicts that involve a changed heat
+   * once the plan is applied; warnings only.
+   */
+  conflicts: ConflictView[];
 }
 
-/** ScheduleRequest assigns local wall-clock times to the unscored heats of one round. */
+/**
+ * ScheduleRequest assigns local wall-clock times to the unscored heats of
+ * one round, or of several rounds one after another (docs/agents/arrange.md
+ * 「批量排时间」).
+ */
 export interface ScheduleRequest {
-  eventId: string;
-  roundId: string;
+  eventId?: string;
+  roundId?: string;
+  rounds?: RoundRef[];
   startAt: string;
   intervalMinutes: number;
+  roundGapMinutes?: number;
 }
 
 export interface ScheduleSkip {
+  eventId: string;
+  roundId: string;
+  round: string;
   heatId: string;
   label: string;
   reason: string;
@@ -665,6 +892,9 @@ export interface SlotView {
   competitorId: string;
   teamId?: string;
 }
+
+/** Source of a write, recorded in the operation log. */
+export type Source = "ui" | "mcp" | "system";
 
 /** Stage of a round. */
 export type Stage = "heat" | "quarterfinal" | "semifinal" | "final";
@@ -740,6 +970,78 @@ export interface TeamView {
   genderMismatch: boolean;
 }
 
+/**
+ * Timetable is a meet's competition schedule: its rounds by day and
+ * effective time, those with no time at all apart, and every conflict.
+ */
+export interface Timetable {
+  minRestMinutes: number;
+  days: TimetableDay[];
+  unscheduled: TimetableRound[];
+  conflicts: ConflictView[];
+}
+
+/** TimetableDay is one day's rounds, by their first time. */
+export interface TimetableDay {
+  /** YYYY-MM-DD */
+  day: string;
+  rounds: TimetableRound[];
+}
+
+/** TimetableHeat is one heat of the schedule. */
+export interface TimetableHeat {
+  id: string;
+  label: string;
+  name: string;
+  /** fingerprint, for editing it from the schedule */
+  base: string;
+  scheduledAt: string;
+  durationMinutes: number | null;
+  /**
+   * EffectiveAt is when the heat starts: its own time, else the round's
+   * start (ScheduleInherited); "" = unscheduled.
+   */
+  effectiveAt: string;
+  scheduleInherited: boolean;
+  /** ScheduledText shows EffectiveAt: HH:mm on the event's day, else with the date. */
+  scheduledText: string;
+  /** "5 分钟", "" = not given */
+  durationText: string;
+  /** EndAt is EffectiveAt plus the duration, "" when either is missing. */
+  endAt: string;
+  /** EndAt as the times are shown; "" = none */
+  endText: string;
+  keepReason: string;
+  people: number;
+  conflicts: HeatConflict[];
+}
+
+/** TimetableRound is a round in the schedule with its heats in order. */
+export interface TimetableRound {
+  eventId: string;
+  eventName: string;
+  roundId: string;
+  roundLabel: string;
+  /**
+   * Day is the day the round is listed on ("" when unscheduled); texts
+   * are relative to it.
+   */
+  day: string;
+  /** ScheduledAt is the round's start, "" = unset; ScheduledText shows it. */
+  scheduledAt: string;
+  scheduledText: string;
+  /**
+   * StartAt is the earliest planned time of the round (its start or a
+   * heat's own time); StartText shows it.
+   */
+  startAt: string;
+  startText: string;
+  heatCount: number;
+  /** athletes placed; a team counts its members */
+  people: number;
+  heats: TimetableHeat[];
+}
+
 /** Unit is one 参赛单位. */
 export interface Unit {
   id: string;
@@ -771,11 +1073,11 @@ export const Meets = {
     return call("Meets.Delete", id);
   },
   /** Get returns one meet. */
-  get(id: string): Promise<Meet | null> {
+  get(id: string): Promise<MeetView | null> {
     return call("Meets.Get", id);
   },
   /** List returns all meets, newest first. */
-  list(): Promise<Meet[]> {
+  list(): Promise<MeetView[]> {
     return call("Meets.List");
   },
   /** Update changes a meet. */
@@ -925,6 +1227,26 @@ export const Entries = {
 
 /** Arrange plans and saves heats. */
 export const Arrange = {
+  /** EditHeat saves one heat's name, time and duration from the schedule page. */
+  editHeat(in_: HeatEdit): Promise<void> {
+    return call("Arrange.EditHeat", in_);
+  },
+  /** HeatConflicts lists the athlete time conflicts of an event's heats. */
+  heatConflicts(eventID: string): Promise<HeatConflicts[]> {
+    return call("Arrange.HeatConflicts", eventID);
+  },
+  /**
+   * HeatPlan checks the heat dialog's time and duration (minutes as typed)
+   * and shows them as the event detail does, from the round's start and the
+   * event's shown day.
+   */
+  heatPlan(roundStart: string, at: string, minutes: string, day: string): Promise<HeatPlan | null> {
+    return call("Arrange.HeatPlan", roundStart, at, minutes, day);
+  },
+  /** MeetSchedule is the meet's timetable by day with its conflicts. */
+  meetSchedule(meetID: string): Promise<Timetable | null> {
+    return call("Arrange.MeetSchedule", meetID);
+  },
   /** Plan computes new heats for those not yet placed; it writes nothing. */
   plan(req: PlanRequest): Promise<PlannedHeat[]> {
     return call("Arrange.Plan", req);
@@ -939,6 +1261,17 @@ export const Arrange = {
   /** Schedule confirms the preview shown in the desktop dialog. */
   schedule(in_: ScheduleRequest, hash: string): Promise<SchedulePreview | null> {
     return call("Arrange.Schedule", in_, hash);
+  },
+  /**
+   * ScheduleWarning is what a time dialog shows before saving: "" or a
+   * warning such as a day outside the meet.
+   */
+  scheduleWarning(eventID: string, at: string): Promise<string> {
+    return call("Arrange.ScheduleWarning", eventID, at);
+  },
+  /** SetRoundStart writes a round's start time; its warnings never block it. */
+  setRoundStart(in_: RoundStart): Promise<RoundStartResult | null> {
+    return call("Arrange.SetRoundStart", in_);
   },
 } as const;
 
@@ -1033,6 +1366,10 @@ export const App = {
 
 /** Settings exposes local preferences and MCP controls only to the desktop UI. */
 export const Settings = {
+  /** AuditLog reads a page of the operation log, newest first; read-only. */
+  auditLog(q: AuditQuery): Promise<AuditPage | null> {
+    return call("Settings.AuditLog", q);
+  },
   configureMCP(enabled: boolean, port: number, rotate: boolean): Promise<void> {
     return call("Settings.ConfigureMCP", enabled, port, rotate);
   },

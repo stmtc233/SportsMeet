@@ -50,15 +50,15 @@ SportsMeet/
 ├── package.json · vite.config.ts · tsconfig.json · index.html
 ├── resources/icon.png       ← 1024×1024 应用图标
 ├── internal/
-│   ├── domain/              ← 实体、枚举、项目配置与全能规则(纯数据 + 校验,无 IO)
+│   ├── domain/              ← 实体、枚举、项目配置与全能规则、时间规则与项目排序(纯数据 + 校验,无 IO)
 │   ├── store/               ← SQLite 访问(mygo sqlite 插件,库文件 sportsmeet.db 在 mygo.PathUserData,迁移前的副本在同目录 backups/)
 │   │   ├── migrations/      ← NNNN_名称.sql,嵌入二进制,启动时按序执行
 │   │   └── schema.sql       ← 当前完整结构快照
-│   ├── arrange/             ← 自动编排(分组、排道)、组序号、组指纹、晋级判定;纯函数
+│   ├── arrange/             ← 自动编排(分组、排道)、组序号、组指纹、晋级判定、运动员时间冲突检查;纯函数
 │   ├── scoring/             ← 成绩解析与格式化、逐次汇总、排名、全能积分与总排名
 │   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配;复用 scoring 校验逐次汇总
-│   ├── report/              ← 秩序册 / 成绩册(HTML 模板);检录单、号码布待实现
-│   ├── service/             ← 唯一写入口:写锁、校验、操作日志、变更通知;含项目预设、全能与计分规则、表格导入、编排保存、批量排时、成绩、导入导出
+│   ├── report/              ← 秩序册(含竞赛日程表)/ 成绩册(HTML 模板);检录单、号码布待实现
+│   ├── service/             ← 唯一写入口:写锁、校验、操作日志(写入与只读查询)、变更通知;含项目预设、全能与计分规则、表格导入、编排保存、批量 / 多轮次连排时间、竞赛日程与冲突、成绩、导入导出
 │   ├── mcp/                 ← MCP 服务与监听生命周期(仅 127.0.0.1,默认关)
 │   ├── layers/              ← 分层测试:各包允许的依赖、纯计算包不碰 mygo、bind / mcp 不越过 service
 │   └── bind/                ← 给前端的 mygo 服务 + `dataChanged` 事件(薄层,只转调 service,另加文件对话框与打印窗口)
@@ -67,8 +67,8 @@ SportsMeet/
 │   ├── mygo.ts              ← `mygo generate` 生成物,勿手改
 │   ├── app/                 ← nav.tsx(页面路由状态、离开前确认)、ErrorBoundary.tsx(页面渲染出错时的退路)、app.css(外壳与页面布局,只用 token)
 │   ├── design/              ← tokens.css、components.css、`St*` 组件、icons.ts;经 index.ts 统一导出
-│   ├── features/            ← meets/ units/ athletes/ events/ event/(项目工作区:报名与队伍)combined/(全能)arrange/ results/ reports/ exchange/ settings/ about/
-│   └── lib/                 ← coalesce.ts(事件刷新合并)、useData.ts、action.ts、errors.ts、labels.ts
+│   ├── features/            ← meets/ units/ athletes/ events/ event/(项目工作区:报名、队伍、组时间显示)combined/(全能)arrange/ schedule/(竞赛日程)results/ reports/ exchange/ settings/ about/
+│   └── lib/                 ← coalesce.ts(事件刷新合并)、useData.ts、action.ts、errors.ts、labels.ts、wallTime.ts(日期 / 时刻输入拆合)
 ├── .agents/skills/          ← mygo 自带的 agent 技能
 ├── tests/ui/                ← Playwright 页面冒烟测试(模拟 mygo 桥接)
 ├── playwright.config.ts      ← 宽窄窗口与浅深色页面验证
@@ -76,7 +76,7 @@ SportsMeet/
 ├── .github/workflows/check.yml      ← CI:`bun run check`、绑定生成物比对、页面冒烟测试
 ├── docs/
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
-│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json
+│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json
 │   ├── examples/sample-meet.json
 │   └── agents/                        ← 专题细则(§5)
 └── testdata/interchange/              ← 编解码黄金文件
@@ -125,7 +125,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 - **所有写操作只经 `internal/service`**:前端绑定与 MCP 共用同一组方法和校验,`bind/`、`mcp/` 不直接碰 `store/`;否则会绕过校验,界面也收不到变更事件。
 - **包的依赖方向由 `internal/layers` 的测试把关**:新增包或新增依赖时,在它的分层表里登记并同步 §3。
-- **业务规则只在 Go**:成绩解析与格式化、排名、晋级、项目名称组成都在 Go,前端只调用(→ domain.md)。
+- **业务规则只在 Go**:成绩解析与格式化、排名、晋级、项目名称组成、时间的校验与显示都在 Go,前端只调用(→ domain.md)。
 - **`src/mygo.ts` 是生成物**,不手改。
 - **前端只有 `src/lib/` 与各 feature 的 `controller` / `data` 文件调用 Go**,其余文件只从 `src/mygo.ts` 引入类型;棘轮把关(→ frontend.md)。
 - **页面只用 `src/design/` 的 `St*` 组件、token 与统一图标**;`scripts/check-design-system.sh` 棘轮把关,基线只减不增(→ design-system.md)。
@@ -143,17 +143,23 @@ bun run test:ui                      # 先 bunx playwright install chromium
 - 有成绩的组锁定,不能删除、不被自动编排覆盖;判定只有 `HeatFacts.KeepReason` 一处。
 - 编排页草稿一次保存,每组带指纹、只提交改过的组;数据按指纹合并,位置规则变化时重建草稿,不弹冲突框。
 - 自动编排只排未分组的人、只追加新组;随机带 `seed` 可复现。
-- 批量排时间只改当前轮次未比赛的组,界面与 MCP 共用预览和确认提交,数据变化须重新预览。
+- 批量排时间只改选中轮次(一个,或按顺序连排的多个,可留轮次间隔)未比赛的组,间隔同时写为预计用时,界面与 MCP 共用预览和确认提交,数据变化须重新预览。
+- 同一运动员两组时间重叠或间隔不足最短休息时间(设置项)即为冲突,只提示不拦截任何保存(用户要求);队伍展开为队员,全能分项参与,检查是 `arrange` 的纯函数(→ arrange.md「冲突检查」)。
+- 轮次有开始时间,组只存单独指定的时间与预计用时;组的生效时间 = 单独时间,没有则沿用轮次,显示、排序、打印都用生效时间,结束时间 = 生效时间 + 预计用时(→ domain.md「时间」)。
+- 轮次开始时间直接写入、不进组指纹与草稿;时间不在赛事日期内只提示不拦截,判断只在 service,界面与 MCP 共用。
 - 新建项目自带决赛轮次,可加一个预赛;名次与 `Q` / `q` 在每次写成绩时由 Go 重算并存储,晋级只读成绩。
 - 队伍按队报名、编排和录成绩;同一项目一人只属一队,已有比赛记录的队伍锁定名单(→ domain.md)。
 - 全能拥有独立分项并统一报名,积分与总排名由原始成绩和保存的计分表计算,规则修改须预览确认(→ [combined.md](docs/agents/combined.md))。
-- 每个写操作写操作日志(来源 `ui` / `mcp` / `system`),日志失败不影响业务。
+- 时间分日期、计划时间(本地到分钟、无时区,用户要求)、记录时间(毫秒,按本机时区显示)三种,校验、运算与显示只在 `domain` 的时间规则(→ domain.md「时间」)。
+- 项目列表按显示日子(最早计划时间的日子,没有时间才用项目日期)→ 最早计划时间 → 创建顺序排列,全能分项保持原顺序;导出保持创建顺序。
+- 每个写操作写操作日志(来源 `ui` / `mcp` / `system`),日志失败不影响业务;设置页只读查看,分页读取。
 
 ### 5.3 MCP → [mcp.md](docs/agents/mcp.md)
 
 - 默认关闭,只监听 `127.0.0.1`,独立令牌,拒绝非本机 `Origin`。
 - MCP 可以写成绩(用户要求):空位直接写,覆盖已有成绩须预览确认;名次由 `scoring` 重算,不能直接指定。
 - 批量改动与删除走「预览指纹 + `confirmed=true`」,提交时持 service 写锁重算比对，再事务写入;有成绩的数据 MCP 不能删。
+- 日程与冲突只读查询(`get_schedule`、`list_conflicts`);多轮次连排扩展 `preview_schedule` / `schedule_heats` 的 `rounds`,原单轮次参数照常可用。
 - 不内置云模型。
 
 ### 5.4 数据与交换格式 → [storage.md](docs/agents/storage.md) · [interchange-format.md](docs/interchange-format.md)
@@ -173,7 +179,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 ### 5.6 未实现与后续计划
 
-当前已实现:基础数据(赛事、参赛单位、运动员含表格导入、项目含 35 个预设与自定义配置、报名)、编排(预赛 + 决赛、自动编排、手动调整、草稿保存、批量排时间)、计时 / 田赛 / 计次 / 计分成绩录入与排名晋级、普通队伍项目、全能分项与积分总排名、秩序册与成绩册打印、交换格式导入导出、设置(通用 / 编排 / 打印 / MCP / 关于)、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
+当前已实现:基础数据(赛事、参赛单位、运动员含表格导入、项目含 35 个预设与自定义配置、报名)、编排(预赛 + 决赛、自动编排、手动调整、草稿保存、批量排时间与多轮次连排)、竞赛日程页与运动员时间冲突提示、秩序册竞赛日程表、统一的时间规则(项目按时间排序、组与成绩修改时间显示、报表打印时间)、计时 / 田赛 / 计次 / 计分成绩录入与排名晋级、普通队伍项目、全能分项与积分总排名、秩序册与成绩册打印、交换格式导入导出、设置(通用 / 编排 / 打印 / MCP / 操作日志 / 关于)、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
 
 **待验证**
 - WebView 中的手动拖放、完整现场操作流程与 800 宽原生窗口;浏览器 1280 / 800、浅色 / 深色已由自动测试覆盖。

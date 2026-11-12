@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { StButton, StMarkField, StRow, StSection, StSelect, StTag, StTextField } from "../../design";
+import { StButton, StMarkField, StMuted, StRow, StSection, StSelect, StTag, StTextField } from "../../design";
+import { HeatTime } from "../event/HeatTime";
 import { statusLabels } from "../../lib/labels";
 import type { EntryView, EventDetail, HeatView, ResultInput, Status } from "../../mygo";
 import { ResultsController } from "./controller";
@@ -92,11 +93,12 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
       title={
         <>
           {heat.label}
-          {heat.scheduledAt && <StTag>{heat.scheduledAt.split("T")[1]}</StTag>}
+          <HeatTime text={heat.scheduledText} inherited={heat.scheduleInherited} />
         </>
       }
       actions={
         <>
+          {heat.resultsUpdatedText && <StMuted>修改于 {heat.resultsUpdatedText}</StMuted>}
           {kind === "height" && (
             <StRow wrap={false}>
               <StTextField value={height} onChange={setHeight} placeholder="高度" width="narrow" suffix="m" aria-label="高度" />

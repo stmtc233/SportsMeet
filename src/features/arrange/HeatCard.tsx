@@ -1,6 +1,7 @@
 import { useState, type DragEvent } from "react";
-import { IconDelete, IconDown, IconEdit, IconLock, IconMore, IconUnlock, IconUp, StIconButton, StMenu, StSection, StTag, iconStroke } from "../../design";
-import type { EntryView } from "../../mygo";
+import { IconDelete, IconDown, IconEdit, IconLock, IconMore, IconUnlock, IconUp, StIconButton, StMenu, StMuted, StSection, StTag, iconStroke } from "../../design";
+import { HeatTime } from "../event/HeatTime";
+import type { EntryView, HeatConflict } from "../../mygo";
 import type { DraftHeat } from "./draft";
 
 export const dragType = "application/x-sportsmeet-athlete";
@@ -30,6 +31,8 @@ interface HeatCardProps {
   positions: number[];
   locked: boolean;
   changed: boolean;
+  /** Saved times only: a warning, never a block. */
+  conflicts?: HeatConflict[];
   entries: Map<string, EntryView>;
   picked: string;
   onPick: (competitorId: string) => void;
@@ -41,7 +44,7 @@ interface HeatCardProps {
 }
 
 /** One heat: a row per position, each a drop and click target. */
-export function HeatCard({ heat, index, count, positions, locked, changed, entries, picked, onPick, onPlace, onMove, onEdit, onDelete, onUnlock }: HeatCardProps) {
+export function HeatCard({ heat, index, count, positions, locked, changed, conflicts, entries, picked, onPick, onPlace, onMove, onEdit, onDelete, onUnlock }: HeatCardProps) {
   const [over, setOver] = useState(0);
   const bySlot = new Map(heat.slots.map((s) => [s.position, s.competitorId]));
   const drop = (e: DragEvent, position: number) => {
@@ -50,15 +53,16 @@ export function HeatCard({ heat, index, count, positions, locked, changed, entri
     const id = e.dataTransfer.getData(dragType);
     if (id) onPlace(position, id);
   };
-  const time = heat.scheduledAt.split("T")[1] ?? "";
   return (
     <StSection padded={false}
       title={
         <>
           {heat.name || `第${index + 1}组`}
-          {time && <StTag>{time}</StTag>}
+          <HeatTime text={heat.scheduledText} inherited={heat.scheduleInherited} />
+          {heat.durationText && <StMuted>{heat.durationText}</StMuted>}
           {heat.keepReason && <StTag tone={locked ? "warning" : "neutral"}>{locked ? heat.keepReason : "已解锁"}</StTag>}
           {changed && <StTag tone="info">已改</StTag>}
+          {conflicts && conflicts.length > 0 && <ConflictTag conflicts={conflicts} />}
         </>
       }
       actions={
@@ -69,7 +73,7 @@ export function HeatCard({ heat, index, count, positions, locked, changed, entri
             </StIconButton>
           )}
           items={[
-            { label: "编辑名称与时间…", icon: <IconEdit size={16} strokeWidth={iconStroke} />, onSelect: onEdit },
+            { label: "编辑组…", icon: <IconEdit size={16} strokeWidth={iconStroke} />, onSelect: onEdit },
             { label: "上移", icon: <IconUp size={16} strokeWidth={iconStroke} />, onSelect: () => onMove(-1), disabled: index === 0 },
             { label: "下移", icon: <IconDown size={16} strokeWidth={iconStroke} />, onSelect: () => onMove(1), disabled: index === count - 1 },
             { label: "解锁位置…", icon: locked ? <IconUnlock size={16} strokeWidth={iconStroke} /> : <IconLock size={16} strokeWidth={iconStroke} />, onSelect: onUnlock, disabled: !locked },
@@ -103,4 +107,10 @@ export function HeatCard({ heat, index, count, positions, locked, changed, entri
       </div>
     </StSection>
   );
+}
+
+/** Marks a heat with athlete time conflicts; the title lists who and with which heat. */
+export function ConflictTag({ conflicts }: { conflicts: HeatConflict[] }) {
+  const lines = conflicts.map((c) => `${c.athleteName}：${c.text}，${c.other.timeText} ${c.other.eventName} ${c.other.roundLabel} ${c.other.heatLabel}`);
+  return <span className="conflict-tag" title={lines.join("\n")} data-conflict><StTag tone="danger">冲突 {conflicts.length}</StTag></span>;
 }

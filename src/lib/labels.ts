@@ -16,7 +16,3 @@ export const statusLabels: Record<Status, string> = {
   DQ: "犯规取消",
   NM: "无成绩",
 };
-
-export function dateRange(start: string, end: string): string {
-  return end && end !== start ? `${start} – ${end}` : start;
-}

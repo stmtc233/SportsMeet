@@ -1,13 +1,14 @@
 import { useNav } from "../../app/nav";
 import { IconBack, StIconButton, StListItem, StPage, StToolbar, iconStroke } from "../../design";
 import { AboutContent } from "../about/AboutContent";
+import { AuditPanel } from "./AuditPanel";
 import { MCPPanel } from "./MCPPanel";
 import { PreferencesPanel } from "./PreferencesPanel";
 
-export type SettingsSection = "general" | "arrange" | "print" | "mcp" | "about";
+export type SettingsSection = "general" | "arrange" | "print" | "mcp" | "log" | "about";
 const sections: { value: SettingsSection; label: string }[] = [
   { value: "general", label: "通用" }, { value: "arrange", label: "编排" }, { value: "print", label: "打印" },
-  { value: "mcp", label: "MCP" }, { value: "about", label: "关于" },
+  { value: "mcp", label: "MCP" }, { value: "log", label: "操作日志" }, { value: "about", label: "关于" },
 ];
 
 export function SettingsPage() {
@@ -26,7 +27,7 @@ export function SettingsPage() {
           <div className="settings__back"><StIconButton label="设置分类" onClick={() => go({ ...route, section: null })}><IconBack size={18} strokeWidth={iconStroke} /></StIconButton></div>
           <div className="narrow">
             <h2 className="settings__title">{title}</h2>
-            {section === "mcp" ? <MCPPanel /> : section === "about" ? <AboutContent /> : <PreferencesPanel section={section} />}
+            {section === "mcp" ? <MCPPanel /> : section === "log" ? <AuditPanel /> : section === "about" ? <AboutContent /> : <PreferencesPanel section={section} />}
           </div>
         </main>
       </div>

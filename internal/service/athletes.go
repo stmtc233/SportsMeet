@@ -83,7 +83,7 @@ func (in AthleteInput) athlete() (domain.Athlete, error) {
 		return a, invalid("请填写姓名")
 	case !ok:
 		return a, invalid("性别只能为男或女")
-	case a.BirthDate != "" && !dateRe.MatchString(a.BirthDate):
+	case a.BirthDate != "" && !domain.ValidDate(a.BirthDate):
 		return a, invalid("出生日期格式不正确")
 	}
 	a.Gender = g

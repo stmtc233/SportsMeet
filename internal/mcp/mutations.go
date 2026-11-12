@@ -91,7 +91,12 @@ func registerMutations(s *sdk.Server, svc *service.Service) {
 	mutationPair(s, svc, "preview_athletes", "import_athletes", "批量导入表格运动员、所属单位与报名；先 parse_table 获取 rows 和 mapping", func(in tableArg) (service.Mutation, confirmation) {
 		return service.Mutation{Action: "import_athletes", MeetID: in.MeetID, Table: in.Table}, in.confirmation
 	})
-	addTool(s, "preview_schedule", "预览一个轮次的批量计划时间：按组序号排列，已有成绩的组跳过且不占间隔，已有计划时间可覆盖；返回 changes、skipped、errors 和 previewHash。向用户展示原时间与新时间后取得明确确认。", true, func(ctx context.Context, in scheduleArg) (any, error) {
+	addTool(s, "set_round_start", "设置一个轮次的开始时间（本地时间 YYYY-MM-DDTHH:mm，无时区；空字符串清除）。没有单独计划时间的组沿用它，get_event 的 effectiveAt / scheduleInherited 反映结果。直接写入；返回 warnings（如不在赛事日期内），只提示不拦截，须转告用户。", false, func(ctx context.Context, in struct {
+		Input service.RoundStart `json:"input"`
+	}) (any, error) {
+		return svc.SetRoundStart(ctx, store.SourceMCP, in.Input)
+	})
+	addTool(s, "preview_schedule", "预览批量计划时间：一个轮次（request.eventId / roundId），或按 request.rounds 顺序连排同一赛事的多个轮次，轮次之间另留 roundGapMinutes。每个轮次按组序号排列，已有成绩的组跳过且不占间隔，已有计划时间可覆盖；间隔同时写为每个被排组的预计用时（durationMinutes）。返回 changes（原时间与用时 beforeText、新 afterText、所属轮次 round）、skipped、errors、warnings（如不在赛事日期内、排完后的时间冲突，只提示不拦截）、conflicts 和 previewHash。向用户展示变化与提示后取得明确确认。", true, func(ctx context.Context, in scheduleArg) (any, error) {
 		return svc.PreviewSchedule(ctx, in.Request)
 	})
 	addTool(s, "schedule_heats", "提交批量计划时间。必须先 preview_schedule 并获得用户确认，携带相同 request、previewHash 和 confirmed=true；任何目标轮次数据变化后必须重新预览。", false, func(ctx context.Context, in scheduleArg) (any, error) {
