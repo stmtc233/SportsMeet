@@ -16,7 +16,7 @@ func Fingerprint(h domain.Heat) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%d\x00%s\x00%s", h.Ordinal, h.Name, h.ScheduledAt)
 	for _, s := range h.Slots {
-		fmt.Fprintf(&b, "\x00%d=%s", s.Position, s.AthleteID)
+		fmt.Fprintf(&b, "\x00%d=%s", s.Position, s.AthleteID+"|"+s.TeamID)
 	}
 	sum := sha256.Sum256([]byte(b.String()))
 	return hex.EncodeToString(sum[:12])

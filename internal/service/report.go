@@ -65,16 +65,23 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 	if err != nil {
 		return nil, err
 	}
-	st := &eventState{athletes: map[string]domain.Athlete{}, units: map[string]domain.Unit{}}
+	teams, err := s.store.ListTeams(ctx, sc)
+	if err != nil {
+		return nil, err
+	}
+	st := &eventState{teams: map[string]domain.Team{}, athletes: map[string]domain.Athlete{}, units: map[string]domain.Unit{}}
 	for _, a := range athletes {
 		st.athletes[a.ID] = a
 	}
 	for _, u := range units {
 		st.units[u.ID] = u
 	}
+	for _, t := range teams {
+		st.teams[t.ID] = t
+	}
 	seeds := map[string]*int64{}
 	for _, e := range entries {
-		seeds[e.EventID+"|"+e.AthleteID] = e.SeedMark
+		seeds[e.EventID+"|"+e.CompetitorID()] = e.SeedMark
 	}
 	only := map[string]bool{}
 	for _, id := range eventIDs {
@@ -93,10 +100,16 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 		if date == "" {
 			date = meet.StartDate
 		}
-		ev := report.Event{Name: e.Name, Date: date, Timed: e.Kind.Timed()}
+		st.event = e
+		ev := report.Event{Name: e.Name, Date: date, Timed: e.Kind.Timed(), Relay: e.Kind == domain.KindRelay}
 		line := func(sl domain.Slot) report.Line {
-			a := st.athletes[sl.AthleteID]
-			l := report.Line{Position: sl.Position, Bib: a.Bib, Name: a.Name, Unit: st.unitName(a)}
+			a, _ := st.competitor(sl.CompetitorID())
+			l := report.Line{Position: sl.Position, Bib: a.Bib, Name: a.Name, Unit: st.unitName(a.UnitID)}
+			if sl.TeamID != "" {
+				for i, id := range st.teams[sl.TeamID].MemberIDs {
+					l.Members = append(l.Members, fmt.Sprintf("%d棒 %s", i+1, st.athletes[id].Name))
+				}
+			}
 			if seed := seeds[e.ID+"|"+a.ID]; seed != nil {
 				l.Seed = scoring.FormatMark(e.Kind, *seed)
 			}
@@ -123,13 +136,13 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 					l := line(sl)
 					heat.Lines = append(heat.Lines, l)
 					l.Heat = heat.Label
-					bySlot[sl.AthleteID] = l
+					bySlot[sl.CompetitorID()] = l
 				}
 				rr.Heats = append(rr.Heats, heat)
 			}
 			list, _ := standings(e.Kind, r)
 			for _, row := range list {
-				l := bySlot[row.AthleteID]
+				l := bySlot[row.CompetitorID]
 				l.Rank = ""
 				if row.Rank != nil {
 					l.Rank = strconv.Itoa(*row.Rank)

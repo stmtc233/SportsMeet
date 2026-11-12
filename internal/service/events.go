@@ -102,8 +102,6 @@ func (in EventInput) event() (domain.Event, error) {
 		return e, invalid("请选择性别")
 	case e.Discipline == "":
 		return e, invalid("请填写项目名")
-	case e.Kind == domain.KindRelay:
-		return e, invalid("暂不支持接力项目")
 	case !e.Kind.Valid():
 		return e, invalid("请选择项目类型")
 	case e.Date != "" && !dateRe.MatchString(e.Date):
@@ -197,6 +195,25 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 			}
 			for _, h := range r.Heats {
 				results += h.Facts().Results
+			}
+		}
+		if (e.Kind == domain.KindRelay) != (old.Kind == domain.KindRelay) {
+			entries, err := s.store.ListEntries(ctx, store.Scope{EventID: id})
+			if err != nil {
+				return nil, err
+			}
+			teams, err := s.store.ListTeams(ctx, store.Scope{EventID: id})
+			if err != nil {
+				return nil, err
+			}
+			occupied := false
+			for _, r := range rounds[id] {
+				for _, h := range r.Heats {
+					occupied = occupied || len(h.Slots) > 0
+				}
+			}
+			if len(entries) > 0 || len(teams) > 0 || occupied {
+				return nil, invalid("已有报名或队伍，不能切换接力类型")
 			}
 		}
 		if e.Kind != old.Kind && results > 0 {

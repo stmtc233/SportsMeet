@@ -279,6 +279,52 @@ func TestSDKClientToolsAndConfirmation(t *testing.T) {
 	if len(protected["errors"].([]any)) == 0 {
 		t.Fatal("MCP delete allowed scored meet")
 	}
+
+	// Relay uses the same HTTP tools and typed team identities throughout.
+	relayEvent := call("save_event", map[string]any{"meetId": meetID, "input": map[string]any{"gender": "男", "discipline": "4×100m", "kind": "relay"}}, false)
+	relayID := relayEvent["id"].(string)
+	memberID := athlete["athlete"].(map[string]any)["id"]
+	team := call("save_team", map[string]any{"eventId": relayID, "input": map[string]any{"name": "A队", "memberIds": []any{memberID}}}, false)
+	teamID := team["id"]
+	relayEntryArgs := map[string]any{"eventId": relayID, "entries": []any{map[string]any{"teamId": teamID}}}
+	relayPreview := call("preview_entries", relayEntryArgs, false)
+	relayEntryArgs["previewHash"], relayEntryArgs["confirmed"] = relayPreview["previewHash"], true
+	call("add_entries", relayEntryArgs, false)
+	call("set_seed", map[string]any{"eventId": relayID, "teamId": teamID, "seed": "51.50"}, false)
+	rd, err := svc.GetEvent(ctx, relayID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rd.Teams) != 1 || rd.Teams[0].MemberIDs[0] != memberID || rd.Entries[0].SeedText != "51.50" || rd.Entries[0].AthleteID != "" {
+		t.Fatalf("relay desktop detail: %+v", rd)
+	}
+	relayPlan := map[string]any{"plan": map[string]any{"eventId": relayID, "roundId": rd.Rounds[0].ID, "perHeat": 8, "order": "seed", "lanes": "center", "seed": 17}}
+	rp := call("preview_arrange", relayPlan, false)
+	relayPlan["previewHash"], relayPlan["confirmed"] = rp["previewHash"], true
+	call("auto_arrange", relayPlan, false)
+	rd, err = svc.GetEvent(ctx, relayID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rh := rd.Rounds[0].Heats[0]
+	call("set_results", map[string]any{"heatId": rh.ID, "results": []any{map[string]any{"position": rh.Slots[0].Position, "mark": "49.12"}}}, false)
+	rd, err = svc.GetEvent(ctx, relayID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rd.Rounds[0].Standings[0].TeamID != teamID || *rd.Rounds[0].Standings[0].Rank != 1 {
+		t.Fatal("relay not ranked")
+	}
+	call("save_team", map[string]any{"eventId": relayID, "id": teamID, "input": map[string]any{"name": "A队", "memberIds": []any{}}}, true)
+	dp := call("preview_delete_team", map[string]any{"eventId": relayID, "id": teamID}, false)
+	if len(dp["errors"].([]any)) == 0 {
+		t.Fatal("scored team deletion allowed")
+	}
+	spare := call("save_team", map[string]any{"eventId": relayID, "input": map[string]any{"name": "备用队", "memberIds": []any{}}}, false)
+	delArgs := map[string]any{"eventId": relayID, "id": spare["id"]}
+	dp = call("preview_delete_team", delArgs, false)
+	delArgs["previewHash"], delArgs["confirmed"] = dp["previewHash"], true
+	call("delete_team", delArgs, false)
 	disposable := call("create_meet", map[string]any{"input": map[string]any{"name": "删除验证", "startDate": "2026-11-12"}}, false)
 	meetID = disposable["id"].(string)
 	args := map[string]any{"meetId": meetID}

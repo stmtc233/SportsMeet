@@ -21,15 +21,19 @@ func mcpImportErrors(data []byte) []string {
 	}
 	errors := []string{}
 	for _, e := range f.Events {
-		if e.Kind == "relay" {
-			continue
-		}
 		opposite := "女子"
 		if e.Gender == "女" {
 			opposite = "男子"
 		}
 		if e.Gender != "混合" && strings.Contains(e.Name, opposite) {
 			errors = append(errors, fmt.Sprintf("项目「%s」的名称与性别不符", e.Name))
+		}
+		for _, t := range e.Teams {
+			for _, id := range t.MemberIDs {
+				if g := genders[id]; g != "" && e.Gender != "混合" && g != e.Gender {
+					errors = append(errors, fmt.Sprintf("运动员「%s」的性别与项目「%s」不符", names[id], e.Discipline))
+				}
+			}
 		}
 		for _, en := range e.Entries {
 			if g := genders[en.AthleteID]; g != "" && e.Gender != "混合" && g != e.Gender {

@@ -132,8 +132,6 @@ func TestEventRules(t *testing.T) {
 	wantInvalid(t, err, "已有相同的项目")
 	_, err = f.svc.SaveEvent(f.ctx, ui, f.meet, "", EventInput{Discipline: "100m", Kind: "track"})
 	wantInvalid(t, err, "性别")
-	_, err = f.svc.SaveEvent(f.ctx, ui, f.meet, "", EventInput{Gender: "男", Discipline: "4×100m", Kind: "relay"})
-	wantInvalid(t, err, "接力")
 
 	d := f.detail()
 	if d.Event.Name != "男子100m" || len(d.Rounds) != 1 || d.Rounds[0].Stage != domain.StageFinal {
@@ -212,7 +210,7 @@ func TestSaveBoard(t *testing.T) {
 	}
 
 	// Moving a[3] into heat 1 takes it out of heat 2, which was not submitted.
-	slots := []SlotSave{{4, a[0]}, {5, a[1]}, {3, a[2]}, {6, a[3]}}
+	slots := []SlotSave{{Position: 4, AthleteID: a[0]}, {Position: 5, AthleteID: a[1]}, {Position: 3, AthleteID: a[2]}, {Position: 6, AthleteID: a[3]}}
 	must(t, save(RoundSave{Order: []string{h1.ID, h2.ID}, Changed: []HeatSave{{ID: h1.ID, Base: h1.Base, Name: "第1组", ScheduledAt: "2026-11-12T09:30", Slots: slots}}}))
 	d = f.detail()
 	h1, h2 = d.Rounds[0].Heats[0], d.Rounds[0].Heats[1]
@@ -224,11 +222,11 @@ func TestSaveBoard(t *testing.T) {
 	}
 
 	// Lane 9 does not exist; the same athlete twice is refused.
-	wantInvalid(t, save(RoundSave{Order: []string{h1.ID, h2.ID}, Changed: []HeatSave{{ID: h2.ID, Base: h2.Base, Slots: []SlotSave{{9, a[4]}}}}}), "超过 8 道")
-	wantInvalid(t, save(RoundSave{Order: []string{h1.ID, h2.ID}, Changed: []HeatSave{{ID: h2.ID, Base: h2.Base, Slots: []SlotSave{{1, a[4]}, {2, a[4]}}}}}), "两次")
+	wantInvalid(t, save(RoundSave{Order: []string{h1.ID, h2.ID}, Changed: []HeatSave{{ID: h2.ID, Base: h2.Base, Slots: []SlotSave{{Position: 9, AthleteID: a[4]}}}}}), "超过 8 道")
+	wantInvalid(t, save(RoundSave{Order: []string{h1.ID, h2.ID}, Changed: []HeatSave{{ID: h2.ID, Base: h2.Base, Slots: []SlotSave{{Position: 1, AthleteID: a[4]}, {Position: 2, AthleteID: a[4]}}}}}), "两次")
 
 	// Reordering renumbers; a new heat in between takes the next ordinal.
-	must(t, save(RoundSave{Order: []string{h2.ID, "k", h1.ID}, Added: []HeatSave{{Key: "k", Name: "加赛", Slots: []SlotSave{{1, a[5]}}}}}))
+	must(t, save(RoundSave{Order: []string{h2.ID, "k", h1.ID}, Added: []HeatSave{{Key: "k", Name: "加赛", Slots: []SlotSave{{Position: 1, AthleteID: a[5]}}}}}))
 	d = f.detail()
 	hs := d.Rounds[0].Heats
 	if len(hs) != 3 || hs[0].ID != h2.ID || hs[0].Ordinal != 2 || hs[1].Label != "加赛" || hs[1].Ordinal != 3 || hs[2].ID != h1.ID || hs[2].Ordinal != 4 {
@@ -246,10 +244,10 @@ func TestSaveBoard(t *testing.T) {
 	}
 	order := []string{hs[0].ID, hs[1].ID, h1.ID}
 	wantInvalid(t, save(RoundSave{Order: order[:2], Deleted: []HeatRef{{h1.ID, h1.Base}}}), "不能删除")
-	swapped := []SlotSave{{5, a[0]}, {4, a[1]}, {3, a[2]}, {6, a[3]}}
+	swapped := []SlotSave{{Position: 5, AthleteID: a[0]}, {Position: 4, AthleteID: a[1]}, {Position: 3, AthleteID: a[2]}, {Position: 6, AthleteID: a[3]}}
 	wantInvalid(t, save(RoundSave{Order: order, Changed: []HeatSave{{ID: h1.ID, Base: h1.Base, Slots: swapped}}}), "先解锁")
 	// A locked heat also keeps its athletes when another heat claims one.
-	wantInvalid(t, save(RoundSave{Order: order, Changed: []HeatSave{{ID: hs[0].ID, Base: hs[0].Base, Slots: []SlotSave{{1, a[4]}, {2, a[0]}}}}}), "先解锁")
+	wantInvalid(t, save(RoundSave{Order: order, Changed: []HeatSave{{ID: hs[0].ID, Base: hs[0].Base, Slots: []SlotSave{{Position: 1, AthleteID: a[4]}, {Position: 2, AthleteID: a[0]}}}}}), "先解锁")
 	// Renaming it is fine, and unlocked the swap carries each result along.
 	must(t, save(RoundSave{Order: order, Changed: []HeatSave{{ID: h1.ID, Base: h1.Base, Name: "A 组", Slots: swapped}}},
 		func(in *BoardSave) { in.Unlocked = []string{h1.ID} }))

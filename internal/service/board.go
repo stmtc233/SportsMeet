@@ -47,7 +47,7 @@ func (s *Service) PlanHeats(ctx context.Context, req PlanRequest) ([]arrange.Pla
 	}
 	var entrants []arrange.Entrant
 	add := func(id string, seed *int64) {
-		if a, ok := st.athletes[id]; ok && !skip[id] {
+		if a, ok := st.competitor(id); ok && !skip[id] {
 			entrants = append(entrants, arrange.Entrant{ID: id, Unit: a.UnitID, Seed: seed})
 		}
 	}
@@ -67,13 +67,13 @@ func (s *Service) PlanHeats(ctx context.Context, req PlanRequest) ([]arrange.Pla
 		for _, h := range prev.Heats {
 			for _, sl := range h.Slots {
 				if sl.Result != nil && sl.Result.Qualify != "" {
-					add(sl.AthleteID, sl.Result.Mark)
+					add(sl.CompetitorID(), sl.Result.Mark)
 				}
 			}
 		}
 	} else {
 		for _, e := range st.entries {
-			add(e.AthleteID, e.SeedMark)
+			add(e.CompetitorID(), e.SeedMark)
 		}
 	}
 	plan, err := arrange.Plan(arrange.Options{
@@ -119,10 +119,12 @@ type HeatSave struct {
 	Slots       []SlotSave `json:"slots"`
 }
 
-// SlotSave places an athlete.
+// SlotSave places an athlete or relay team; ID is the UI's opaque competitor ID.
 type SlotSave struct {
 	Position  int    `json:"position"`
-	AthleteID string `json:"athleteId"`
+	AthleteID string `json:"athleteId,omitempty"`
+	TeamID    string `json:"teamId,omitempty"`
+	ID        string `json:"competitorId,omitempty"`
 }
 
 // HeatRef names a heat to delete, with the fingerprint it was loaded with.
@@ -143,7 +145,7 @@ func sameSlots(a, b []domain.Slot) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Position != b[i].Position || a[i].AthleteID != b[i].AthleteID {
+		if a[i].Position != b[i].Position || a[i].AthleteID != b[i].AthleteID || a[i].TeamID != b[i].TeamID {
 			return false
 		}
 	}
@@ -156,16 +158,19 @@ func (st *eventState) buildSlots(label string, in []SlotSave, old *domain.Heat) 
 	results := map[string]*domain.Result{}
 	if old != nil {
 		for _, sl := range old.Slots {
-			results[sl.AthleteID] = sl.Result
+			results[sl.CompetitorID()] = sl.Result
 		}
 	}
 	out := make([]domain.Slot, 0, len(in))
 	positions, members := map[int]bool{}, map[string]bool{}
 	for _, sl := range in {
-		a, ok := st.athletes[sl.AthleteID]
+		if (sl.TeamID != "" && st.event.Kind != domain.KindRelay) || (sl.AthleteID != "" && st.event.Kind == domain.KindRelay) || (sl.TeamID != "" && sl.AthleteID != "") || (sl.ID != "" && ((sl.TeamID != "" && sl.ID != sl.TeamID) || (sl.AthleteID != "" && sl.ID != sl.AthleteID))) {
+			return nil, invalid("报名类型与项目不符")
+		}
+		a, ok := st.competitor(sl.CompetitorID())
 		switch {
 		case !ok:
-			return nil, invalid("运动员不存在或已删除")
+			return nil, invalid("%s不存在或已删除", st.competitorLabel())
 		case sl.Position < 1 || positions[sl.Position]:
 			return nil, invalid("「%s」的位置重复或不正确", label)
 		case st.event.Kind.Timed() && sl.Position > st.event.LaneCount:
@@ -174,7 +179,7 @@ func (st *eventState) buildSlots(label string, in []SlotSave, old *domain.Heat) 
 			return nil, invalid("「%s」在同一轮次排了两次", a.Name)
 		}
 		positions[sl.Position], members[a.ID] = true, true
-		out = append(out, domain.Slot{Position: sl.Position, AthleteID: a.ID, Result: results[a.ID]})
+		out = append(out, st.slot(sl.Position, a.ID, results[a.ID]))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Position < out[j].Position })
 	return out, nil
@@ -309,10 +314,10 @@ func (s *Service) SaveBoard(ctx context.Context, src store.Source, in BoardSave)
 				continue
 			}
 			for _, sl := range bh.heat.Slots {
-				if placed[sl.AthleteID] {
-					return invalid("「%s」在同一轮次排了两次", st.athletes[sl.AthleteID].Name)
+				if placed[sl.CompetitorID()] {
+					return invalid("「%s」在同一轮次排了两次", st.competitorName(sl.CompetitorID()))
 				}
-				placed[sl.AthleteID] = true
+				placed[sl.CompetitorID()] = true
 			}
 		}
 		for i := range heats {
@@ -322,12 +327,12 @@ func (s *Service) SaveBoard(ctx context.Context, src store.Source, in BoardSave)
 			}
 			kept := bh.heat.Slots[:0:0]
 			for _, sl := range bh.heat.Slots {
-				if !placed[sl.AthleteID] {
+				if !placed[sl.CompetitorID()] {
 					kept = append(kept, sl)
 					continue
 				}
 				if reason := bh.old.Facts().KeepReason(); reason != "" {
-					return invalid("「%s」在%s的「%s」里，请先解锁位置", st.athletes[sl.AthleteID].Name, reason,
+					return invalid("「%s」在%s的「%s」里，请先解锁位置", st.competitorName(sl.CompetitorID()), reason,
 						domain.HeatLabel(bh.old.Ordinal, bh.old.Name))
 				}
 				bh.slots = true
@@ -366,11 +371,10 @@ func (s *Service) SaveBoard(ctx context.Context, src store.Source, in BoardSave)
 				stmts = append(stmts, store.Stmt(`DELETE FROM slots WHERE heat_id = ?`, h.ID))
 			}
 			for _, sl := range h.Slots {
-				stmts = append(stmts, store.Stmt(`INSERT INTO slots(heat_id, position, athlete_id) VALUES (?, ?, ?)`,
-					h.ID, sl.Position, sl.AthleteID))
-				if st.entered[sl.AthleteID] == nil && !entering[sl.AthleteID] {
-					entering[sl.AthleteID] = true // placing enters (docs/agents/domain.md「报名」)
-					stmts = append(stmts, store.Stmt(`INSERT INTO entries(event_id, athlete_id) VALUES (?, ?)`, in.EventID, sl.AthleteID))
+				stmts = append(stmts, insertSlot(h.ID, sl))
+				if st.entered[sl.CompetitorID()] == nil && !entering[sl.CompetitorID()] {
+					entering[sl.CompetitorID()] = true // placing enters (docs/agents/domain.md「报名」)
+					stmts = append(stmts, insertEntry(in.EventID, sl.AthleteID, sl.TeamID, nil))
 				}
 			}
 		}
@@ -387,4 +391,14 @@ func (s *Service) SaveBoard(ctx context.Context, src store.Source, in BoardSave)
 	return s.write(ctx,
 		store.Audit{Source: src, Action: action, MeetID: st.event.MeetID, EventID: in.EventID, Message: st.event.Name, Detail: detail},
 		Change{Kind: "heats", MeetID: st.event.MeetID, EventID: in.EventID}, stmts...)
+}
+
+func (sl SlotSave) CompetitorID() string {
+	if sl.ID != "" {
+		return sl.ID
+	}
+	if sl.TeamID != "" {
+		return sl.TeamID
+	}
+	return sl.AthleteID
 }

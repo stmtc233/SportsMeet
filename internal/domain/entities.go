@@ -74,11 +74,21 @@ type Result struct {
 	Note     string    `json:"note"`
 }
 
-// Entry puts an athlete into an event's pool.
+// Team belongs to a relay event. MemberIDs are ordered by leg.
+type Team struct {
+	ID        string   `json:"id"`
+	EventID   string   `json:"eventId"`
+	Name      string   `json:"name"`
+	UnitID    string   `json:"unitId"`
+	MemberIDs []string `json:"memberIds"`
+}
+
+// Entry puts an athlete or a relay team into an event's pool.
 type Entry struct {
 	EventID   string `json:"eventId"`
 	AthleteID string `json:"athleteId"`
 	SeedMark  *int64 `json:"seedMark"`
+	TeamID    string `json:"teamId,omitempty"`
 }
 
 // Advance is a round's rule for the next one: the first ByPlace of each
@@ -134,6 +144,7 @@ type Slot struct {
 	Position  int     `json:"position"`
 	AthleteID string  `json:"athleteId"`
 	Result    *Result `json:"result"`
+	TeamID    string  `json:"teamId,omitempty"`
 }
 
 // HeatFacts is what the lock rule looks at.
@@ -149,4 +160,18 @@ func (f HeatFacts) KeepReason() string {
 		return "已有成绩"
 	}
 	return ""
+}
+
+// CompetitorID identifies the athlete or team, without using a team as an athlete.
+func (e Entry) CompetitorID() string {
+	if e.TeamID != "" {
+		return e.TeamID
+	}
+	return e.AthleteID
+}
+func (s Slot) CompetitorID() string {
+	if s.TeamID != "" {
+		return s.TeamID
+	}
+	return s.AthleteID
 }

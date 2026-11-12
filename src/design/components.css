@@ -315,6 +315,7 @@ textarea {
   transform-origin: top;
   animation: st-pop-out 100ms ease-in forwards;
 }
+.st-popover:not([data-open]) { pointer-events: none; }
 .st-popover[data-up] { transform-origin: bottom; --st-pop-shift: 6px; }
 .st-popover[data-open] { animation: st-pop-in 150ms ease-out; }
 @keyframes st-pop-in {

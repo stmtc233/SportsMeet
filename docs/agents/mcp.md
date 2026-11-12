@@ -46,7 +46,7 @@
 
 - `preview_import` / `import_meet` 的 `data` 参数是完整的交换格式 JSON 文本,`meetId` 留空表示新赛事;内容遵循交换格式([interchange-format.md](../interchange-format.md))。
 - 界面的「导入赛事文件」/「导入到本赛事」走同一组 service 方法(`PreviewImport` / `ImportMeet`)。
-- 导入到已有赛事时:项目按性别 + 项目名 + 组别复用,轮次按阶段、组按序号对应;已有组的位置与文件一致才写入成绩,不一致则跳过该组并警告;文件里的名次原样保留。接力项目跳过并警告。
+- 导入到已有赛事时:项目按性别 + 项目名 + 组别复用,轮次按阶段、组按序号对应;已有组的位置与文件一致才写入成绩,不一致则跳过该组并警告;文件里的名次原样保留。接力队伍按项目内的规范化队名与单位复用,棒次必须一致,冲突时整份拒绝。
 - 一次导入只针对一个赛事(已有赛事 id,或文件里的新赛事);每个项目必带性别与项目名;运动员性别与项目不符、组名里写着另一性别等混放情形,MCP 预览即报错;这项附加校验位于 service 的 MCP 入口,普通界面文件导入仍遵循交换格式中的警告规则。
 - 文件里的成绩照常导入,预览里分别列出新增与覆盖的成绩条数;有覆盖时逐条列出「原成绩 → 新成绩」。
 - 导入在单个 SQLite 事务里完成,失败不留半成品。
@@ -69,20 +69,24 @@
 
 ## 工具目录
 
+接力与个人项目共用报名、编排、计划时间、成绩及晋级工具;接力按队使用 ID,不将运动员直接排进接力道次。
+
 单条保存的 `input` 表示完整字段;更新前先读取,省略可选字段会使用空值。`save_athlete` 返回 `athlete` 与 `warnings`,同名仅警告。业务状态和整数成绩单位见 [domain.md](domain.md)。
 
 | 工具 | 用途 |
 |---|---|
 | `list_meets` / `get_meet` | 赛事列表 / 详情 |
 | `list_units` / `list_athletes` / `list_events` | 按赛事读取基础数据与进度 |
-| `get_event` | 报名、轮次、组、位置、成绩、总排名与晋级 |
+| `get_event` | 接力队伍与棒次、报名、轮次、组、位置、成绩、总排名与晋级 |
 | `create_meet` / `update_meet` | 创建 / 更新一个赛事 |
 | `save_unit` / `save_athlete` / `save_event` | 创建 / 更新单条数据;`id` 留空创建 |
-| `set_seed` | 更新一个报名成绩 |
+| `save_team` | 创建 / 更新一个接力队及完整棒次名单;规则见 [domain.md](domain.md)「接力」 |
+| `set_seed` | 更新一个报名成绩;个人传 `athleteId`,接力传 `teamId` |
 | `parse_table` | CSV / TSV 解析与列映射;导入只传数据行 |
 | `export_meet` / `render_report` | 完整交换格式对象 / 秩序册或成绩册 HTML |
-| `preview_entries` → `add_entries` | 批量报名 |
-| `preview_remove_entries` → `remove_entries` | 取消报名 |
+| `preview_entries` → `add_entries` | 批量报名;每项二选一 `athleteId` / `teamId` |
+| `preview_remove_entries` → `remove_entries` | 取消报名;个人传 `athleteIds`,接力传 `teamIds` |
+| `preview_delete_team` → `delete_team` | 传 `eventId` 与 `id`,删除未排进组的接力队及其报名 |
 | `preview_athletes` → `import_athletes` | 表格运动员、单位与报名导入 |
 | `preview_import` → `import_meet` | 交换格式导入 |
 | `preview_arrange` → `auto_arrange` | 只追加新组,排除已保存的排位 |

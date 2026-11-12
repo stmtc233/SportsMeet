@@ -8,7 +8,7 @@ import type { BoardSave, EventDetail, HeatRef, HeatSave, PlannedHeat, RoundSave 
 
 export interface DraftSlot {
   position: number;
-  athleteId: string;
+  competitorId: string;
 }
 
 export interface DraftHeat {
@@ -62,14 +62,14 @@ export function fromDetail(detail: EventDetail): ArrangeDraft {
         name: h.name,
         scheduledAt: h.scheduledAt,
         keepReason: h.keepReason,
-        slots: h.slots.map((s) => ({ position: s.position, athleteId: s.athleteId })),
+        slots: h.slots.map((s) => ({ position: s.position, competitorId: s.competitorId })),
       })),
     })),
   };
 }
 
 function sameSlots(a: DraftSlot[], b: DraftSlot[]): boolean {
-  return a.length === b.length && a.every((s, i) => s.position === b[i]!.position && s.athleteId === b[i]!.athleteId);
+  return a.length === b.length && a.every((s, i) => s.position === b[i]!.position && s.competitorId === b[i]!.competitorId);
 }
 
 export function heatChanged(h: DraftHeat, loaded: DraftHeat | undefined): boolean {
@@ -101,7 +101,7 @@ function tidy(slots: DraftSlot[], timed: boolean): DraftSlot[] {
 /** The athletes placed in a round, with the heat holding each. */
 export function placedIn(r: DraftRound | undefined): Map<string, DraftHeat> {
   const out = new Map<string, DraftHeat>();
-  for (const h of r?.heats ?? []) for (const s of h.slots) out.set(s.athleteId, h);
+  for (const h of r?.heats ?? []) for (const s of h.slots) out.set(s.competitorId, h);
   return out;
 }
 
@@ -112,34 +112,34 @@ const lockedText = (h: DraftHeat) => `「${h.label}」${h.keepReason}，请先�
  * the two swap when the position is taken; coming from the list, whoever
  * is there goes back to the list.
  */
-export function place(draft: ArrangeDraft, roundId: string, heatKey: string, position: number, athleteId: string, timed: boolean): Edit {
+export function place(draft: ArrangeDraft, roundId: string, heatKey: string, position: number, competitorId: string, timed: boolean): Edit {
   const r = round(draft, roundId);
   const target = r?.heats.find((h) => h.key === heatKey);
   if (!r || !target) return { error: "该组已不存在" };
   if (isLocked(draft, target)) return { error: lockedText(target) };
-  const source = r.heats.find((h) => h.slots.some((s) => s.athleteId === athleteId));
+  const source = r.heats.find((h) => h.slots.some((s) => s.competitorId === competitorId));
   if (source && isLocked(draft, source)) return { error: lockedText(source) };
-  const from = source?.slots.find((s) => s.athleteId === athleteId)?.position;
-  const occupant = target.slots.find((s) => s.position === position)?.athleteId;
-  if (occupant === athleteId) return { draft };
+  const from = source?.slots.find((s) => s.competitorId === competitorId)?.position;
+  const occupant = target.slots.find((s) => s.position === position)?.competitorId;
+  if (occupant === competitorId) return { draft };
 
   const heats = r.heats.map((h) => {
     if (h !== target && h !== source) return h;
-    let slots = h.slots.filter((s) => s.athleteId !== athleteId && s.athleteId !== occupant);
-    if (h === target) slots = [...slots, { position, athleteId }];
-    if (h === source && occupant && from !== undefined) slots = [...slots, { position: from, athleteId: occupant }];
+    let slots = h.slots.filter((s) => s.competitorId !== competitorId && s.competitorId !== occupant);
+    if (h === target) slots = [...slots, { position, competitorId }];
+    if (h === source && occupant && from !== undefined) slots = [...slots, { position: from, competitorId: occupant }];
     return { ...h, slots: tidy(slots, timed) };
   });
   return { draft: withRound(draft, roundId, (old) => ({ ...old, heats })) };
 }
 
 /** Takes an athlete out of the round, back to the list. */
-export function unplace(draft: ArrangeDraft, roundId: string, athleteId: string, timed: boolean): Edit {
+export function unplace(draft: ArrangeDraft, roundId: string, competitorId: string, timed: boolean): Edit {
   const r = round(draft, roundId);
-  const source = r?.heats.find((h) => h.slots.some((s) => s.athleteId === athleteId));
+  const source = r?.heats.find((h) => h.slots.some((s) => s.competitorId === competitorId));
   if (!r || !source) return { draft };
   if (isLocked(draft, source)) return { error: lockedText(source) };
-  const heats = r.heats.map((h) => (h === source ? { ...h, slots: tidy(h.slots.filter((s) => s.athleteId !== athleteId), timed) } : h));
+  const heats = r.heats.map((h) => (h === source ? { ...h, slots: tidy(h.slots.filter((s) => s.competitorId !== competitorId), timed) } : h));
   return { draft: withRound(draft, roundId, (old) => ({ ...old, heats })) };
 }
 
@@ -153,7 +153,7 @@ export function addHeat(draft: ArrangeDraft, roundId: string): ArrangeDraft {
 
 /** Appends heats planned by Go's arrange as they are. */
 export function appendPlanned(draft: ArrangeDraft, roundId: string, planned: PlannedHeat[]): ArrangeDraft {
-  const heats = planned.map((p) => blankHeat(sorted(p.slots.map((s) => ({ position: s.position, athleteId: s.athleteId })))));
+  const heats = planned.map((p) => blankHeat(sorted(p.slots.map((s) => ({ position: s.position, competitorId: s.competitorId })))));
   return withRound(draft, roundId, (r) => ({ ...r, heats: [...r.heats, ...heats] }));
 }
 
@@ -284,10 +284,10 @@ export function merge(draft: ArrangeDraft, loaded: ArrangeDraft, fresh: ArrangeD
 
     // One slot per athlete: heats taken fresh win over local ones.
     const taken = new Set<string>();
-    for (const h of heats) if (fromFresh.has(h.key)) for (const s of h.slots) taken.add(s.athleteId);
+    for (const h of heats) if (fromFresh.has(h.key)) for (const s of h.slots) taken.add(s.competitorId);
     heats = heats.map((h) => {
       if (fromFresh.has(h.key)) return h;
-      const slots = h.slots.filter((s) => !taken.has(s.athleteId));
+      const slots = h.slots.filter((s) => !taken.has(s.competitorId));
       if (slots.length !== h.slots.length) dropped = true;
       return slots.length === h.slots.length ? h : { ...h, slots };
     });

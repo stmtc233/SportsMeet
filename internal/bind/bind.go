@@ -192,13 +192,13 @@ func (e Entries) Add(ctx context.Context, eventID string, list []service.EntryIn
 }
 
 // SetSeed changes an entry mark; "" clears it.
-func (e Entries) SetSeed(ctx context.Context, eventID, athleteID, seed string) error {
-	return e.Svc.SetSeed(ctx, ui, eventID, athleteID, seed)
+func (e Entries) SetSeed(ctx context.Context, eventID, competitorID, seed string) error {
+	return e.Svc.SetSeed(ctx, ui, eventID, competitorID, seed)
 }
 
 // Remove withdraws athletes from an event.
-func (e Entries) Remove(ctx context.Context, eventID string, athleteIDs []string) error {
-	return e.Svc.RemoveEntries(ctx, ui, eventID, athleteIDs)
+func (e Entries) Remove(ctx context.Context, eventID string, competitorIDs []string) error {
+	return e.Svc.RemoveEntries(ctx, ui, eventID, competitorIDs)
 }
 
 // Arrange plans and saves heats.
@@ -210,8 +210,15 @@ func (a Arrange) Plan(ctx context.Context, req service.PlanRequest) ([]arrange.P
 }
 
 // Save applies the arrange page's draft.
-func (a Arrange) Save(ctx context.Context, in service.BoardSave) error {
-	return a.Svc.SaveBoard(ctx, ui, in)
+func (a Arrange) Save(ctx context.Context, in service.BoardSave) (service.EventDetail, error) {
+	if err := a.Svc.SaveBoard(ctx, ui, in); err != nil {
+		return service.EventDetail{}, err
+	}
+	saved, err := a.Svc.GetEvent(ctx, in.EventID)
+	if err != nil {
+		return service.EventDetail{}, err
+	}
+	return *saved, nil
 }
 
 // Results records marks.

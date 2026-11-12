@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stmtc233/sportsmeet/internal/arrange"
+	"github.com/stmtc233/sportsmeet/internal/domain"
 	"github.com/stmtc233/sportsmeet/internal/interchange"
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
@@ -308,7 +309,7 @@ func TestMCPFieldRecordsAndRollback(t *testing.T) {
 	}
 }
 
-func TestRelayImportIsSkippedWithWarning(t *testing.T) {
+func TestRelayImportIncludesTeams(t *testing.T) {
 	f := newFixture(t, 0, EventInput{})
 	file, err := f.svc.ExportMeet(f.ctx, f.meet)
 	must(t, err)
@@ -317,15 +318,15 @@ func TestRelayImportIsSkippedWithWarning(t *testing.T) {
 	must(t, err)
 	p, err := f.svc.PreviewImport(f.ctx, data, "")
 	must(t, err)
-	if len(p.Errors) != 0 || len(p.Warnings) == 0 || !strings.Contains(strings.Join(p.Warnings, ""), "接力") {
+	if len(p.Errors) != 0 || p.Teams.New != 1 || p.Entries != 1 {
 		t.Fatalf("relay preview: %+v", p)
 	}
 	imported, err := f.svc.ImportMeet(f.ctx, ui, data, "", p.Hash)
 	must(t, err)
 	events, err := f.svc.ListEvents(f.ctx, imported.MeetID)
 	must(t, err)
-	if len(events) != 0 {
-		t.Fatal("relay was imported")
+	if len(events) != 1 || events[0].Event.Kind != domain.KindRelay {
+		t.Fatal("relay not imported")
 	}
 }
 

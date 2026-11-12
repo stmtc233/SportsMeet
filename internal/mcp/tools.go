@@ -47,7 +47,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	addTool(s, "list_units", "列出参赛单位。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.ListUnits(ctx, in.MeetID) })
 	addTool(s, "list_athletes", "列出运动员、所属单位及报名和排位状态。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.ListAthletes(ctx, in.MeetID) })
 	addTool(s, "list_events", "列出项目及比赛进度。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.ListEvents(ctx, in.MeetID) })
-	addTool(s, "get_event", "读取项目、报名、轮次、组、位置、成绩、排名与 Q/q 晋级。", true, func(ctx context.Context, in eventArg) (any, error) { return svc.GetEvent(ctx, in.EventID) })
+	addTool(s, "get_event", "读取项目、接力队伍与棒次、报名、轮次、组、位置、成绩、排名与 Q/q 晋级。", true, func(ctx context.Context, in eventArg) (any, error) { return svc.GetEvent(ctx, in.EventID) })
 	addTool(s, "export_meet", "返回一个赛事的完整交换格式对象，含成绩。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.ExportMeet(ctx, in.MeetID) })
 	addTool(s, "create_meet", "创建赛事。", false, func(ctx context.Context, in struct {
 		Input service.MeetInput `json:"input"`
@@ -67,15 +67,23 @@ func NewServer(svc *service.Service) *sdk.Server {
 	addTool(s, "save_athlete", "创建或更新一个运动员。id 留空创建；学号、号码布赛事内唯一。更新时 input 是全部字段。", false, func(ctx context.Context, in saveAthleteArg) (any, error) {
 		return svc.SaveAthleteWithWarnings(ctx, store.SourceMCP, in.MeetID, in.ID, in.Input)
 	})
-	addTool(s, "save_event", "创建或更新一个项目。id 留空创建；必须有性别、项目名与类型；不支持接力。更新时 input 是全部字段。", false, func(ctx context.Context, in saveEventArg) (any, error) {
+	addTool(s, "save_team", "创建或更新接力队伍。eventId 指定接力项目，id 留空创建；input 是完整队名、参赛单位和按棒次顺序的 memberIds（可为空）。同一运动员在一个接力项目只能属于一队，已有比赛记录不能改棒次。保存队伍后用 add_entries 的 teamId 报名。", false, func(ctx context.Context, in struct {
+		EventID string            `json:"eventId"`
+		ID      string            `json:"id,omitempty"`
+		Input   service.TeamInput `json:"input"`
+	}) (any, error) {
+		return svc.SaveTeam(ctx, store.SourceMCP, in.EventID, in.ID, in.Input)
+	})
+	addTool(s, "save_event", "创建或更新一个项目。id 留空创建；必须有性别、项目名与类型。更新时 input 是全部字段。", false, func(ctx context.Context, in saveEventArg) (any, error) {
 		return svc.SaveEvent(ctx, store.SourceMCP, in.MeetID, in.ID, in.Input)
 	})
 	addTool(s, "set_seed", "设置一个报名成绩；seed 留空清除。", false, func(ctx context.Context, in struct {
 		EventID   string `json:"eventId"`
-		AthleteID string `json:"athleteId"`
+		AthleteID string `json:"athleteId,omitempty"`
+		TeamID    string `json:"teamId,omitempty"`
 		Seed      string `json:"seed"`
 	}) (any, error) {
-		err := svc.SetSeed(ctx, store.SourceMCP, in.EventID, in.AthleteID, in.Seed)
+		err := svc.SetEntrySeed(ctx, store.SourceMCP, in.EventID, service.EntryInput{AthleteID: in.AthleteID, TeamID: in.TeamID, Seed: in.Seed})
 		return map[string]bool{"saved": err == nil}, err
 	})
 	addTool(s, "parse_table", "解析粘贴的 CSV/TSV，返回列映射与行，不写入。", true, func(_ context.Context, in struct {

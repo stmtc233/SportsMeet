@@ -13,6 +13,7 @@ import (
 // EventDetail is everything the entries, arrange and results pages show
 // for one event.
 type EventDetail struct {
+	Teams   []TeamView   `json:"teams"`
 	Event   domain.Event `json:"event"`
 	Entries []EntryView  `json:"entries"`
 	Rounds  []RoundView  `json:"rounds"`
@@ -30,6 +31,8 @@ type EntryView struct {
 	SeedText       string        `json:"seedText"`
 	Placed         bool          `json:"placed"`         // occupies a slot in this event
 	GenderMismatch bool          `json:"genderMismatch"` // differs from the event's gender
+	CompetitorID   string        `json:"competitorId"`
+	TeamID         string        `json:"teamId,omitempty"`
 }
 
 // RoundView is a round with its heats and overall order.
@@ -58,9 +61,11 @@ type HeatView struct {
 
 // SlotView is a slot with its result.
 type SlotView struct {
-	Position  int         `json:"position"`
-	AthleteID string      `json:"athleteId"`
-	Result    *ResultView `json:"result"`
+	Position     int         `json:"position"`
+	AthleteID    string      `json:"athleteId"`
+	Result       *ResultView `json:"result"`
+	CompetitorID string      `json:"competitorId"`
+	TeamID       string      `json:"teamId,omitempty"`
 }
 
 // ResultView is a result with its texts as the page shows and edits them.
@@ -85,18 +90,22 @@ type BarView struct {
 // Standing is one line of a round's overall order: ranked results first,
 // then the others.
 type Standing struct {
-	Rank      *int          `json:"rank"`
-	AthleteID string        `json:"athleteId"`
-	HeatLabel string        `json:"heatLabel"`
-	Position  int           `json:"position"`
-	Status    domain.Status `json:"status"`
-	MarkText  string        `json:"markText"`
-	Qualify   string        `json:"qualify"`
+	Rank         *int          `json:"rank"`
+	AthleteID    string        `json:"athleteId"`
+	HeatLabel    string        `json:"heatLabel"`
+	Position     int           `json:"position"`
+	Status       domain.Status `json:"status"`
+	MarkText     string        `json:"markText"`
+	Qualify      string        `json:"qualify"`
+	CompetitorID string        `json:"competitorId"`
+	TeamID       string        `json:"teamId,omitempty"`
 }
 
 // eventState is one event as loaded for a read or, under the write lock,
 // for a write.
 type eventState struct {
+	teams    map[string]domain.Team
+	teamList []domain.Team
 	event    domain.Event
 	entries  []domain.Entry
 	entered  map[string]*domain.Entry
@@ -120,7 +129,7 @@ func (s *Service) loadEvent(ctx context.Context, eventID string) (*eventState, e
 		return nil, err
 	}
 	for i := range st.entries {
-		st.entered[st.entries[i].AthleteID] = &st.entries[i]
+		st.entered[st.entries[i].CompetitorID()] = &st.entries[i]
 	}
 	athletes, err := s.store.ListAthletes(ctx, st.event.MeetID)
 	if err != nil {
@@ -140,6 +149,14 @@ func (s *Service) loadEvent(ctx context.Context, eventID string) (*eventState, e
 	if err != nil {
 		return nil, err
 	}
+	st.teamList, err = s.store.ListTeams(ctx, sc)
+	if err != nil {
+		return nil, err
+	}
+	st.teams = map[string]domain.Team{}
+	for _, t := range st.teamList {
+		st.teams[t.ID] = t
+	}
 	st.rounds = rounds[eventID]
 	return st, nil
 }
@@ -153,8 +170,8 @@ func (st *eventState) round(id string) *domain.Round {
 	return nil
 }
 
-func (st *eventState) unitName(a domain.Athlete) string {
-	u := st.units[a.UnitID]
+func (st *eventState) unitName(unitID string) string {
+	u := st.units[unitID]
 	if u.ShortName != "" {
 		return u.ShortName
 	}
@@ -182,29 +199,37 @@ func (st *eventState) view() *EventDetail {
 				ScheduledAt: h.ScheduledAt, KeepReason: h.Facts().KeepReason(), Base: arrange.Fingerprint(h),
 				Slots: make([]SlotView, len(h.Slots))}
 			for k, sl := range h.Slots {
-				placed[sl.AthleteID] = true
-				hv.Slots[k] = SlotView{Position: sl.Position, AthleteID: sl.AthleteID, Result: resultView(kind, sl.Result)}
+				placed[sl.CompetitorID()] = true
+				hv.Slots[k] = SlotView{Position: sl.Position, AthleteID: sl.AthleteID, TeamID: sl.TeamID, CompetitorID: sl.CompetitorID(), Result: resultView(kind, sl.Result)}
 			}
 			rv.Heats[j] = hv
 		}
 		rv.Standings, rv.Complete = standings(kind, r)
 		rounds[i] = rv
 	}
+	teams := st.teamViews()
+	mismatch := map[string]bool{}
+	for _, t := range teams {
+		mismatch[t.ID] = t.GenderMismatch
+	}
 	entries := make([]EntryView, 0, len(st.entries))
 	for _, e := range st.entries {
-		a, ok := st.athletes[e.AthleteID]
+		a, ok := st.competitor(e.CompetitorID())
 		if !ok {
 			continue
 		}
-		v := EntryView{AthleteID: a.ID, Name: a.Name, Gender: a.Gender, Bib: a.Bib, UnitID: a.UnitID,
-			UnitName: st.unitName(a), SeedMark: e.SeedMark, Placed: placed[a.ID],
+		v := EntryView{AthleteID: e.AthleteID, TeamID: e.TeamID, CompetitorID: e.CompetitorID(), Name: a.Name, Gender: a.Gender, Bib: a.Bib, UnitID: a.UnitID,
+			UnitName: st.unitName(a.UnitID), SeedMark: e.SeedMark, Placed: placed[a.ID],
 			GenderMismatch: a.Gender != "" && st.event.Gender != domain.GenderMixed && a.Gender != st.event.Gender}
 		if e.SeedMark != nil {
 			v.SeedText = scoring.FormatMark(kind, *e.SeedMark)
 		}
+		if e.TeamID != "" {
+			v.GenderMismatch = mismatch[e.TeamID]
+		}
 		entries = append(entries, v)
 	}
-	return &EventDetail{Event: st.event, Entries: entries, Rounds: rounds}
+	return &EventDetail{Event: st.event, Teams: teams, Entries: entries, Rounds: rounds}
 }
 
 func resultView(kind domain.EventKind, r *domain.Result) *ResultView {
@@ -246,8 +271,8 @@ func standings(kind domain.EventKind, r domain.Round) (list []Standing, complete
 			if sl.Result == nil {
 				continue
 			}
-			all = append(all, ranked(sl.AthleteID, sl.Result))
-			row := Standing{AthleteID: sl.AthleteID, HeatLabel: domain.HeatLabel(h.Ordinal, h.Name),
+			all = append(all, ranked(sl.CompetitorID(), sl.Result))
+			row := Standing{AthleteID: sl.AthleteID, TeamID: sl.TeamID, CompetitorID: sl.CompetitorID(), HeatLabel: domain.HeatLabel(h.Ordinal, h.Name),
 				Position: sl.Position, Status: sl.Result.Status, Qualify: sl.Result.Qualify}
 			if sl.Result.Mark != nil {
 				row.MarkText = scoring.FormatMark(kind, *sl.Result.Mark)
@@ -257,7 +282,7 @@ func standings(kind domain.EventKind, r domain.Round) (list []Standing, complete
 	}
 	places := scoring.Rank(kind, all)
 	for i := range list {
-		if p, ok := places[list[i].AthleteID]; ok {
+		if p, ok := places[list[i].CompetitorID]; ok {
 			list[i].Rank = &p
 		}
 	}
@@ -290,7 +315,7 @@ func rescore(kind domain.EventKind, advance *domain.Advance, heats []domain.Heat
 				complete = false
 				continue
 			}
-			list = append(list, ranked(sl.AthleteID, sl.Result))
+			list = append(list, ranked(sl.CompetitorID(), sl.Result))
 		}
 		places := scoring.Rank(kind, list)
 		for k, sl := range h.Slots {
@@ -299,8 +324,8 @@ func rescore(kind domain.EventKind, advance *domain.Advance, heats []domain.Heat
 			}
 			r := *sl.Result
 			r.Rank, r.Qualify = nil, ""
-			f := arrange.Finisher{ID: sl.AthleteID, Status: r.Status}
-			if p, ok := places[sl.AthleteID]; ok && r.Mark != nil {
+			f := arrange.Finisher{ID: sl.CompetitorID(), Status: r.Status}
+			if p, ok := places[sl.CompetitorID()]; ok && r.Mark != nil {
 				r.Rank, f.Rank, f.Mark = &p, p, *r.Mark
 			}
 			heats[i].Slots[k].Result = &r
@@ -314,7 +339,7 @@ func rescore(kind domain.EventKind, advance *domain.Advance, heats []domain.Heat
 	for i, h := range heats {
 		for k, sl := range h.Slots {
 			if sl.Result != nil {
-				heats[i].Slots[k].Result.Qualify = q[sl.AthleteID]
+				heats[i].Slots[k].Result.Qualify = q[sl.CompetitorID()]
 			}
 		}
 	}

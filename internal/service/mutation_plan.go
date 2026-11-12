@@ -48,6 +48,8 @@ func (s *Service) planMutation(ctx context.Context, in Mutation, before any) (an
 			return before, false, invalid("赛事已有成绩，只能在界面上删除")
 		}
 		return before, false, s.DeleteMeet(ctx, src, in.MeetID)
+	case "delete_team":
+		return before, false, s.DeleteTeam(ctx, src, in.EventID, in.ID)
 	case "delete_event":
 		return before, false, s.DeleteEvent(ctx, src, in.EventID, false)
 	case "delete_unit":
@@ -125,7 +127,7 @@ func (s *Service) prepareArrangement(ctx context.Context, in Mutation) (any, boo
 		for _, h := range r.Heats {
 			rs.Order = append(rs.Order, h.ID)
 			for _, sl := range h.Slots {
-				req.Exclude = append(req.Exclude, sl.AthleteID)
+				req.Exclude = append(req.Exclude, sl.CompetitorID)
 			}
 		}
 		plan, err := s.PlanHeats(ctx, req)
@@ -136,7 +138,7 @@ func (s *Service) prepareArrangement(ctx context.Context, in Mutation) (any, boo
 			key := fmt.Sprintf("mcp-new-%d", i)
 			hs := HeatSave{Key: key, Slots: []SlotSave{}}
 			for _, sl := range h.Slots {
-				hs.Slots = append(hs.Slots, SlotSave{Position: sl.Position, AthleteID: sl.ID})
+				hs.Slots = append(hs.Slots, SlotSave{Position: sl.Position, ID: sl.ID})
 			}
 			rs.Added = append(rs.Added, hs)
 			rs.Order = append(rs.Order, key)
@@ -197,7 +199,7 @@ func (s *Service) prepareResults(ctx context.Context, in Mutation) (any, bool, e
 					}
 					found = true
 					overwrite = overwrite || sl.Result != nil
-					rows = append(rows, ResultPreviewRow{Position: input.Position, Athlete: athleteNameFromDetail(d, sl.AthleteID), Before: sl.Result, After: after})
+					rows = append(rows, ResultPreviewRow{Position: input.Position, Athlete: athleteNameFromDetail(d, sl.CompetitorID), Before: sl.Result, After: after})
 				}
 				if !found {
 					return nil, false, invalid("位置为空或已变更")
@@ -213,7 +215,7 @@ func (s *Service) prepareResults(ctx context.Context, in Mutation) (any, bool, e
 
 func athleteNameFromDetail(d *EventDetail, id string) string {
 	for _, e := range d.Entries {
-		if e.AthleteID == id {
+		if e.CompetitorID == id {
 			return e.Name
 		}
 	}

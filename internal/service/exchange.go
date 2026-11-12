@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -53,6 +54,10 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 	if err != nil {
 		return nil, err
 	}
+	teams, err := s.store.ListTeams(ctx, sc)
+	if err != nil {
+		return nil, err
+	}
 	rounds, err := s.store.LoadRounds(ctx, sc)
 	if err != nil {
 		return nil, err
@@ -78,12 +83,16 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 	}
 	byEvent := map[string][]interchange.Entry{}
 	for _, e := range entries {
-		byEvent[e.EventID] = append(byEvent[e.EventID], interchange.Entry{AthleteID: e.AthleteID, SeedMark: e.SeedMark})
+		byEvent[e.EventID] = append(byEvent[e.EventID], interchange.Entry{AthleteID: e.AthleteID, TeamID: e.TeamID, SeedMark: e.SeedMark})
+	}
+	byTeams := map[string][]interchange.Team{}
+	for _, t := range teams {
+		byTeams[t.EventID] = append(byTeams[t.EventID], interchange.Team{ID: t.ID, Name: t.Name, UnitID: optStr(t.UnitID), MemberIDs: t.MemberIDs})
 	}
 	for _, e := range events {
 		ev := interchange.Event{ID: e.ID, Name: e.Name, Gender: string(e.Gender), Discipline: e.Discipline,
 			GroupLabel: e.GroupLabel, Kind: string(e.Kind), Date: optStr(e.Date), Note: e.Note,
-			Entries: byEvent[e.ID], Rounds: []interchange.Round{}}
+			Teams: byTeams[e.ID], Entries: byEvent[e.ID], Rounds: []interchange.Round{}}
 		if e.Kind.Timed() {
 			ev.LaneCount = ptr(e.LaneCount)
 		}
@@ -102,10 +111,10 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 				heat := interchange.Heat{ID: h.ID, Ordinal: h.Ordinal, Name: h.Name, ScheduledAt: optStr(h.ScheduledAt),
 					Wind: h.Wind, Slots: []interchange.Slot{}}
 				for _, sl := range h.Slots {
-					if sl.AthleteID == "" {
+					if sl.CompetitorID() == "" {
 						continue
 					}
-					slot := interchange.Slot{Position: sl.Position, AthleteID: sl.AthleteID}
+					slot := interchange.Slot{Position: sl.Position, AthleteID: sl.AthleteID, TeamID: sl.TeamID}
 					if r := sl.Result; r != nil {
 						res := &interchange.Result{Status: string(r.Status), Mark: r.Mark, Rank: r.Rank, Qualify: optStr(r.Qualify),
 							Wind: r.Wind, Note: r.Note}
@@ -140,6 +149,7 @@ type Tally struct {
 type ImportPreview struct {
 	MeetName           string         `json:"meetName"`
 	NewMeet            bool           `json:"newMeet"`
+	Teams              Tally          `json:"teams"`
 	Units              Tally          `json:"units"`
 	Athletes           Tally          `json:"athletes"`
 	Events             Tally          `json:"events"`
@@ -215,6 +225,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 
 	var ex interchange.Existing
 	existingRounds := map[string][]domain.Round{}
+	existingTeams := []domain.Team{}
 	entered := map[string]bool{}
 	p.MeetName = f.Meet.Name
 	if meetID == "" {
@@ -247,7 +258,10 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 			return nil, err
 		}
 		for _, e := range entries {
-			entered[e.EventID+"|"+e.AthleteID] = true
+			entered[e.EventID+"|"+e.CompetitorID()] = true
+		}
+		if existingTeams, err = s.store.ListTeams(ctx, sc); err != nil {
+			return nil, err
 		}
 		if existingRounds, err = s.store.LoadRounds(ctx, sc); err != nil {
 			return nil, err
@@ -340,12 +354,14 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 		if name == "" {
 			name = domain.ComposeEventName(gender, e.Discipline, e.GroupLabel)
 		}
-		if kind == domain.KindRelay {
-			p.Warnings = append(p.Warnings, fmt.Sprintf("接力项目「%s」暂不导入", name))
-			continue
-		}
 		eventID, reused := match.Events[e.ID]
 		if reused {
+			for _, old := range ex.Events {
+				if old.ID == eventID && old.Kind != kind {
+					p.Errors = append(p.Errors, "项目类型与文件不符")
+					return finish()
+				}
+			}
 			p.Events.Reused++
 		} else {
 			eventID = newID()
@@ -363,15 +379,75 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 			}
 			plan.stmts = append(plan.stmts, insertEvent(n, now))
 		}
+		teams := map[string]string{}
+		teamNames := map[string]string{}
+		mappedMembers := map[string]bool{}
+		for _, t := range e.Teams {
+			members := make([]string, 0, len(t.MemberIDs))
+			for _, m := range t.MemberIDs {
+				if mappedMembers[athletes[m]] {
+					p.Errors = append(p.Errors, "接力成员匹配到同一运动员")
+					return finish()
+				}
+				mappedMembers[athletes[m]] = true
+				members = append(members, athletes[m])
+				if g := genders[m]; g != "" && gender != domain.GenderMixed && g != string(gender) {
+					p.Warnings = append(p.Warnings, fmt.Sprintf("「%s」的性别与「%s」不符", names[m], name))
+				}
+			}
+			unit := ""
+			if t.UnitID != nil {
+				unit = units[*t.UnitID]
+			}
+			var found *domain.Team
+			for _, old := range existingTeams {
+				if old.EventID == eventID && old.UnitID == unit && domain.NormalizeText(old.Name) == domain.NormalizeText(t.Name) {
+					if found != nil {
+						p.Errors = append(p.Errors, "队伍匹配不唯一")
+						return finish()
+					}
+					found = &old
+				}
+			}
+			if found != nil {
+				if !slices.Equal(found.MemberIDs, members) {
+					p.Errors = append(p.Errors, fmt.Sprintf("队伍「%s」棒次与文件不符", t.Name))
+					return finish()
+				}
+				teams[t.ID] = found.ID
+				p.Teams.Reused++
+			} else {
+				// A member can represent only one team in the same event.
+				for _, old := range existingTeams {
+					if old.EventID == eventID {
+						for _, m := range members {
+							if slices.Contains(old.MemberIDs, m) {
+								p.Errors = append(p.Errors, fmt.Sprintf("队伍「%s」的成员已在其他队伍", t.Name))
+								return finish()
+							}
+						}
+					}
+				}
+				nt := domain.Team{ID: newID(), EventID: eventID, Name: strings.TrimSpace(t.Name), UnitID: unit, MemberIDs: members}
+				teams[t.ID] = nt.ID
+				p.Teams.New++
+				plan.stmts = append(plan.stmts, insertTeam(nt)...)
+				existingTeams = append(existingTeams, nt)
+			}
+			teamNames[teams[t.ID]] = t.Name
+		}
 		for _, en := range e.Entries {
 			id := athletes[en.AthleteID]
+			if kind == domain.KindRelay {
+				id = teams[en.TeamID]
+			}
 			if g := genders[en.AthleteID]; g != "" && gender != domain.GenderMixed && g != string(gender) {
 				p.Warnings = append(p.Warnings, fmt.Sprintf("「%s」的性别与「%s」不符", names[en.AthleteID], name))
 			}
 			if k := eventID + "|" + id; !entered[k] && !entries[k] {
 				entries[k] = true
 				p.Entries++
-				add(`INSERT INTO entries(event_id, athlete_id, seed_mark) VALUES (?, ?, ?)`, eventID, id, optArg(en.SeedMark))
+				plan.stmts = append(plan.stmts, insertEntry(eventID, athletes[en.AthleteID], teams[en.TeamID], optArg(en.SeedMark)))
 			}
 		}
 
@@ -409,7 +485,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 					h := &old.Heats[i]
 					oldHeats[h.Ordinal] = h
 					for _, sl := range h.Slots {
-						placedElsewhere[sl.AthleteID] = h.Ordinal
+						placedElsewhere[sl.CompetitorID()] = h.Ordinal
 					}
 				}
 			}
@@ -417,7 +493,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 				label := name + " " + stage.Label() + " " + domain.HeatLabel(h.Ordinal, domain.NormalizeHeatName(h.Name))
 				slots := make([]domain.Slot, 0, len(h.Slots))
 				for _, sl := range h.Slots {
-					slot := domain.Slot{Position: sl.Position, AthleteID: athletes[sl.AthleteID]}
+					slot := domain.Slot{Position: sl.Position, AthleteID: athletes[sl.AthleteID], TeamID: teams[sl.TeamID]}
 					if sl.Result != nil {
 						slot.Result = ptr(resultFromFile(sl.Result))
 					}
@@ -438,7 +514,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 							p.ResultsNew++
 						} else if a, b := resultText(kind, was), resultText(kind, sl.Result); a != b {
 							p.ResultsOverwritten++
-							p.Overwrites = append(p.Overwrites, ResultChange{Athlete: label + " " + athleteName(ex.Athletes, sl.AthleteID), Before: a, After: b})
+							p.Overwrites = append(p.Overwrites, ResultChange{Athlete: label + " " + athleteName(ex.Athletes, sl.CompetitorID()) + teamNames[sl.TeamID], Before: a, After: b})
 						} else {
 							continue
 						}
@@ -448,7 +524,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 				}
 				clash := false
 				for _, sl := range slots {
-					if _, ok := placedElsewhere[sl.AthleteID]; ok {
+					if _, ok := placedElsewhere[sl.CompetitorID()]; ok {
 						clash = true
 					}
 				}
@@ -465,8 +541,8 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 				add(`INSERT INTO heats(id, round_id, ordinal, name, scheduled_at, wind) VALUES (?, ?, ?, ?, ?, ?)`,
 					heatID, roundID, h.Ordinal, domain.NormalizeHeatName(h.Name), sched, optArg(h.Wind))
 				for _, sl := range slots {
-					placedElsewhere[sl.AthleteID] = h.Ordinal
-					add(`INSERT INTO slots(heat_id, position, athlete_id) VALUES (?, ?, ?)`, heatID, sl.Position, sl.AthleteID)
+					placedElsewhere[sl.CompetitorID()] = h.Ordinal
+					plan.stmts = append(plan.stmts, insertSlot(heatID, sl))
 					if sl.Result != nil {
 						p.ResultsNew++
 						plan.stmts = append(plan.stmts, upsertResult(heatID, sl.Position, *sl.Result, now))

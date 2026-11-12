@@ -67,6 +67,7 @@ export interface AthleteInput {
 
 /** AthleteRow is an athlete in the meet's list. */
 export interface AthleteRow {
+  teamMember: boolean;
   athlete: Athlete;
   unitName: string;
   /** events entered */
@@ -129,9 +130,10 @@ export interface Change {
   eventId: string;
 }
 
-/** EntryInput enters an athlete; Seed is the typed entry mark, "" = none. */
+/** EntryInput enters an athlete or relay team; Seed is the typed entry mark, "" = none. */
 export interface EntryInput {
-  athleteId: string;
+  athleteId?: string;
+  teamId?: string;
   seed?: string;
 }
 
@@ -150,6 +152,8 @@ export interface EntryView {
   placed: boolean;
   /** differs from the event's gender */
   genderMismatch: boolean;
+  competitorId: string;
+  teamId?: string;
 }
 
 /** Event is one single item: gender + discipline + optional group. */
@@ -173,6 +177,7 @@ export interface Event {
  * for one event.
  */
 export interface EventDetail {
+  teams: TeamView[];
   event: Event;
   entries: EntryView[];
   rounds: RoundView[];
@@ -257,6 +262,7 @@ export interface HeatView {
 export interface ImportPreview {
   meetName: string;
   newMeet: boolean;
+  teams: Tally;
   units: Tally;
   athletes: Tally;
   events: Tally;
@@ -359,7 +365,7 @@ export interface PlannedHeat {
 /** PlannedSlot is one position of a planned heat. */
 export interface PlannedSlot {
   position: number;
-  athleteId: string;
+  competitorId: string;
 }
 
 /** Preferences contains only settings used by the app. MCP secrets have a separate API. */
@@ -479,10 +485,12 @@ export interface ScheduleSkip {
   reason: string;
 }
 
-/** SlotSave places an athlete. */
+/** SlotSave places an athlete or relay team; ID is the UI's opaque competitor ID. */
 export interface SlotSave {
   position: number;
-  athleteId: string;
+  athleteId?: string;
+  teamId?: string;
+  competitorId?: string;
 }
 
 /** SlotView is a slot with its result. */
@@ -490,6 +498,8 @@ export interface SlotView {
   position: number;
   athleteId: string;
   result: ResultView | null;
+  competitorId: string;
+  teamId?: string;
 }
 
 /** Stage of a round. */
@@ -507,6 +517,8 @@ export interface Standing {
   status: Status;
   markText: string;
   qualify: string;
+  competitorId: string;
+  teamId?: string;
 }
 
 /** Status of a result. */
@@ -528,6 +540,36 @@ export interface Table {
 export interface Tally {
   new: number;
   reused: number;
+}
+
+/** Team belongs to a relay event. MemberIDs are ordered by leg. */
+export interface Team {
+  id: string;
+  eventId: string;
+  name: string;
+  unitId: string;
+  memberIds: string[];
+}
+
+/** TeamInput is a complete team definition. Empty MemberIDs means an undecided lineup. */
+export interface TeamInput {
+  name: string;
+  unitId?: string;
+  memberIds: string[];
+}
+
+export interface TeamView {
+  id: string;
+  eventId: string;
+  name: string;
+  unitId: string;
+  memberIds: string[];
+  unitName: string;
+  memberNames: string[];
+  entered: boolean;
+  placed: boolean;
+  keepReason: string;
+  genderMismatch: boolean;
 }
 
 /** Unit is one 参赛单位. */
@@ -635,6 +677,10 @@ export const Events = {
   delete(id: string): Promise<void> {
     return call("Events.Delete", id);
   },
+  /** DeleteTeam removes an unplaced team and its entry. */
+  deleteTeam(eventID: string, id: string): Promise<void> {
+    return call("Events.DeleteTeam", eventID, id);
+  },
   /** Get returns one event with its entries, rounds, heats and results. */
   get(id: string): Promise<EventDetail | null> {
     return call("Events.Get", id);
@@ -647,6 +693,10 @@ export const Events = {
   save(meetID: string, id: string, in_: EventInput): Promise<Event | null> {
     return call("Events.Save", meetID, id, in_);
   },
+  /** SaveTeam creates or edits a relay team and its ordered roster. */
+  saveTeam(eventID: string, id: string, in_: TeamInput): Promise<Team | null> {
+    return call("Events.SaveTeam", eventID, id, in_);
+  },
 } as const;
 
 /** Entries manages 报名. */
@@ -656,12 +706,12 @@ export const Entries = {
     return call("Entries.Add", eventID, list);
   },
   /** Remove withdraws athletes from an event. */
-  remove(eventID: string, athleteIDs: string[]): Promise<void> {
-    return call("Entries.Remove", eventID, athleteIDs);
+  remove(eventID: string, competitorIDs: string[]): Promise<void> {
+    return call("Entries.Remove", eventID, competitorIDs);
   },
   /** SetSeed changes an entry mark; "" clears it. */
-  setSeed(eventID: string, athleteID: string, seed: string): Promise<void> {
-    return call("Entries.SetSeed", eventID, athleteID, seed);
+  setSeed(eventID: string, competitorID: string, seed: string): Promise<void> {
+    return call("Entries.SetSeed", eventID, competitorID, seed);
   },
 } as const;
 
@@ -675,7 +725,7 @@ export const Arrange = {
     return call("Arrange.PreviewSchedule", in_);
   },
   /** Save applies the arrange page's draft. */
-  save(in_: BoardSave): Promise<void> {
+  save(in_: BoardSave): Promise<EventDetail> {
     return call("Arrange.Save", in_);
   },
   /** Schedule confirms the preview shown in the desktop dialog. */

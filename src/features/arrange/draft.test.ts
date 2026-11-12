@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { addHeat, deleteHeat, diff, merge, moveHeat, place, pushHistory, redo, resetAll, undo, unlock, unplace, type ArrangeDraft, type DraftHeat } from "./draft";
 
 function heat(id: string, slots: [number, string][], keepReason = ""): DraftHeat {
-  return { key: id, id, base: `base-${id}`, label: id, name: "", scheduledAt: "", keepReason, slots: slots.map(([position, athleteId]) => ({ position, athleteId })) };
+  return { key: id, id, base: `base-${id}`, label: id, name: "", scheduledAt: "", keepReason, slots: slots.map(([position, competitorId]) => ({ position, competitorId })) };
 }
 
 function board(...heats: DraftHeat[]): ArrangeDraft {
@@ -13,7 +13,7 @@ const ok = (e: { draft?: ArrangeDraft; error?: string }) => {
   if (!e.draft) throw new Error(e.error);
   return e.draft;
 };
-const slots = (d: ArrangeDraft, i: number) => d.rounds[0]!.heats[i]!.slots.map((s) => `${s.position}${s.athleteId}`).join(" ");
+const slots = (d: ArrangeDraft, i: number) => d.rounds[0]!.heats[i]!.slots.map((s) => `${s.position}${s.competitorId}`).join(" ");
 
 test("place moves, swaps and sends the occupant back to the list", () => {
   const loaded = board(heat("h1", [[1, "a"], [2, "b"]]), heat("h2", [[1, "c"]]));

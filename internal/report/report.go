@@ -23,6 +23,7 @@ type Book struct {
 type Event struct {
 	Name   string
 	Date   string
+	Relay  bool
 	Timed  bool // lanes (道次) rather than an order (顺序)
 	Rounds []Round
 }
@@ -50,6 +51,7 @@ type Line struct {
 	Rank     string
 	Bib      string
 	Name     string
+	Members  []string
 	Unit     string
 	Seed     string // entry mark, start lists
 	Mark     string // mark, or the status label

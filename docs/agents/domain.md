@@ -9,6 +9,7 @@
 ├── 参赛单位 unit
 ├── 运动员 athlete            ← 属于赛事,各项目共用
 └── 项目 event                ← 一个单项
+    ├── 接力队 team           ← 仅接力，成员来自赛事运动员，按棒次排列
     ├── 报名 entry            ← 运动员(接力为队伍)进入本项目
     └── 轮次 round
         └── 组 heat
@@ -20,8 +21,19 @@
 - **同一赛事内 `gender + discipline + groupLabel` 不重复**;`discipline` 宽松比较(`100 米` = `100m`,`4x100M` = `4×100m`)。
 - 项目、运动员创建时指定所属赛事,之后不可改。
 - **轮次**:新建项目自带一个决赛;赛制选「预赛 + 决赛」时在决赛前加预赛并带晋级规则。每个阶段在一个项目里至多一个轮次,序号按阶段先后(预赛 → 次赛 → 半决赛 → 决赛)。预赛已有组时不能改回「直接决赛」。
-- **接力暂不支持**:service 拒绝新建接力项目,表格导入与交换格式导入跳过接力(后者给警告)。数据表与交换格式已为接力留好结构。
+- 接力队伍与棒次由 `service/teams.go` 管理;报名、编排、成绩、排名晋级与导入导出均按队处理,完整约束见下节。
 - 已有成绩的项目不能改项目类型:毫秒与毫米不能互换。
+
+## 接力
+
+- 队伍属于一个接力项目,队名必填、同一项目同一参赛单位内按规范化文本唯一;参赛单位可不指定。成员必须是同一赛事的运动员,`memberIds` 的数组顺序就是棒次。同一运动员在该项目只能属于一队,同一队不能重复担任棒次;不同项目可以复用运动员。
+- 名单可为空或尚未配齐,应用不从自由填写的项目名推断棒数。性别与项目不符在界面提示警告;混合项目不限制男女比例。MCP 文件导入的性别检查见 [mcp.md](mcp.md)。
+- `SaveTeam` 创建 / 更新完整队伍,`DeleteTeam` 删除队伍及其报名;这些操作持 service 写锁完成校验和整批事务。队伍保存本身不报名,报名传 `teamId`,排进位置会自动报名。已排进任意轮次的队伍须先移出才能取消报名或删除。
+- 队伍处于任一已有成绩的组时,棒次锁定,包括该队本身尚未录成绩的情形;直接调用 service、界面与 MCP 均不能改名单。队名和所属参赛单位可编辑。名单没有逐轮快照,因此不能在决赛换人后让预赛成绩对应另一份名单。
+- 运动员在任一接力队中时不能删除,须先从队伍移出;数据库级联不能用于绕过名单保护。运动员列表的报名项数和排位状态包含其接力队的使用情况。
+- 接力与个人项目之间只允许在没有队伍、报名或已排位置时切换;有成绩时项目类型保护同样适用。
+- 数据中的 `athleteId` 与 `teamId` 严格区分;Go `CompetitorID()`、界面查询中的 `competitorId` 仅供名单、草稿和排名统一索引,不把队伍 ID 填进运动员字段。自动编排的计划位置返回 `competitorId`,service 按项目类型落到正确的外键。
+- 接力成绩以整队计时、毫秒保存,与径赛共用解析、排名、Q / q 与晋级分组;秩序册和成绩册显示队名及按棒次排列的成员。表格运动员导入只为个人项目报名,接力队伍经项目工作区或 MCP 管理。
 
 ## 报名
 
@@ -60,5 +72,5 @@
 
 - service 的每个写操作写一条日志:时刻、来源(`ui` / `mcp` / `system`)、动作、涉及的项目 / 组、简短说明与 JSON 详情。
 - 日志写入失败只记应用日志,不影响业务。
-- 新增写操作必须同时登记它的日志动作名。现有:`meet.created / updated / deleted / imported`、`unit.created / updated / deleted`、`athlete.created / updated / deleted / imported`、`event.created / updated / deleted`、`entry.added / removed / seed`、`board.saved / reset`、`heats.scheduled`、`results.saved`、`settings.preferences / mcp`。
+- 新增写操作必须同时登记它的日志动作名。现有:`meet.created / updated / deleted / imported`、`unit.created / updated / deleted`、`athlete.created / updated / deleted / imported`、`event.created / updated / deleted`、`team.created / updated / deleted`、`entry.added / removed / seed`、`board.saved / reset`、`heats.scheduled`、`results.saved`、`settings.preferences / mcp`。
 - 成绩日志同时保留输入位置的原成绩与新成绩完整记录,包括逐次记录与备注;只修改备注同样可追查。设置日志不含令牌。

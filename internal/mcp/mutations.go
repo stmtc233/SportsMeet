@@ -19,7 +19,8 @@ type entriesArg struct {
 }
 type removeEntriesArg struct {
 	EventID    string   `json:"eventId"`
-	AthleteIDs []string `json:"athleteIds"`
+	AthleteIDs []string `json:"athleteIds,omitempty"`
+	TeamIDs    []string `json:"teamIds,omitempty"`
 	confirmation
 }
 type resultsArg struct {
@@ -71,7 +72,7 @@ func registerMutations(s *sdk.Server, svc *service.Service) {
 		return service.Mutation{Action: "add_entries", EventID: in.EventID, Entries: in.Entries}, in.confirmation
 	})
 	mutationPair(s, svc, "preview_remove_entries", "remove_entries", "取消报名，已排进组的运动员须先在界面移出", func(in removeEntriesArg) (service.Mutation, confirmation) {
-		return service.Mutation{Action: "remove_entries", EventID: in.EventID, IDs: in.AthleteIDs}, in.confirmation
+		return service.Mutation{Action: "remove_entries", EventID: in.EventID, IDs: append(in.AthleteIDs, in.TeamIDs...)}, in.confirmation
 	})
 	mutationPair(s, svc, "preview_results", "set_results", "录入成绩和状态、远度逐次记录或高度逐高度记录；位置不能为空，不可删除成绩或指定名次", func(in resultsArg) (service.Mutation, confirmation) {
 		return service.Mutation{Action: "set_results", HeatID: in.HeatID, Results: in.Results}, in.confirmation
@@ -84,7 +85,7 @@ func registerMutations(s *sdk.Server, svc *service.Service) {
 		in.Plan.FromAdvance = true
 		return service.Mutation{Action: "advance", Plan: in.Plan}, in.confirmation
 	})
-	mutationPair(s, svc, "preview_import", "import_meet", "导入交换格式赛事；接力跳过并警告，含成绩覆盖时展示原成绩与新成绩", func(in importArg) (service.Mutation, confirmation) {
+	mutationPair(s, svc, "preview_import", "import_meet", "导入交换格式赛事，含接力队伍与棒次；成绩覆盖时展示原成绩与新成绩", func(in importArg) (service.Mutation, confirmation) {
 		return service.Mutation{Action: "import_meet", MeetID: in.MeetID, Data: in.Data}, in.confirmation
 	})
 	mutationPair(s, svc, "preview_athletes", "import_athletes", "批量导入表格运动员、所属单位与报名；先 parse_table 获取 rows 和 mapping", func(in tableArg) (service.Mutation, confirmation) {
@@ -97,6 +98,13 @@ func registerMutations(s *sdk.Server, svc *service.Service) {
 		return svc.ApplySchedule(ctx, store.SourceMCP, in.Request, in.PreviewHash, in.Confirmed)
 	})
 
+	mutationPair(s, svc, "preview_delete_team", "delete_team", "删除接力队伍及其报名；传 eventId 与 id，已排进组的队伍须先移出", func(in struct {
+		EventID string `json:"eventId"`
+		ID      string `json:"id"`
+		confirmation
+	}) (service.Mutation, confirmation) {
+		return service.Mutation{Action: "delete_team", EventID: in.EventID, ID: in.ID}, in.confirmation
+	})
 	for _, action := range []string{"delete_meet", "delete_unit", "delete_event", "delete_athletes", "delete_heat"} {
 		mutationPair(s, svc, "preview_"+action, action, "删除指定数据。赛事用 meetId，参赛单位用 meetId+id，项目用 eventId，运动员用 meetId+athleteIds，组用 heatId；有成绩的赛事、项目或组禁止删除，已排进组的运动员禁止删除", func(in deleteArg) (service.Mutation, confirmation) {
 			return service.Mutation{Action: action, MeetID: in.MeetID, EventID: in.EventID, HeatID: in.HeatID, ID: in.ID, IDs: in.AthleteIDs}, in.confirmation

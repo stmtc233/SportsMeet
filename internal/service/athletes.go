@@ -24,10 +24,11 @@ type AthleteInput struct {
 
 // AthleteRow is an athlete in the meet's list.
 type AthleteRow struct {
-	Athlete  domain.Athlete `json:"athlete"`
-	UnitName string         `json:"unitName"`
-	Entries  int            `json:"entries"` // events entered
-	Placed   bool           `json:"placed"`  // occupies a slot somewhere
+	TeamMember bool           `json:"teamMember"`
+	Athlete    domain.Athlete `json:"athlete"`
+	UnitName   string         `json:"unitName"`
+	Entries    int            `json:"entries"` // events entered
+	Placed     bool           `json:"placed"`  // occupies a slot somewhere
 }
 
 // ListAthletes returns a meet's athletes with their unit and usage.
@@ -48,9 +49,19 @@ func (s *Service) ListAthletes(ctx context.Context, meetID string) ([]AthleteRow
 	for _, u := range units {
 		names[u.ID] = u.Name
 	}
+	teams, err := s.store.ListTeams(ctx, store.Scope{MeetID: meetID})
+	if err != nil {
+		return nil, err
+	}
+	members := map[string]bool{}
+	for _, t := range teams {
+		for _, id := range t.MemberIDs {
+			members[id] = true
+		}
+	}
 	out := make([]AthleteRow, len(athletes))
 	for i, a := range athletes {
-		out[i] = AthleteRow{Athlete: a, UnitName: names[a.UnitID], Entries: entries[a.ID], Placed: slots[a.ID] > 0}
+		out[i] = AthleteRow{TeamMember: members[a.ID], Athlete: a, UnitName: names[a.UnitID], Entries: entries[a.ID], Placed: slots[a.ID] > 0}
 	}
 	return out, nil
 }
@@ -187,6 +198,20 @@ func (s *Service) DeleteAthletes(ctx context.Context, src store.Source, meetID s
 	for _, a := range athletes {
 		byID[a.ID] = a
 	}
+	teams, err := s.store.ListTeams(ctx, store.Scope{MeetID: meetID})
+	if err != nil {
+		return err
+	}
+	for _, t := range teams {
+		for _, member := range t.MemberIDs {
+			for _, id := range ids {
+				if member == id {
+					return invalid("运动员已在接力队，请先移出队伍")
+				}
+			}
+		}
+	}
+
 	var stmts []sqlite.Statement
 	var names []string
 	for _, id := range ids {

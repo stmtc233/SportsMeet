@@ -35,6 +35,7 @@ function nextRow(e: KeyboardEvent<HTMLInputElement>) {
 /** One heat's results: typed per position, saved together. Places come back from Go. */
 export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventDetail; heat: HeatView; entries: Map<string, EntryView>; onDirty: (heatId: string, dirty: boolean) => void }) {
   const kind = detail.event.kind;
+  const timed = kind === "track" || kind === "relay";
   const initial = useMemo(() => Object.fromEntries(heat.slots.map((s) => [s.position, toRow(s, kind === "distance" ? detail.event.attemptCount : 0)])), [heat, kind, detail.event.attemptCount]);
   const [rows, setRows] = useState<Record<number, Row>>(initial);
   const [extra, setExtra] = useState<string[]>([]);
@@ -65,7 +66,7 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
   const save = async () => {
     const inputs: ResultInput[] = heat.slots.filter((s) => JSON.stringify(rows[s.position]) !== JSON.stringify(initial[s.position])).map((s) => {
       const r = rows[s.position]!;
-      return { position: s.position, status: r.status, mark: kind === "track" ? r.mark : "", attempts: kind === "distance" ? r.attempts : [], note: s.result?.note ?? "",
+      return { position: s.position, status: r.status, mark: timed ? r.mark : "", attempts: kind === "distance" ? r.attempts : [], note: s.result?.note ?? "",
         bars: kind === "height" ? heights.map((h) => ({ height: h, trials: r.bars[h] ?? "" })) : [] };
     });
     setBusy(true);
@@ -73,9 +74,9 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
     setBusy(false);
   };
 
-  const inputCols = kind === "track" ? 1 : kind === "distance" ? detail.event.attemptCount : heights.length;
+  const inputCols = timed ? 1 : kind === "distance" ? detail.event.attemptCount : heights.length;
   const style: CSSProperties = { gridTemplateColumns: `36px minmax(88px, 1.2fr) minmax(72px, 1fr) repeat(${inputCols}, minmax(64px, 88px)) 112px 72px 48px 40px` };
-  const statuses: Status[] = kind === "track" ? ["DNS", "DNF", "DQ"] : ["DNS", "DQ", "NM"];
+  const statuses: Status[] = timed ? ["DNS", "DNF", "DQ"] : ["DNS", "DQ", "NM"];
   return (
     <StSection padded={false}
       title={
@@ -98,24 +99,24 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
       }>
       <div className="result-grid" style={style}>
         <span className="head num">{positionTitle(kind)}</span>
-        <span className="head">姓名</span>
+        <span className="head">{kind === "relay" ? "队伍" : "姓名"}</span>
         <span className="head">单位</span>
-        {kind === "track" && <span className="head num">成绩</span>}
+        {timed && <span className="head num">成绩</span>}
         {kind === "distance" && Array.from({ length: inputCols }, (_, i) => <span key={i} className="head num">第 {i + 1} 次</span>)}
         {kind === "height" && heights.map((h) => <span key={h} className="head num">{h}</span>)}
         <span className="head">状态</span>
-        <span className="head num">{kind === "track" ? "" : "成绩"}</span>
+        <span className="head num">{timed ? "" : "成绩"}</span>
         <span className="head num">名次</span>
         <span className="head" />
         {heat.slots.map((s, i) => {
           const row = rows[s.position] ?? toRow(s, 0);
-          const e = entries.get(s.athleteId);
+          const e = entries.get(s.competitorId);
           const off = row.status !== "";
           return [
             <span key={`p${s.position}`} className="num">{s.position}</span>,
             <span key={`n${s.position}`} className="name">{e?.name}</span>,
             <span key={`u${s.position}`} className="name st-muted">{e?.unitName}</span>,
-            kind === "track" && <StMarkField key={`m${s.position}`} kind={kind} name={`m:${i}`} value={row.mark} disabled={off} width="fill" aria-label="成绩" onChange={(mark) => set(s.position, { mark })} onKeyDown={nextRow} />,
+            timed && <StMarkField key={`m${s.position}`} kind={kind} name={`m:${i}`} value={row.mark} disabled={off} width="fill" aria-label="成绩" onChange={(mark) => set(s.position, { mark })} onKeyDown={nextRow} />,
             kind === "distance" && row.attempts.slice(0, inputCols).map((a, j) => (
               <StMarkField key={`a${s.position}-${j}`} kind={kind} name={`a${j}:${i}`} value={a} disabled={off} width="fill" accept={isAttemptWord} aria-label={`第 ${j + 1} 次`} onKeyDown={nextRow}
                 onChange={(v) => set(s.position, { attempts: row.attempts.map((old, k) => (k === j ? v : old)) })} />
@@ -126,7 +127,7 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
             )),
             <StSelect key={`s${s.position}`} size="small" width="fill" value={row.status} placeholder="正常" onChange={(status) => set(s.position, { status })}
               options={[{ value: "", label: "正常" }, ...statuses.map((v) => ({ value: v as string, label: statusLabels[v] }))]} />,
-            <span key={`r${s.position}`} className="result-mark">{kind === "track" ? "" : s.result?.markText}</span>,
+            <span key={`r${s.position}`} className="result-mark">{timed ? "" : s.result?.markText}</span>,
             <span key={`k${s.position}`} className="num">{s.result?.rank ?? ""}</span>,
             <span key={`q${s.position}`}>{s.result?.qualify && <StTag tone="success">{s.result.qualify}</StTag>}</span>,
           ];

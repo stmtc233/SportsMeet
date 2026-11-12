@@ -13,7 +13,7 @@ import { ScheduleDialog } from "./ScheduleDialog";
 /** The arrange page: a local draft with undo and redo, saved in one go. */
 export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; meetId: string; onStale: () => void }) {
   const event = detail.event;
-  const timed = event.kind === "track";
+  const timed = event.kind === "track" || event.kind === "relay";
   const [loaded, setLoaded] = useState(() => fromDetail(detail));
   const [history, setHistory] = useState<History>(() => ({ past: [], present: loaded, future: [] }));
   const [roundId, setRoundId] = useState(detail.rounds[0]?.id ?? "");
@@ -35,6 +35,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   useEffect(() => {
     if (seen.current === detail) return;
     seen.current = detail;
+    if (saving) return;
     const fresh = fromDetail(detail);
     setHistory((h) => {
       const out = merge(h.present, loaded, fresh);
@@ -60,12 +61,15 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
     if (!dirty || saving) return;
     setSaving(true);
     try {
-      await Arrange.save(save);
+      const saved = await Arrange.save(save);
+      const fresh = fromDetail(saved);
+      setLoaded(fresh);
+      setHistory({ past: [], present: fresh, future: [] });
       toast("已保存", "success");
     } catch (err) {
       // Changed elsewhere since it was loaded: the reload that follows merges.
       toast(errorText(err), isStale(err) ? "warning" : "danger");
-      if (isStale(err)) onStale();
+      onStale();
     } finally {
       setSaving(false);
     }
@@ -97,10 +101,10 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   const roundView = detail.rounds.find((r) => r.id === roundId) ?? detail.rounds[0];
   const round = draft.rounds.find((r) => r.roundId === roundView?.id);
   const loadedRound = loaded.rounds.find((r) => r.roundId === roundView?.id);
-  const entries = useMemo(() => new Map<string, EntryView>(detail.entries.map((e) => [e.athleteId, e])), [detail.entries]);
+  const entries = useMemo(() => new Map<string, EntryView>(detail.entries.map((e) => [e.competitorId, e])), [detail.entries]);
   const placed = useMemo(() => placedIn(round), [round]);
   if (!roundView || !round) return <StEmpty>没有轮次</StEmpty>;
-  const free = detail.entries.filter((e) => !placed.has(e.athleteId));
+  const free = detail.entries.filter((e) => !placed.has(e.competitorId));
   const stats = detail.rounds.reduce((n, r) => ({ heats: n.heats + r.heats.length, results: n.results + r.heats.reduce((m, h) => m + h.slots.filter((s) => s.result).length, 0) }), { heats: 0, results: 0 });
 
   const positionsOf = (h: DraftHeat) => {
@@ -109,7 +113,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   };
 
   return (
-    <div className="fill">
+    <div className="fill" inert={saving}>
       <div className="subbar">
         {detail.rounds.length > 1 && <StSegmented size="small" value={roundView.id} onChange={setRoundId} options={detail.rounds.map((r) => ({ value: r.id, label: r.label }))} />}
         <span className="subbar__spacer" />
@@ -154,12 +158,12 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
             }}
             onClick={() => picked && placed.has(picked) && tryEdit(unplace(draft, round.roundId, picked, timed))}>
             {free.map((e) => (
-              <AthleteChip key={e.athleteId} entry={e} picked={picked === e.athleteId} meta={e.seedText || e.unitName} onPick={() => setPicked(picked === e.athleteId ? "" : e.athleteId)} />
+              <AthleteChip key={e.competitorId} entry={e} picked={picked === e.competitorId} meta={e.seedText || e.unitName} onPick={() => setPicked(picked === e.competitorId ? "" : e.competitorId)} />
             ))}
-            {free.length === 0 && <StEmpty>{detail.entries.length === 0 ? "还没有人报名" : picked ? "点这里移出" : "都已分组"}</StEmpty>}
+            {free.length === 0 && <StEmpty>{detail.entries.length === 0 ? "还没有报名" : picked ? "点这里移出" : "都已分组"}</StEmpty>}
           </div>
           <div className="split__side-foot">
-            <StButton icon={<IconAdd size={16} strokeWidth={iconStroke} />} onClick={() => setAdding(true)}>从赛事添加</StButton>
+            <StButton icon={<IconAdd size={16} strokeWidth={iconStroke} />} onClick={() => setAdding(true)}>{detail.event.kind === "relay" ? "管理队伍" : "从赛事添加"}</StButton>
           </div>
         </aside>
         <div className="split__main" onClick={() => setPicked("")}>
@@ -177,7 +181,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
         </div>
       </div>
       <AutoDialog open={auto} detail={detail} round={roundView} exclude={[...placed.keys()]} onClose={() => setAuto(false)}
-        onPlanned={(heats) => (heats.length === 0 ? toast("没有可编排的人", "warning") : apply(appendPlanned(draft, round.roundId, heats)))} />
+        onPlanned={(heats) => (heats.length === 0 ? toast("没有待编排报名", "warning") : apply(appendPlanned(draft, round.roundId, heats)))} />
       {scheduling && <ScheduleDialog detail={detail} round={roundView} onClose={() => setScheduling(false)} />}
       <AddEntriesDialog open={adding} detail={detail} meetId={meetId} onClose={() => setAdding(false)} />
       <HeatDialog heat={editing} defaultDate={event.date} onClose={() => setEditing(null)} onSave={(patch) => editing && apply(editHeat(draft, round.roundId, editing.key, patch))} />
@@ -188,7 +192,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
             <StButton variant="danger" onClick={() => { if (unlocking) apply(unlock(draft, unlocking.key)); setUnlocking(null); }}>解锁</StButton>
           </>
         }>
-        该组{unlocking?.keepReason}。移出的人，成绩会在保存时删除。
+        该组{unlocking?.keepReason}。移出报名者会删除对应成绩。
       </StDialog>
       <StDialog open={resetting} title="全部重置？" size="small" onClose={() => setResetting(false)}
         actions={

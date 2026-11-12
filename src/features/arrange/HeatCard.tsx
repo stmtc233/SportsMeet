@@ -10,7 +10,7 @@ export function AthleteChip({ entry, picked, dim, meta, onPick, fixed }: { entry
   return (
     <button type="button" className="chip" draggable={!fixed} data-picked={picked || undefined} data-dim={dim || undefined} data-static={fixed || undefined}
       onDragStart={(e) => {
-        e.dataTransfer.setData(dragType, entry.athleteId);
+        e.dataTransfer.setData(dragType, entry.competitorId);
         e.dataTransfer.effectAllowed = "move";
       }}
       onClick={(e) => {
@@ -32,8 +32,8 @@ interface HeatCardProps {
   changed: boolean;
   entries: Map<string, EntryView>;
   picked: string;
-  onPick: (athleteId: string) => void;
-  onPlace: (position: number, athleteId: string) => void;
+  onPick: (competitorId: string) => void;
+  onPlace: (position: number, competitorId: string) => void;
   onMove: (delta: -1 | 1) => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -43,7 +43,7 @@ interface HeatCardProps {
 /** One heat: a row per position, each a drop and click target. */
 export function HeatCard({ heat, index, count, positions, locked, changed, entries, picked, onPick, onPlace, onMove, onEdit, onDelete, onUnlock }: HeatCardProps) {
   const [over, setOver] = useState(0);
-  const bySlot = new Map(heat.slots.map((s) => [s.position, s.athleteId]));
+  const bySlot = new Map(heat.slots.map((s) => [s.position, s.competitorId]));
   const drop = (e: DragEvent, position: number) => {
     e.preventDefault();
     setOver(0);
@@ -78,8 +78,8 @@ export function HeatCard({ heat, index, count, positions, locked, changed, entri
       }>
       <div className="heat-slots">
         {positions.map((pos) => {
-          const athleteId = bySlot.get(pos);
-          const target = picked !== "" && picked !== athleteId && !locked;
+          const competitorId = bySlot.get(pos);
+          const target = picked !== "" && picked !== competitorId && !locked;
           return (
             <div key={pos} className="slot" data-over={over === pos || undefined} data-target={target || undefined}
               onDragOver={(e) => {
@@ -91,8 +91,8 @@ export function HeatCard({ heat, index, count, positions, locked, changed, entri
               onClick={target ? () => onPlace(pos, picked) : undefined}>
               <span className="slot__pos">{pos}</span>
               <span className="slot__body">
-                {athleteId ? (
-                  <AthleteChip entry={entries.get(athleteId)} picked={picked === athleteId} fixed={locked} onPick={() => (target ? onPlace(pos, picked) : onPick(athleteId))} />
+                {competitorId ? (
+                  <AthleteChip entry={entries.get(competitorId)} picked={picked === competitorId} fixed={locked} onPick={() => (target ? onPlace(pos, picked) : onPick(competitorId))} />
                 ) : (
                   <span className="slot__empty">{target ? "放到这里" : ""}</span>
                 )}

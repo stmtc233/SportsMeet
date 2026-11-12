@@ -3,10 +3,15 @@ import { StButton, StCheckbox, StDialog, StEmpty, StRow, StSearchField, StSelect
 import type { AthleteRow, EventDetail } from "../../mygo";
 import { useAthletes } from "../athletes/controller";
 import { EventsController } from "../events/controller";
+import { AddTeamsDialog } from "./AddTeamsDialog";
 import { useUnits } from "../units/UnitsPage";
 
 /** Picks athletes of the meet to enter into the event, several at once. */
-export function AddEntriesDialog({ open, detail, meetId, onClose }: { open: boolean; detail: EventDetail; meetId: string; onClose: () => void }) {
+type Props = { open: boolean; detail: EventDetail; meetId: string; onClose: () => void };
+export function AddEntriesDialog(props: Props) {
+ return props.detail.event.kind === "relay" ? <AddTeamsDialog {...props} /> : <AddAthletesDialog {...props} />;
+}
+function AddAthletesDialog({ open, detail, meetId, onClose }: Props) {
   const { data: athletes } = useAthletes(meetId);
   const { data: units } = useUnits(meetId);
   const [query, setQuery] = useState("");

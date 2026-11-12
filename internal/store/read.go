@@ -85,17 +85,17 @@ func (s *Store) ListEvents(ctx context.Context, sc Scope) ([]domain.Event, error
 	return out, nil
 }
 
-// ListEntries returns the scope's individual entries in entry order.
+// ListEntries returns the scope's athlete and relay team entries in entry order.
 func (s *Store) ListEntries(ctx context.Context, sc Scope) ([]domain.Entry, error) {
 	cond, arg := sc.events("event_id")
-	rows, err := s.Query(ctx, `SELECT event_id, athlete_id, seed_mark FROM entries
-		WHERE athlete_id IS NOT NULL AND `+cond+` ORDER BY rowid`, arg)
+	rows, err := s.Query(ctx, `SELECT event_id, athlete_id, seed_mark, team_id FROM entries
+		WHERE `+cond+` ORDER BY rowid`, arg)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]domain.Entry, 0, len(rows.Values))
 	for _, r := range rows.Values {
-		out = append(out, domain.Entry{EventID: str(r[0]), AthleteID: str(r[1]), SeedMark: optI64(r[2])})
+		out = append(out, domain.Entry{EventID: str(r[0]), AthleteID: str(r[1]), SeedMark: optI64(r[2]), TeamID: str(r[3])})
 	}
 	return out, nil
 }
@@ -130,7 +130,7 @@ func (s *Store) LoadRounds(ctx context.Context, sc Scope) (map[string][]domain.R
 		return nil, err
 	}
 	inHeats := "heat_id IN (SELECT id FROM heats WHERE " + inRounds + ")"
-	sr, err := s.Query(ctx, `SELECT heat_id, position, athlete_id FROM slots WHERE `+inHeats+` ORDER BY position`, arg)
+	sr, err := s.Query(ctx, `SELECT heat_id, position, athlete_id, team_id FROM slots WHERE `+inHeats+` ORDER BY position`, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (s *Store) LoadRounds(ctx context.Context, sc Scope) (map[string][]domain.R
 	slots := map[string][]domain.Slot{}
 	for _, r := range sr.Values {
 		h, pos := str(r[0]), int(i64(r[1]))
-		slots[h] = append(slots[h], domain.Slot{Position: pos, AthleteID: str(r[2]), Result: results[slotKey{h, pos}]})
+		slots[h] = append(slots[h], domain.Slot{Position: pos, AthleteID: str(r[2]), TeamID: str(r[3]), Result: results[slotKey{h, pos}]})
 	}
 	heats := map[string][]domain.Heat{}
 	for _, r := range hr.Values {
@@ -244,21 +244,27 @@ func optInt(v any) *int {
 // entered and how many slots each occupies.
 func (s *Store) AthleteUsage(ctx context.Context, meetID string) (entries, slots map[string]int, err error) {
 	entries, slots = map[string]int{}, map[string]int{}
-	in := "athlete_id IN (SELECT id FROM athletes WHERE meet_id = ?)"
-	rows, err := s.Query(ctx, `SELECT athlete_id, count(*) FROM entries WHERE `+in+` GROUP BY athlete_id`, meetID)
+	rows, err := s.Query(ctx, `SELECT athlete_id,count(DISTINCT event_id) FROM (
+ SELECT athlete_id,event_id FROM entries WHERE athlete_id IN (SELECT id FROM athletes WHERE meet_id=?)
+ UNION ALL SELECT m.athlete_id,e.event_id FROM team_members m JOIN entries e ON e.team_id=m.team_id JOIN athletes a ON a.id=m.athlete_id WHERE a.meet_id=?
+ ) GROUP BY athlete_id`, meetID, meetID)
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, r := range rows.Values {
 		entries[str(r[0])] = int(i64(r[1]))
 	}
-	rows, err = s.Query(ctx, `SELECT athlete_id, count(*) FROM slots WHERE `+in+` GROUP BY athlete_id`, meetID)
+	rows, err = s.Query(ctx, `SELECT athlete_id,count(*) FROM (
+ SELECT athlete_id FROM slots WHERE athlete_id IN (SELECT id FROM athletes WHERE meet_id=?)
+ UNION ALL SELECT m.athlete_id FROM team_members m JOIN slots s ON s.team_id=m.team_id JOIN athletes a ON a.id=m.athlete_id WHERE a.meet_id=?
+ ) GROUP BY athlete_id`, meetID, meetID)
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, r := range rows.Values {
 		slots[str(r[0])] = int(i64(r[1]))
 	}
+
 	return entries, slots, nil
 }
 

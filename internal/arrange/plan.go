@@ -47,7 +47,7 @@ type Options struct {
 // PlannedSlot is one position of a planned heat.
 type PlannedSlot struct {
 	Position int    `json:"position"`
-	ID       string `json:"athleteId"`
+	ID       string `json:"competitorId"`
 }
 
 // PlannedHeat is one new heat.

@@ -234,7 +234,7 @@ func (s *Service) SaveResults(ctx context.Context, src store.Source, heatID stri
 				slot = &heat.Slots[i]
 			}
 		}
-		if slot == nil || slot.AthleteID == "" {
+		if slot == nil || slot.CompetitorID() == "" {
 			return ErrStale
 		}
 		r, err := buildResult(kind, in)
@@ -245,7 +245,7 @@ func (s *Service) SaveResults(ctx context.Context, src store.Source, heatID stri
 			r.Wind = slot.Result.Wind
 		}
 		if a, b := resultText(kind, slot.Result), resultText(kind, r); !reflect.DeepEqual(slot.Result, r) {
-			changes = append(changes, ResultChange{Athlete: st.athletes[slot.AthleteID].Name, Before: a, After: b, BeforeRecord: slot.Result, AfterRecord: r})
+			changes = append(changes, ResultChange{Athlete: st.competitorName(slot.CompetitorID()), Before: a, After: b, BeforeRecord: slot.Result, AfterRecord: r})
 		}
 		slot.Result = r
 	}

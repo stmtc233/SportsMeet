@@ -5,13 +5,15 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/plugins/sqlite"
+	"github.com/stmtc233/sportsmeet/internal/domain"
 	"github.com/stmtc233/sportsmeet/internal/scoring"
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
-// EntryInput enters an athlete; Seed is the typed entry mark, "" = none.
+// EntryInput enters an athlete or relay team; Seed is the typed entry mark, "" = none.
 type EntryInput struct {
-	AthleteID string `json:"athleteId"`
+	AthleteID string `json:"athleteId,omitempty"`
+	TeamID    string `json:"teamId,omitempty"`
 	Seed      string `json:"seed,omitempty"`
 }
 
@@ -26,7 +28,7 @@ func (st *eventState) parseSeed(text string) (any, error) {
 	return m, nil
 }
 
-// AddEntries enters athletes into an event; those already entered are
+// AddEntries enters athletes or relay teams into an event; those already entered are
 // left as they are.
 func (s *Service) AddEntries(ctx context.Context, src store.Source, eventID string, list []EntryInput) error {
 	s.mu.Lock()
@@ -39,9 +41,16 @@ func (s *Service) AddEntries(ctx context.Context, src store.Source, eventID stri
 	var names []string
 	seen := map[string]bool{}
 	for _, in := range list {
-		a, ok := st.athletes[in.AthleteID]
+		if (in.AthleteID == "") == (in.TeamID == "") || (st.event.Kind == domain.KindRelay) != (in.TeamID != "") {
+			return invalid("报名类型与项目不符")
+		}
+		id := in.AthleteID
+		if in.TeamID != "" {
+			id = in.TeamID
+		}
+		a, ok := st.competitor(id)
 		if !ok {
-			return invalid("运动员不存在或已删除")
+			return invalid("%s不存在或已删除", st.competitorLabel())
 		}
 		if st.entered[a.ID] != nil || seen[a.ID] {
 			continue
@@ -52,7 +61,7 @@ func (s *Service) AddEntries(ctx context.Context, src store.Source, eventID stri
 		}
 		seen[a.ID] = true
 		names = append(names, a.Name)
-		stmts = append(stmts, store.Stmt(`INSERT INTO entries(event_id, athlete_id, seed_mark) VALUES (?, ?, ?)`, eventID, a.ID, seed))
+		stmts = append(stmts, insertEntry(eventID, in.AthleteID, in.TeamID, seed))
 	}
 	if len(stmts) == 0 {
 		return nil
@@ -64,15 +73,33 @@ func (s *Service) AddEntries(ctx context.Context, src store.Source, eventID stri
 }
 
 // SetSeed changes an entry's mark; "" clears it.
-func (s *Service) SetSeed(ctx context.Context, src store.Source, eventID, athleteID, seed string) error {
+func (s *Service) SetSeed(ctx context.Context, src store.Source, eventID, competitorID, seed string) error {
+	return s.setSeed(ctx, src, eventID, competitorID, seed, nil)
+}
+
+// SetEntrySeed accepts the typed entry identity used by MCP.
+func (s *Service) SetEntrySeed(ctx context.Context, src store.Source, eventID string, in EntryInput) error {
+	return s.setSeed(ctx, src, eventID, "", in.Seed, &in)
+}
+func (s *Service) setSeed(ctx context.Context, src store.Source, eventID, competitorID, seed string, typed *EntryInput) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st, err := s.loadEvent(ctx, eventID)
 	if err != nil {
 		return err
 	}
-	if st.entered[athleteID] == nil {
-		return invalid("该运动员未报名本项目")
+	if typed != nil {
+		if (typed.AthleteID == "") == (typed.TeamID == "") || (st.event.Kind == domain.KindRelay) != (typed.TeamID != "") {
+			return invalid("报名类型与项目不符")
+		}
+		competitorID = typed.AthleteID
+		if typed.TeamID != "" {
+			competitorID = typed.TeamID
+		}
+	}
+
+	if st.entered[competitorID] == nil {
+		return invalid("该%s未报名本项目", st.competitorLabel())
 	}
 	mark, err := st.parseSeed(seed)
 	if err != nil {
@@ -80,9 +107,9 @@ func (s *Service) SetSeed(ctx context.Context, src store.Source, eventID, athlet
 	}
 	return s.write(ctx,
 		store.Audit{Source: src, Action: "entry.seed", MeetID: st.event.MeetID, EventID: eventID,
-			Message: st.event.Name + ":" + st.athletes[athleteID].Name, Detail: map[string]any{"athleteId": athleteID, "seedMark": mark}},
+			Message: st.event.Name + ":" + st.competitorName(competitorID), Detail: map[string]any{"competitorId": competitorID, "seedMark": mark}},
 		Change{Kind: "entries", MeetID: st.event.MeetID, EventID: eventID},
-		store.Stmt(`UPDATE entries SET seed_mark = ? WHERE event_id = ? AND athlete_id = ?`, mark, eventID, athleteID))
+		store.Stmt(`UPDATE entries SET seed_mark = ? WHERE event_id = ? AND `+st.entryColumn()+` = ?`, mark, eventID, competitorID))
 }
 
 // RemoveEntries withdraws athletes from an event. Anyone placed in one of
@@ -98,7 +125,7 @@ func (s *Service) RemoveEntries(ctx context.Context, src store.Source, eventID s
 	for _, r := range st.rounds {
 		for _, h := range r.Heats {
 			for _, sl := range h.Slots {
-				placed[sl.AthleteID] = true
+				placed[sl.CompetitorID()] = true
 			}
 		}
 	}
@@ -109,10 +136,10 @@ func (s *Service) RemoveEntries(ctx context.Context, src store.Source, eventID s
 			continue
 		}
 		if placed[id] {
-			return invalid("「%s」已排进组，请先移出", st.athletes[id].Name)
+			return invalid("「%s」已排进组，请先移出", st.competitorName(id))
 		}
-		names = append(names, st.athletes[id].Name)
-		stmts = append(stmts, store.Stmt(`DELETE FROM entries WHERE event_id = ? AND athlete_id = ?`, eventID, id))
+		names = append(names, st.competitorName(id))
+		stmts = append(stmts, store.Stmt(`DELETE FROM entries WHERE event_id = ? AND `+st.entryColumn()+` = ?`, eventID, id))
 	}
 	if len(stmts) == 0 {
 		return nil
@@ -121,4 +148,11 @@ func (s *Service) RemoveEntries(ctx context.Context, src store.Source, eventID s
 		store.Audit{Source: src, Action: "entry.removed", MeetID: st.event.MeetID, EventID: eventID,
 			Message: st.event.Name + ":" + summarize(names), Detail: names},
 		Change{Kind: "entries", MeetID: st.event.MeetID, EventID: eventID}, stmts...)
+}
+
+func (st *eventState) entryColumn() string {
+	if st.event.Kind == domain.KindRelay {
+		return "team_id"
+	}
+	return "athlete_id"
 }

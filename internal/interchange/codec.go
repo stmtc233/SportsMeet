@@ -169,6 +169,8 @@ func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units m
 	relay := kind == domain.KindRelay
 
 	teams := map[string]bool{}
+	teamNames := map[string]bool{}
+	memberTeam := map[string]string{}
 	for i, t := range e.Teams {
 		if !relay {
 			add("%s.teams 只用于接力项目", at)
@@ -178,10 +180,22 @@ func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units m
 			add("%s.teams[%d].id 为空或重复", at, i)
 		}
 		teams[t.ID] = true
+		key := domain.NormalizeText(t.Name) + "|"
+		if t.UnitID != nil {
+			key += *t.UnitID
+		}
+		if strings.TrimSpace(t.Name) == "" || teamNames[key] {
+			add("%s.teams[%d].name 为空或同单位重名", at, i)
+		}
+		teamNames[key] = true
 		if t.UnitID != nil && !units[*t.UnitID] {
 			add("%s.teams[%d].unitId 找不到参赛单位", at, i)
 		}
 		for _, m := range t.MemberIDs {
+			if _, ok := memberTeam[m]; ok {
+				add("%s.teams[%d].memberIds 成员重复或已在其他队伍", at, i)
+			}
+			memberTeam[m] = t.ID
 			if !athletes[m] {
 				add("%s.teams[%d].memberIds 找不到运动员 %s", at, i, m)
 			}
