@@ -57,6 +57,7 @@ CREATE TABLE events (
     created_at INTEGER NOT NULL
 );
 CREATE INDEX idx_events_meet ON events(meet_id);
+CREATE INDEX idx_events_combined ON events(combined_id);
 
 -- 接力队
 CREATE TABLE teams (
@@ -73,6 +74,7 @@ CREATE TABLE team_members (
     athlete_id TEXT NOT NULL REFERENCES athletes(id) ON DELETE CASCADE,
     PRIMARY KEY (team_id, leg)
 );
+CREATE INDEX idx_team_members_athlete ON team_members(athlete_id);
 
 -- 报名:个人项目用 athlete_id,接力用 team_id
 CREATE TABLE entries (
@@ -85,6 +87,7 @@ CREATE TABLE entries (
 CREATE UNIQUE INDEX idx_entries_athlete ON entries(event_id, athlete_id) WHERE athlete_id IS NOT NULL;
 CREATE UNIQUE INDEX idx_entries_team ON entries(event_id, team_id) WHERE team_id IS NOT NULL;
 CREATE INDEX idx_entries_athlete_any ON entries(athlete_id);
+CREATE INDEX idx_entries_team_any ON entries(team_id);
 
 -- 轮次
 CREATE TABLE rounds (
@@ -118,6 +121,7 @@ CREATE TABLE slots (
     PRIMARY KEY (heat_id, position)
 );
 CREATE INDEX idx_slots_athlete ON slots(athlete_id);
+CREATE INDEX idx_slots_team ON slots(team_id);
 
 -- 成绩:mark 径赛毫秒、田赛毫米;detail_json 存远度逐次与高度逐高度记录
 CREATE TABLE results (
@@ -176,3 +180,4 @@ CREATE TABLE combined_entries (
  athlete_id TEXT NOT NULL REFERENCES athletes(id) ON DELETE CASCADE,
  PRIMARY KEY(combined_id, athlete_id)
 );
+CREATE INDEX idx_combined_entries_athlete ON combined_entries(athlete_id);

@@ -19,8 +19,10 @@ import (
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
-// Version is the app version written into exported files.
-var Version = "0.1.0"
+// Version is the app version, shown in「关于」and written into exported
+// files. main sets it from the packaged app (mygo.config.ts); a plain
+// executable, as in tests, keeps this value.
+var Version = "dev"
 
 func ptr[T any](v T) *T { return &v }
 

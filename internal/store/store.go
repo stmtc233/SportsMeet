@@ -5,6 +5,7 @@ package store
 import (
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,6 +19,13 @@ import (
 
 // FileName is the database file inside the data directory.
 const FileName = "sportsmeet.db"
+
+// BackupDir holds the copies made before migrating, inside the data
+// directory; the newest backupKeep are kept.
+const (
+	BackupDir  = "backups"
+	backupKeep = 5
+)
 
 //go:embed migrations/*.sql
 var migrationFS embed.FS
@@ -37,16 +45,40 @@ func Open(ctx context.Context, dir string) (*Store, error) {
 		return nil, err
 	}
 	path := filepath.Join(dir, FileName)
-	w, err := sqlite.Open(ctx, path, sqlite.OpenOptions{})
+	open := func() (*sqlite.DB, error) {
+		w, err := sqlite.Open(ctx, path, sqlite.OpenOptions{})
+		if err != nil {
+			return nil, err
+		}
+		if _, err := w.Execute(ctx, "PRAGMA journal_mode = WAL"); err != nil {
+			w.Close()
+			return nil, err
+		}
+		return w, nil
+	}
+	w, err := open()
 	if err != nil {
 		return nil, err
 	}
-	if _, err := w.Execute(ctx, "PRAGMA journal_mode = WAL"); err != nil {
+	s := &Store{write: w, Now: func() int64 { return time.Now().UnixMilli() }}
+	names, newest, err := pending(ctx, w)
+	if err != nil {
 		w.Close()
 		return nil, err
 	}
-	s := &Store{write: w, Now: func() int64 { return time.Now().UnixMilli() }}
-	if err := s.migrate(ctx); err != nil {
+	if len(names) > 0 && newest > 0 { // a new database has nothing to keep
+		if err := w.Close(); err != nil {
+			return nil, err
+		}
+		if err := backup(dir, s.Now(), newest); err != nil {
+			return nil, fmt.Errorf("备份失败:%w", err)
+		}
+		if w, err = open(); err != nil {
+			return nil, err
+		}
+		s.write = w
+	}
+	if err := s.migrate(ctx, names); err != nil {
 		w.Close()
 		return nil, fmt.Errorf("迁移数据库失败:%w", err)
 	}
@@ -85,41 +117,99 @@ func (s *Store) Query(ctx context.Context, sql string, args ...any) (sqlite.Rows
 // Stmt is shorthand for a statement.
 func Stmt(sql string, args ...any) sqlite.Statement { return sqlite.Statement{SQL: sql, Args: args} }
 
-func (s *Store) migrate(ctx context.Context) error {
-	if _, err := s.write.Execute(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
-		version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)`); err != nil {
+// backup copies the database file as it is before migrations change
+// it, so a migration that goes wrong on someone's data can be undone by
+// putting the file back. version is the newest migration already applied.
+// No connection may be open: closing the last one moves the write-ahead
+// log into the file, which makes the file alone a complete copy (the
+// plugin rejects VACUUM INTO).
+func backup(dir string, now, version int64) error {
+	path := filepath.Join(dir, FileName)
+	if wal, err := os.Stat(path + "-wal"); err == nil && wal.Size() > 0 {
+		return errors.New("数据库正被另一个程序使用")
+	}
+	backups := filepath.Join(dir, BackupDir)
+	if err := os.MkdirAll(backups, 0o755); err != nil {
 		return err
 	}
-	rows, err := s.write.Query(ctx, "SELECT version FROM schema_migrations")
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
+	}
+	name := fmt.Sprintf("sportsmeet-%s-v%04d.db", time.UnixMilli(now).Format("20060102-150405"), version)
+	if err := os.WriteFile(filepath.Join(backups, name), data, 0o644); err != nil {
+		return err
+	}
+	old, err := filepath.Glob(filepath.Join(backups, "sportsmeet-*.db"))
+	if err != nil {
+		return err
+	}
+	sort.Strings(old) // names start with the time, so oldest first
+	for len(old) > backupKeep {
+		_ = os.Remove(old[0])
+		old = old[1:]
+	}
+	return nil
+}
+
+// pending returns the migration files not yet applied, in order, and the
+// newest version that is (0 for a new database).
+func pending(ctx context.Context, db *sqlite.DB) (names []string, newest int64, err error) {
+	if _, err := db.Execute(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
+		version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)`); err != nil {
+		return nil, 0, err
+	}
+	rows, err := db.Query(ctx, "SELECT version FROM schema_migrations")
+	if err != nil {
+		return nil, 0, err
 	}
 	done := map[int64]bool{}
 	for _, r := range rows.Values {
-		done[r[0].(int64)] = true
+		v := r[0].(int64)
+		done[v] = true
+		newest = max(newest, v)
 	}
-	names, err := migrationFS.ReadDir("migrations")
+	files, err := migrationFS.ReadDir("migrations")
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
-	sort.Slice(names, func(i, j int) bool { return names[i].Name() < names[j].Name() })
-	for _, n := range names {
-		num, _, _ := strings.Cut(n.Name(), "_")
-		v, err := strconv.ParseInt(num, 10, 64)
+	for _, f := range files {
+		v, err := migrationVersion(f.Name())
 		if err != nil {
-			return fmt.Errorf("迁移文件名应以序号开头:%s", n.Name())
+			return nil, 0, err
 		}
-		if done[v] {
-			continue
+		if !done[v] {
+			names = append(names, f.Name())
 		}
-		body, err := migrationFS.ReadFile("migrations/" + n.Name())
+	}
+	sort.Strings(names)
+	return names, newest, nil
+}
+
+func migrationVersion(name string) (int64, error) {
+	num, _, _ := strings.Cut(name, "_")
+	v, err := strconv.ParseInt(num, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("迁移文件名应以序号开头:%s", name)
+	}
+	return v, nil
+}
+
+// migrate applies the named migration files, each in its own transaction.
+func (s *Store) migrate(ctx context.Context, names []string) error {
+	for _, name := range names {
+		v, err := migrationVersion(name)
+		if err != nil {
+			return err
+		}
+		body, err := migrationFS.ReadFile("migrations/" + name)
 		if err != nil {
 			return err
 		}
 		stmts := splitSQL(string(body))
 		stmts = append(stmts, Stmt("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)", v, s.Now()))
 		if _, err := s.write.Transaction(ctx, stmts); err != nil {
-			return fmt.Errorf("%s:%w", n.Name(), err)
+			return fmt.Errorf("%s:%w", name, err)
 		}
 	}
 	return nil

@@ -5,6 +5,8 @@
 ## 代码结构
 
 - React;按 `src/features/<area>/` 拆分,单文件 ≲ 400 行。页面切换是 `src/app/nav.tsx` 里的路由状态(不用路由库),有未保存改动的页面经 `useLeaveGuard` 登记,离开前统一确认。
+- 外壳用 `src/app/ErrorBoundary.tsx` 包住全部页面:某个页面渲染时抛错,窗口显示提示与「返回全部赛事」,而不是整窗空白。它只兜底渲染错误;读写失败照常经数据钩子的 `error` 与 `act()` 提示。
+- 版本号只写在 `mygo.config.ts`:Go 启动时经 `mygo.App.Version()` 读入 `service.Version`,「关于」与导出文件都用它;未打包运行(单测)时为 `dev`。
 - **只经生成的 `src/mygo.ts` 调用 Go**;页面组件不直接调用,读取经各 feature 的 `use*` 数据钩子(底层 `lib/useData.ts`),写入一律经 `*Controller`,由 `lib/action.ts` 的 `act()` 统一弹出结果提示(`StToast`)。
 - **调用 Go 的文件只有 `src/lib/` 与各 feature 的 `controller.ts` / `*Controller.ts` / `data.ts`**,其余文件只从 `src/mygo.ts` 引入类型(`import type` 或 `type X`)。调用散在组件里,同一个写入就会出现几种提示与刷新方式。`scripts/check-design-system.sh` 的 `bindings` 规则把关:基线里列出尚未收进 `controller` 的文件,只减不增;改到其中的文件时把调用收进 `controller`,再运行 `scripts/check-design-system.sh --update-baseline`。
 - `act()` 将 mygo 无返回值调用的 `null` 与 `undefined` 都视为成功,供调用方区分成功和异常;否则桌面操作已完成仍会被当作失败。

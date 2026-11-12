@@ -21,13 +21,21 @@ func main() {
 
 	var st *store.Store
 	mygo.App.WhenReady(func() {
-		dir, err := mygo.App.Path(mygo.PathUserData)
-		if err != nil {
-			log.Fatal(err)
+		// The packaged app's version comes from mygo.config.ts.
+		if v := mygo.App.Version(); v != "" {
+			service.Version = v
 		}
-		st, err = store.Open(context.Background(), dir)
+		dir, err := mygo.App.Path(mygo.PathUserData)
+		if err == nil {
+			st, err = store.Open(context.Background(), dir)
+		}
 		if err != nil {
-			log.Fatal(err)
+			// Without its data the app has nothing to show; say why
+			// instead of vanishing.
+			log.Print(err)
+			mygo.Dialog.Error("无法打开数据", "数据未改动，请关闭其他 SportsMeet 窗口后重试。\n\n"+dir+"\n"+err.Error())
+			mygo.App.Exit(1)
+			return
 		}
 		core.Svc = service.New(st, bind.Notify)
 		core.MCP = mcp.New(core.Svc)

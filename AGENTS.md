@@ -44,14 +44,14 @@ SportsMeet 是一款开源的**单机离线**田径与校园运动会编排软�
 ```
 SportsMeet/
 ├── AGENTS.md / CLAUDE.md / README.md
-├── main.go                  ← mygo 入口:窗口、Bind 各服务、MCP 开关
+├── main.go                  ← mygo 入口:窗口、Bind 各服务、MCP 开关;数据打不开时弹窗说明后退出
 ├── go.mod
-├── mygo.config.ts           ← 应用名、标识、版本、打包;bindings 输出 src/mygo.ts
+├── mygo.config.ts           ← 应用名、标识、版本(唯一来源,Go 经 `mygo.App.Version()` 读取)、打包;bindings 输出 src/mygo.ts
 ├── package.json · vite.config.ts · tsconfig.json · index.html
 ├── resources/icon.png       ← 1024×1024 应用图标
 ├── internal/
 │   ├── domain/              ← 实体、枚举、项目配置与全能规则(纯数据 + 校验,无 IO)
-│   ├── store/               ← SQLite 访问(mygo sqlite 插件,库文件 sportsmeet.db 在 mygo.PathUserData)
+│   ├── store/               ← SQLite 访问(mygo sqlite 插件,库文件 sportsmeet.db 在 mygo.PathUserData,迁移前的副本在同目录 backups/)
 │   │   ├── migrations/      ← NNNN_名称.sql,嵌入二进制,启动时按序执行
 │   │   └── schema.sql       ← 当前完整结构快照
 │   ├── arrange/             ← 自动编排(分组、排道)、组序号、组指纹、晋级判定;纯函数
@@ -65,7 +65,7 @@ SportsMeet/
 ├── src/                     ← 前端(React)
 │   ├── main.tsx · App.tsx   ← 入口;外壳(侧栏 + 页面切换)
 │   ├── mygo.ts              ← `mygo generate` 生成物,勿手改
-│   ├── app/                 ← nav.tsx(页面路由状态、离开前确认)、app.css(外壳与页面布局,只用 token)
+│   ├── app/                 ← nav.tsx(页面路由状态、离开前确认)、ErrorBoundary.tsx(页面渲染出错时的退路)、app.css(外壳与页面布局,只用 token)
 │   ├── design/              ← tokens.css、components.css、`St*` 组件、icons.ts;经 index.ts 统一导出
 │   ├── features/            ← meets/ units/ athletes/ events/ event/(项目工作区:报名与队伍)combined/(全能)arrange/ results/ reports/ exchange/ settings/ about/
 │   └── lib/                 ← coalesce.ts(事件刷新合并)、useData.ts、action.ts、errors.ts、labels.ts
@@ -160,6 +160,8 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 - 单一写连接 + 只读连接;service 持写锁完成「读 → 校验 → 一批写入」,不在 service 之外写库;列表查询次数不随组数增长。
 - 迁移只追加,已发布的迁移文件不再修改;同步 `schema.sql`。
+- 已有数据的数据库在迁移前先复制到 `backups/`,复制失败就不迁移。
+- 外键所在的列都建索引;号码布 / 学号的唯一性只由 service 校验,不建唯一索引。
 - 交换格式改字段即 bump `version`;读取方能读所有已发布版本,写出总是最新版本。
 
 ### 5.5 文案与提交 → [copywriting.md](docs/agents/copywriting.md)

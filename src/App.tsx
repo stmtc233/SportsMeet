@@ -2,6 +2,7 @@ import { CombinedList } from "./features/combined/CombinedList";
 import { CombinedWorkspace } from "./features/combined/CombinedWorkspace";
 import { useEffect } from "react";
 import { usePreferences } from "./features/settings/controller";
+import { ErrorBoundary } from "./app/ErrorBoundary";
 import { NavProvider, useNav, type MeetTab } from "./app/nav";
 import { IconAthletes, IconBack, IconEvent, IconExport, IconPrint, IconSettings, IconUnit, StListItem, StToastHost, iconStroke } from "./design";
 import { SettingsPage } from "./features/settings/SettingsPage";
@@ -63,12 +64,22 @@ function MeetHeader({ meetId }: { meetId: string }) {
   );
 }
 
+// A page that fails to render leaves the rest of the app usable.
+function Guarded() {
+  const { go } = useNav();
+  return (
+    <ErrorBoundary onReset={() => go({ page: "meets" })}>
+      <Shell />
+    </ErrorBoundary>
+  );
+}
+
 export function App() {
   const { data } = usePreferences();
   useEffect(() => { if (data) document.documentElement.dataset.theme = data.theme; }, [data]);
   return (
     <NavProvider>
-      <Shell />
+      <Guarded />
       <StToastHost />
     </NavProvider>
   );

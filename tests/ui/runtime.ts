@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false };
@@ -110,7 +110,7 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
             Object.assign(event, args[2], { name: args[2].name || `${args[2].gender === "混合" ? "混合" : args[2].gender === "女" ? "女子" : "男子"}${args[2].discipline}` });
             changed("events", "meet", "event"); return structuredClone(event);
           }
-          case "Events.Get": return structuredClone(detail);
+          case "Events.Get": return options.brokenEvent ? {} : structuredClone(detail);
           case "Events.SaveTeam": {
             (globalThis as any).__relayCalls.push({ method, args });
             if (options.rejectTeamSave) return error("队伍已有比赛记录，不能改棒次");
