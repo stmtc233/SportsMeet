@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>{{.Meet}} {{.Title}}</title>
+<style>{{.Style}}</style>
+</head>
+<body>
+<header>
+  <h1>{{.Meet}}</h1>
+  <p>{{.Title}}</p>
+  <p>{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
+</header>
+{{range .Events}}{{$timed := .Timed}}
+<section class="event">
+  <h2>{{.Name}}{{if .Date}}<small>{{.Date}}</small>{{end}}</h2>
+  {{range .Rounds}}
+  <div class="round">
+    <h3>{{.Label}}{{if .Advance}}<small>{{.Advance}}</small>{{end}}</h3>
+    {{if .Heats}}
+    <div class="heats">
+      {{range .Heats}}
+      <div class="heat">
+        <h4>{{.Label}}{{if .Time}}<small>{{.Time}}</small>{{end}}</h4>
+        <table>
+          <thead><tr><th class="num">{{if $timed}}道次{{else}}顺序{{end}}</th><th class="narrow">号码</th><th>姓名</th><th>单位</th><th class="mark">报名成绩</th></tr></thead>
+          <tbody>
+            {{range .Lines}}<tr><td class="num">{{.Position}}</td><td>{{.Bib}}</td><td>{{.Name}}</td><td>{{.Unit}}</td><td class="mark">{{.Seed}}</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+      {{end}}
+    </div>
+    {{else}}<p class="empty">尚未编排</p>{{end}}
+  </div>
+  {{end}}
+</section>
+{{else}}<p class="empty">没有项目</p>
+{{end}}
+</body>
+</html>

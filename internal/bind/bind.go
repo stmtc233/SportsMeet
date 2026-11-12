@@ -1,0 +1,366 @@
+// Package bind exposes the service to the page through mygo bindings.
+// It is a thin layer: every method forwards to internal/service with
+// source ui; the only things it adds are native dialogs and files.
+// `mygo generate` turns these into src/mygo.ts.
+package bind
+
+import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+
+	"github.com/egoist/mygo"
+	"github.com/stmtc233/sportsmeet/internal/arrange"
+	"github.com/stmtc233/sportsmeet/internal/domain"
+	"github.com/stmtc233/sportsmeet/internal/interchange"
+	"github.com/stmtc233/sportsmeet/internal/scoring"
+	"github.com/stmtc233/sportsmeet/internal/service"
+	"github.com/stmtc233/sportsmeet/internal/store"
+)
+
+// DataChanged is broadcast after every committed write (UI or MCP); pages
+// reload the data it names.
+var DataChanged = mygo.NewEvent[service.Change]("dataChanged")
+
+// Notify is the service's change callback.
+func Notify(c service.Change) { _ = DataChanged.Broadcast(c) }
+
+// Core holds the service every binding forwards to; main fills it once
+// the data directory is known.
+type Core struct{ Svc *service.Service }
+
+const ui = store.SourceUI
+
+// maxFile bounds files read from disk on the page's behalf.
+const maxFile = 32 << 20
+
+func readFile(path string) ([]byte, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, errors.New("文件无法读取")
+	}
+	if info.Size() > maxFile {
+		return nil, errors.New("文件过大")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, errors.New("文件无法读取")
+	}
+	return data, nil
+}
+
+func ignoreCancel(err error) error {
+	if errors.Is(err, mygo.ErrCanceled) {
+		return nil
+	}
+	return err
+}
+
+// Meets manages 赛事.
+type Meets struct{ *Core }
+
+// List returns all meets, newest first.
+func (m Meets) List(ctx context.Context) ([]domain.Meet, error) { return m.Svc.ListMeets(ctx) }
+
+// Get returns one meet.
+func (m Meets) Get(ctx context.Context, id string) (*domain.Meet, error) {
+	return m.Svc.GetMeet(ctx, id)
+}
+
+// Count returns what deleting the meet would remove.
+func (m Meets) Count(ctx context.Context, id string) (store.MeetCounts, error) {
+	return m.Svc.CountMeet(ctx, id)
+}
+
+// Create creates a meet.
+func (m Meets) Create(ctx context.Context, in service.MeetInput) (*domain.Meet, error) {
+	return m.Svc.CreateMeet(ctx, ui, in)
+}
+
+// Update changes a meet.
+func (m Meets) Update(ctx context.Context, id string, in service.MeetInput) error {
+	return m.Svc.UpdateMeet(ctx, ui, id, in)
+}
+
+// Delete removes a meet and everything in it.
+func (m Meets) Delete(ctx context.Context, id string) error { return m.Svc.DeleteMeet(ctx, ui, id) }
+
+// Units manages 参赛单位.
+type Units struct{ *Core }
+
+// List returns a meet's units.
+func (u Units) List(ctx context.Context, meetID string) ([]domain.Unit, error) {
+	return u.Svc.ListUnits(ctx, meetID)
+}
+
+// Save creates (id "") or updates a unit.
+func (u Units) Save(ctx context.Context, meetID, id string, in service.UnitInput) (*domain.Unit, error) {
+	return u.Svc.SaveUnit(ctx, ui, meetID, id, in)
+}
+
+// Delete removes a unit.
+func (u Units) Delete(ctx context.Context, meetID, id string) error {
+	return u.Svc.DeleteUnit(ctx, ui, meetID, id)
+}
+
+// Athletes manages 运动员 and their table import.
+type Athletes struct{ *Core }
+
+// List returns a meet's athletes.
+func (a Athletes) List(ctx context.Context, meetID string) ([]service.AthleteRow, error) {
+	return a.Svc.ListAthletes(ctx, meetID)
+}
+
+// Save creates (id "") or updates an athlete.
+func (a Athletes) Save(ctx context.Context, meetID, id string, in service.AthleteInput) (*domain.Athlete, error) {
+	return a.Svc.SaveAthlete(ctx, ui, meetID, id, in)
+}
+
+// Delete removes athletes.
+func (a Athletes) Delete(ctx context.Context, meetID string, ids []string) error {
+	return a.Svc.DeleteAthletes(ctx, ui, meetID, ids)
+}
+
+// ParseTable splits pasted text into rows and guesses its columns.
+func (Athletes) ParseTable(text string) (service.Table, error) { return service.ParseTable(text) }
+
+// PickTable asks for a CSV or text file and returns its content, or ""
+// when the user canceled.
+func (Athletes) PickTable(ctx context.Context) (string, error) {
+	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
+		Parent:  mygo.CallerWindow(ctx),
+		Filters: []mygo.FileFilter{{Name: "表格", Extensions: []string{"csv", "tsv", "txt"}}},
+	})
+	if err != nil || len(paths) == 0 {
+		return "", ignoreCancel(err)
+	}
+	data, err := readFile(paths[0])
+	return string(data), err
+}
+
+// PreviewImport reports what importing the table would do.
+func (a Athletes) PreviewImport(ctx context.Context, meetID string, in service.AthleteImport) (*service.AthleteImportPreview, error) {
+	return a.Svc.PreviewAthleteImport(ctx, meetID, in)
+}
+
+// Import imports the table.
+func (a Athletes) Import(ctx context.Context, meetID string, in service.AthleteImport) (*service.AthleteImportPreview, error) {
+	return a.Svc.ImportAthletes(ctx, ui, meetID, in)
+}
+
+// Events manages 项目.
+type Events struct{ *Core }
+
+// List returns a meet's events with their progress.
+func (e Events) List(ctx context.Context, meetID string) ([]service.EventRow, error) {
+	return e.Svc.ListEvents(ctx, meetID)
+}
+
+// Get returns one event with its entries, rounds, heats and results.
+func (e Events) Get(ctx context.Context, id string) (*service.EventDetail, error) {
+	return e.Svc.GetEvent(ctx, id)
+}
+
+// Count returns what deleting the event would remove.
+func (e Events) Count(ctx context.Context, id string) (store.MeetCounts, error) {
+	return e.Svc.CountEvent(ctx, id)
+}
+
+// Save creates (id "") or updates an event.
+func (e Events) Save(ctx context.Context, meetID, id string, in service.EventInput) (*domain.Event, error) {
+	return e.Svc.SaveEvent(ctx, ui, meetID, id, in)
+}
+
+// Delete removes an event with its heats and results.
+func (e Events) Delete(ctx context.Context, id string) error {
+	return e.Svc.DeleteEvent(ctx, ui, id, true)
+}
+
+// Entries manages 报名.
+type Entries struct{ *Core }
+
+// Add enters athletes into an event.
+func (e Entries) Add(ctx context.Context, eventID string, list []service.EntryInput) error {
+	return e.Svc.AddEntries(ctx, ui, eventID, list)
+}
+
+// SetSeed changes an entry mark; "" clears it.
+func (e Entries) SetSeed(ctx context.Context, eventID, athleteID, seed string) error {
+	return e.Svc.SetSeed(ctx, ui, eventID, athleteID, seed)
+}
+
+// Remove withdraws athletes from an event.
+func (e Entries) Remove(ctx context.Context, eventID string, athleteIDs []string) error {
+	return e.Svc.RemoveEntries(ctx, ui, eventID, athleteIDs)
+}
+
+// Arrange plans and saves heats.
+type Arrange struct{ *Core }
+
+// Plan computes new heats for those not yet placed; it writes nothing.
+func (a Arrange) Plan(ctx context.Context, req service.PlanRequest) ([]arrange.PlannedHeat, error) {
+	return a.Svc.PlanHeats(ctx, req)
+}
+
+// Save applies the arrange page's draft.
+func (a Arrange) Save(ctx context.Context, in service.BoardSave) error {
+	return a.Svc.SaveBoard(ctx, ui, in)
+}
+
+// Results records marks.
+type Results struct{ *Core }
+
+// Save records what was typed for slots of a heat.
+func (r Results) Save(ctx context.Context, heatID string, inputs []service.ResultInput) error {
+	return r.Svc.SaveResults(ctx, ui, heatID, inputs)
+}
+
+// Reports renders and prints 秩序册 and 成绩册.
+type Reports struct{ *Core }
+
+// Render returns the report as an HTML document, for the preview.
+func (r Reports) Render(ctx context.Context, kind, meetID string, eventIDs []string) (string, error) {
+	return r.Svc.RenderReport(ctx, kind, meetID, eventIDs)
+}
+
+// Print opens the report in a window of its own and shows the system's
+// print dialog, where it can also be saved as a PDF.
+func (r Reports) Print(ctx context.Context, kind, meetID string, eventIDs []string) error {
+	html, err := r.Svc.RenderReport(ctx, kind, meetID, eventIDs)
+	if err != nil {
+		return err
+	}
+	title := "秩序册"
+	if kind == service.ReportResults {
+		title = "成绩册"
+	}
+	win := mygo.NewWindow(mygo.WindowOptions{Title: title, Width: 900, Height: 760})
+	page := win.Page()
+	var once sync.Once
+	page.OnDidFinishLoad(func() { once.Do(page.Print) })
+	page.LoadHTML(html, "")
+	return nil
+}
+
+// Exchange imports and exports interchange files (.meet.json).
+type Exchange struct {
+	*Core
+	mu     sync.Mutex
+	picked map[string][]byte // the file the user chose, by path
+}
+
+var meetFilter = []mygo.FileFilter{{Name: "赛事文件", Extensions: []string{"json"}}}
+
+// Export asks where to save the meet and writes it there. It returns the
+// chosen path, or "" when the user canceled.
+func (x *Exchange) Export(ctx context.Context, meetID string) (string, error) {
+	f, err := x.Svc.ExportMeet(ctx, meetID)
+	if err != nil {
+		return "", err
+	}
+	data, err := interchange.Encode(f)
+	if err != nil {
+		return "", err
+	}
+	name := strings.NewReplacer("/", "-", "\\", "-", ":", "-").Replace(f.Meet.Name) + ".meet.json"
+	path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{Parent: mygo.CallerWindow(ctx), DefaultPath: name, Filters: meetFilter})
+	if err != nil || path == "" {
+		return "", ignoreCancel(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", errors.New("文件无法写入")
+	}
+	return path, nil
+}
+
+// PickedFile is a file chosen for import.
+type PickedFile struct {
+	Path string `json:"path"`
+	Name string `json:"name"`
+}
+
+// Pick asks for an interchange file and remembers its content; Path is ""
+// when the user canceled.
+func (x *Exchange) Pick(ctx context.Context) (PickedFile, error) {
+	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: mygo.CallerWindow(ctx), Filters: meetFilter})
+	if err != nil || len(paths) == 0 {
+		return PickedFile{}, ignoreCancel(err)
+	}
+	data, err := readFile(paths[0])
+	if err != nil {
+		return PickedFile{}, err
+	}
+	x.mu.Lock()
+	x.picked = map[string][]byte{paths[0]: data}
+	x.mu.Unlock()
+	return PickedFile{Path: paths[0], Name: filepath.Base(paths[0])}, nil
+}
+
+func (x *Exchange) data(path string) ([]byte, error) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	data, ok := x.picked[path]
+	if !ok {
+		return nil, errors.New("请重新选择文件")
+	}
+	return data, nil
+}
+
+// Preview reports what importing the picked file into meetID ("" = as a
+// new meet) would do.
+func (x *Exchange) Preview(ctx context.Context, path, meetID string) (*service.ImportPreview, error) {
+	data, err := x.data(path)
+	if err != nil {
+		return nil, err
+	}
+	return x.Svc.PreviewImport(ctx, data, meetID)
+}
+
+// Import imports the picked file as previewed (hash is the preview's).
+func (x *Exchange) Import(ctx context.Context, path, meetID, hash string) (*service.ImportPreview, error) {
+	data, err := x.data(path)
+	if err != nil {
+		return nil, err
+	}
+	return x.Svc.ImportMeet(ctx, ui, data, meetID, hash)
+}
+
+// Marks parses and formats marks; the page never does it itself.
+type Marks struct{}
+
+// Parse reads typed input as a mark of kind.
+func (Marks) Parse(kind domain.EventKind, input string) (int64, error) {
+	return scoring.ParseMark(kind, input)
+}
+
+// Format shows a mark of kind.
+func (Marks) Format(kind domain.EventKind, mark int64) string { return scoring.FormatMark(kind, mark) }
+
+// Normalize parses typed input and returns it as marks are shown, so a
+// field can tidy what was typed.
+func (Marks) Normalize(kind domain.EventKind, input string) (string, error) {
+	m, err := scoring.ParseMark(kind, input)
+	if err != nil {
+		return "", err
+	}
+	return scoring.FormatMark(kind, m), nil
+}
+
+// EventName composes 「男子100m 初中组」 for previews.
+func (Marks) EventName(gender domain.Gender, discipline, group string) string {
+	return domain.ComposeEventName(gender, discipline, group)
+}
+
+// AppInfo describes the running app.
+type AppInfo struct {
+	Version string `json:"version"`
+}
+
+// App tells the page about the app itself.
+type App struct{}
+
+// Info returns the app's version.
+func (App) Info() AppInfo { return AppInfo{Version: service.Version} }

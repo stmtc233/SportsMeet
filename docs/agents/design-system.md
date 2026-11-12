@@ -1,0 +1,73 @@
+# 设计系统:token 与 `src/design/` 组件
+
+界面文案(标题、副标题、对话框、提示)的写法与长度见 [copywriting.md](copywriting.md)。
+
+## 为什么有这一层
+
+颜色、字体、间距、圆角集中成 token,页面只用 `src/design/` 的 `St*` 组件,换风格只改一处。组件内部可以借用第三方实现(无障碍、焦点管理),但不对页面暴露第三方组件的 API。
+
+## Token(`src/design/tokens.css`)
+
+全部写成 `:root` 上的 CSS 变量,暗色在 `@media (prefers-color-scheme: dark)` 下重定义同名变量。页面与组件只读变量,不写字面颜色值。
+
+| 类别 | 档位 |
+|---|---|
+| 间距 `--st-space-*` | 2 / 4 / 8 / 12 / 16 / 24 / 32,另有 `page`(页面边距)、`section`(分组间距) |
+| 圆角 `--st-radius-*` | 6 / 8 / 12 / 16 / 20 |
+| 语义色 `--st-tone-{neutral,info,success,warning,danger}-{accent,container,on-container}` | 状态、徽标、提示条 |
+| 层级 | `--st-bg` 页面底色(浅灰 / 近黑);`--st-surface` 卡片、对话框(白 / 深灰一级);`--st-surface-raised` 浮起层 |
+| 字体 | 正文、标题若干档;成绩数字另有大号等宽档 |
+
+**约定**:
+- 新代码的间距 / 圆角只用 token 档位,不写 10 / 14 / 18 这类零散值。
+- **数字一律等宽**:根元素设 `font-variant-numeric: tabular-nums`,成绩跳动时不左右抖,表格数字纵向对齐。打印模板(`internal/report/`)同样在 `body` 上设。不要在组件里覆盖成 `proportional-nums`。
+- **语义色**经 tone 变量取,不写 `#4CAF50` 之类的硬编码。
+- **圆角统一 iOS 风格平滑轮廓**:圆角矩形用 `corner-shape: superellipse(1.78)` 作视觉近似;满圆角胶囊、真实圆形(头像、单选圆点)与开关轨道显式 `round`。WebView 不支持 `corner-shape` 时按普通圆角显示,不另写兜底。radius token 表示真实半径,页面不自行放大。
+
+## 组件(`src/design/`)
+
+缺组件时**先在 `src/design/` 补组件**,再在页面使用;不要在页面里临时拼原生控件或第三方组件。
+
+| 组件 | 用途 |
+|---|---|
+| `StButton`(`primary / secondary / tonal / danger / ghost` × `small / medium / large`,可 `loading`) | 所有文字按钮。同一位置会切换文字时(「全选」↔「取消全选」)传 `reserveWidthFor` 列出全部文字,宽度取最宽者,切换时旁边的控件不跳动 |
+| `StIconButton`(`plain / tonal / filled`) | 图标按钮,必须带无障碍标签 |
+| `StConfirmButton` | 危险操作:第一次点击变红色「再按一次确认」,数秒内再点才执行 |
+| `StCard` / `StSection` | 卡片 / 带标题的分组卡片 |
+| `StRow` / `StStack` / `StEmpty` / `StMuted` | 一行控件(底边对齐)/ 纵向排列 / 空列表占位 / 次要文字 |
+| `StNotice` / `StTag` | 提示条 / 小标签(状态、`Q` / `q` 晋级标记) |
+| `StListItem` / `StSwitchItem` / `StDivider` | 设置式列表行,整行可点;`StListItem` 是 `div[role=button]`,右侧可再放按钮 |
+| `StSwitch` / `StCheckbox` | 开关 / 复选;在列表行里只展示,点击由整行处理 |
+| `StTextField` / `StSearchField` / `StTextArea` | 文本输入(多行框用于粘贴表格):标签在框**上方**(不做浮动标签),说明与错误在框下方;`prefix` / `suffix` 插槽放单位(「m」「s」) |
+| `StMarkField` | 成绩输入:按项目类型解析(`12.34`、`1:05.67`、`6.52`),失焦时调用 Go `scoring` 校验并整理成显示格式,前端不自己解析;`accept` 放行田赛的 `X` / `-` 等记号 |
+| `StDateField` / `StTimeField` | 本地日期 / 24 小时制时分,分开选择;改日期保留时分,改时分保留日期 |
+| `StSegmented` | 2–5 个互斥选项、页内 Tab |
+| `StSelect` / `StMenu` | 下拉选择 / 操作菜单,见下文 |
+| `StDialog` | 所有对话框(内部用原生 `<dialog>` 模态);页面不直接写 `<dialog>` 或自绘外壳。对话框里的下拉菜单挂在对话框内,否则会被模态层盖住 |
+| `StTable` | 数据表格:表头吸顶、列宽可配置、数字列右对齐、行可选中;超过 200 行按固定行高只渲染可见行 |
+| `StPage` / `StToolbar` | 页面骨架与顶部工具栏 |
+| `StToast` | 操作结果提示,文案 ≤ 15 字 |
+
+**下拉菜单**用自有弹出层:整块菜单从锚点一侧淡入 + 6px 位移 + 0.96→1 缩放(入 150ms `ease-out` / 出 100ms);锚点在右半边时右缘对齐、否则左对齐,下方放不下且上方更宽裕时向上弹出,超高内部滚动。不用逐项依次淡入的展开动画,看起来又慢又生硬。
+
+## 交互约定
+
+- 列表行整行可点,右侧开关、圆点只展示,避免只能点小控件。
+- 选项 ≤ 5 个用 `StSegmented`;更多用 `StSelect` 或对话框 + `StRadioItem`。
+- 每个区域最多一个 `primary` 按钮。
+- **工具栏按钮不随状态移位**:右对齐,常驻按钮在没有可用操作时置灰而不是隐藏;计数之类会变宽的内容放在按钮组最左。否则连点时会点到挪过来的另一个按钮。
+- **控件按状态置灰,不隐藏**:隐藏会让界面跳动。完全不该出现的入口才不渲染。
+- **窗口宽窄切换不丢输入**:宽屏多栏 / 窄屏单栏切换时,表单所在组件不得重新挂载(保持同一 key 与树位置),否则输入框失焦、未保存内容丢失。
+- 输入框与按钮并排时底边对齐(标签在框上方,顶边对齐会错位)。
+- 需要点保存的表单,有未保存修改时底部出现「放弃 / 保存」栏;离开页面先确认。开关与分段控件立即生效,不进保存栏。
+
+## 图标
+
+- 全应用统一用 **Lucide**(ISC 许可,线性描边,`lucide-react`),经 `src/design/icons.ts` 改名为 `Icon*` 统一导出后使用;页面不直接引入其他图标库。
+- 描边统一 `1.75`(24 视口),圆头圆角。
+- Lucide 没有的图标按同一规格(24 网格、约 2 留边、圆头描边)自绘 SVG,放进 `src/design/icons/`。
+- 新增依赖须同步「关于 → 开源许可」。
+
+## 边界检查
+
+`scripts/check-design-system.sh`(CI 同跑)是**棘轮**:`src/design/` 之外不得引入第三方组件库、其他图标库,不得写字面颜色值(`#xxx`、`rgb(`)与零散像素圆角。基线从 0 开始,**只减不增**。

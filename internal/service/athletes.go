@@ -1,0 +1,217 @@
+package service
+
+import (
+	"context"
+	"strings"
+
+	"github.com/egoist/mygo/plugins/sqlite"
+	"github.com/stmtc233/sportsmeet/internal/domain"
+	"github.com/stmtc233/sportsmeet/internal/store"
+)
+
+// AthleteInput creates or updates an athlete.
+type AthleteInput struct {
+	Name          string `json:"name"`
+	Gender        string `json:"gender"`
+	Bib           string `json:"bib"`
+	StudentNumber string `json:"studentNumber"`
+	UnitID        string `json:"unitId"`
+	ClassName     string `json:"className"`
+	Grade         string `json:"grade"`
+	BirthDate     string `json:"birthDate"`
+	Note          string `json:"note"`
+}
+
+// AthleteRow is an athlete in the meet's list.
+type AthleteRow struct {
+	Athlete  domain.Athlete `json:"athlete"`
+	UnitName string         `json:"unitName"`
+	Entries  int            `json:"entries"` // events entered
+	Placed   bool           `json:"placed"`  // occupies a slot somewhere
+}
+
+// ListAthletes returns a meet's athletes with their unit and usage.
+func (s *Service) ListAthletes(ctx context.Context, meetID string) ([]AthleteRow, error) {
+	athletes, err := s.store.ListAthletes(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	units, err := s.store.ListUnits(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	entries, slots, err := s.store.AthleteUsage(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	names := map[string]string{}
+	for _, u := range units {
+		names[u.ID] = u.Name
+	}
+	out := make([]AthleteRow, len(athletes))
+	for i, a := range athletes {
+		out[i] = AthleteRow{Athlete: a, UnitName: names[a.UnitID], Entries: entries[a.ID], Placed: slots[a.ID] > 0}
+	}
+	return out, nil
+}
+
+func (in AthleteInput) athlete() (domain.Athlete, error) {
+	a := domain.Athlete{
+		Name:          strings.TrimSpace(in.Name),
+		Bib:           strings.TrimSpace(in.Bib),
+		StudentNumber: strings.TrimSpace(in.StudentNumber),
+		UnitID:        in.UnitID,
+		ClassName:     strings.TrimSpace(in.ClassName),
+		Grade:         strings.TrimSpace(in.Grade),
+		BirthDate:     strings.TrimSpace(in.BirthDate),
+		Note:          strings.TrimSpace(in.Note),
+	}
+	g, ok := domain.NormalizeAthleteGender(in.Gender)
+	switch {
+	case a.Name == "":
+		return a, invalid("请填写姓名")
+	case !ok:
+		return a, invalid("性别只能为男或女")
+	case a.BirthDate != "" && !dateRe.MatchString(a.BirthDate):
+		return a, invalid("出生日期格式不正确")
+	}
+	a.Gender = g
+	return a, nil
+}
+
+// identityClash reports the athlete (other than a) holding a's student
+// number or bib: both are unique in a meet when not blank.
+func identityClash(a domain.Athlete, others []domain.Athlete) error {
+	num, bib := domain.NormalizeText(a.StudentNumber), domain.NormalizeText(a.Bib)
+	for _, o := range others {
+		if o.ID == a.ID {
+			continue
+		}
+		if num != "" && domain.NormalizeText(o.StudentNumber) == num {
+			return invalid("学号 %s 已属于「%s」，请改为更新", a.StudentNumber, o.Name)
+		}
+		if bib != "" && domain.NormalizeText(o.Bib) == bib {
+			return invalid("号码 %s 已属于「%s」，请改为更新", a.Bib, o.Name)
+		}
+	}
+	return nil
+}
+
+func insertAthlete(a domain.Athlete, now int64) sqlite.Statement {
+	return store.Stmt(`INSERT INTO athletes(id, meet_id, name, gender, bib, student_number, unit_id, class_name,
+		grade, birth_date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.ID, a.MeetID, a.Name, string(a.Gender), a.Bib, a.StudentNumber, nullable(a.UnitID), a.ClassName,
+		a.Grade, a.BirthDate, a.Note, now)
+}
+
+func updateAthlete(a domain.Athlete) sqlite.Statement {
+	return store.Stmt(`UPDATE athletes SET name = ?, gender = ?, bib = ?, student_number = ?, unit_id = ?,
+		class_name = ?, grade = ?, birth_date = ?, note = ? WHERE id = ?`,
+		a.Name, string(a.Gender), a.Bib, a.StudentNumber, nullable(a.UnitID), a.ClassName, a.Grade, a.BirthDate, a.Note, a.ID)
+}
+
+// SaveAthlete creates an athlete (id "") or updates one.
+func (s *Service) SaveAthlete(ctx context.Context, src store.Source, meetID, id string, in AthleteInput) (*domain.Athlete, error) {
+	a, err := in.athlete()
+	if err != nil {
+		return nil, err
+	}
+	a.ID, a.MeetID = id, meetID
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := s.GetMeet(ctx, meetID); err != nil {
+		return nil, err
+	}
+	others, err := s.store.ListAthletes(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	if id != "" && !containsAthlete(others, id) {
+		return nil, invalid("运动员不存在或已删除")
+	}
+	if a.UnitID != "" {
+		units, err := s.store.ListUnits(ctx, meetID)
+		if err != nil {
+			return nil, err
+		}
+		ok := false
+		for _, u := range units {
+			ok = ok || u.ID == a.UnitID
+		}
+		if !ok {
+			return nil, invalid("参赛单位不存在或已删除")
+		}
+	}
+	if err := identityClash(a, others); err != nil {
+		return nil, err
+	}
+	audit := store.Audit{Source: src, Action: "athlete.updated", MeetID: meetID, Message: a.Name}
+	stmt := updateAthlete(a)
+	if id == "" {
+		a.ID = newID()
+		audit.Action = "athlete.created"
+		stmt = insertAthlete(a, s.store.Now())
+	}
+	if err := s.write(ctx, audit, Change{Kind: "athletes", MeetID: meetID}, stmt); err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+func containsAthlete(list []domain.Athlete, id string) bool {
+	for _, a := range list {
+		if a.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// DeleteAthletes removes athletes and their entries. Anyone placed in a
+// heat is refused: the slot would be left empty with its result.
+func (s *Service) DeleteAthletes(ctx context.Context, src store.Source, meetID string, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	athletes, err := s.store.ListAthletes(ctx, meetID)
+	if err != nil {
+		return err
+	}
+	_, slots, err := s.store.AthleteUsage(ctx, meetID)
+	if err != nil {
+		return err
+	}
+	byID := map[string]domain.Athlete{}
+	for _, a := range athletes {
+		byID[a.ID] = a
+	}
+	var stmts []sqlite.Statement
+	var names []string
+	for _, id := range ids {
+		a, ok := byID[id]
+		if !ok {
+			continue
+		}
+		if slots[id] > 0 {
+			return invalid("「%s」已排进组，请先移出", a.Name)
+		}
+		names = append(names, a.Name)
+		stmts = append(stmts, store.Stmt(`DELETE FROM athletes WHERE id = ?`, id))
+	}
+	if len(stmts) == 0 {
+		return nil
+	}
+	return s.write(ctx,
+		store.Audit{Source: src, Action: "athlete.deleted", MeetID: meetID, Message: summarize(names), Detail: names},
+		Change{Kind: "athletes", MeetID: meetID}, stmts...)
+}
+
+// summarize names a few items and counts the rest, for log messages.
+func summarize(names []string) string {
+	if len(names) <= 3 {
+		return strings.Join(names, "、")
+	}
+	return strings.Join(names[:3], "、") + " 等 " + itoa(len(names)) + " 人"
+}

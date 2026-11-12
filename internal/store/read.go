@@ -1,0 +1,272 @@
+package store
+
+import (
+	"context"
+	"encoding/json"
+	"sort"
+
+	"github.com/stmtc233/sportsmeet/internal/domain"
+)
+
+// Scope selects the events a tree query covers: one event, or a whole
+// meet. Queries filter by it instead of running once per event or heat
+// (docs/agents/storage.md「查询」).
+type Scope struct {
+	MeetID  string
+	EventID string
+}
+
+// events returns a condition on an event-id column and its argument.
+func (sc Scope) events(col string) (string, any) {
+	if sc.EventID != "" {
+		return col + " = ?", sc.EventID
+	}
+	return col + " IN (SELECT id FROM events WHERE meet_id = ?)", sc.MeetID
+}
+
+// GetMeet returns the meet, or nil when it does not exist.
+func (s *Store) GetMeet(ctx context.Context, id string) (*domain.Meet, error) {
+	rows, err := s.Query(ctx, `SELECT id, name, start_date, end_date, location, note, created_at
+		FROM meets WHERE id = ?`, id)
+	if err != nil || len(rows.Values) == 0 {
+		return nil, err
+	}
+	r := rows.Values[0]
+	return &domain.Meet{ID: str(r[0]), Name: str(r[1]), StartDate: str(r[2]), EndDate: str(r[3]),
+		Location: str(r[4]), Note: str(r[5]), CreatedAt: i64(r[6])}, nil
+}
+
+// ListUnits returns a meet's units by name.
+func (s *Store) ListUnits(ctx context.Context, meetID string) ([]domain.Unit, error) {
+	rows, err := s.Query(ctx, `SELECT id, meet_id, name, short_name FROM units WHERE meet_id = ? ORDER BY name`, meetID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Unit, 0, len(rows.Values))
+	for _, r := range rows.Values {
+		out = append(out, domain.Unit{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), ShortName: str(r[3])})
+	}
+	return out, nil
+}
+
+// ListAthletes returns a meet's athletes in creation order.
+func (s *Store) ListAthletes(ctx context.Context, meetID string) ([]domain.Athlete, error) {
+	rows, err := s.Query(ctx, `SELECT id, meet_id, name, gender, bib, student_number, unit_id, class_name,
+		grade, birth_date, note FROM athletes WHERE meet_id = ? ORDER BY created_at, rowid`, meetID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Athlete, 0, len(rows.Values))
+	for _, r := range rows.Values {
+		out = append(out, domain.Athlete{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), Gender: domain.Gender(str(r[3])),
+			Bib: str(r[4]), StudentNumber: str(r[5]), UnitID: str(r[6]), ClassName: str(r[7]), Grade: str(r[8]),
+			BirthDate: str(r[9]), Note: str(r[10])})
+	}
+	return out, nil
+}
+
+// ListEvents returns the scope's events in creation order.
+func (s *Store) ListEvents(ctx context.Context, sc Scope) ([]domain.Event, error) {
+	cond, arg := "meet_id = ?", any(sc.MeetID)
+	if sc.EventID != "" {
+		cond, arg = "id = ?", sc.EventID
+	}
+	rows, err := s.Query(ctx, `SELECT id, meet_id, name, gender, discipline, group_label, kind, date, lane_count,
+		attempt_count, note FROM events WHERE `+cond+` ORDER BY created_at, rowid`, arg)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Event, 0, len(rows.Values))
+	for _, r := range rows.Values {
+		out = append(out, domain.Event{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), Gender: domain.Gender(str(r[3])),
+			Discipline: str(r[4]), GroupLabel: str(r[5]), Kind: domain.EventKind(str(r[6])), Date: str(r[7]),
+			LaneCount: int(i64(r[8])), AttemptCount: int(i64(r[9])), Note: str(r[10])})
+	}
+	return out, nil
+}
+
+// ListEntries returns the scope's individual entries in entry order.
+func (s *Store) ListEntries(ctx context.Context, sc Scope) ([]domain.Entry, error) {
+	cond, arg := sc.events("event_id")
+	rows, err := s.Query(ctx, `SELECT event_id, athlete_id, seed_mark FROM entries
+		WHERE athlete_id IS NOT NULL AND `+cond+` ORDER BY rowid`, arg)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Entry, 0, len(rows.Values))
+	for _, r := range rows.Values {
+		out = append(out, domain.Entry{EventID: str(r[0]), AthleteID: str(r[1]), SeedMark: optI64(r[2])})
+	}
+	return out, nil
+}
+
+type resultDetail struct {
+	Attempts []domain.Attempt `json:"attempts,omitempty"`
+	Bars     []domain.Bar     `json:"bars,omitempty"`
+}
+
+// ResultDetailJSON encodes the per-attempt and per-height records.
+func ResultDetailJSON(r domain.Result) string {
+	b, err := json.Marshal(resultDetail{Attempts: r.Attempts, Bars: r.Bars})
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}
+
+// LoadRounds reads the scope's rounds with heats, slots and results in
+// four queries, and returns them by event id, ordered by ordinal.
+func (s *Store) LoadRounds(ctx context.Context, sc Scope) (map[string][]domain.Round, error) {
+	cond, arg := sc.events("event_id")
+	rr, err := s.Query(ctx, `SELECT id, event_id, stage, ordinal, name, advance_by_place, advance_by_mark
+		FROM rounds WHERE `+cond+` ORDER BY ordinal`, arg)
+	if err != nil {
+		return nil, err
+	}
+	inRounds := "round_id IN (SELECT id FROM rounds WHERE " + cond + ")"
+	hr, err := s.Query(ctx, `SELECT id, round_id, ordinal, name, scheduled_at, wind FROM heats
+		WHERE `+inRounds+` ORDER BY ordinal`, arg)
+	if err != nil {
+		return nil, err
+	}
+	inHeats := "heat_id IN (SELECT id FROM heats WHERE " + inRounds + ")"
+	sr, err := s.Query(ctx, `SELECT heat_id, position, athlete_id FROM slots WHERE `+inHeats+` ORDER BY position`, arg)
+	if err != nil {
+		return nil, err
+	}
+	res, err := s.Query(ctx, `SELECT heat_id, position, status, mark, rank, qualify, wind, detail_json, note
+		FROM results WHERE `+inHeats, arg)
+	if err != nil {
+		return nil, err
+	}
+
+	type slotKey struct {
+		heat string
+		pos  int
+	}
+	results := make(map[slotKey]*domain.Result, len(res.Values))
+	for _, r := range res.Values {
+		v := &domain.Result{Status: domain.Status(str(r[2])), Mark: optI64(r[3]), Rank: optInt(r[4]),
+			Qualify: str(r[5]), Wind: optInt(r[6]), Note: str(r[8])}
+		var d resultDetail
+		if json.Unmarshal([]byte(str(r[7])), &d) == nil {
+			v.Attempts, v.Bars = d.Attempts, d.Bars
+		}
+		results[slotKey{str(r[0]), int(i64(r[1]))}] = v
+	}
+	slots := map[string][]domain.Slot{}
+	for _, r := range sr.Values {
+		h, pos := str(r[0]), int(i64(r[1]))
+		slots[h] = append(slots[h], domain.Slot{Position: pos, AthleteID: str(r[2]), Result: results[slotKey{h, pos}]})
+	}
+	heats := map[string][]domain.Heat{}
+	for _, r := range hr.Values {
+		h := domain.Heat{ID: str(r[0]), RoundID: str(r[1]), Ordinal: int(i64(r[2])), Name: str(r[3]),
+			ScheduledAt: str(r[4]), Wind: optInt(r[5]), Slots: slots[str(r[0])]}
+		if h.Slots == nil {
+			h.Slots = []domain.Slot{}
+		}
+		heats[h.RoundID] = append(heats[h.RoundID], h)
+	}
+	out := map[string][]domain.Round{}
+	for _, r := range rr.Values {
+		round := domain.Round{ID: str(r[0]), EventID: str(r[1]), Stage: domain.Stage(str(r[2])),
+			Ordinal: int(i64(r[3])), Name: str(r[4]), Heats: heats[str(r[0])]}
+		if round.Heats == nil {
+			round.Heats = []domain.Heat{}
+		}
+		if p, m := optInt(r[5]), optInt(r[6]); p != nil || m != nil {
+			round.Advance = &domain.Advance{}
+			if p != nil {
+				round.Advance.ByPlace = *p
+			}
+			if m != nil {
+				round.Advance.ByMark = *m
+			}
+		}
+		out[round.EventID] = append(out[round.EventID], round)
+	}
+	for _, list := range out {
+		sort.SliceStable(list, func(i, j int) bool { return list[i].Ordinal < list[j].Ordinal })
+	}
+	return out, nil
+}
+
+// MeetCounts is what deleting a meet or an event would remove.
+type MeetCounts struct {
+	Events   int `json:"events"`
+	Athletes int `json:"athletes"`
+	Heats    int `json:"heats"`
+	Results  int `json:"results"`
+}
+
+// Count returns the scope's totals.
+func (s *Store) Count(ctx context.Context, sc Scope) (MeetCounts, error) {
+	cond, arg := sc.events("event_id")
+	inRounds := "round_id IN (SELECT id FROM rounds WHERE " + cond + ")"
+	q := `SELECT
+		(SELECT count(*) FROM heats WHERE ` + inRounds + `),
+		(SELECT count(*) FROM results WHERE heat_id IN (SELECT id FROM heats WHERE ` + inRounds + `))`
+	rows, err := s.Query(ctx, q, arg, arg)
+	if err != nil {
+		return MeetCounts{}, err
+	}
+	c := MeetCounts{Heats: int(i64(rows.Values[0][0])), Results: int(i64(rows.Values[0][1]))}
+	if sc.EventID == "" {
+		rows, err = s.Query(ctx, `SELECT (SELECT count(*) FROM events WHERE meet_id = ?),
+			(SELECT count(*) FROM athletes WHERE meet_id = ?)`, sc.MeetID, sc.MeetID)
+		if err != nil {
+			return MeetCounts{}, err
+		}
+		c.Events, c.Athletes = int(i64(rows.Values[0][0])), int(i64(rows.Values[0][1]))
+	}
+	return c, nil
+}
+
+func optI64(v any) *int64 {
+	n, ok := v.(int64)
+	if !ok {
+		return nil
+	}
+	return &n
+}
+
+func optInt(v any) *int {
+	n, ok := v.(int64)
+	if !ok {
+		return nil
+	}
+	i := int(n)
+	return &i
+}
+
+// AthleteUsage returns, for a meet's athletes, how many events each has
+// entered and how many slots each occupies.
+func (s *Store) AthleteUsage(ctx context.Context, meetID string) (entries, slots map[string]int, err error) {
+	entries, slots = map[string]int{}, map[string]int{}
+	in := "athlete_id IN (SELECT id FROM athletes WHERE meet_id = ?)"
+	rows, err := s.Query(ctx, `SELECT athlete_id, count(*) FROM entries WHERE `+in+` GROUP BY athlete_id`, meetID)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, r := range rows.Values {
+		entries[str(r[0])] = int(i64(r[1]))
+	}
+	rows, err = s.Query(ctx, `SELECT athlete_id, count(*) FROM slots WHERE `+in+` GROUP BY athlete_id`, meetID)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, r := range rows.Values {
+		slots[str(r[0])] = int(i64(r[1]))
+	}
+	return entries, slots, nil
+}
+
+// GetSetting returns a stored setting, or "" when unset.
+func (s *Store) GetSetting(ctx context.Context, key string) (string, error) {
+	rows, err := s.Query(ctx, `SELECT value FROM settings WHERE key = ?`, key)
+	if err != nil || len(rows.Values) == 0 {
+		return "", err
+	}
+	return str(rows.Values[0][0]), nil
+}

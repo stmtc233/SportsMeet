@@ -1,0 +1,24 @@
+# 本地数据(`internal/store/`)
+
+## 数据库文件
+
+- 一个 SQLite 文件,放在 `mygo.PathUserData`,经 mygo SQLite 插件的 Go API(`sqlite.Open`)打开;启动时先确保目录存在。
+- 打开后启用 WAL。插件默认开启外键:级联删除由表上的 `ON DELETE CASCADE` 完成,service 不再手动逐表删除。
+
+## 迁移
+
+- `internal/store/migrations/NNNN_名称.sql`,启动时按序号执行未执行过的,执行记录存在 `schema_migrations` 表。每个迁移在一个事务里完成。
+- 同一改动里更新 `schema.sql` 快照(当前完整结构),供阅读与测试比对。
+- 已发布的迁移文件不再修改,只追加新迁移:用户机器上已经跑过旧内容,改了不会重跑。
+
+## 连接与并发
+
+- mygo 每次绑定调用在独立 goroutine 执行,MCP 请求也并发到达。**只有一个写连接**,所有写入走 `Store.Write`,避免 goroutine 之间出现 `SQLITE_BUSY`。
+- **插件的事务只接收一批语句**(`Transaction([]Statement)`),不能在事务里先读再决定写什么。所以 service 的写方法在持有 `Service.mu` 期间完成「读 → 校验 / 计算 → 一批写入」;所有写都经 service,持锁期间读到的数据就不会被别处改掉。不要在 service 之外调 `Store.Write`,否则这个保证失效。
+- 读走单独的只读连接(`Store.Query`),大列表查询不会把写入排在后面。
+- 迁移文件按「行尾分号」切成语句逐条执行,迁移里不写触发器,也不写跨行且含行尾分号的字符串。
+
+## 查询
+
+- **列表查询次数不随组数增长**:项目概览、组列表一次读齐组、位置、运动员、成绩再在内存组装,不逐组查询。运动会动辄几百组,逐组查询会让每次变更后的界面刷新明显卡顿。
+- 时间戳存毫秒整数;日期存 `YYYY-MM-DD` 文本,计划时间存本地 `YYYY-MM-DDTHH:mm` 文本,与交换格式一致,不做时区换算。
