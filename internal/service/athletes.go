@@ -12,22 +12,23 @@ import (
 // AthleteInput creates or updates an athlete.
 type AthleteInput struct {
 	Name          string `json:"name"`
-	Gender        string `json:"gender"`
-	Bib           string `json:"bib"`
-	StudentNumber string `json:"studentNumber"`
-	UnitID        string `json:"unitId"`
-	ClassName     string `json:"className"`
-	Grade         string `json:"grade"`
-	BirthDate     string `json:"birthDate"`
-	Note          string `json:"note"`
+	Gender        string `json:"gender,omitempty"`
+	Bib           string `json:"bib,omitempty"`
+	StudentNumber string `json:"studentNumber,omitempty"`
+	UnitID        string `json:"unitId,omitempty"`
+	ClassName     string `json:"className,omitempty"`
+	Grade         string `json:"grade,omitempty"`
+	BirthDate     string `json:"birthDate,omitempty"`
+	Note          string `json:"note,omitempty"`
 }
 
 // AthleteRow is an athlete in the meet's list.
 type AthleteRow struct {
-	Athlete  domain.Athlete `json:"athlete"`
-	UnitName string         `json:"unitName"`
-	Entries  int            `json:"entries"` // events entered
-	Placed   bool           `json:"placed"`  // occupies a slot somewhere
+	TeamMember bool           `json:"teamMember"`
+	Athlete    domain.Athlete `json:"athlete"`
+	UnitName   string         `json:"unitName"`
+	Entries    int            `json:"entries"` // events entered
+	Placed     bool           `json:"placed"`  // occupies a slot somewhere
 }
 
 // ListAthletes returns a meet's athletes with their unit and usage.
@@ -48,9 +49,19 @@ func (s *Service) ListAthletes(ctx context.Context, meetID string) ([]AthleteRow
 	for _, u := range units {
 		names[u.ID] = u.Name
 	}
+	teams, err := s.store.ListTeams(ctx, store.Scope{MeetID: meetID})
+	if err != nil {
+		return nil, err
+	}
+	members := map[string]bool{}
+	for _, t := range teams {
+		for _, id := range t.MemberIDs {
+			members[id] = true
+		}
+	}
 	out := make([]AthleteRow, len(athletes))
 	for i, a := range athletes {
-		out[i] = AthleteRow{Athlete: a, UnitName: names[a.UnitID], Entries: entries[a.ID], Placed: slots[a.ID] > 0}
+		out[i] = AthleteRow{TeamMember: members[a.ID], Athlete: a, UnitName: names[a.UnitID], Entries: entries[a.ID], Placed: slots[a.ID] > 0}
 	}
 	return out, nil
 }
@@ -187,6 +198,20 @@ func (s *Service) DeleteAthletes(ctx context.Context, src store.Source, meetID s
 	for _, a := range athletes {
 		byID[a.ID] = a
 	}
+	teams, err := s.store.ListTeams(ctx, store.Scope{MeetID: meetID})
+	if err != nil {
+		return err
+	}
+	for _, t := range teams {
+		for _, member := range t.MemberIDs {
+			for _, id := range ids {
+				if member == id {
+					return invalid("运动员已在接力队，请先移出队伍")
+				}
+			}
+		}
+	}
+
 	var stmts []sqlite.Statement
 	var names []string
 	for _, id := range ids {
@@ -214,4 +239,37 @@ func summarize(names []string) string {
 		return strings.Join(names, "、")
 	}
 	return strings.Join(names[:3], "、") + " 等 " + itoa(len(names)) + " 人"
+}
+
+// AthleteSave includes advisory name collisions without weakening bib/student-number uniqueness.
+type AthleteSave struct {
+	Athlete  *domain.Athlete `json:"athlete"`
+	Warnings []string        `json:"warnings"`
+}
+
+// SaveAthleteWithWarnings shares the normal save validation with an advisory duplicate-name check.
+func (s *Service) SaveAthleteWithWarnings(ctx context.Context, src store.Source, meetID, id string, in AthleteInput) (*AthleteSave, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	pending := &preparedWrite{}
+	planner := &Service{store: s.store, pending: pending}
+	athlete, err := planner.SaveAthlete(ctx, src, meetID, id, in)
+	if err != nil {
+		return nil, err
+	}
+	others, err := s.store.ListAthletes(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	out := &AthleteSave{Athlete: athlete, Warnings: []string{}}
+	for _, other := range others {
+		if other.ID != athlete.ID && domain.NormalizeText(other.Name) == domain.NormalizeText(athlete.Name) {
+			out.Warnings = append(out.Warnings, "赛事中有同名运动员")
+			break
+		}
+	}
+	if err := s.write(ctx, pending.audit, pending.change, pending.stmts...); err != nil {
+		return nil, err
+	}
+	return out, nil
 }

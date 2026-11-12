@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/stmtc233/sportsmeet/internal/bind"
+	"github.com/stmtc233/sportsmeet/internal/mcp"
 	"github.com/stmtc233/sportsmeet/internal/service"
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
@@ -16,7 +17,7 @@ func main() {
 	core := &bind.Core{}
 	mygo.Bind(bind.Meets{Core: core}, bind.Units{Core: core}, bind.Athletes{Core: core}, bind.Events{Core: core},
 		bind.Entries{Core: core}, bind.Arrange{Core: core}, bind.Results{Core: core}, bind.Reports{Core: core},
-		&bind.Exchange{Core: core}, bind.Marks{}, bind.App{})
+		&bind.Exchange{Core: core}, bind.Marks{}, bind.App{}, bind.Settings{Core: core})
 
 	var st *store.Store
 	mygo.App.WhenReady(func() {
@@ -29,6 +30,10 @@ func main() {
 			log.Fatal(err)
 		}
 		core.Svc = service.New(st, bind.Notify)
+		core.MCP = mcp.New(core.Svc)
+		if err := core.MCP.Start(context.Background()); err != nil {
+			log.Printf("MCP: %v", err)
+		}
 
 		mygo.NewWindow(mygo.WindowOptions{
 			Title:           "SportsMeet",
@@ -42,6 +47,9 @@ func main() {
 		})
 	})
 	mygo.App.OnQuit(func() {
+		if core.MCP != nil {
+			_ = core.MCP.Close()
+		}
 		if st != nil {
 			st.Close()
 		}

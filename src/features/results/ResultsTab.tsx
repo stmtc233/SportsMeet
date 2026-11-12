@@ -9,7 +9,7 @@ import { HeatResults } from "./HeatResults";
 export function ResultsTab({ detail }: { detail: EventDetail }) {
   const [roundId, setRoundId] = useState(detail.rounds[0]?.id ?? "");
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
-  const entries = useMemo(() => new Map<string, EntryView>(detail.entries.map((e) => [e.athleteId, e])), [detail.entries]);
+  const entries = useMemo(() => new Map<string, EntryView>(detail.entries.map((e) => [e.competitorId, e])), [detail.entries]);
   const onDirty = useCallback((id: string, v: boolean) => setDirty((old) => (Boolean(old[id]) === v ? old : { ...old, [id]: v })), []);
   useLeaveGuard(Object.values(dirty).some(Boolean));
   const round = detail.rounds.find((r) => r.id === roundId) ?? detail.rounds[0];
@@ -28,11 +28,11 @@ export function ResultsTab({ detail }: { detail: EventDetail }) {
         ))}
         {round.standings.length > 0 && (
           <StSection title={`${round.label}排名`} padded={false}>
-            <StTable<Standing> dense rows={round.standings} rowKey={(s) => s.athleteId}
+            <StTable<Standing> dense rows={round.standings} rowKey={(s) => s.competitorId}
               columns={[
                 { key: "rank", title: "名次", width: "64px", align: "end", render: (s) => s.rank ?? "" },
-                { key: "name", title: "姓名", render: (s) => <span className="cell-strong">{entries.get(s.athleteId)?.name}</span> },
-                { key: "unit", title: "单位", render: (s) => entries.get(s.athleteId)?.unitName },
+                { key: "name", title: detail.event.kind === "relay" ? "队伍" : "姓名", render: (s) => <span className="cell-strong">{entries.get(s.competitorId)?.name}</span> },
+                { key: "unit", title: "单位", render: (s) => entries.get(s.competitorId)?.unitName },
                 { key: "heat", title: "组", width: "96px", render: (s) => s.heatLabel },
                 { key: "mark", title: "成绩", width: "112px", align: "end", render: (s) => (s.status === "OK" ? s.markText : statusLabels[s.status]) },
                 { key: "q", title: "晋级", width: "64px", render: (s) => s.qualify && <StTag tone="success">{s.qualify}</StTag> },

@@ -27,7 +27,7 @@ export function AthletesPage({ meetId }: { meetId: string }) {
     <StPage flush
       toolbar={
         <StToolbar title="运动员" subtitle={rows ? `${rows.length} 人` : ""}>
-          <StButton variant="danger" disabled={picked.length === 0} onClick={() => setDeleting(true)} reserveWidthFor={["删除 999 人"]}>
+          <StButton variant="danger" disabled={picked.length === 0 || picked.some((r) => r.teamMember || r.placed)} onClick={() => setDeleting(true)} reserveWidthFor={["删除 999 人"]}>
             {picked.length > 0 ? `删除 ${picked.length} 人` : "删除"}
           </StButton>
           <StButton icon={<IconImport size={16} strokeWidth={iconStroke} />} onClick={() => setImporting(true)}>批量导入</StButton>

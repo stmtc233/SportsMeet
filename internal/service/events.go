@@ -15,18 +15,18 @@ func itoa(n int) string { return strconv.Itoa(n) }
 // EventInput creates or updates an event. Prelim asks for a 预赛 before
 // the final, advancing by AdvanceByPlace and AdvanceByMark.
 type EventInput struct {
-	Name           string `json:"name"` // "" = composed from the fields below
+	Name           string `json:"name,omitempty"` // "" = composed from the fields below
 	Gender         string `json:"gender"`
 	Discipline     string `json:"discipline"`
-	GroupLabel     string `json:"groupLabel"`
+	GroupLabel     string `json:"groupLabel,omitempty"`
 	Kind           string `json:"kind"`
-	Date           string `json:"date"`
-	LaneCount      int    `json:"laneCount"`
-	AttemptCount   int    `json:"attemptCount"`
-	Note           string `json:"note"`
-	Prelim         bool   `json:"prelim"`
-	AdvanceByPlace int    `json:"advanceByPlace"`
-	AdvanceByMark  int    `json:"advanceByMark"`
+	Date           string `json:"date,omitempty"`
+	LaneCount      int    `json:"laneCount,omitempty"`
+	AttemptCount   int    `json:"attemptCount,omitempty"`
+	Note           string `json:"note,omitempty"`
+	Prelim         bool   `json:"prelim,omitempty"`
+	AdvanceByPlace int    `json:"advanceByPlace,omitempty"`
+	AdvanceByMark  int    `json:"advanceByMark,omitempty"`
 }
 
 // EventRow is an event in the meet's list, with its progress.
@@ -102,8 +102,6 @@ func (in EventInput) event() (domain.Event, error) {
 		return e, invalid("请选择性别")
 	case e.Discipline == "":
 		return e, invalid("请填写项目名")
-	case e.Kind == domain.KindRelay:
-		return e, invalid("暂不支持接力项目")
 	case !e.Kind.Valid():
 		return e, invalid("请选择项目类型")
 	case e.Date != "" && !dateRe.MatchString(e.Date):
@@ -199,6 +197,25 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 				results += h.Facts().Results
 			}
 		}
+		if (e.Kind == domain.KindRelay) != (old.Kind == domain.KindRelay) {
+			entries, err := s.store.ListEntries(ctx, store.Scope{EventID: id})
+			if err != nil {
+				return nil, err
+			}
+			teams, err := s.store.ListTeams(ctx, store.Scope{EventID: id})
+			if err != nil {
+				return nil, err
+			}
+			occupied := false
+			for _, r := range rounds[id] {
+				for _, h := range r.Heats {
+					occupied = occupied || len(h.Slots) > 0
+				}
+			}
+			if len(entries) > 0 || len(teams) > 0 || occupied {
+				return nil, invalid("已有报名或队伍，不能切换接力类型")
+			}
+		}
 		if e.Kind != old.Kind && results > 0 {
 			return nil, invalid("已有成绩，不能改项目类型")
 		}
@@ -252,7 +269,7 @@ func (s *Service) DeleteEvent(ctx context.Context, src store.Source, id string, 
 	if err != nil {
 		return err
 	}
-	if counts.Results > 0 && !allowResults {
+	if counts.Results > 0 && (!allowResults || src == store.SourceMCP) {
 		return invalid("「%s」已有成绩，只能在界面上删除", e.Name)
 	}
 	return s.write(ctx,

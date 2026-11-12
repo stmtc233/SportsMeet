@@ -16,13 +16,13 @@ import (
 // (no status, mark, attempts or trials) removes the slot's result.
 type ResultInput struct {
 	Position int    `json:"position"`
-	Status   string `json:"status"` // "" = from the marks: OK, or NM for a field record without a valid mark
-	Mark     string `json:"mark"`   // timed events, and field events without a record
+	Status   string `json:"status,omitempty"` // "" = from the marks: OK, or NM for a field record without a valid mark
+	Mark     string `json:"mark,omitempty"`   // timed events, and field events without a record
 	// Attempts are a distance result's tries in order: a mark, X or -.
-	Attempts []string `json:"attempts"`
+	Attempts []string `json:"attempts,omitempty"`
 	// Bars are a height result's heights; blank trials are skipped.
-	Bars []BarInput `json:"bars"`
-	Note string     `json:"note"`
+	Bars []BarInput `json:"bars,omitempty"`
+	Note string     `json:"note,omitempty"`
 }
 
 // BarInput is one height as typed.
@@ -177,9 +177,11 @@ func resultWrites(before map[slotRef]*domain.Result, heats []domain.Heat, rewrit
 
 // ResultChange is one result before and after a write, for the log.
 type ResultChange struct {
-	Athlete string `json:"athlete"`
-	Before  string `json:"before"`
-	After   string `json:"after"`
+	Athlete      string         `json:"athlete"`
+	Before       string         `json:"before"`
+	After        string         `json:"after"`
+	BeforeRecord *domain.Result `json:"beforeRecord,omitempty"`
+	AfterRecord  *domain.Result `json:"afterRecord,omitempty"`
 }
 
 func resultText(kind domain.EventKind, r *domain.Result) string {
@@ -220,14 +222,19 @@ func (s *Service) SaveResults(ctx context.Context, src store.Source, heatID stri
 		}
 	}
 	var changes []ResultChange
+	seen := map[int]bool{}
 	for _, in := range inputs {
+		if seen[in.Position] {
+			return invalid("位置重复")
+		}
+		seen[in.Position] = true
 		var slot *domain.Slot
 		for i := range heat.Slots {
 			if heat.Slots[i].Position == in.Position {
 				slot = &heat.Slots[i]
 			}
 		}
-		if slot == nil || slot.AthleteID == "" {
+		if slot == nil || slot.CompetitorID() == "" {
 			return ErrStale
 		}
 		r, err := buildResult(kind, in)
@@ -237,8 +244,8 @@ func (s *Service) SaveResults(ctx context.Context, src store.Source, heatID stri
 		if r != nil && slot.Result != nil {
 			r.Wind = slot.Result.Wind
 		}
-		if a, b := resultText(kind, slot.Result), resultText(kind, r); a != b {
-			changes = append(changes, ResultChange{Athlete: st.athletes[slot.AthleteID].Name, Before: a, After: b})
+		if a, b := resultText(kind, slot.Result), resultText(kind, r); !reflect.DeepEqual(slot.Result, r) {
+			changes = append(changes, ResultChange{Athlete: st.competitorName(slot.CompetitorID()), Before: a, After: b, BeforeRecord: slot.Result, AfterRecord: r})
 		}
 		slot.Result = r
 	}

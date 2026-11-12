@@ -30,3 +30,5 @@ th { background: #f0f0f0; font-weight: 600; }
 .mark { text-align: right; width: 6em; }
 .narrow { width: 4.2em; }
 .empty { color: #666; margin: 4px 0; }
+
+.member { font-size: 9pt; color: #555; }

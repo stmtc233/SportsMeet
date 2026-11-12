@@ -1,4 +1,4 @@
-import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, type FormEvent, type ReactNode } from "react";
 import { IconClose, iconStroke } from "./icons";
 import { StIconButton } from "./StButton";
 
@@ -16,6 +16,7 @@ interface StDialogProps {
 
 /** Every dialog: a modal with a title, a body and a row of actions. */
 export function StDialog({ open, title, onClose, children, actions, onSubmit, size = "medium" }: StDialogProps) {
+  const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -29,14 +30,14 @@ export function StDialog({ open, title, onClose, children, actions, onSubmit, si
     onSubmit?.();
   };
   return (
-    <dialog ref={ref} className={`st-dialog st-dialog--${size}`}
+    <dialog ref={ref} aria-labelledby={titleId} className={`st-dialog st-dialog--${size}`}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
       }}>
       <form className="st-dialog__form" onSubmit={submit}>
         <header className="st-dialog__head">
-          <h2>{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <StIconButton label="关闭" onClick={onClose}>
             <IconClose size={18} strokeWidth={iconStroke} />
           </StIconButton>

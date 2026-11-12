@@ -11,7 +11,7 @@
   <p>{{.Title}}</p>
   <p>{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
 </header>
-{{range .Events}}{{$timed := .Timed}}
+{{range .Events}}{{$timed := .Timed}}{{$relay := .Relay}}
 <section class="event">
   <h2>{{.Name}}{{if .Date}}<small>{{.Date}}</small>{{end}}</h2>
   {{range .Rounds}}
@@ -23,9 +23,9 @@
       <div class="heat">
         <h4>{{.Label}}{{if .Time}}<small>{{.Time}}</small>{{end}}</h4>
         <table>
-          <thead><tr><th class="num">{{if $timed}}道次{{else}}顺序{{end}}</th><th class="narrow">号码</th><th>姓名</th><th>单位</th><th class="mark">报名成绩</th></tr></thead>
+          <thead><tr><th class="num">{{if $timed}}道次{{else}}顺序{{end}}</th><th class="narrow">号码</th><th>{{if $relay}}队伍 / 棒次{{else}}姓名{{end}}</th><th>单位</th><th class="mark">报名成绩</th></tr></thead>
           <tbody>
-            {{range .Lines}}<tr><td class="num">{{.Position}}</td><td>{{.Bib}}</td><td>{{.Name}}</td><td>{{.Unit}}</td><td class="mark">{{.Seed}}</td></tr>
+            {{range .Lines}}<tr><td class="num">{{.Position}}</td><td>{{.Bib}}</td><td>{{.Name}}{{range .Members}}<div class="member">{{.}}</div>{{end}}</td><td>{{.Unit}}</td><td class="mark">{{.Seed}}</td></tr>
             {{end}}
           </tbody>
         </table>

@@ -77,7 +77,7 @@ function Popover({ anchor, open, onClose, children, matchWidth }: PopoverProps) 
   // Inside a modal dialog the popup must live in the dialog's top layer.
   const host = anchor?.closest("dialog") ?? document.body;
   return createPortal(
-    <div ref={ref} className="st-popover" style={style} data-open={open || undefined} data-up={up || undefined} role="menu">
+    <div ref={ref} className="st-popover" style={style} data-open={open || undefined} data-up={up || undefined} role="menu" inert={!open} aria-hidden={!open}>
       {children}
     </div>,
     host,

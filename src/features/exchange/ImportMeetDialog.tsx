@@ -78,6 +78,8 @@ export function ImportMeetDialog({ file, meetId, onClose, onImported }: { file: 
             <dd>{tally(preview.athletes)}</dd>
             <dt>项目</dt>
             <dd>{tally(preview.events)}</dd>
+            <dt>接力队</dt>
+            <dd>{tally(preview.teams)}</dd>
             <dt>报名</dt>
             <dd>新增 {preview.entries}</dd>
             <dt>组</dt>

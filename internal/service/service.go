@@ -30,6 +30,8 @@ type Service struct {
 	// mu serializes writes: a method reads, validates and writes while
 	// holding it, so its reads stay current until its batch commits.
 	mu sync.Mutex
+	// pending is set only on a request-local planner while the real service holds mu.
+	pending *preparedWrite
 }
 
 // New returns a service; notify is called after each committed write.
@@ -44,6 +46,13 @@ func New(s *store.Store, notify func(Change)) *Service {
 // fails only because of the audit row is retried without it: the log must
 // not block the work it describes (docs/agents/domain.md「操作日志」).
 func (s *Service) write(ctx context.Context, a store.Audit, c Change, stmts ...sqlite.Statement) error {
+	if s.pending != nil {
+		if s.pending.audit.Action != "" {
+			return errors.New("service: an operation must prepare one batch")
+		}
+		s.pending.audit, s.pending.change, s.pending.stmts = a, c, stmts
+		return nil
+	}
 	withLog := append(append([]sqlite.Statement(nil), stmts...), store.InsertAudit(s.store.Now(), a))
 	if err := s.store.Write(ctx, withLog...); err != nil {
 		if len(stmts) == 0 {

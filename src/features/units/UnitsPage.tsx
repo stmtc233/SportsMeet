@@ -52,7 +52,7 @@ export function UnitsPage({ meetId }: { meetId: string }) {
 }
 
 function UnitDialog({ meetId, open, unit, onClose }: { meetId: string; open: boolean; unit?: Unit; onClose: () => void }) {
-  const [form, setForm] = useState<UnitInput>({ name: "", shortName: "" });
+  const [form, setForm] = useState<Required<UnitInput>>({ name: "", shortName: "" });
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (open) setForm({ name: unit?.name ?? "", shortName: unit?.shortName ?? "" });

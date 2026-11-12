@@ -16,6 +16,7 @@ import (
 	"github.com/stmtc233/sportsmeet/internal/arrange"
 	"github.com/stmtc233/sportsmeet/internal/domain"
 	"github.com/stmtc233/sportsmeet/internal/interchange"
+	"github.com/stmtc233/sportsmeet/internal/mcp"
 	"github.com/stmtc233/sportsmeet/internal/scoring"
 	"github.com/stmtc233/sportsmeet/internal/service"
 	"github.com/stmtc233/sportsmeet/internal/store"
@@ -30,7 +31,10 @@ func Notify(c service.Change) { _ = DataChanged.Broadcast(c) }
 
 // Core holds the service every binding forwards to; main fills it once
 // the data directory is known.
-type Core struct{ Svc *service.Service }
+type Core struct {
+	Svc *service.Service
+	MCP *mcp.Manager
+}
 
 const ui = store.SourceUI
 
@@ -115,8 +119,8 @@ func (a Athletes) List(ctx context.Context, meetID string) ([]service.AthleteRow
 }
 
 // Save creates (id "") or updates an athlete.
-func (a Athletes) Save(ctx context.Context, meetID, id string, in service.AthleteInput) (*domain.Athlete, error) {
-	return a.Svc.SaveAthlete(ctx, ui, meetID, id, in)
+func (a Athletes) Save(ctx context.Context, meetID, id string, in service.AthleteInput) (*service.AthleteSave, error) {
+	return a.Svc.SaveAthleteWithWarnings(ctx, ui, meetID, id, in)
 }
 
 // Delete removes athletes.
@@ -188,13 +192,13 @@ func (e Entries) Add(ctx context.Context, eventID string, list []service.EntryIn
 }
 
 // SetSeed changes an entry mark; "" clears it.
-func (e Entries) SetSeed(ctx context.Context, eventID, athleteID, seed string) error {
-	return e.Svc.SetSeed(ctx, ui, eventID, athleteID, seed)
+func (e Entries) SetSeed(ctx context.Context, eventID, competitorID, seed string) error {
+	return e.Svc.SetSeed(ctx, ui, eventID, competitorID, seed)
 }
 
 // Remove withdraws athletes from an event.
-func (e Entries) Remove(ctx context.Context, eventID string, athleteIDs []string) error {
-	return e.Svc.RemoveEntries(ctx, ui, eventID, athleteIDs)
+func (e Entries) Remove(ctx context.Context, eventID string, competitorIDs []string) error {
+	return e.Svc.RemoveEntries(ctx, ui, eventID, competitorIDs)
 }
 
 // Arrange plans and saves heats.
@@ -206,8 +210,15 @@ func (a Arrange) Plan(ctx context.Context, req service.PlanRequest) ([]arrange.P
 }
 
 // Save applies the arrange page's draft.
-func (a Arrange) Save(ctx context.Context, in service.BoardSave) error {
-	return a.Svc.SaveBoard(ctx, ui, in)
+func (a Arrange) Save(ctx context.Context, in service.BoardSave) (service.EventDetail, error) {
+	if err := a.Svc.SaveBoard(ctx, ui, in); err != nil {
+		return service.EventDetail{}, err
+	}
+	saved, err := a.Svc.GetEvent(ctx, in.EventID)
+	if err != nil {
+		return service.EventDetail{}, err
+	}
+	return *saved, nil
 }
 
 // Results records marks.

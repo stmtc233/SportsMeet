@@ -11,7 +11,7 @@ import (
 // UnitInput creates or updates a 参赛单位.
 type UnitInput struct {
 	Name      string `json:"name"`
-	ShortName string `json:"shortName"`
+	ShortName string `json:"shortName,omitempty"`
 }
 
 // ListUnits returns a meet's units.

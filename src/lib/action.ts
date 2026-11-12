@@ -8,7 +8,8 @@ export async function act<T>(fn: () => Promise<T>, done?: string): Promise<T | u
   try {
     const out = await fn();
     if (done) toast(done, "success");
-    return out === undefined ? (true as T) : out;
+    // Native Go void calls resolve to null; browser adapters may use undefined.
+    return out == null ? (true as T) : out;
   } catch (err) {
     toast(errorText(err), "danger");
     return undefined;

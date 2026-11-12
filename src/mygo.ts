@@ -55,24 +55,45 @@ export interface AthleteImportPreview {
 /** AthleteInput creates or updates an athlete. */
 export interface AthleteInput {
   name: string;
-  gender: string;
-  bib: string;
-  studentNumber: string;
-  unitId: string;
-  className: string;
-  grade: string;
-  birthDate: string;
-  note: string;
+  gender?: string;
+  bib?: string;
+  studentNumber?: string;
+  unitId?: string;
+  className?: string;
+  grade?: string;
+  birthDate?: string;
+  note?: string;
 }
 
 /** AthleteRow is an athlete in the meet's list. */
 export interface AthleteRow {
+  teamMember: boolean;
   athlete: Athlete;
   unitName: string;
   /** events entered */
   entries: number;
   /** occupies a slot somewhere */
   placed: boolean;
+}
+
+/** AthleteSave includes advisory name collisions without weakening bib/student-number uniqueness. */
+export interface AthleteSave {
+  athlete: Athlete | null;
+  warnings: string[];
+}
+
+/** Attempt is one try in a distance event. */
+export interface Attempt {
+  /** valid | foul | pass */
+  outcome: string;
+  mark: number | null;
+  wind: number | null;
+}
+
+/** Bar is one height in a height event; Trials is made of O, X and -. */
+export interface Bar {
+  height: number;
+  trials: string;
 }
 
 /** BarInput is one height as typed. */
@@ -109,10 +130,11 @@ export interface Change {
   eventId: string;
 }
 
-/** EntryInput enters an athlete; Seed is the typed entry mark, "" = none. */
+/** EntryInput enters an athlete or relay team; Seed is the typed entry mark, "" = none. */
 export interface EntryInput {
-  athleteId: string;
-  seed: string;
+  athleteId?: string;
+  teamId?: string;
+  seed?: string;
 }
 
 /** EntryView is one entered athlete. */
@@ -130,6 +152,8 @@ export interface EntryView {
   placed: boolean;
   /** differs from the event's gender */
   genderMismatch: boolean;
+  competitorId: string;
+  teamId?: string;
 }
 
 /** Event is one single item: gender + discipline + optional group. */
@@ -153,6 +177,7 @@ export interface Event {
  * for one event.
  */
 export interface EventDetail {
+  teams: TeamView[];
   event: Event;
   entries: EntryView[];
   rounds: RoundView[];
@@ -164,18 +189,18 @@ export interface EventDetail {
  */
 export interface EventInput {
   /** "" = composed from the fields below */
-  name: string;
+  name?: string;
   gender: string;
   discipline: string;
-  groupLabel: string;
+  groupLabel?: string;
   kind: string;
-  date: string;
-  laneCount: number;
-  attemptCount: number;
-  note: string;
-  prelim: boolean;
-  advanceByPlace: number;
-  advanceByMark: number;
+  date?: string;
+  laneCount?: number;
+  attemptCount?: number;
+  note?: string;
+  prelim?: boolean;
+  advanceByPlace?: number;
+  advanceByMark?: number;
 }
 
 /** EventKind decides how marks are measured and ranked. */
@@ -237,6 +262,7 @@ export interface HeatView {
 export interface ImportPreview {
   meetName: string;
   newMeet: boolean;
+  teams: Tally;
   units: Tally;
   athletes: Tally;
   events: Tally;
@@ -261,6 +287,14 @@ export interface ImportRow {
   name: string;
   /** the error, or a warning */
   message: string;
+}
+
+export interface McpStatus {
+  enabled: boolean;
+  running: boolean;
+  port: number;
+  address: string;
+  error: string;
 }
 
 /** Meet is one 赛事. */
@@ -289,9 +323,9 @@ export interface MeetCounts {
 export interface MeetInput {
   name: string;
   startDate: string;
-  endDate: string;
-  location: string;
-  note: string;
+  endDate?: string;
+  location?: string;
+  note?: string;
 }
 
 /** PickedFile is a file chosen for import. */
@@ -309,18 +343,18 @@ export interface PickedFile {
 export interface PlanRequest {
   eventId: string;
   roundId: string;
-  exclude: string[];
+  exclude?: string[];
   /**
    * FromAdvance fills the round with those who advanced from the round
    * before it, seeded by the marks they got there, instead of the entries.
    */
-  fromAdvance: boolean;
+  fromAdvance?: boolean;
   perHeat: number;
   order: string;
   lanes: string;
-  separateUnits: boolean;
-  balance: boolean;
-  seed: number;
+  separateUnits?: boolean;
+  balance?: boolean;
+  seed?: number;
 }
 
 /** PlannedHeat is one new heat. */
@@ -331,7 +365,29 @@ export interface PlannedHeat {
 /** PlannedSlot is one position of a planned heat. */
 export interface PlannedSlot {
   position: number;
-  athleteId: string;
+  competitorId: string;
+}
+
+/** Preferences contains only settings used by the app. MCP secrets have a separate API. */
+export interface Preferences {
+  theme: string;
+  separateUnits: boolean;
+  balance: boolean;
+  printNewPage: boolean;
+}
+
+/** Result is the mark at a slot. Mark is ms (timed) or mm (field). */
+export interface Result {
+  status: Status;
+  mark: number | null;
+  rank: number | null;
+  /** Q | q | "" */
+  qualify: string;
+  /** 0.1 m/s */
+  wind: number | null;
+  attempts: Attempt[];
+  bars: Bar[];
+  note: string;
 }
 
 /** ResultChange is one result before and after a write, for the log. */
@@ -339,6 +395,8 @@ export interface ResultChange {
   athlete: string;
   before: string;
   after: string;
+  beforeRecord?: Result;
+  afterRecord?: Result;
 }
 
 /**
@@ -348,14 +406,14 @@ export interface ResultChange {
 export interface ResultInput {
   position: number;
   /** "" = from the marks: OK, or NM for a field record without a valid mark */
-  status: string;
+  status?: string;
   /** timed events, and field events without a record */
-  mark: string;
+  mark?: string;
   /** Attempts are a distance result's tries in order: a mark, X or -. */
-  attempts: string[];
+  attempts?: string[];
   /** Bars are a height result's heights; blank trials are skipped. */
-  bars: BarInput[];
-  note: string;
+  bars?: BarInput[];
+  note?: string;
 }
 
 /** ResultView is a result with its texts as the page shows and edits them. */
@@ -396,10 +454,43 @@ export interface RoundView {
   complete: boolean;
 }
 
-/** SlotSave places an athlete. */
+/** ScheduleChange is one actual time change, with display text computed in Go. */
+export interface ScheduleChange {
+  heatId: string;
+  label: string;
+  before: string;
+  after: string;
+  beforeText: string;
+  afterText: string;
+}
+
+export interface SchedulePreview {
+  previewHash: string;
+  errors: string[];
+  changes: ScheduleChange[];
+  skipped: ScheduleSkip[];
+}
+
+/** ScheduleRequest assigns local wall-clock times to the unscored heats of one round. */
+export interface ScheduleRequest {
+  eventId: string;
+  roundId: string;
+  startAt: string;
+  intervalMinutes: number;
+}
+
+export interface ScheduleSkip {
+  heatId: string;
+  label: string;
+  reason: string;
+}
+
+/** SlotSave places an athlete or relay team; ID is the UI's opaque competitor ID. */
 export interface SlotSave {
   position: number;
-  athleteId: string;
+  athleteId?: string;
+  teamId?: string;
+  competitorId?: string;
 }
 
 /** SlotView is a slot with its result. */
@@ -407,6 +498,8 @@ export interface SlotView {
   position: number;
   athleteId: string;
   result: ResultView | null;
+  competitorId: string;
+  teamId?: string;
 }
 
 /** Stage of a round. */
@@ -424,6 +517,8 @@ export interface Standing {
   status: Status;
   markText: string;
   qualify: string;
+  competitorId: string;
+  teamId?: string;
 }
 
 /** Status of a result. */
@@ -447,6 +542,36 @@ export interface Tally {
   reused: number;
 }
 
+/** Team belongs to a relay event. MemberIDs are ordered by leg. */
+export interface Team {
+  id: string;
+  eventId: string;
+  name: string;
+  unitId: string;
+  memberIds: string[];
+}
+
+/** TeamInput is a complete team definition. Empty MemberIDs means an undecided lineup. */
+export interface TeamInput {
+  name: string;
+  unitId?: string;
+  memberIds: string[];
+}
+
+export interface TeamView {
+  id: string;
+  eventId: string;
+  name: string;
+  unitId: string;
+  memberIds: string[];
+  unitName: string;
+  memberNames: string[];
+  entered: boolean;
+  placed: boolean;
+  keepReason: string;
+  genderMismatch: boolean;
+}
+
 /** Unit is one 参赛单位. */
 export interface Unit {
   id: string;
@@ -458,7 +583,7 @@ export interface Unit {
 /** UnitInput creates or updates a 参赛单位. */
 export interface UnitInput {
   name: string;
-  shortName: string;
+  shortName?: string;
 }
 
 // ---- Services ----
@@ -537,7 +662,7 @@ export const Athletes = {
     return call("Athletes.PreviewImport", meetID, in_);
   },
   /** Save creates (id "") or updates an athlete. */
-  save(meetID: string, id: string, in_: AthleteInput): Promise<Athlete | null> {
+  save(meetID: string, id: string, in_: AthleteInput): Promise<AthleteSave | null> {
     return call("Athletes.Save", meetID, id, in_);
   },
 } as const;
@@ -552,6 +677,10 @@ export const Events = {
   delete(id: string): Promise<void> {
     return call("Events.Delete", id);
   },
+  /** DeleteTeam removes an unplaced team and its entry. */
+  deleteTeam(eventID: string, id: string): Promise<void> {
+    return call("Events.DeleteTeam", eventID, id);
+  },
   /** Get returns one event with its entries, rounds, heats and results. */
   get(id: string): Promise<EventDetail | null> {
     return call("Events.Get", id);
@@ -564,6 +693,10 @@ export const Events = {
   save(meetID: string, id: string, in_: EventInput): Promise<Event | null> {
     return call("Events.Save", meetID, id, in_);
   },
+  /** SaveTeam creates or edits a relay team and its ordered roster. */
+  saveTeam(eventID: string, id: string, in_: TeamInput): Promise<Team | null> {
+    return call("Events.SaveTeam", eventID, id, in_);
+  },
 } as const;
 
 /** Entries manages 报名. */
@@ -573,12 +706,12 @@ export const Entries = {
     return call("Entries.Add", eventID, list);
   },
   /** Remove withdraws athletes from an event. */
-  remove(eventID: string, athleteIDs: string[]): Promise<void> {
-    return call("Entries.Remove", eventID, athleteIDs);
+  remove(eventID: string, competitorIDs: string[]): Promise<void> {
+    return call("Entries.Remove", eventID, competitorIDs);
   },
   /** SetSeed changes an entry mark; "" clears it. */
-  setSeed(eventID: string, athleteID: string, seed: string): Promise<void> {
-    return call("Entries.SetSeed", eventID, athleteID, seed);
+  setSeed(eventID: string, competitorID: string, seed: string): Promise<void> {
+    return call("Entries.SetSeed", eventID, competitorID, seed);
   },
 } as const;
 
@@ -588,9 +721,16 @@ export const Arrange = {
   plan(req: PlanRequest): Promise<PlannedHeat[]> {
     return call("Arrange.Plan", req);
   },
+  previewSchedule(in_: ScheduleRequest): Promise<SchedulePreview | null> {
+    return call("Arrange.PreviewSchedule", in_);
+  },
   /** Save applies the arrange page's draft. */
-  save(in_: BoardSave): Promise<void> {
+  save(in_: BoardSave): Promise<EventDetail> {
     return call("Arrange.Save", in_);
+  },
+  /** Schedule confirms the preview shown in the desktop dialog. */
+  schedule(in_: ScheduleRequest, hash: string): Promise<SchedulePreview | null> {
+    return call("Arrange.Schedule", in_, hash);
   },
 } as const;
 
@@ -674,6 +814,31 @@ export const App = {
   /** Info returns the app's version. */
   info(): Promise<AppInfo> {
     return call("App.Info");
+  },
+} as const;
+
+/** Settings exposes local preferences and MCP controls only to the desktop UI. */
+export const Settings = {
+  configureMCP(enabled: boolean, port: number, rotate: boolean): Promise<void> {
+    return call("Settings.ConfigureMCP", enabled, port, rotate);
+  },
+  copyConnection(): Promise<void> {
+    return call("Settings.CopyConnection");
+  },
+  copyToken(): Promise<void> {
+    return call("Settings.CopyToken");
+  },
+  mcpStatus(): Promise<McpStatus> {
+    return call("Settings.MCPStatus");
+  },
+  preferences(): Promise<Preferences> {
+    return call("Settings.Preferences");
+  },
+  revealToken(): Promise<string> {
+    return call("Settings.RevealToken");
+  },
+  savePreferences(p: Preferences): Promise<void> {
+    return call("Settings.SavePreferences", p);
   },
 } as const;
 

@@ -26,6 +26,7 @@ SportsMeet 是一款开源的**单机离线**田径运动会编排软件:一台�
 | **运动员** | `athlete` | 属于赛事,各项目共用 |
 | **项目** | `event` | 一个单项 = 性别(男 / 女 / 混合)+ 项目名(`discipline`)+ 可选组别(`groupLabel`) |
 | **项目类型** | `EventKind` | `track` 径赛计时 / `relay` 接力 / `distance` 远度 / `height` 高度 |
+| **接力队** | `team` | 属于一个接力项目，成员按棒次（`leg`）顺序排列 |
 | **报名** | `entry` | 运动员(接力为队伍)进入某项目 |
 | **轮次** | `round` | 预赛 / 次赛 / 半决赛 / 决赛;单轮项目只有一个轮次 |
 | **组** | `heat` | 轮次中的一组(径赛一组一次起跑,田赛一组一起比) |
@@ -40,7 +41,7 @@ SportsMeet 是一款开源的**单机离线**田径运动会编排软件:一台�
 ```
 SportsMeet/
 ├── AGENTS.md / CLAUDE.md / README.md
-├── main.go                  ← mygo 入口:窗口、菜单、Bind 各服务、MCP 开关
+├── main.go                  ← mygo 入口:窗口、Bind 各服务、MCP 开关
 ├── go.mod
 ├── mygo.config.ts           ← 应用名、标识、版本、打包;bindings 输出 src/mygo.ts
 ├── package.json · vite.config.ts · tsconfig.json · index.html
@@ -54,18 +55,22 @@ SportsMeet/
 │   ├── scoring/             ← 成绩解析与格式化、排名、并列判定、田赛逐次记录
 │   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配
 │   ├── report/              ← 秩序册 / 成绩册(HTML 模板);检录单、号码布待实现
-│   ├── service/             ← 唯一写入口:写锁、校验、操作日志、变更通知;含表格导入、编排保存、成绩、导入导出
-│   ├── mcp/                 ← MCP 服务(仅 127.0.0.1,默认关;待实现)
+│   ├── service/             ← 唯一写入口:写锁、校验、操作日志、变更通知;含表格导入、编排保存、批量排时、成绩、导入导出
+│   ├── mcp/                 ← MCP 服务与监听生命周期(仅 127.0.0.1,默认关)
+│   ├── layers/              ← 分层测试:各包允许的依赖、纯计算包不碰 mygo、bind / mcp 不越过 service
 │   └── bind/                ← 给前端的 mygo 服务 + `dataChanged` 事件(薄层,只转调 service,另加文件对话框与打印窗口)
 ├── src/                     ← 前端(React)
 │   ├── main.tsx · App.tsx   ← 入口;外壳(侧栏 + 页面切换)
 │   ├── mygo.ts              ← `mygo generate` 生成物,勿手改
 │   ├── app/                 ← nav.tsx(页面路由状态、离开前确认)、app.css(外壳与页面布局,只用 token)
 │   ├── design/              ← tokens.css、components.css、`St*` 组件、icons.ts;经 index.ts 统一导出
-│   ├── features/            ← meets/ units/ athletes/ events/ event/(项目工作区:报名)arrange/ results/ reports/ exchange/ about/;设置页待实现
+│   ├── features/            ← meets/ units/ athletes/ events/ event/(项目工作区:报名与接力队伍)arrange/ results/ reports/ exchange/ settings/ about/
 │   └── lib/                 ← coalesce.ts(事件刷新合并)、useData.ts、action.ts、errors.ts、labels.ts
 ├── .agents/skills/          ← mygo 自带的 agent 技能
-├── scripts/check-design-system.sh   ← 设计系统棘轮检查;基线 design-system-baseline.txt
+├── tests/ui/                ← Playwright 页面冒烟测试(模拟 mygo 桥接)
+├── playwright.config.ts      ← 宽窄窗口与浅深色页面验证
+├── scripts/check-design-system.sh   ← 前端棘轮检查(设计系统 + 绑定引用);基线 design-system-baseline.txt
+├── .github/workflows/check.yml      ← CI:`bun run check`、绑定生成物比对、页面冒烟测试
 ├── docs/
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
 │   ├── schema/interchange-v1.schema.json
@@ -89,11 +94,11 @@ bun install
 bun run dev                          # mygo dev,打开应用窗口并热更新
 bun run build                        # mygo build,产物在 build/<平台>/
 bun run generate                     # 改了 Go 绑定后更新 src/mygo.ts
-go test ./...                        # Go 单测(含真实 SQLite)
-bun run test:web                     # 前端纯函数单测(bun test)
-bun run typecheck
-scripts/check-design-system.sh
+bun run check                        # 提交前跑这一条:go vet、Go 单测、类型检查、前端单测、前端棘轮
+bun run test:ui                      # 先 bunx playwright install chromium
 ```
+
+`bun run check` 里的各项也可单独跑:`go test ./...`(含真实 SQLite)、`bun run test:web`、`bun run typecheck`、`scripts/check-design-system.sh`。CI 在此之外还比对 `src/mygo.ts` 与重新生成的结果,并跑页面冒烟测试。
 
 本地只需验证能否打包时用 `bunx mygo build -skip-dmg -skip-notarize -skip-installer`。
 
@@ -115,8 +120,10 @@ scripts/check-design-system.sh
 ### 5.1 全局
 
 - **所有写操作只经 `internal/service`**:前端绑定与 MCP 共用同一组方法和校验,`bind/`、`mcp/` 不直接碰 `store/`;否则会绕过校验,界面也收不到变更事件。
+- **包的依赖方向由 `internal/layers` 的测试把关**:新增包或新增依赖时,在它的分层表里登记并同步 §3。
 - **业务规则只在 Go**:成绩解析与格式化、排名、晋级、项目名称组成都在 Go,前端只调用(→ domain.md)。
 - **`src/mygo.ts` 是生成物**,不手改。
+- **前端只有 `src/lib/` 与各 feature 的 `controller` / `data` 文件调用 Go**,其余文件只从 `src/mygo.ts` 引入类型;棘轮把关(→ frontend.md)。
 - **页面只用 `src/design/` 的 `St*` 组件、token 与统一图标**;`scripts/check-design-system.sh` 棘轮把关,基线只减不增(→ design-system.md)。
 - **数字一律等宽**,界面与打印模板都设 `tabular-nums`(→ design-system.md)。
 - **圆角用 `superellipse(1.78)` 平滑轮廓**,胶囊、圆形与开关显式 `round`(→ design-system.md)。
@@ -131,15 +138,16 @@ scripts/check-design-system.sh
 - 有成绩的组锁定,不能删除、不被自动编排覆盖;判定只有 `HeatFacts.KeepReason` 一处。
 - 编排页本地草稿一次保存,每组带指纹、只提交改过的组;数据变化时按指纹合并,不弹冲突框。
 - 自动编排只排未分组的人、只追加新组;随机带 `seed` 可复现。
+- 批量排时间只改当前轮次未比赛的组,界面与 MCP 共用预览和确认提交,数据变化须重新预览。
 - 新建项目自带决赛轮次,可加一个预赛;名次与 `Q` / `q` 在每次写成绩时由 Go 重算并存储,晋级只读成绩。
-- 接力项目暂不支持:不能新建,导入时跳过并警告。
+- 接力按队报名、排道与计时;同一项目一人只属一队,已有比赛记录的队伍锁定棒次(→ domain.md)。
 - 每个写操作写操作日志(来源 `ui` / `mcp` / `system`),日志失败不影响业务。
 
 ### 5.3 MCP → [mcp.md](docs/agents/mcp.md)
 
 - 默认关闭,只监听 `127.0.0.1`,独立令牌,拒绝非本机 `Origin`。
 - MCP 可以写成绩(用户要求):空位直接写,覆盖已有成绩须预览确认;名次由 `scoring` 重算,不能直接指定。
-- 批量改动与删除走「预览指纹 + `confirmed=true`」,提交时在事务内重算比对;有成绩的数据 MCP 不能删。
+- 批量改动与删除走「预览指纹 + `confirmed=true`」,提交时持 service 写锁重算比对，再事务写入;有成绩的数据 MCP 不能删。
 - 不内置云模型。
 
 ### 5.4 数据与交换格式 → [storage.md](docs/agents/storage.md) · [interchange-format.md](docs/interchange-format.md)
@@ -157,34 +165,25 @@ scripts/check-design-system.sh
 
 ### 5.6 未实现与后续计划
 
-当前已实现:基础数据(赛事、参赛单位、运动员含表格导入、项目、报名)、编排(预赛 + 决赛、自动编排、手动调整、草稿保存)、径赛 / 远度 / 高度成绩录入与排名晋级、秩序册与成绩册打印、交换格式导入导出。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
+当前已实现:基础数据(赛事、参赛单位、运动员含表格导入、项目、报名)、编排(预赛 + 决赛、自动编排、手动调整、草稿保存、批量排时间)、径赛 / 接力 / 远度 / 高度成绩录入与排名晋级、秩序册与成绩册打印、交换格式导入导出、设置(通用 / 编排 / 打印 / MCP / 关于)、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
 
-**待验证**(代码已有,未人工走过)
-- 完整流程:建赛事 → 导入运动员 → 建项目 → 报名 → 自动编排 → 录成绩 → 打印 → 导出 / 导入。
-- WebView 中的拖放、原生 `<dialog>`、`corner-shape`、打印窗口与系统打印对话框、文件对话框。
-- 窄窗口(800 宽)布局与暗色模式;Windows / Linux。
+**待验证**
+- WebView 中的手动拖放、完整现场操作流程与 800 宽原生窗口;浏览器 1280 / 800、浅色 / 深色已由自动测试覆盖。
+- Windows / Linux 的运行、文件对话框、打印与打包。
 
 **第一优先**
-1. **MCP 服务**(`internal/mcp/`):按 [mcp.md](docs/agents/mcp.md) 实现开关、令牌、本机限制与全部工具;service 已带来源参数。
-2. **设置页**(`src/features/settings/`):通用 / 编排 / 打印 / MCP / 关于,按 [frontend.md](docs/agents/frontend.md)「设置页」。
-3. **批量排时间**:按首组时间与间隔给未比赛的组填计划时间。
-4. **页面冒烟测试**:宽 1280、窄 800 两种宽度。
+1. **检录单与号码布**打印;打印样式预设。
+2. **次赛 / 半决赛**的界面入口(数据层已支持)。
+3. **风速录入**:径赛整组风速、远度逐次风速(数据可随交换格式保留,界面未提供)。
+4. **并列名次的人工裁定**(含最后晋级名额并列时去掉多余晋级者的操作入口)。
 
 **第二优先**
-5. **接力**(`relay`):队伍与棒次管理、报名、编排、成绩;交换格式已支持,目前导入时跳过。
-6. **检录单与号码布**打印;打印样式预设。
-7. **次赛 / 半决赛**的界面入口(数据层已支持)。
-8. **风速录入**:径赛整组风速、远度逐次风速(数据可随交换格式保留,界面未提供)。
-9. **并列名次的人工裁定**(含最后晋级名额并列时去掉多余晋级者的操作入口)。
-
-**第三优先**
-10. 编排页:组卡片标题拖动排序;窄窗口下名单收为侧面板。
-11. 团体总分与积分规则、破纪录标记(交换格式 v1 不含,需要时加字段并 bump 版本)。
-12. 发布前:README 状态、应用图标、签名与自动更新配置、Windows / Linux 打包。
+5. 编排页:组卡片标题拖动排序;窄窗口下名单收为侧面板。
+6. 团体总分与积分规则、破纪录标记(交换格式 v1 不含,需要时加字段并 bump 版本)。
+7. 发布前:应用图标、签名与自动更新配置、Windows / Linux 打包。
 
 **已知与细则不完全一致**
-- `AddEntriesDialog`、`HeatResults` 等少数组件里直接调用读取钩子与 `act()`,没有全部收进独立的 `*Controller`(→ [frontend.md](docs/agents/frontend.md)「代码结构」)。
-- 接力导入时的跳过警告没有单测。
+- `scripts/design-system-baseline.txt` 里标 `bindings` 的文件直接调用 Go 绑定,没有收进 `controller`;改到这些文件时顺手收进去并从基线删掉(→ [frontend.md](docs/agents/frontend.md)「代码结构」)。
 
 ---
 
@@ -193,9 +192,9 @@ scripts/check-design-system.sh
 同一个改动里必须同步文档的情形:
 
 1. 增删 / 重命名包、重要文件、顶层目录、构建配置 → §3 / §4。
-2. 改术语或实体层级 → §2 与 domain.md。
-3. 改交换格式 → interchange-format.md、JSON Schema、示例与 `testdata/interchange/` 黄金文件。
-4. 新增 / 废弃 / 修改不变量 → 在对应细则写完整规则,并在 §5 加 / 改**一句话摘要**;新主题建新细则并登记到 §5.0 路由表。
+1. 改术语或实体层级 → §2 与 domain.md。
+2. 改交换格式 → interchange-format.md、JSON Schema、示例与 `testdata/interchange/` 黄金文件。
+3. 新增 / 废弃 / 修改不变量 → 在对应细则写完整规则,并在 §5 加 / 改**一句话摘要**;新主题建新细则并登记到 §5.0 路由表。
 
 写作约定(文档与代码注释都适用):
 

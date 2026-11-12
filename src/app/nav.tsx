@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { SettingsSection } from "../features/settings/SettingsPage";
 import { StButton, StDialog } from "../design";
 
 export type MeetTab = "events" | "athletes" | "units" | "reports" | "exchange";
@@ -6,7 +7,7 @@ export type EventTab = "entries" | "arrange" | "results";
 
 export type Route =
   | { page: "meets" }
-  | { page: "about" }
+  | { page: "settings"; section: SettingsSection | null; returnTo?: Route }
   | { page: "meet"; meetId: string; tab: MeetTab }
   | { page: "event"; meetId: string; eventId: string; tab: EventTab };
 

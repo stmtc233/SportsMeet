@@ -15,7 +15,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   const chosen = all.filter((r) => !skipped.has(r.event.id)).map((r) => r.event.id);
   const ids = skipped.size === 0 ? [] : chosen;
   const key = ids.join();
-  const { data: html } = useData(() => (all.length > 0 && chosen.length === 0 ? Promise.resolve("") : Reports.render(kind, meetId, ids)), [kind, meetId, key, all.length], (c) => c.meetId === meetId);
+  const { data: html } = useData(() => (all.length > 0 && chosen.length === 0 ? Promise.resolve("") : Reports.render(kind, meetId, ids)), [kind, meetId, key, all.length], (c) => c.meetId === meetId || c.kind === "settings");
   useEffect(() => setSkipped(new Set()), [meetId]);
   const toggle = (id: string) => setSkipped((old) => {
     const next = new Set(old);
