@@ -123,24 +123,24 @@ export function StMarkField({ kind, label, value, onChange, onCommit, disabled, 
 }
 
 /** A local date (YYYY-MM-DD). */
-export function StDateField({ label, value, onChange, error }: { label?: ReactNode; value: string; onChange: (v: string) => void; error?: ReactNode }) {
+export function StDateField({ label, value, onChange, error, disabled }: { label?: ReactNode; value: string; onChange: (v: string) => void; error?: ReactNode; disabled?: boolean }) {
   const id = useId();
   return (
     <FieldShell label={label} error={error} id={id}>
       <span className="st-input" data-invalid={error ? true : undefined}>
-        <input id={id} type="date" value={value} onChange={(e) => onChange(e.target.value)} />
+        <input id={id} type="date" disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} />
       </span>
     </FieldShell>
   );
 }
 
 /** A 24-hour time of day (HH:mm). */
-export function StTimeField({ label, value, onChange }: { label?: ReactNode; value: string; onChange: (v: string) => void }) {
+export function StTimeField({ label, value, onChange, disabled }: { label?: ReactNode; value: string; onChange: (v: string) => void; disabled?: boolean }) {
   const id = useId();
   return (
     <FieldShell label={label} id={id}>
       <span className="st-input">
-        <input id={id} type="time" value={value} onChange={(e) => onChange(e.target.value)} />
+        <input id={id} type="time" disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} />
       </span>
     </FieldShell>
   );

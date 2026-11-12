@@ -22,6 +22,7 @@ export {
   Redo2 as IconRedo,
   School as IconUnit,
   Search as IconSearch,
+  Settings as IconSettings,
   Shuffle as IconAuto,
   Timer as IconResults,
   Trash2 as IconDelete,

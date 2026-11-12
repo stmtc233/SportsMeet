@@ -3,9 +3,9 @@ import { StButton, StDateField, StDialog, StSegmented, StTextField } from "../..
 import { Marks, type EventInput, type EventKind, type EventRow, type Gender } from "../../mygo";
 import { EventsController } from "./controller";
 
-const blank: EventInput = { name: "", gender: "男", discipline: "", groupLabel: "", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", prelim: false, advanceByPlace: 2, advanceByMark: 2 };
+const blank: Required<EventInput> = { name: "", gender: "男", discipline: "", groupLabel: "", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", prelim: false, advanceByPlace: 2, advanceByMark: 2 };
 
-function toInput(row: EventRow): EventInput {
+function toInput(row: EventRow): Required<EventInput> {
   const e = row.event;
   return { name: row.autoName ? "" : e.name, gender: e.gender, discipline: e.discipline, groupLabel: e.groupLabel, kind: e.kind, date: e.date, laneCount: e.laneCount, attemptCount: e.attemptCount, note: e.note,
     prelim: row.prelim, advanceByPlace: row.advance?.byPlace ?? 2, advanceByMark: row.advance?.byMark ?? 2 };
@@ -15,7 +15,7 @@ const int = (text: string) => Number.parseInt(text, 10) || 0;
 
 /** Creates an event (row undefined) or edits one. */
 export function EventDialog({ meetId, open, row, onClose }: { meetId: string; open: boolean; row?: EventRow; onClose: () => void }) {
-  const [form, setForm] = useState<EventInput>(blank);
+  const [form, setForm] = useState<Required<EventInput>>(blank);
   const [auto, setAuto] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -29,7 +29,7 @@ export function EventDialog({ meetId, open, row, onClose }: { meetId: string; op
       live = false;
     };
   }, [form.gender, form.discipline, form.groupLabel]);
-  const set = (patch: Partial<EventInput>) => setForm((f) => ({ ...f, ...patch }));
+  const set = (patch: Partial<Required<EventInput>>) => setForm((f) => ({ ...f, ...patch }));
   const save = async (another: boolean) => {
     setBusy(true);
     const ok = await EventsController.save(meetId, row?.event.id ?? "", form);

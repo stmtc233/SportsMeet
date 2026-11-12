@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNav } from "../../app/nav";
-import { IconAdd, IconDelete, IconEdit, IconImport, IconInfo, IconMeet, StButton, StCard, StEmpty, StIconButton, StListItem, StNotice, StPage, StToolbar, iconStroke } from "../../design";
+import { IconAdd, IconDelete, IconEdit, IconImport, IconSettings, IconMeet, StButton, StCard, StEmpty, StIconButton, StListItem, StNotice, StPage, StToolbar, iconStroke } from "../../design";
 import { dateRange } from "../../lib/labels";
 import type { Meet, MeetCounts, PickedFile } from "../../mygo";
 import { ImportMeetDialog } from "../exchange/ImportMeetDialog";
@@ -30,8 +30,8 @@ export function MeetsPage() {
     <StPage
       toolbar={
         <StToolbar title="赛事">
-          <StIconButton label="关于" onClick={() => go({ page: "about" })}>
-            <IconInfo size={18} strokeWidth={iconStroke} />
+          <StIconButton label="设置" onClick={() => go({ page: "settings", section: null })}>
+            <IconSettings size={18} strokeWidth={iconStroke} />
           </StIconButton>
           <StButton icon={<IconImport size={16} strokeWidth={iconStroke} />} onClick={pick}>导入赛事文件</StButton>
           <StButton variant="primary" icon={<IconAdd size={16} strokeWidth={iconStroke} />} onClick={() => setEditing({})}>新建赛事</StButton>

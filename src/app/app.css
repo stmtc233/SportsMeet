@@ -87,3 +87,19 @@
 
 /* reports */
 .report-frame { flex: 1; min-width: 0; border: 0; background: var(--st-surface); }
+
+/* Settings keeps its content in the same tree across width changes. */
+.settings { display: flex; flex: 1; min-height: 0; }
+.settings__nav { width: 192px; flex: none; padding: var(--st-space-12) var(--st-space-8); border-right: 1px solid var(--st-outline); background: var(--st-surface); }
+.settings__content { flex: 1; min-width: 0; overflow-y: auto; padding: var(--st-space-page); }
+.settings__back { display: none; }
+.settings__title { margin: 0; font-size: var(--st-text-title); }
+.settings-save { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: var(--st-space-8); padding: var(--st-space-12); border: 1px solid var(--st-outline); border-radius: var(--st-radius-12); corner-shape: superellipse(1.78); background: var(--st-surface-raised); }
+@media (max-width: 900px) {
+ .settings__nav { width: 100%; border-right: 0; }
+ .settings:not([data-detail]) .settings__content { display: none; }
+ .settings[data-detail] .settings__nav { display: none; }
+ .settings__back { display: block; margin-bottom: var(--st-space-12); }
+}
+
+.schedule-table { display: flex; flex-direction: column; min-height: 0; }

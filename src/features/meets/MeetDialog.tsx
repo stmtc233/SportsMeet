@@ -3,7 +3,7 @@ import { StButton, StDateField, StDialog, StTextField } from "../../design";
 import type { Meet, MeetInput } from "../../mygo";
 import { MeetsController } from "./controller";
 
-const blank: MeetInput = { name: "", startDate: "", endDate: "", location: "", note: "" };
+const blank: Required<MeetInput> = { name: "", startDate: "", endDate: "", location: "", note: "" };
 
 function today(): string {
   const d = new Date();
@@ -13,12 +13,12 @@ function today(): string {
 
 /** Creates a meet (meet undefined) or edits one. */
 export function MeetDialog({ open, meet, onClose, onSaved }: { open: boolean; meet?: Meet; onClose: () => void; onSaved?: (id: string) => void }) {
-  const [form, setForm] = useState<MeetInput>(blank);
+  const [form, setForm] = useState<Required<MeetInput>>(blank);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (open) setForm(meet ? { name: meet.name, startDate: meet.startDate, endDate: meet.endDate, location: meet.location, note: meet.note } : { ...blank, startDate: today() });
   }, [open, meet]);
-  const set = (patch: Partial<MeetInput>) => setForm((f) => ({ ...f, ...patch }));
+  const set = (patch: Partial<Required<MeetInput>>) => setForm((f) => ({ ...f, ...patch }));
   const save = async () => {
     setBusy(true);
     const id = await MeetsController.save(meet?.id ?? "", form);

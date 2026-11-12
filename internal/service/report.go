@@ -25,6 +25,11 @@ func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventID
 	if err != nil {
 		return "", err
 	}
+	prefs, err := s.Preferences(ctx)
+	if err != nil {
+		return "", err
+	}
+	book.NewPage = prefs.PrintNewPage
 	switch kind {
 	case ReportStartList:
 		return report.StartList(*book)

@@ -12,7 +12,7 @@ import (
 // EntryInput enters an athlete; Seed is the typed entry mark, "" = none.
 type EntryInput struct {
 	AthleteID string `json:"athleteId"`
-	Seed      string `json:"seed"`
+	Seed      string `json:"seed,omitempty"`
 }
 
 func (st *eventState) parseSeed(text string) (any, error) {

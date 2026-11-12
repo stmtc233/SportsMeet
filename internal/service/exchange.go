@@ -177,12 +177,25 @@ func resultFromFile(r *interchange.Result) domain.Result {
 // planImport decodes data and works out the import into meetID ("" = a
 // new meet). File problems land in preview.Errors, not in the error.
 func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*importPlan, error) {
+	var snapshot *interchange.File
+	if meetID != "" {
+		var err error
+		snapshot, err = s.ExportMeet(ctx, meetID)
+		if err != nil {
+			return nil, err
+		}
+		snapshot.ExportedAt = ""
+	}
 	plan := &importPlan{meetID: meetID, preview: ImportPreview{Overwrites: []ResultChange{}, Warnings: []string{}, Errors: []string{}}}
 	p := &plan.preview
 	finish := func() (*importPlan, error) {
 		hashed := *p
 		hashed.Hash, hashed.MeetID = "", ""
-		b, _ := json.Marshal(hashed)
+		b, _ := json.Marshal(struct {
+			Preview ImportPreview
+			Data    string
+			Target  *interchange.File
+		}{hashed, string(data), snapshot})
 		sum := sha256.Sum256(b)
 		p.Hash = hex.EncodeToString(sum[:])
 		return plan, nil
@@ -491,6 +504,8 @@ func athleteName(list []domain.Athlete, id string) string {
 // PreviewImport reports what importing an interchange file into meetID
 // ("" = as a new meet) would do. It writes nothing.
 func (s *Service) PreviewImport(ctx context.Context, data []byte, meetID string) (*ImportPreview, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	plan, err := s.planImport(ctx, data, meetID)
 	if err != nil {
 		return nil, err

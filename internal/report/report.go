@@ -11,6 +11,7 @@ import (
 
 // Book is one meet's printable content.
 type Book struct {
+	NewPage  bool   // Start each event on a new printed page.
 	Title    string // 秩序册 / 成绩册
 	Meet     string
 	Dates    string // 2026-11-12 or 2026-11-12 – 2026-11-13
@@ -76,8 +77,12 @@ type page struct {
 }
 
 func render(t *template.Template, b Book) (string, error) {
+	css := style
+	if b.NewPage {
+		css += "\n@media print { .event ~ .event { break-before: page; } }"
+	}
 	var buf bytes.Buffer
-	if err := t.Execute(&buf, page{Book: b, Style: template.CSS(style)}); err != nil {
+	if err := t.Execute(&buf, page{Book: b, Style: template.CSS(css)}); err != nil {
 		return "", err
 	}
 	return buf.String(), nil

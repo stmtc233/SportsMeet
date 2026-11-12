@@ -1,6 +1,8 @@
+import { useEffect } from "react";
+import { usePreferences } from "./features/settings/controller";
 import { NavProvider, useNav, type MeetTab } from "./app/nav";
-import { IconAthletes, IconBack, IconEvent, IconExport, IconPrint, IconUnit, StListItem, StToastHost, iconStroke } from "./design";
-import { AboutPage } from "./features/about/AboutPage";
+import { IconAthletes, IconBack, IconEvent, IconExport, IconPrint, IconSettings, IconUnit, StListItem, StToastHost, iconStroke } from "./design";
+import { SettingsPage } from "./features/settings/SettingsPage";
 import { AthletesPage } from "./features/athletes/AthletesPage";
 import { EventWorkspace } from "./features/event/EventWorkspace";
 import { EventsPage } from "./features/events/EventsPage";
@@ -22,7 +24,7 @@ const tabs: { tab: MeetTab; label: string; icon: typeof IconEvent }[] = [
 function Shell() {
   const { route, go } = useNav();
   if (route.page === "meets") return <MeetsPage />;
-  if (route.page === "about") return <AboutPage />;
+  if (route.page === "settings") return <SettingsPage />;
   const meetId = route.meetId;
   const current: MeetTab = route.page === "meet" ? route.tab : "events";
   return (
@@ -33,6 +35,7 @@ function Shell() {
           <StListItem key={tab} title={label} leading={<Icon size={18} strokeWidth={iconStroke} />} selected={tab === current} onClick={() => go({ page: "meet", meetId, tab })} />
         ))}
         <div className="app__side-spacer" />
+        <StListItem title="设置" leading={<IconSettings size={18} strokeWidth={iconStroke} />} onClick={() => go({ page: "settings", section: null, returnTo: route })} />
         <StListItem title="全部赛事" leading={<IconBack size={18} strokeWidth={iconStroke} />} onClick={() => go({ page: "meets" })} />
       </nav>
       <main className="app__main">
@@ -57,6 +60,8 @@ function MeetHeader({ meetId }: { meetId: string }) {
 }
 
 export function App() {
+  const { data } = usePreferences();
+  useEffect(() => { if (data) document.documentElement.dataset.theme = data.theme; }, [data]);
   return (
     <NavProvider>
       <Shell />

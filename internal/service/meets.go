@@ -12,9 +12,9 @@ import (
 type MeetInput struct {
 	Name      string `json:"name"`
 	StartDate string `json:"startDate"`
-	EndDate   string `json:"endDate"`
-	Location  string `json:"location"`
-	Note      string `json:"note"`
+	EndDate   string `json:"endDate,omitempty"`
+	Location  string `json:"location,omitempty"`
+	Note      string `json:"note,omitempty"`
 }
 
 func (in MeetInput) meet() (domain.Meet, error) {
@@ -106,6 +106,9 @@ func (s *Service) DeleteMeet(ctx context.Context, src store.Source, id string) e
 	counts, err := s.store.Count(ctx, store.Scope{MeetID: id})
 	if err != nil {
 		return err
+	}
+	if src == store.SourceMCP && counts.Results > 0 {
+		return invalid("赛事已有成绩，只能在界面上删除")
 	}
 	return s.write(ctx,
 		store.Audit{Source: src, Action: "meet.deleted", MeetID: id, Message: m.Name, Detail: counts},

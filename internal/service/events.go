@@ -15,18 +15,18 @@ func itoa(n int) string { return strconv.Itoa(n) }
 // EventInput creates or updates an event. Prelim asks for a 预赛 before
 // the final, advancing by AdvanceByPlace and AdvanceByMark.
 type EventInput struct {
-	Name           string `json:"name"` // "" = composed from the fields below
+	Name           string `json:"name,omitempty"` // "" = composed from the fields below
 	Gender         string `json:"gender"`
 	Discipline     string `json:"discipline"`
-	GroupLabel     string `json:"groupLabel"`
+	GroupLabel     string `json:"groupLabel,omitempty"`
 	Kind           string `json:"kind"`
-	Date           string `json:"date"`
-	LaneCount      int    `json:"laneCount"`
-	AttemptCount   int    `json:"attemptCount"`
-	Note           string `json:"note"`
-	Prelim         bool   `json:"prelim"`
-	AdvanceByPlace int    `json:"advanceByPlace"`
-	AdvanceByMark  int    `json:"advanceByMark"`
+	Date           string `json:"date,omitempty"`
+	LaneCount      int    `json:"laneCount,omitempty"`
+	AttemptCount   int    `json:"attemptCount,omitempty"`
+	Note           string `json:"note,omitempty"`
+	Prelim         bool   `json:"prelim,omitempty"`
+	AdvanceByPlace int    `json:"advanceByPlace,omitempty"`
+	AdvanceByMark  int    `json:"advanceByMark,omitempty"`
 }
 
 // EventRow is an event in the meet's list, with its progress.
@@ -252,7 +252,7 @@ func (s *Service) DeleteEvent(ctx context.Context, src store.Source, id string, 
 	if err != nil {
 		return err
 	}
-	if counts.Results > 0 && !allowResults {
+	if counts.Results > 0 && (!allowResults || src == store.SourceMCP) {
 		return invalid("「%s」已有成绩，只能在界面上删除", e.Name)
 	}
 	return s.write(ctx,

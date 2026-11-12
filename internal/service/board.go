@@ -18,16 +18,16 @@ import (
 type PlanRequest struct {
 	EventID string   `json:"eventId"`
 	RoundID string   `json:"roundId"`
-	Exclude []string `json:"exclude"`
+	Exclude []string `json:"exclude,omitempty"`
 	// FromAdvance fills the round with those who advanced from the round
 	// before it, seeded by the marks they got there, instead of the entries.
-	FromAdvance   bool   `json:"fromAdvance"`
+	FromAdvance   bool   `json:"fromAdvance,omitempty"`
 	PerHeat       int    `json:"perHeat"`
 	Order         string `json:"order"`
 	Lanes         string `json:"lanes"`
-	SeparateUnits bool   `json:"separateUnits"`
-	Balance       bool   `json:"balance"`
-	Seed          int64  `json:"seed"`
+	SeparateUnits bool   `json:"separateUnits,omitempty"`
+	Balance       bool   `json:"balance,omitempty"`
+	Seed          int64  `json:"seed,omitempty"`
 }
 
 // PlanHeats computes new heats for the athletes of a round not yet
@@ -185,6 +185,9 @@ func (st *eventState) buildSlots(label string, in []SlotSave, old *domain.Heat) 
 // fingerprint or the round's heats changed; the page then reloads and
 // merges.
 func (s *Service) SaveBoard(ctx context.Context, src store.Source, in BoardSave) error {
+	if src == store.SourceMCP && (in.Reset || len(in.Unlocked) > 0) {
+		return invalid("请在界面上解锁或重置")
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st, err := s.loadEvent(ctx, in.EventID)

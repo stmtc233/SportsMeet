@@ -29,7 +29,7 @@
 - **排进位置即自动报名**:把未报名的运动员排进某组时,同一事务里补上报名。
 - **取消报名不动已排位置**:已排进组的人要先移出才能取消报名,界面上不给这些人「取消报名」按钮。
 - 运动员性别与项目性别不符只警告(混合项目不警告)。
-- 学号 / 号码布在赛事内非空时唯一:新建时与已有运动员相同即拒绝(提示改为更新);同名只警告。防止重复建人。
+- 学号 / 号码布在赛事内非空时唯一:新建时与已有运动员相同即拒绝(提示改为更新);同名只警告,界面与 MCP 的单条保存通过 `SaveAthleteWithWarnings` 返回警告。防止重复建人。
 - **表格批量导入**(粘贴或 CSV):列映射后先预览。有学号按学号、否则按号码布找已有运动员,找到即更新(空单元格不覆盖原值),找不到即新建;没见过的参赛单位自动新建;「报名项目」列按项目全名,或按项目名在同性别(及混合)项目里唯一匹配。任一行有误整批不导入。预览与导入共用同一段计划代码。
 - 已排进组的运动员不能删除,须先移出:否则位置空着却留有成绩。
 
@@ -54,10 +54,11 @@
 
 - 删组:删它的位置与成绩。删项目:删它的轮次、组、位置、成绩与报名。删赛事:删以上全部、运动员与参赛单位。级联由外键完成(→ [storage.md](storage.md))。
 - 删除前确认对话框给出将删除的组数与成绩数(见 [copywriting.md](copywriting.md) 示例)。
-- 有成绩的组(及含这类组的项目)只能在界面上删,MCP 一律拒绝(→ [mcp.md](mcp.md))。
+- 有成绩的组(及含这类组的赛事 / 项目)只能在界面上删,MCP 一律拒绝(→ [mcp.md](mcp.md))。
 
 ## 操作日志
 
 - service 的每个写操作写一条日志:时刻、来源(`ui` / `mcp` / `system`)、动作、涉及的项目 / 组、简短说明与 JSON 详情。
 - 日志写入失败只记应用日志,不影响业务。
-- 新增写操作必须同时登记它的日志动作名。现有:`meet.created / updated / deleted / imported`、`unit.created / updated / deleted`、`athlete.created / updated / deleted / imported`、`event.created / updated / deleted`、`entry.added / removed / seed`、`board.saved / reset`、`results.saved`。
+- 新增写操作必须同时登记它的日志动作名。现有:`meet.created / updated / deleted / imported`、`unit.created / updated / deleted`、`athlete.created / updated / deleted / imported`、`event.created / updated / deleted`、`entry.added / removed / seed`、`board.saved / reset`、`heats.scheduled`、`results.saved`、`settings.preferences / mcp`。
+- 成绩日志同时保留输入位置的原成绩与新成绩完整记录,包括逐次记录与备注;只修改备注同样可追查。设置日志不含令牌。

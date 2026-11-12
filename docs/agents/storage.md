@@ -5,6 +5,12 @@
 - 一个 SQLite 文件,放在 `mygo.PathUserData`,经 mygo SQLite 插件的 Go API(`sqlite.Open`)打开;启动时先确保目录存在。
 - 打开后启用 WAL。插件默认开启外键:级联删除由表上的 `ON DELETE CASCADE` 完成,service 不再手动逐表删除。
 
+## 设置
+
+- 复用 `settings(key,value)` 表,`preferences` 与 `mcp` 两个键分别存 JSON。缺失时使用默认值,已有数据库无需新增迁移。
+- 普通偏好默认跟随系统外观、开启同单位分散和均衡人数、关闭项目另起一页。MCP 默认关闭、端口 18765,首次开启才生成令牌。
+- 所有设置写入走 service 写锁与日志,广播 `settings` 变更;令牌只保存在本地配置中,不写操作日志。监听切换规则见 [mcp.md](mcp.md)。
+
 ## 迁移
 
 - `internal/store/migrations/NNNN_名称.sql`,启动时按序号执行未执行过的,执行记录存在 `schema_migrations` 表。每个迁移在一个事务里完成。

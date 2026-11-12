@@ -3,17 +3,17 @@ import { StButton, StDialog, StSegmented, StSelect, StTextField } from "../../de
 import type { Athlete, AthleteInput, Unit } from "../../mygo";
 import { AthletesController } from "./controller";
 
-const blank: AthleteInput = { name: "", gender: "", bib: "", studentNumber: "", unitId: "", className: "", grade: "", birthDate: "", note: "" };
+const blank: Required<AthleteInput> = { name: "", gender: "", bib: "", studentNumber: "", unitId: "", className: "", grade: "", birthDate: "", note: "" };
 
 /** Creates an athlete (athlete undefined) or edits one. */
 export function AthleteDialog({ meetId, open, athlete, units, onClose }: { meetId: string; open: boolean; athlete?: Athlete; units: Unit[]; onClose: () => void }) {
-  const [form, setForm] = useState<AthleteInput>(blank);
+  const [form, setForm] = useState<Required<AthleteInput>>(blank);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!open) return;
     setForm(athlete ? { name: athlete.name, gender: athlete.gender, bib: athlete.bib, studentNumber: athlete.studentNumber, unitId: athlete.unitId, className: athlete.className, grade: athlete.grade, birthDate: athlete.birthDate, note: athlete.note } : blank);
   }, [open, athlete]);
-  const set = (patch: Partial<AthleteInput>) => setForm((f) => ({ ...f, ...patch }));
+  const set = (patch: Partial<Required<AthleteInput>>) => setForm((f) => ({ ...f, ...patch }));
   const save = async (another: boolean) => {
     setBusy(true);
     const ok = await AthletesController.save(meetId, athlete?.id ?? "", form);

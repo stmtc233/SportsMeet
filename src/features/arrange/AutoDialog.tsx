@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { StButton, StDialog, StSegmented, StSwitchItem, StTextField } from "../../design";
+import { usePreferences } from "../settings/controller";
 import { act } from "../../lib/action";
 import { Arrange, type EventDetail, type PlannedHeat, type RoundView } from "../../mygo";
 
@@ -12,6 +13,7 @@ export function AutoDialog({ open, detail, round, exclude, onClose, onPlanned }:
   onClose: () => void;
   onPlanned: (heats: PlannedHeat[]) => void;
 }) {
+  const { data: preferences } = usePreferences();
   const timed = detail.event.kind === "track";
   const prev = detail.rounds.find((r) => r.ordinal === round.ordinal - 1);
   const canAdvance = Boolean(prev?.advance);
@@ -26,8 +28,10 @@ export function AutoDialog({ open, detail, round, exclude, onClose, onPlanned }:
     if (!open) return;
     setPerHeat(String(timed ? detail.event.laneCount : 12));
     setLanes(timed ? "center" : "sequential");
+    setSeparate(preferences?.separateUnits ?? true);
+    setBalance(preferences?.balance ?? true);
     setSource(canAdvance ? "advance" : "entries");
-  }, [open, timed, detail.event.laneCount, canAdvance]);
+  }, [open, timed, detail.event.laneCount, canAdvance, preferences]);
 
   const run = async () => {
     setBusy(true);

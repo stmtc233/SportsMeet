@@ -8,6 +8,7 @@ import { AutoDialog } from "./AutoDialog";
 import { addHeat, appendPlanned, deleteHeat, diff, editHeat, fromDetail, heatChanged, isLocked, merge, moveHeat, place, placedIn, pushHistory, redo, resetAll, undo, unlock, unplace, type ArrangeDraft, type DraftHeat, type Edit, type History } from "./draft";
 import { AthleteChip, dragType, HeatCard } from "./HeatCard";
 import { HeatDialog } from "./HeatDialog";
+import { ScheduleDialog } from "./ScheduleDialog";
 
 /** The arrange page: a local draft with undo and redo, saved in one go. */
 export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; meetId: string; onStale: () => void }) {
@@ -19,6 +20,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   const [picked, setPicked] = useState("");
   const [saving, setSaving] = useState(false);
   const [auto, setAuto] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<DraftHeat | null>(null);
   const [unlocking, setUnlocking] = useState<DraftHeat | null>(null);
@@ -126,7 +128,9 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
               <IconMore size={18} strokeWidth={iconStroke} />
             </StIconButton>
           )}
-          items={[{ label: "全部重置…", danger: true, disabled: stats.heats === 0 || draft.reset, onSelect: () => { setTyped(""); setResetting(true); } }]} />
+          items={[
+            { label: <span title={dirty ? "请先保存编排" : undefined}>批量排时间…</span>, disabled: dirty || saving || roundView.heats.length === 0, onSelect: () => setScheduling(true) },
+            { label: "全部重置…", danger: true, disabled: stats.heats === 0 || draft.reset, onSelect: () => { setTyped(""); setResetting(true); } }]} />
         <StButton disabled={!dirty} onClick={discard}>放弃</StButton>
         {draft.reset ? (
           <StConfirmButton armedLook disabled={!dirty} loading={saving} onConfirm={submit}>重置并保存</StConfirmButton>
@@ -174,6 +178,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
       </div>
       <AutoDialog open={auto} detail={detail} round={roundView} exclude={[...placed.keys()]} onClose={() => setAuto(false)}
         onPlanned={(heats) => (heats.length === 0 ? toast("没有可编排的人", "warning") : apply(appendPlanned(draft, round.roundId, heats)))} />
+      {scheduling && <ScheduleDialog detail={detail} round={roundView} onClose={() => setScheduling(false)} />}
       <AddEntriesDialog open={adding} detail={detail} meetId={meetId} onClose={() => setAdding(false)} />
       <HeatDialog heat={editing} defaultDate={event.date} onClose={() => setEditing(null)} onSave={(patch) => editing && apply(editHeat(draft, round.roundId, editing.key, patch))} />
       <StDialog open={unlocking !== null} title="解锁位置？" size="small" onClose={() => setUnlocking(null)}

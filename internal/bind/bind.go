@@ -16,6 +16,7 @@ import (
 	"github.com/stmtc233/sportsmeet/internal/arrange"
 	"github.com/stmtc233/sportsmeet/internal/domain"
 	"github.com/stmtc233/sportsmeet/internal/interchange"
+	"github.com/stmtc233/sportsmeet/internal/mcp"
 	"github.com/stmtc233/sportsmeet/internal/scoring"
 	"github.com/stmtc233/sportsmeet/internal/service"
 	"github.com/stmtc233/sportsmeet/internal/store"
@@ -30,7 +31,10 @@ func Notify(c service.Change) { _ = DataChanged.Broadcast(c) }
 
 // Core holds the service every binding forwards to; main fills it once
 // the data directory is known.
-type Core struct{ Svc *service.Service }
+type Core struct {
+	Svc *service.Service
+	MCP *mcp.Manager
+}
 
 const ui = store.SourceUI
 
@@ -115,8 +119,8 @@ func (a Athletes) List(ctx context.Context, meetID string) ([]service.AthleteRow
 }
 
 // Save creates (id "") or updates an athlete.
-func (a Athletes) Save(ctx context.Context, meetID, id string, in service.AthleteInput) (*domain.Athlete, error) {
-	return a.Svc.SaveAthlete(ctx, ui, meetID, id, in)
+func (a Athletes) Save(ctx context.Context, meetID, id string, in service.AthleteInput) (*service.AthleteSave, error) {
+	return a.Svc.SaveAthleteWithWarnings(ctx, ui, meetID, id, in)
 }
 
 // Delete removes athletes.

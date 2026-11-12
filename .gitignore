@@ -7,3 +7,6 @@ mygo_windows_*.syso
 *.db
 *.db-wal
 *.db-shm
+
+/test-results/
+/playwright-report/
