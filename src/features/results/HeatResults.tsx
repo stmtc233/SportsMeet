@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { StButton, StMarkField, StRow, StSection, StSelect, StTag, StTextField } from "../../design";
-import { positionTitle, statusLabels } from "../../lib/labels";
+import { statusLabels } from "../../lib/labels";
 import type { EntryView, EventDetail, HeatView, ResultInput, Status } from "../../mygo";
 import { ResultsController } from "./controller";
 import { mergeRows, sameRow, toRow, toRows, type Row, type Rows } from "./rows";
 
-const isAttemptWord = (t: string) => /^(x|×|-|—|犯规|免跳|免)$/i.test(t);
+const isAttemptWord = (t: string) => /^(x|×|-|—|犯规|免跳|免投|免)$/i.test(t);
 const isTrials = (t: string) => /^[oOxX0×\-—]{1,3}$/.test(t);
 
 // Enter moves to the same column of the next row.
@@ -106,11 +106,11 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
         </>
       }>
       <div className="result-grid" style={style}>
-        <span className="head num">{positionTitle(kind)}</span>
+        <span className="head num">{detail.rules.positionLabel}</span>
         <span className="head">{kind === "relay" ? "队伍" : "姓名"}</span>
         <span className="head">单位</span>
         {timed && <span className="head num">成绩</span>}
-        {kind === "distance" && Array.from({ length: inputCols }, (_, i) => <span key={i} className="head num">第 {i + 1} 次</span>)}
+        {kind === "distance" && Array.from({ length: inputCols }, (_, i) => <span key={i} className="head num">{detail.rules.attemptLabel} {i + 1}</span>)}
         {kind === "height" && heights.map((h) => <span key={h} className="head num">{h}</span>)}
         <span className="head">状态</span>
         <span className="head num">{timed ? "" : "成绩"}</span>
@@ -126,7 +126,7 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
             <span key={`u${s.position}`} className="name st-muted">{e?.unitName}</span>,
             timed && <StMarkField key={`m${s.position}`} kind={kind} name={`m:${i}`} value={row.mark} disabled={off} width="fill" aria-label="成绩" onChange={(mark) => set(s.position, { mark })} onKeyDown={nextRow} />,
             kind === "distance" && row.attempts.slice(0, inputCols).map((a, j) => (
-              <StMarkField key={`a${s.position}-${j}`} kind={kind} name={`a${j}:${i}`} value={a} disabled={off} width="fill" accept={isAttemptWord} aria-label={`第 ${j + 1} 次`} onKeyDown={nextRow}
+              <StMarkField key={`a${s.position}-${j}`} kind={kind} name={`a${j}:${i}`} value={a} disabled={off} width="fill" accept={isAttemptWord} aria-label={`${detail.rules.attemptLabel} ${j + 1}`} onKeyDown={nextRow}
                 onChange={(v) => set(s.position, { attempts: row.attempts.map((old, k) => (k === j ? v : old)) })} />
             )),
             kind === "height" && heights.map((h, j) => (

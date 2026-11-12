@@ -239,3 +239,31 @@ func TestQualify(t *testing.T) {
 		t.Errorf("2 by place only = %v, want %v", got, want)
 	}
 }
+
+func TestStartModeIndependentOfTiming(t *testing.T) {
+	o := base()
+	o.StartMode, o.PerHeat, o.Lanes = domain.StartGroup, 16, LanesSequential
+	heats, err := Plan(o, entrants(16, 2))
+	if err != nil || len(heats) != 1 || len(heats[0].Slots) != 16 {
+		t.Fatalf("group: %+v, %v", heats, err)
+	}
+	for i, s := range heats[0].Slots {
+		if s.Position != i+1 || s.ID != fmt.Sprintf("a%02d", i+1) {
+			t.Fatalf("timed seeding/order: %+v", heats[0].Slots)
+		}
+	}
+	o.StartMode = domain.StartBreak
+	if _, err := Plan(o, entrants(16, 2)); err != ErrTooMany {
+		t.Fatalf("break exceeds lanes: %v", err)
+	}
+	o.PerHeat, o.Lanes = 8, LanesCenter
+	heats, err = Plan(o, entrants(8, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sl := range heats[0].Slots {
+		if sl.ID == "a01" && sl.Position != 4 {
+			t.Fatalf("best break runner not in middle lane: %+v", sl)
+		}
+	}
+}

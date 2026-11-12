@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import { act } from "../../lib/action";
 import { useData } from "../../lib/useData";
-import { Entries, Events, type EntryInput, type TeamInput, type EventInput } from "../../mygo";
+import { Entries, Events, Marks, type Event, type EventRules, type Gender, type EntryInput, type TeamInput, type EventInput } from "../../mygo";
 
 export function useEvents(meetId: string) {
   return useData(() => Events.list(meetId), [meetId], (c) => c.meetId === meetId);
@@ -10,7 +11,33 @@ export function useEventDetail(eventId: string, meetId: string) {
   return useData(() => Events.get(eventId), [eventId], (c) => c.meetId === meetId && (c.eventId === eventId || c.eventId === ""));
 }
 
+export function useEventPresets() {
+  return useData(() => Events.presets(), [], () => false);
+}
+
+export function useEventRules(input: EventInput, enabled: boolean) {
+  const [rules, setRules] = useState<EventRules>();
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    void Events.rules(input).then((r) => { if (live) setRules(r ?? undefined); }).catch(() => {});
+    return () => { live = false; };
+  }, [input, enabled]);
+  return rules;
+}
+
+export function useTeamSizeWarning(event: Event, count: number) {
+  const [warning, setWarning] = useState("");
+  useEffect(() => {
+    let live = true;
+    void Events.teamSizeWarning(event, count).then((w) => { if (live) setWarning(w); }).catch(() => {});
+    return () => { live = false; };
+  }, [event, count]);
+  return warning;
+}
+
 export const EventsController = {
+  eventName: (gender: string, discipline: string, group: string) => Marks.eventName(gender as Gender, discipline, group),
   save: (meetId: string, id: string, input: EventInput) => act(() => Events.save(meetId, id, input), "已保存"),
   saveTeam: (eventId: string, id: string, input: TeamInput) => act(() => Events.saveTeam(eventId, id, input), "已保存"),
   deleteTeam: (eventId: string, id: string) => act(() => Events.deleteTeam(eventId, id), "已删除"),

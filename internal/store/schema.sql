@@ -49,6 +49,9 @@ CREATE TABLE events (
     lane_count INTEGER NOT NULL DEFAULT 8,
     attempt_count INTEGER NOT NULL DEFAULT 3,
     note TEXT NOT NULL DEFAULT '',
+    start_mode TEXT NOT NULL DEFAULT '',
+    distance_mode TEXT NOT NULL DEFAULT '',
+    relay_leg_count INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
 );
 CREATE INDEX idx_events_meet ON events(meet_id);
@@ -104,7 +107,7 @@ CREATE TABLE heats (
 );
 CREATE INDEX idx_heats_round ON heats(round_id, ordinal);
 
--- 位置:position 是实际物理道次或试跳顺序
+-- 位置:position 是实际起跑道次或顺序
 CREATE TABLE slots (
     heat_id TEXT NOT NULL REFERENCES heats(id) ON DELETE CASCADE,
     position INTEGER NOT NULL,

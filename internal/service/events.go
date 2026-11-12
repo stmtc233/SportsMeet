@@ -15,6 +15,9 @@ func itoa(n int) string { return strconv.Itoa(n) }
 // EventInput creates or updates an event. Prelim asks for a 预赛 before
 // the final, advancing by AdvanceByPlace and AdvanceByMark.
 type EventInput struct {
+	StartMode      string `json:"startMode,omitempty"`
+	DistanceMode   string `json:"distanceMode,omitempty"`
+	RelayLegCount  int    `json:"relayLegCount,omitempty"`
 	Name           string `json:"name,omitempty"` // "" = composed from the fields below
 	Gender         string `json:"gender"`
 	Discipline     string `json:"discipline"`
@@ -89,6 +92,7 @@ func (in EventInput) event() (domain.Event, error) {
 		LaneCount:    in.LaneCount,
 		AttemptCount: in.AttemptCount,
 		Note:         strings.TrimSpace(in.Note),
+		StartMode:    domain.StartMode(in.StartMode), DistanceMode: domain.DistanceMode(in.DistanceMode), RelayLegCount: in.RelayLegCount,
 	}
 	g, ok := domain.NormalizeEventGender(in.Gender)
 	if e.LaneCount == 0 {
@@ -109,9 +113,12 @@ func (in EventInput) event() (domain.Event, error) {
 	case e.LaneCount < 1 || e.LaneCount > 12:
 		return e, invalid("道数应在 1 到 12 之间")
 	case e.AttemptCount < 1 || e.AttemptCount > 6:
-		return e, invalid("试跳次数应在 1 到 6 之间")
+		return e, invalid("尝试次数应在 1 到 6 之间")
 	case in.Prelim && (in.AdvanceByPlace < 0 || in.AdvanceByMark < 0 || in.AdvanceByPlace+in.AdvanceByMark == 0):
 		return e, invalid("请填写晋级人数")
+	}
+	if err := e.NormalizeConfig(); err != nil {
+		return e, invalid("%s", err)
 	}
 	e.Gender = g
 	if e.Name == "" {
@@ -131,9 +138,9 @@ func insertRound(r domain.Round) sqlite.Statement {
 
 func insertEvent(e domain.Event, now int64) sqlite.Statement {
 	return store.Stmt(`INSERT INTO events(id, meet_id, name, gender, discipline, group_label, kind, date,
-		lane_count, attempt_count, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		lane_count, attempt_count, note, start_mode, distance_mode, relay_leg_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		e.ID, e.MeetID, e.Name, string(e.Gender), e.Discipline, e.GroupLabel, string(e.Kind), e.Date,
-		e.LaneCount, e.AttemptCount, e.Note, now)
+		e.LaneCount, e.AttemptCount, e.Note, string(e.StartMode), string(e.DistanceMode), e.RelayLegCount, now)
 }
 
 // SaveEvent creates an event (id "") or updates one. A new event gets its
@@ -219,9 +226,27 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 		if e.Kind != old.Kind && results > 0 {
 			return nil, invalid("已有成绩，不能改项目类型")
 		}
+		for _, r := range rounds[id] {
+			for _, h := range r.Heats {
+				if len(h.Slots) > 0 && e.UsesLanes() != old.UsesLanes() {
+					return nil, invalid("已排进组，请先移出再改起跑方式")
+				}
+				for _, sl := range h.Slots {
+					if e.UsesLanes() && sl.Position > e.LaneCount {
+						return nil, invalid("已有道次超过所选道数")
+					}
+					if e.Kind == domain.KindDistance && sl.Result != nil && len(sl.Result.Attempts) > e.AttemptCount {
+						return nil, invalid("已有逐次成绩，不能减少次数")
+					}
+				}
+			}
+		}
+		if results > 0 && e.Rules().StartLabel != old.Rules().StartLabel {
+			return nil, invalid("已有成绩，不能改起跑方式")
+		}
 		stmts = append(stmts, store.Stmt(`UPDATE events SET name = ?, gender = ?, discipline = ?, group_label = ?,
-			kind = ?, date = ?, lane_count = ?, attempt_count = ?, note = ? WHERE id = ?`,
-			e.Name, string(e.Gender), e.Discipline, e.GroupLabel, string(e.Kind), e.Date, e.LaneCount, e.AttemptCount, e.Note, id))
+			kind = ?, date = ?, lane_count = ?, attempt_count = ?, note = ?, start_mode = ?, distance_mode = ?, relay_leg_count = ? WHERE id = ?`,
+			e.Name, string(e.Gender), e.Discipline, e.GroupLabel, string(e.Kind), e.Date, e.LaneCount, e.AttemptCount, e.Note, string(e.StartMode), string(e.DistanceMode), e.RelayLegCount, id))
 		switch {
 		case in.Prelim && prelim == nil:
 			// Later rounds move up by one to make room for the 预赛.

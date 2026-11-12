@@ -92,10 +92,10 @@ function sorted(slots: DraftSlot[]): DraftSlot[] {
   return [...slots].sort((a, b) => a.position - b.position);
 }
 
-// Field events have an order, not lanes: positions stay 1…n without gaps.
-function tidy(slots: DraftSlot[], timed: boolean): DraftSlot[] {
+// Events without lanes have an order: positions stay 1…n without gaps.
+function tidy(slots: DraftSlot[], laned: boolean): DraftSlot[] {
   const list = sorted(slots);
-  return timed ? list : list.map((s, i) => ({ ...s, position: i + 1 }));
+  return laned ? list : list.map((s, i) => ({ ...s, position: i + 1 }));
 }
 
 /** The athletes placed in a round, with the heat holding each. */
@@ -112,7 +112,7 @@ const lockedText = (h: DraftHeat) => `「${h.label}」${h.keepReason}，请先�
  * the two swap when the position is taken; coming from the list, whoever
  * is there goes back to the list.
  */
-export function place(draft: ArrangeDraft, roundId: string, heatKey: string, position: number, competitorId: string, timed: boolean): Edit {
+export function place(draft: ArrangeDraft, roundId: string, heatKey: string, position: number, competitorId: string, laned: boolean): Edit {
   const r = round(draft, roundId);
   const target = r?.heats.find((h) => h.key === heatKey);
   if (!r || !target) return { error: "该组已不存在" };
@@ -128,18 +128,18 @@ export function place(draft: ArrangeDraft, roundId: string, heatKey: string, pos
     let slots = h.slots.filter((s) => s.competitorId !== competitorId && s.competitorId !== occupant);
     if (h === target) slots = [...slots, { position, competitorId }];
     if (h === source && occupant && from !== undefined) slots = [...slots, { position: from, competitorId: occupant }];
-    return { ...h, slots: tidy(slots, timed) };
+    return { ...h, slots: tidy(slots, laned) };
   });
   return { draft: withRound(draft, roundId, (old) => ({ ...old, heats })) };
 }
 
 /** Takes an athlete out of the round, back to the list. */
-export function unplace(draft: ArrangeDraft, roundId: string, competitorId: string, timed: boolean): Edit {
+export function unplace(draft: ArrangeDraft, roundId: string, competitorId: string, laned: boolean): Edit {
   const r = round(draft, roundId);
   const source = r?.heats.find((h) => h.slots.some((s) => s.competitorId === competitorId));
   if (!r || !source) return { draft };
   if (isLocked(draft, source)) return { error: lockedText(source) };
-  const heats = r.heats.map((h) => (h === source ? { ...h, slots: tidy(h.slots.filter((s) => s.competitorId !== competitorId), timed) } : h));
+  const heats = r.heats.map((h) => (h === source ? { ...h, slots: tidy(h.slots.filter((s) => s.competitorId !== competitorId), laned) } : h));
   return { draft: withRound(draft, roundId, (old) => ({ ...old, heats })) };
 }
 

@@ -77,7 +77,7 @@ func (s *Service) PlanHeats(ctx context.Context, req PlanRequest) ([]arrange.Pla
 		}
 	}
 	plan, err := arrange.Plan(arrange.Options{
-		Kind: st.event.Kind, LaneCount: st.event.LaneCount, PerHeat: req.PerHeat, Order: req.Order, Lanes: req.Lanes,
+		Kind: st.event.Kind, StartMode: st.event.StartMode, LaneCount: st.event.LaneCount, PerHeat: req.PerHeat, Order: req.Order, Lanes: req.Lanes,
 		SeparateUnits: req.SeparateUnits, Balance: req.Balance, Seed: req.Seed,
 	}, entrants)
 	if err != nil {
@@ -173,7 +173,7 @@ func (st *eventState) buildSlots(label string, in []SlotSave, old *domain.Heat) 
 			return nil, invalid("%s不存在或已删除", st.competitorLabel())
 		case sl.Position < 1 || positions[sl.Position]:
 			return nil, invalid("「%s」的位置重复或不正确", label)
-		case st.event.Kind.Timed() && sl.Position > st.event.LaneCount:
+		case st.event.UsesLanes() && sl.Position > st.event.LaneCount:
 			return nil, invalid("「%s」的道次超过 %d 道", label, st.event.LaneCount)
 		case members[a.ID]:
 			return nil, invalid("「%s」在同一轮次排了两次", a.Name)

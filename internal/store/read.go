@@ -72,7 +72,7 @@ func (s *Store) ListEvents(ctx context.Context, sc Scope) ([]domain.Event, error
 		cond, arg = "id = ?", sc.EventID
 	}
 	rows, err := s.Query(ctx, `SELECT id, meet_id, name, gender, discipline, group_label, kind, date, lane_count,
-		attempt_count, note FROM events WHERE `+cond+` ORDER BY created_at, rowid`, arg)
+		attempt_count, note, start_mode, distance_mode, relay_leg_count FROM events WHERE `+cond+` ORDER BY created_at, rowid`, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (s *Store) ListEvents(ctx context.Context, sc Scope) ([]domain.Event, error
 	for _, r := range rows.Values {
 		out = append(out, domain.Event{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), Gender: domain.Gender(str(r[3])),
 			Discipline: str(r[4]), GroupLabel: str(r[5]), Kind: domain.EventKind(str(r[6])), Date: str(r[7]),
-			LaneCount: int(i64(r[8])), AttemptCount: int(i64(r[9])), Note: str(r[10])})
+			LaneCount: int(i64(r[8])), AttemptCount: int(i64(r[9])), Note: str(r[10]), StartMode: domain.StartMode(str(r[11])), DistanceMode: domain.DistanceMode(str(r[12])), RelayLegCount: int(i64(r[13]))})
 	}
 	return out, nil
 }

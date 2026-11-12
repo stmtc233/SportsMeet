@@ -101,7 +101,14 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 			date = meet.StartDate
 		}
 		st.event = e
-		ev := report.Event{Name: e.Name, Date: date, Timed: e.Kind.Timed(), Relay: e.Kind == domain.KindRelay}
+		rules := e.Rules()
+		ev := report.Event{Name: e.Name, Date: date, PositionLabel: rules.PositionLabel, AttemptLabel: rules.AttemptLabel, Configuration: rules.StartLabel, Relay: e.Kind == domain.KindRelay}
+		if rules.AttemptLabel != "" {
+			ev.Configuration = fmt.Sprintf("%s %d 次", rules.AttemptLabel, e.AttemptCount)
+		}
+		if e.Kind == domain.KindRelay && e.RelayLegCount > 0 {
+			ev.Configuration += fmt.Sprintf(" · 建议 %d 棒", e.RelayLegCount)
+		}
 		line := func(sl domain.Slot) report.Line {
 			a, _ := st.competitor(sl.CompetitorID())
 			l := report.Line{Position: sl.Position, Bib: a.Bib, Name: a.Name, Unit: st.unitName(a.UnitID)}
@@ -115,6 +122,9 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 			}
 			if r := sl.Result; r != nil {
 				l.Mark, l.Qualify = r.Status.Label(), r.Qualify
+				for _, a := range r.Attempts {
+					l.Attempts = append(l.Attempts, scoring.FormatAttempt(e.Kind, a))
+				}
 				if r.Status == domain.StatusOK && r.Mark != nil {
 					l.Mark = scoring.FormatMark(e.Kind, *r.Mark)
 				}

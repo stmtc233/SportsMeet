@@ -5,7 +5,7 @@ package interchange
 // Format and Version identify the file (spec §2).
 const (
 	Format  = "sportsmeet-interchange"
-	Version = 1
+	Version = 2
 )
 
 // File is one meet's full snapshot.
@@ -55,19 +55,22 @@ type Athlete struct {
 }
 
 type Event struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name,omitempty"`
-	Gender       string  `json:"gender"`
-	Discipline   string  `json:"discipline"`
-	GroupLabel   string  `json:"groupLabel,omitempty"`
-	Kind         string  `json:"kind"`
-	Date         *string `json:"date,omitempty"`
-	LaneCount    *int    `json:"laneCount,omitempty"`
-	AttemptCount *int    `json:"attemptCount,omitempty"`
-	Note         string  `json:"note,omitempty"`
-	Teams        []Team  `json:"teams,omitempty"`
-	Entries      []Entry `json:"entries"`
-	Rounds       []Round `json:"rounds"`
+	StartMode     string  `json:"startMode,omitempty"`
+	DistanceMode  string  `json:"distanceMode,omitempty"`
+	RelayLegCount int     `json:"relayLegCount,omitempty"`
+	ID            string  `json:"id"`
+	Name          string  `json:"name,omitempty"`
+	Gender        string  `json:"gender"`
+	Discipline    string  `json:"discipline"`
+	GroupLabel    string  `json:"groupLabel,omitempty"`
+	Kind          string  `json:"kind"`
+	Date          *string `json:"date,omitempty"`
+	LaneCount     *int    `json:"laneCount,omitempty"`
+	AttemptCount  *int    `json:"attemptCount,omitempty"`
+	Note          string  `json:"note,omitempty"`
+	Teams         []Team  `json:"teams,omitempty"`
+	Entries       []Entry `json:"entries"`
+	Rounds        []Round `json:"rounds"`
 }
 
 type Team struct {

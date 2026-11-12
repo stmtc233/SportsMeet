@@ -11,9 +11,10 @@
   <p>{{.Title}}</p>
   <p>{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
 </header>
-{{range .Events}}{{$timed := .Timed}}{{$relay := .Relay}}
+{{range .Events}}{{$position := .PositionLabel}}{{$attempt := .AttemptLabel}}{{$relay := .Relay}}
 <section class="event">
   <h2>{{.Name}}{{if .Date}}<small>{{.Date}}</small>{{end}}</h2>
+  {{if .Configuration}}<p>{{.Configuration}}</p>{{end}}
   {{range .Rounds}}
   <div class="round">
     <h3>{{.Label}}{{if .Advance}}<small>{{.Advance}}</small>{{end}}</h3>
@@ -23,9 +24,9 @@
       <div class="heat">
         <h4>{{.Label}}{{if .Time}}<small>{{.Time}}</small>{{end}}</h4>
         <table>
-          <thead><tr><th class="num">{{if $timed}}道次{{else}}顺序{{end}}</th><th>{{if $relay}}队伍 / 棒次{{else}}姓名{{end}}</th><th>单位</th><th class="mark">成绩</th><th class="num">名次</th><th class="num">晋级</th></tr></thead>
+          <thead><tr><th class="num">{{$position}}</th><th>{{if $relay}}队伍 / 棒次{{else}}姓名{{end}}</th><th>单位</th><th class="mark">成绩</th>{{if $attempt}}<th>逐次{{$attempt}}</th>{{end}}<th class="num">名次</th><th class="num">晋级</th></tr></thead>
           <tbody>
-            {{range .Lines}}<tr><td class="num">{{.Position}}</td><td>{{.Name}}{{range .Members}}<div class="member">{{.}}</div>{{end}}</td><td>{{.Unit}}</td><td class="mark">{{.Mark}}</td><td class="num">{{.Rank}}</td><td class="num">{{.Qualify}}</td></tr>
+            {{range .Lines}}<tr><td class="num">{{.Position}}</td><td>{{.Name}}{{range .Members}}<div class="member">{{.}}</div>{{end}}</td><td>{{.Unit}}</td><td class="mark">{{.Mark}}</td>{{if $attempt}}<td>{{range $i, $a := .Attempts}}{{if $i}} / {{end}}{{$a}}{{end}}</td>{{end}}<td class="num">{{.Rank}}</td><td class="num">{{.Qualify}}</td></tr>
             {{end}}
           </tbody>
         </table>
@@ -34,9 +35,9 @@
     </div>
     {{else if .Standings}}
     <table>
-      <thead><tr><th class="num">名次</th><th class="narrow">号码</th><th>{{if $relay}}队伍 / 棒次{{else}}姓名{{end}}</th><th>单位</th><th class="mark">成绩</th><th class="narrow">组</th></tr></thead>
+      <thead><tr><th class="num">名次</th><th class="narrow">号码</th><th>{{if $relay}}队伍 / 棒次{{else}}姓名{{end}}</th><th>单位</th><th class="mark">成绩</th>{{if $attempt}}<th>逐次{{$attempt}}</th>{{end}}<th class="narrow">组</th></tr></thead>
       <tbody>
-        {{range .Standings}}<tr><td class="num">{{.Rank}}</td><td>{{.Bib}}</td><td>{{.Name}}{{range .Members}}<div class="member">{{.}}</div>{{end}}</td><td>{{.Unit}}</td><td class="mark">{{.Mark}}</td><td>{{.Heat}}</td></tr>
+        {{range .Standings}}<tr><td class="num">{{.Rank}}</td><td>{{.Bib}}</td><td>{{.Name}}{{range .Members}}<div class="member">{{.}}</div>{{end}}</td><td>{{.Unit}}</td><td class="mark">{{.Mark}}</td>{{if $attempt}}<td>{{range $i, $a := .Attempts}}{{if $i}} / {{end}}{{$a}}{{end}}</td>{{end}}<td>{{.Heat}}</td></tr>
         {{end}}
       </tbody>
     </table>

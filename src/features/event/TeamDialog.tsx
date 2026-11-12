@@ -2,7 +2,7 @@ import { useState } from "react";
 import { IconDelete, IconDown, IconUp, StButton, StDialog, StIconButton, StNotice, StRow, StSelect, StStack, StTextField, iconStroke } from "../../design";
 import type { EventDetail, TeamView } from "../../mygo";
 import { useAthletes } from "../athletes/controller";
-import { EventsController } from "../events/controller";
+import { EventsController, useTeamSizeWarning } from "../events/controller";
 import { useUnits } from "../units/UnitsPage";
 
 export function TeamDialog({ detail, meetId, team, onClose }: { detail: EventDetail; meetId: string; team: TeamView | null; onClose: () => void }) {
@@ -11,6 +11,7 @@ export function TeamDialog({ detail, meetId, team, onClose }: { detail: EventDet
   const [name, setName] = useState(team?.name ?? "");
   const [unitId, setUnitId] = useState(team?.unitId ?? "");
   const [members, setMembers] = useState(team?.memberIds ?? []);
+  const sizeWarning = useTeamSizeWarning(detail.event, members.length);
   const [busy, setBusy] = useState(false);
   const locked = Boolean(team?.keepReason);
   const otherMembers = new Set(detail.teams.filter((t) => t.id !== team?.id).flatMap((t) => t.memberIds));
@@ -34,6 +35,7 @@ export function TeamDialog({ detail, meetId, team, onClose }: { detail: EventDet
       <StSelect label="参赛单位" value={unitId} onChange={setUnitId} disabled={busy}
         options={[{ value: "", label: "未指定" }, ...(units ?? []).map((u) => ({ value: u.id, label: u.name }))]} />
       {locked && <StNotice>已有比赛记录，棒次已锁定</StNotice>}
+      {sizeWarning && <StNotice tone="warning">{sizeWarning}</StNotice>}
       {mismatch && <StNotice tone="warning">成员性别与项目不符</StNotice>}
       <StStack>
         {members.map((id, i) => (

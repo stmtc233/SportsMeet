@@ -13,10 +13,11 @@ import (
 // EventDetail is everything the entries, arrange and results pages show
 // for one event.
 type EventDetail struct {
-	Teams   []TeamView   `json:"teams"`
-	Event   domain.Event `json:"event"`
-	Entries []EntryView  `json:"entries"`
-	Rounds  []RoundView  `json:"rounds"`
+	Rules   domain.EventRules `json:"rules"`
+	Teams   []TeamView        `json:"teams"`
+	Event   domain.Event      `json:"event"`
+	Entries []EntryView       `json:"entries"`
+	Rounds  []RoundView       `json:"rounds"`
 }
 
 // EntryView is one entered athlete.
@@ -229,7 +230,7 @@ func (st *eventState) view() *EventDetail {
 		}
 		entries = append(entries, v)
 	}
-	return &EventDetail{Event: st.event, Teams: teams, Entries: entries, Rounds: rounds}
+	return &EventDetail{Event: st.event, Rules: st.event.Rules(), Teams: teams, Entries: entries, Rounds: rounds}
 }
 
 func resultView(kind domain.EventKind, r *domain.Result) *ResultView {

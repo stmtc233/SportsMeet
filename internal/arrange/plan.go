@@ -35,7 +35,8 @@ const (
 // Options of an automatic arrangement.
 type Options struct {
 	Kind          domain.EventKind `json:"kind"`
-	LaneCount     int              `json:"laneCount"` // timed events: lanes of the track
+	StartMode     domain.StartMode `json:"startMode"`
+	LaneCount     int              `json:"laneCount"` // starting lanes, ignored for group starts
 	PerHeat       int              `json:"perHeat"`
 	Order         string           `json:"order"`
 	Lanes         string           `json:"lanes"`
@@ -70,11 +71,11 @@ var (
 // strong when ordered by seed. With SeparateUnits each entrant of a row
 // goes to the heat of that row holding the fewest of its unit.
 func Plan(opts Options, entrants []Entrant) ([]PlannedHeat, error) {
-	timed := opts.Kind.Timed()
+	laned := (domain.Event{Kind: opts.Kind, StartMode: opts.StartMode}).UsesLanes()
 	switch {
 	case opts.PerHeat < 1:
 		return nil, ErrPerHeat
-	case timed && opts.LaneCount > 0 && opts.PerHeat > opts.LaneCount:
+	case laned && opts.LaneCount > 0 && opts.PerHeat > opts.LaneCount:
 		return nil, ErrTooMany
 	case opts.Order != OrderSeed && opts.Order != OrderRandom:
 		return nil, ErrNoOption
@@ -149,7 +150,7 @@ func Plan(opts Options, entrants []Entrant) ([]PlannedHeat, error) {
 
 	out := make([]PlannedHeat, h)
 	for i, members := range heats {
-		positions := lanes(opts, timed, len(members), rng)
+		positions := lanes(opts, laned, len(members), rng)
 		slots := make([]PlannedSlot, len(members))
 		for j, e := range members {
 			slots[j] = PlannedSlot{Position: positions[j], ID: e.ID}
@@ -174,12 +175,12 @@ func seedBefore(kind domain.EventKind, a, b *int64) bool {
 }
 
 // lanes returns the positions of a heat's members in dealing order.
-func lanes(opts Options, timed bool, n int, rng *rand.Rand) []int {
+func lanes(opts Options, laned bool, n int, rng *rand.Rand) []int {
 	out := make([]int, n)
 	for i := range out {
 		out[i] = i + 1
 	}
-	if timed && opts.LaneCount >= n && opts.Lanes != LanesSequential {
+	if laned && opts.LaneCount >= n && opts.Lanes != LanesSequential {
 		copy(out, CenterLanes(opts.LaneCount)[:n]) // random draws stay in the middle lanes too
 	}
 	if opts.Lanes == LanesRandom {

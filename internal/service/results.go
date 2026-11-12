@@ -31,8 +31,8 @@ type BarInput struct {
 	Trials string `json:"trials"`
 }
 
-func positionLabel(kind domain.EventKind, pos int) string {
-	if kind.Timed() {
+func positionLabel(event domain.Event, pos int) string {
+	if event.UsesLanes() {
 		return fmt.Sprintf("第 %d 道", pos)
 	}
 	return fmt.Sprintf("第 %d 位", pos)
@@ -239,7 +239,7 @@ func (s *Service) SaveResults(ctx context.Context, src store.Source, heatID stri
 		}
 		r, err := buildResult(kind, in)
 		if err != nil {
-			return invalid("%s:%s", positionLabel(kind, in.Position), err)
+			return invalid("%s:%s", positionLabel(st.event, in.Position), err)
 		}
 		if r != nil && slot.Result != nil {
 			r.Wind = slot.Result.Wind

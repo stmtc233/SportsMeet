@@ -40,8 +40,31 @@ func Decode(data []byte) (*File, error) {
 		return nil, Problems{"version 必须为正整数"}
 	}
 	var f File
-	if err := json.Unmarshal(data, &f); err != nil {
-		return nil, fmt.Errorf("字段类型不正确:%w", err)
+	var decodeErr error
+	if head.Version == 1 {
+		// Configuration is unknown in v1, including extension values of other types.
+		var legacy struct {
+			File
+			Events []struct {
+				Event
+				StartMode     json.RawMessage `json:"startMode"`
+				DistanceMode  json.RawMessage `json:"distanceMode"`
+				RelayLegCount json.RawMessage `json:"relayLegCount"`
+			} `json:"events"`
+		}
+		decodeErr = json.Unmarshal(data, &legacy)
+		f = legacy.File
+		if legacy.Events != nil {
+			f.Events = make([]Event, len(legacy.Events))
+			for i, event := range legacy.Events {
+				f.Events[i] = event.Event
+			}
+		}
+	} else {
+		decodeErr = json.Unmarshal(data, &f)
+	}
+	if decodeErr != nil {
+		return nil, fmt.Errorf("字段类型不正确:%w", decodeErr)
 	}
 	if p := Validate(&f); len(p) > 0 {
 		return nil, p
@@ -158,14 +181,25 @@ func Validate(f *File) Problems {
 		if e.Date != nil && !dateRe.MatchString(*e.Date) {
 			add("%s.date 应为 YYYY-MM-DD", at)
 		}
-		p = append(p, validateEvent(at, kind, &e, athletes, units)...)
+		p = append(p, validateEvent(at, kind, &e, athletes, units, f.Version >= 2)...)
 	}
 	return p
 }
 
-func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units map[string]bool) Problems {
+func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units map[string]bool, strictPositions bool) Problems {
 	var p Problems
 	add := func(format string, a ...any) { p = append(p, fmt.Sprintf(format, a...)) }
+	config := domain.Event{Kind: kind, StartMode: domain.StartMode(e.StartMode), DistanceMode: domain.DistanceMode(e.DistanceMode), RelayLegCount: e.RelayLegCount}
+	if err := config.NormalizeConfig(); err != nil {
+		add("%s：%s", at, err)
+	}
+	// Exchange files retain the published positive ranges, including existing data.
+	if e.LaneCount != nil && *e.LaneCount < 1 {
+		add("%s.laneCount 至少为 1", at)
+	}
+	if e.AttemptCount != nil && *e.AttemptCount < 1 {
+		add("%s.attemptCount 至少为 1", at)
+	}
 	relay := kind == domain.KindRelay
 
 	teams := map[string]bool{}
@@ -257,6 +291,15 @@ func validateEvent(at string, kind domain.EventKind, e *Event, athletes, units m
 				if s.Position < 1 || positions[s.Position] {
 					add("%s.position 应从 1 开始且组内不重复", sat)
 				}
+				if strictPositions && config.UsesLanes() {
+					lanes := 8
+					if e.LaneCount != nil {
+						lanes = *e.LaneCount
+					}
+					if s.Position > lanes {
+						add("%s.position 超过道数", sat)
+					}
+				}
 				positions[s.Position] = true
 				if key, ok := competitor(sat, s.AthleteID, s.TeamID); ok {
 					if !entered[key] {
@@ -297,11 +340,11 @@ func validateResult(at string, kind domain.EventKind, r *Result) Problems {
 	for i, a := range r.Attempts {
 		switch {
 		case a.Outcome == "valid" && a.Mark == nil:
-			add("%s.attempts[%d] 有效试跳必须有 mark", at, i)
+			add("%s.attempts[%d] 有效尝试必须有 mark", at, i)
 		case a.Outcome != "valid" && a.Outcome != "foul" && a.Outcome != "pass":
 			add("%s.attempts[%d].outcome 不正确", at, i)
 		case a.Outcome != "valid" && a.Mark != nil:
-			add("%s.attempts[%d] 非有效试跳 mark 应为 null", at, i)
+			add("%s.attempts[%d] 非有效尝试 mark 应为 null", at, i)
 		}
 	}
 	if len(r.Bars) > 0 && kind != domain.KindHeight {

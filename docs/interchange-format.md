@@ -1,8 +1,8 @@
-# 交换格式规范 v1
+# 交换格式规范 v2
 
 SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的完整快照**:参赛单位、运动员、项目、报名、轮次、组、成绩。
 
-- 机器可读定义:[schema/interchange-v1.schema.json](schema/interchange-v1.schema.json)(JSON Schema 2020-12)
+- 机器可读定义：[v2](schema/interchange-v2.schema.json)；兼容读取 [v1](schema/interchange-v1.schema.json)（JSON Schema 2020-12）
 - 示例:[examples/sample-meet.json](examples/sample-meet.json)
 
 ## 1. 文件
@@ -18,12 +18,12 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ## 2. 版本
 
 ```json
-{ "format": "sportsmeet-interchange", "version": 1 }
+{ "format": "sportsmeet-interchange", "version": 2 }
 ```
 
 - `format` 固定,不符即拒绝读取。
-- `version` 为正整数。删字段、改字段含义、改单位、改枚举取值都要 +1;只**新增可选字段**不 +1。
-- 写出方总是写当前最新版本。
+- `version` 为正整数。增删字段、改字段含义、改单位、改枚举取值均须 +1。
+- 写出方总是写 v2；读取方支持 v1、v2。v1 不解释项目配置字段，计时项目按分道、远度按跳跃、接力不指定建议棒数；不根据项目名推断。
 - 读取方必须能读所有已发布版本;遇到比自己新的版本直接拒绝,并提示升级软件(不尝试猜测读取)。
 
 ## 3. 基本约定
@@ -63,7 +63,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ```jsonc
 {
   "format": "sportsmeet-interchange",
-  "version": 1,
+  "version": 2,
   "exportedAt": "2026-11-12T18:05:31+08:00",
   "generator": { "name": "SportsMeet", "version": "0.1.0" },
   "meet": { ... },
@@ -131,7 +131,10 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `groupLabel` | string | | 组别,如「初中组」 |
 | `kind` | string | ✓ | `track` / `relay` / `distance` / `height` |
 | `date` | 日期 \| null | | 省略 = 赛事开始日期 |
-| `laneCount` | integer | | 径赛、接力的道数,默认 8 |
+| `startMode` | string | | 仅计时项目：`lanes` 分道 / `group` 不分道 / `break` 分道后抢道，默认 `lanes` |
+| `distanceMode` | string | | 仅远度：`jump` 跳跃 / `throw` 投掷，默认 `jump` |
+| `relayLegCount` | integer | | 仅接力：非负建议棒数，默认 0（未指定），不强制名单人数 |
+| `laneCount` | integer | | 径赛、接力的道数，默认 8；不分道时保留但不限制每组人数 |
 | `attemptCount` | integer | | 远度项目每人试跳 / 试掷次数,默认 3 |
 | `note` | string | | |
 | `teams` | Team[] | | 仅 `relay`,§5.5 |
@@ -189,7 +192,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|:---:|---|
-| `position` | integer | ✓ | 径赛 = 道次;田赛 = 试跳顺序;组内唯一,从 1 开始 |
+| `position` | integer | ✓ | 分道与分道后抢道 = 起跑道次；不分道与田赛 = 顺序；组内唯一,从 1 开始 |
 | `athleteId` / `teamId` | string | 二选一 | 必须已在本项目 `entries` 中报名 |
 | `result` | Result \| null | | `null` = 尚未录入 |
 
@@ -210,7 +213,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `outcome` | string | `valid` 有效 / `foul` 犯规 / `pass` 免跳 |
+| `outcome` | string | `valid` 有效 / `foul` 犯规 / `pass` 免跳 / 免投 |
 | `mark` | integer \| null | `valid` 时必填 |
 | `wind` | integer \| null | |
 
@@ -252,3 +255,5 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 
 项目按 `gender + discipline + groupLabel` 识别。`discipline` 宽松比较:`100 米` = `100m`,`4x100M` = `4×100m`。
 
+
+同名项目的配置冲突：v2 导入复用项目时，起跑方式、跳跃 / 投掷、建议棒数，以及计时项目道数、远度尝试次数须与目标一致（缺省值先按 §5.4 解释），不一致则整份拒绝，避免把顺序当道次或隐藏逐次成绩。v1 文件复用目标项目时保留目标配置。导入新赛事时使用文件配置与兼容默认值。v2 的分道位置不得超过道数；v1 位置按文件保留。

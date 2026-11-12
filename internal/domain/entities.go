@@ -36,17 +36,20 @@ type Athlete struct {
 
 // Event is one single item: gender + discipline + optional group.
 type Event struct {
-	ID           string    `json:"id"`
-	MeetID       string    `json:"meetId"`
-	Name         string    `json:"name"`
-	Gender       Gender    `json:"gender"`
-	Discipline   string    `json:"discipline"`
-	GroupLabel   string    `json:"groupLabel"`
-	Kind         EventKind `json:"kind"`
-	Date         string    `json:"date"` // YYYY-MM-DD, "" = the meet's start
-	LaneCount    int       `json:"laneCount"`
-	AttemptCount int       `json:"attemptCount"`
-	Note         string    `json:"note"`
+	ID            string       `json:"id"`
+	MeetID        string       `json:"meetId"`
+	Name          string       `json:"name"`
+	Gender        Gender       `json:"gender"`
+	Discipline    string       `json:"discipline"`
+	GroupLabel    string       `json:"groupLabel"`
+	Kind          EventKind    `json:"kind"`
+	Date          string       `json:"date"` // YYYY-MM-DD, "" = the meet's start
+	LaneCount     int          `json:"laneCount"`
+	AttemptCount  int          `json:"attemptCount"`
+	StartMode     StartMode    `json:"startMode"`
+	DistanceMode  DistanceMode `json:"distanceMode"`
+	RelayLegCount int          `json:"relayLegCount"`
+	Note          string       `json:"note"`
 }
 
 // Attempt is one try in a distance event.
@@ -139,7 +142,7 @@ func (h Heat) Facts() HeatFacts {
 	return f
 }
 
-// Slot is one 位置: a lane (track) or an order (field).
+// Slot is one 位置: a starting lane or an order (group starts and field).
 type Slot struct {
 	Position  int     `json:"position"`
 	AthleteID string  `json:"athleteId"`

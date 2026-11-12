@@ -89,3 +89,55 @@ func TestSchemaSnapshotMatchesMigrations(t *testing.T) {
 		}
 	}
 }
+
+// A database with only migration 1 keeps its actual slots and scores during upgrade.
+func TestEventConfigMigrationKeepsExistingData(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	db, err := sqlite.Open(ctx, filepath.Join(dir, FileName), sqlite.OpenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	init, err := migrationFS.ReadFile("migrations/0001_init.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmts := splitSQL(string(init))
+	stmts = append(stmts,
+		Stmt(`CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)`),
+		Stmt(`INSERT INTO schema_migrations VALUES (1,0)`),
+		Stmt(`INSERT INTO meets(id,name,start_date,created_at) VALUES ('m','赛事','2026-11-12',0)`),
+		Stmt(`INSERT INTO athletes(id,meet_id,name,created_at) VALUES ('a','m','运动员',0)`),
+		Stmt(`INSERT INTO events(id,meet_id,name,gender,discipline,kind,created_at) VALUES ('e','m','男子1500m','男','1500m','track',0)`),
+		Stmt(`INSERT INTO rounds(id,event_id,stage,ordinal) VALUES ('r','e','final',1)`),
+		Stmt(`INSERT INTO heats(id,round_id,ordinal) VALUES ('h','r',1)`),
+		Stmt(`INSERT INTO slots(heat_id,position,athlete_id) VALUES ('h',7,'a')`),
+		Stmt(`INSERT INTO results(heat_id,position,status,mark,updated_at) VALUES ('h',7,'OK',300000,0)`),
+	)
+	if _, err := db.Transaction(ctx, stmts); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	events, err := s.ListEvents(ctx, Scope{MeetID: "m"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 || !events[0].UsesLanes() || events[0].RelayLegCount != 0 {
+		t.Fatalf("migration inferred config: %+v", events)
+	}
+	rounds, err := s.LoadRounds(ctx, Scope{MeetID: "m"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sl := rounds["e"][0].Heats[0].Slots[0]
+	if sl.Position != 7 || *sl.Result.Mark != 300000 {
+		t.Fatal("migration changed existing result")
+	}
+}

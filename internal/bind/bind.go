@@ -158,6 +158,14 @@ func (a Athletes) Import(ctx context.Context, meetID string, in service.AthleteI
 // Events manages 项目.
 type Events struct{ *Core }
 
+func (e Events) Presets() []service.EventPreset { return e.Svc.EventPresets() }
+
+func (e Events) Rules(in service.EventInput) (*domain.EventRules, error) { return e.Svc.EventRules(in) }
+
+func (e Events) TeamSizeWarning(event domain.Event, count int) string {
+	return e.Svc.TeamSizeWarning(event, count)
+}
+
 // List returns a meet's events with their progress.
 func (e Events) List(ctx context.Context, meetID string) ([]service.EventRow, error) {
 	return e.Svc.ListEvents(ctx, meetID)

@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLeaveGuard } from "../../app/nav";
 import { IconAdd, IconAuto, IconMore, IconRedo, IconUndo, StButton, StConfirmButton, StDialog, StEmpty, StIconButton, StMenu, StSegmented, StTextField, iconStroke, toast } from "../../design";
 import { errorText, isStale } from "../../lib/errors";
-import { Arrange, type EntryView, type EventDetail } from "../../mygo";
+import type { EntryView, EventDetail } from "../../mygo";
 import { AddEntriesDialog } from "../event/AddEntriesDialog";
 import { AutoDialog } from "./AutoDialog";
+import { ArrangeController } from "./controller";
 import { addHeat, appendPlanned, deleteHeat, diff, editHeat, fromDetail, heatChanged, isLocked, merge, moveHeat, place, placedIn, pushHistory, redo, resetAll, undo, unlock, unplace, type ArrangeDraft, type DraftHeat, type Edit, type History } from "./draft";
 import { AthleteChip, dragType, HeatCard } from "./HeatCard";
 import { HeatDialog } from "./HeatDialog";
@@ -13,7 +14,7 @@ import { ScheduleDialog } from "./ScheduleDialog";
 /** The arrange page: a local draft with undo and redo, saved in one go. */
 export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; meetId: string; onStale: () => void }) {
   const event = detail.event;
-  const timed = event.kind === "track" || event.kind === "relay";
+  const laned = detail.rules.usesLanes;
   const [loaded, setLoaded] = useState(() => fromDetail(detail));
   const [history, setHistory] = useState<History>(() => ({ past: [], present: loaded, future: [] }));
   const [roundId, setRoundId] = useState(detail.rounds[0]?.id ?? "");
@@ -34,14 +35,21 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   const seen = useRef(detail);
   useEffect(() => {
     if (seen.current === detail) return;
+    const previous = seen.current;
     seen.current = detail;
     if (saving) return;
     const fresh = fromDetail(detail);
-    setHistory((h) => {
-      const out = merge(h.present, loaded, fresh);
-      if (out.dropped) toast("有组已在别处修改", "warning");
-      return { past: [], present: out.draft, future: [] };
-    });
+    if (previous.rules.usesLanes !== detail.rules.usesLanes || (detail.rules.usesLanes && previous.event.laneCount !== detail.event.laneCount)) {
+      if (diff(history.present, loaded, event.id).count > 0) toast("项目配置已修改", "warning");
+      setHistory({ past: [], present: fresh, future: [] });
+      setPicked("");
+    } else {
+      setHistory((h) => {
+        const out = merge(h.present, loaded, fresh);
+        if (out.dropped) toast("有组已在别处修改", "warning");
+        return { past: [], present: out.draft, future: [] };
+      });
+    }
     setLoaded(fresh);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);
@@ -61,7 +69,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
     if (!dirty || saving) return;
     setSaving(true);
     try {
-      const saved = await Arrange.save(save);
+      const saved = await ArrangeController.save(save);
       const fresh = fromDetail(saved);
       setLoaded(fresh);
       setHistory({ past: [], present: fresh, future: [] });
@@ -108,7 +116,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   const stats = detail.rounds.reduce((n, r) => ({ heats: n.heats + r.heats.length, results: n.results + r.heats.reduce((m, h) => m + h.slots.filter((s) => s.result).length, 0) }), { heats: 0, results: 0 });
 
   const positionsOf = (h: DraftHeat) => {
-    if (timed) return Array.from({ length: event.laneCount }, (_, i) => i + 1);
+    if (laned) return Array.from({ length: event.laneCount }, (_, i) => i + 1);
     return Array.from({ length: h.slots.length + (isLocked(draft, h) ? 0 : 1) }, (_, i) => i + 1);
   };
 
@@ -154,9 +162,9 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
               e.preventDefault();
               setRosterOver(false);
               const id = e.dataTransfer.getData(dragType);
-              if (id) tryEdit(unplace(draft, round.roundId, id, timed));
+              if (id) tryEdit(unplace(draft, round.roundId, id, laned));
             }}
-            onClick={() => picked && placed.has(picked) && tryEdit(unplace(draft, round.roundId, picked, timed))}>
+            onClick={() => picked && placed.has(picked) && tryEdit(unplace(draft, round.roundId, picked, laned))}>
             {free.map((e) => (
               <AthleteChip key={e.competitorId} entry={e} picked={picked === e.competitorId} meta={e.seedText || e.unitName} onPick={() => setPicked(picked === e.competitorId ? "" : e.competitorId)} />
             ))}
@@ -173,7 +181,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
               <HeatCard key={h.key} heat={h} index={i} count={round.heats.length} positions={positionsOf(h)} locked={isLocked(draft, h)}
                 changed={heatChanged(h, loadedRound?.heats.find((x) => x.key === h.key))} entries={entries} picked={picked}
                 onPick={(id) => setPicked(picked === id ? "" : id)}
-                onPlace={(pos, id) => tryEdit(place(draft, round.roundId, h.key, pos, id, timed))}
+                onPlace={(pos, id) => tryEdit(place(draft, round.roundId, h.key, pos, id, laned))}
                 onMove={(d) => apply(moveHeat(draft, round.roundId, h.key, d))}
                 onEdit={() => setEditing(h)} onDelete={() => tryEdit(deleteHeat(draft, round.roundId, h.key))} onUnlock={() => setUnlocking(h)} />
             ))}

@@ -90,8 +90,11 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 		byTeams[t.EventID] = append(byTeams[t.EventID], interchange.Team{ID: t.ID, Name: t.Name, UnitID: optStr(t.UnitID), MemberIDs: t.MemberIDs})
 	}
 	for _, e := range events {
+		if err := e.NormalizeConfig(); err != nil {
+			return nil, err
+		}
 		ev := interchange.Event{ID: e.ID, Name: e.Name, Gender: string(e.Gender), Discipline: e.Discipline,
-			GroupLabel: e.GroupLabel, Kind: string(e.Kind), Date: optStr(e.Date), Note: e.Note,
+			GroupLabel: e.GroupLabel, Kind: string(e.Kind), StartMode: string(e.StartMode), DistanceMode: string(e.DistanceMode), RelayLegCount: e.RelayLegCount, Date: optStr(e.Date), Note: e.Note,
 			Teams: byTeams[e.ID], Entries: byEvent[e.ID], Rounds: []interchange.Round{}}
 		if e.Kind.Timed() {
 			ev.LaneCount = ptr(e.LaneCount)
@@ -354,9 +357,30 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 		if name == "" {
 			name = domain.ComposeEventName(gender, e.Discipline, e.GroupLabel)
 		}
+		config := domain.Event{Kind: kind, StartMode: domain.StartMode(e.StartMode), DistanceMode: domain.DistanceMode(e.DistanceMode), RelayLegCount: e.RelayLegCount, LaneCount: 8, AttemptCount: 3}
+		if e.LaneCount != nil {
+			config.LaneCount = *e.LaneCount
+		}
+		if e.AttemptCount != nil {
+			config.AttemptCount = *e.AttemptCount
+		}
+		if err := config.NormalizeConfig(); err != nil {
+			p.Errors = append(p.Errors, err.Error())
+			return finish()
+		}
 		eventID, reused := match.Events[e.ID]
 		if reused {
 			for _, old := range ex.Events {
+				if old.ID == eventID {
+					if err := old.NormalizeConfig(); err != nil {
+						p.Errors = append(p.Errors, err.Error())
+						return finish()
+					}
+					if f.Version >= 2 && (old.StartMode != config.StartMode || old.DistanceMode != config.DistanceMode || old.RelayLegCount != config.RelayLegCount || (kind.Timed() && old.LaneCount != config.LaneCount) || (kind == domain.KindDistance && old.AttemptCount != config.AttemptCount)) {
+						p.Errors = append(p.Errors, "项目配置与文件不符")
+						return finish()
+					}
+				}
 				if old.ID == eventID && old.Kind != kind {
 					p.Errors = append(p.Errors, "项目类型与文件不符")
 					return finish()
@@ -367,7 +391,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 			eventID = newID()
 			p.Events.New++
 			n := domain.Event{ID: eventID, MeetID: meetID, Name: name, Gender: gender, Discipline: strings.TrimSpace(e.Discipline),
-				GroupLabel: strings.TrimSpace(e.GroupLabel), Kind: kind, LaneCount: 8, AttemptCount: 3, Note: e.Note}
+				GroupLabel: strings.TrimSpace(e.GroupLabel), Kind: kind, LaneCount: config.LaneCount, AttemptCount: config.AttemptCount, Note: e.Note, StartMode: config.StartMode, DistanceMode: config.DistanceMode, RelayLegCount: config.RelayLegCount}
 			if e.Date != nil {
 				n.Date = *e.Date
 			}

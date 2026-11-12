@@ -43,7 +43,7 @@ func TestDecodeRejects(t *testing.T) {
 	cases := []struct {
 		name, from, to, want string
 	}{
-		{"newer version", `"version": 1`, `"version": 2`, ""},
+		{"newer version", `"version": 1`, `"version": 3`, ""},
 		{"wrong format", `"sportsmeet-interchange"`, `"other"`, "format"},
 		{"OK without mark", `"status": "OK", "mark": 12650`, `"status": "OK", "mark": null`, "mark 必填"},
 		{"unknown athlete", `"athleteId": "a3", "seedMark": 13100`, `"athleteId": "zz", "seedMark": 13100`, "找不到运动员 zz"},
@@ -69,5 +69,45 @@ func TestDecodeRejects(t *testing.T) {
 				t.Fatalf("err = %v, want problem containing %q", err, c.want)
 			}
 		})
+	}
+}
+
+func TestV2ConfigurationAndV1Defaults(t *testing.T) {
+	data, err := os.ReadFile("../../testdata/interchange/sample-meet-v2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Version != Version || f.Events[3].StartMode != "group" || f.Events[4].DistanceMode != "throw" || f.Events[5].RelayLegCount != 4 {
+		t.Fatal("v2 config lost")
+	}
+	encoded, err := Encode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := Decode(encoded)
+	if err != nil || !reflect.DeepEqual(f, again) {
+		t.Fatalf("v2 roundtrip: %v", err)
+	}
+	for _, replacement := range []struct{ from, to string }{
+		{`"startMode": "group"`, `"startMode": "unknown"`},
+		{`"distanceMode": "throw"`, `"distanceMode": "unknown"`},
+		{`"kind": "height"`, `"kind": "height", "startMode": "lanes"`},
+		{`"startMode": "group"`, `"startMode": "group", "relayLegCount": 4`},
+	} {
+		if _, err := Decode([]byte(strings.Replace(string(data), replacement.from, replacement.to, 1))); err == nil {
+			t.Fatalf("accepted %s", replacement.to)
+		}
+	}
+	old := strings.Replace(string(readSample(t)), `"kind": "track"`, `"kind": "track", "startMode": {"custom": true}, "distanceMode": 17, "relayLegCount": "four"`, 1)
+	legacy, err := Decode([]byte(old))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.Events[0].StartMode != "" || legacy.Events[0].RelayLegCount != 0 {
+		t.Fatal("v1 unknown fields interpreted")
 	}
 }

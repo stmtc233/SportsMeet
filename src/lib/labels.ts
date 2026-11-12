@@ -15,10 +15,6 @@ export const statusLabels: Record<Status, string> = {
   NM: "无成绩",
 };
 
-export function positionTitle(kind: EventKind): string {
-  return kind === "track" || kind === "relay" ? "道次" : "顺序";
-}
-
 export function dateRange(start: string, end: string): string {
   return end && end !== start ? `${start} – ${end}` : start;
 }

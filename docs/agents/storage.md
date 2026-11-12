@@ -17,6 +17,10 @@
 - 同一改动里更新 `schema.sql` 快照(当前完整结构)。`internal/store/schema_test.go` 比对快照与迁移执行后的表、列、外键和索引,不一致即失败;`CHECK` 约束不在比对范围内,靠人工对照。
 - 已发布的迁移文件不再修改,只追加新迁移:用户机器上已经跑过旧内容,改了不会重跑。
 
+## 项目配置
+
+- `events.start_mode`、`distance_mode`、`relay_leg_count` 独立保存起跑方式、跳跃 / 投掷与建议棒数；追加迁移 `0002_event_config.sql`，缺省为空、空、0。读取这些缺省值时按领域兼容规则解释，保留已有道次和成绩，不依据项目名批量改数据。
+
 ## 连接与并发
 
 - mygo 每次绑定调用在独立 goroutine 执行,MCP 请求也并发到达。**只有一个写连接**,所有写入走 `Store.Write`,避免 goroutine 之间出现 `SQLITE_BUSY`。

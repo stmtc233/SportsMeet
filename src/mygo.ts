@@ -130,6 +130,8 @@ export interface Change {
   eventId: string;
 }
 
+export type DistanceMode = "" | "jump" | "throw";
+
 /** EntryInput enters an athlete or relay team; Seed is the typed entry mark, "" = none. */
 export interface EntryInput {
   athleteId?: string;
@@ -169,6 +171,9 @@ export interface Event {
   date: string;
   laneCount: number;
   attemptCount: number;
+  startMode: StartMode;
+  distanceMode: DistanceMode;
+  relayLegCount: number;
   note: string;
 }
 
@@ -177,6 +182,7 @@ export interface Event {
  * for one event.
  */
 export interface EventDetail {
+  rules: EventRules;
   teams: TeamView[];
   event: Event;
   entries: EntryView[];
@@ -188,6 +194,9 @@ export interface EventDetail {
  * the final, advancing by AdvanceByPlace and AdvanceByMark.
  */
 export interface EventInput {
+  startMode?: string;
+  distanceMode?: string;
+  relayLegCount?: number;
   /** "" = composed from the fields below */
   name?: string;
   gender: string;
@@ -206,6 +215,14 @@ export interface EventInput {
 /** EventKind decides how marks are measured and ranked. */
 export type EventKind = "track" | "relay" | "distance" | "height";
 
+/** EventPreset supplies initial input only; events retain their own configuration. */
+export interface EventPreset {
+  id: string;
+  category: string;
+  label: string;
+  input: EventInput;
+}
+
 /** EventRow is an event in the meet's list, with its progress. */
 export interface EventRow {
   event: Event;
@@ -217,6 +234,16 @@ export interface EventRow {
   heats: number;
   placed: number;
   results: number;
+}
+
+/** EventRules is the presentation and arrangement configuration shared by clients. */
+export interface EventRules {
+  timed: boolean;
+  usesLanes: boolean;
+  positionLabel: string;
+  attemptLabel: string;
+  startLabel: string;
+  defaultPerHeat: number;
 }
 
 /** Gender of an athlete ("" = unknown) or of an event (男 / 女 / 混合). */
@@ -521,6 +548,9 @@ export interface Standing {
   teamId?: string;
 }
 
+/** StartMode describes the start independently of the unit used for marks. */
+export type StartMode = "" | "lanes" | "group" | "break";
+
 /** Status of a result. */
 export type Status = "OK" | "DNS" | "DNF" | "DQ" | "NM";
 
@@ -559,6 +589,7 @@ export interface TeamInput {
 }
 
 export interface TeamView {
+  sizeWarning: string;
   id: string;
   eventId: string;
   name: string;
@@ -689,6 +720,12 @@ export const Events = {
   list(meetID: string): Promise<EventRow[]> {
     return call("Events.List", meetID);
   },
+  presets(): Promise<EventPreset[]> {
+    return call("Events.Presets");
+  },
+  rules(in_: EventInput): Promise<EventRules | null> {
+    return call("Events.Rules", in_);
+  },
   /** Save creates (id "") or updates an event. */
   save(meetID: string, id: string, in_: EventInput): Promise<Event | null> {
     return call("Events.Save", meetID, id, in_);
@@ -696,6 +733,9 @@ export const Events = {
   /** SaveTeam creates or edits a relay team and its ordered roster. */
   saveTeam(eventID: string, id: string, in_: TeamInput): Promise<Team | null> {
     return call("Events.SaveTeam", eventID, id, in_);
+  },
+  teamSizeWarning(event: Event, count: number): Promise<string> {
+    return call("Events.TeamSizeWarning", event, count);
   },
 } as const;
 

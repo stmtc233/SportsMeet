@@ -21,11 +21,13 @@ type Book struct {
 
 // Event is one item.
 type Event struct {
-	Name   string
-	Date   string
-	Relay  bool
-	Timed  bool // lanes (道次) rather than an order (顺序)
-	Rounds []Round
+	Name          string
+	Date          string
+	Relay         bool
+	PositionLabel string
+	AttemptLabel  string
+	Configuration string
+	Rounds        []Round
 }
 
 // Round is one round. Ranked rounds print Standings across the heats;
@@ -48,6 +50,7 @@ type Heat struct {
 // Line is one athlete.
 type Line struct {
 	Position int
+	Attempts []string
 	Rank     string
 	Bib      string
 	Name     string

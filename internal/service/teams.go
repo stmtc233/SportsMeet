@@ -18,6 +18,7 @@ type TeamInput struct {
 }
 
 type TeamView struct {
+	SizeWarning string `json:"sizeWarning"`
 	domain.Team
 	UnitName       string   `json:"unitName"`
 	MemberNames    []string `json:"memberNames"`
@@ -30,7 +31,7 @@ type TeamView struct {
 func (st *eventState) teamViews() []TeamView {
 	out := make([]TeamView, 0, len(st.teamList))
 	for _, t := range st.teamList {
-		v := TeamView{Team: t, UnitName: st.unitName(t.UnitID), MemberNames: []string{}, Entered: st.entered[t.ID] != nil}
+		v := TeamView{SizeWarning: st.event.TeamSizeWarning(len(t.MemberIDs)), Team: t, UnitName: st.unitName(t.UnitID), MemberNames: []string{}, Entered: st.entered[t.ID] != nil}
 		for _, id := range t.MemberIDs {
 			a := st.athletes[id]
 			v.MemberNames = append(v.MemberNames, a.Name)

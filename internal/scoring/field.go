@@ -19,7 +19,7 @@ func ParseAttempt(kind domain.EventKind, s string) (domain.Attempt, error) {
 	switch strings.ToUpper(strings.TrimSpace(s)) {
 	case "X", "×", "犯规":
 		return domain.Attempt{Outcome: "foul"}, nil
-	case "-", "—", "免跳", "免":
+	case "-", "—", "免跳", "免投", "免":
 		return domain.Attempt{Outcome: "pass"}, nil
 	}
 	m, err := ParseMark(kind, s)
