@@ -22,6 +22,12 @@
 - `TeamDialog.tsx` 编辑队名、参赛单位与有序成员,提供增加、替换、上移 / 下移、移除棒次;已在同项目其他队伍的成员不列入候选。已有比赛记录时禁用棒次编辑,保存失败保留输入,性别不符显示警告。所有读写经数据钩子和 `EventsController`,成功通过 `teams` / `entries` 事件刷新。
 - 编排、成绩和报名表统一以 Go 返回的 `competitorId` 索引个人或接力队;接力使用道次和计时输入,报名数量使用「队」。业务约束见 [domain.md](domain.md)「接力」。
 
+## 成绩页
+
+- 每组的输入是本地状态,按组保存。项目详情重新读取时(本组或别的组保存、MCP 写入、运动员资料变化),`features/results/rows.ts` 的 `mergeRows` 逐位置合并:用户改过的行保留输入,其余行跟随新数据;整组直接换成新数据会清掉另一组里没保存的输入。
+- 位置上换了人,该位置的输入丢弃,避免把成绩记到另一个人名下。刚保存的行跟随新数据,显示 Go 整理后的成绩文本,保存后该组不再算有改动。
+- 「放弃」恢复为已读取的数据,并去掉未保存的新增高度。读写经 `results/controller.ts`。
+
 ## 编排页批量排时
 
 - `features/arrange/ScheduleDialog.tsx` 经 `scheduleController.ts` 调用生成的 `Arrange.previewSchedule` / `Arrange.schedule` 绑定,与 MCP 共用 Go 预览和提交。入口与草稿限制见 [arrange.md](arrange.md)「批量排时间」。

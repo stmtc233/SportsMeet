@@ -3,5 +3,4 @@ src/features/arrange/ArrangeTab.tsx:bindings
 src/features/arrange/AutoDialog.tsx:bindings
 src/features/events/EventDialog.tsx:bindings
 src/features/reports/ReportsPage.tsx:bindings
-src/features/results/HeatResults.tsx:bindings
 src/features/units/UnitsPage.tsx:bindings

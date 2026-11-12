@@ -1,22 +1,9 @@
-import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { StButton, StMarkField, StRow, StSection, StSelect, StTag, StTextField } from "../../design";
-import { act } from "../../lib/action";
 import { positionTitle, statusLabels } from "../../lib/labels";
-import { Marks, Results, type EntryView, type EventDetail, type HeatView, type ResultInput, type SlotView, type Status } from "../../mygo";
-
-interface Row {
-  status: string;
-  mark: string;
-  attempts: string[];
-  bars: Record<string, string>; // height text → trials
-}
-
-function toRow(slot: SlotView, attemptCount: number): Row {
-  const r = slot.result;
-  const attempts = Array.from({ length: Math.max(attemptCount, r?.attempts.length ?? 0) }, (_, i) => r?.attempts[i] ?? "");
-  const derived = r && (r.status === "OK" || (r.status === "NM" && (r.attempts.length > 0 || r.bars.length > 0)));
-  return { status: r && !derived ? r.status : "", mark: r?.markText ?? "", attempts, bars: Object.fromEntries((r?.bars ?? []).map((b) => [b.heightText, b.trials])) };
-}
+import type { EntryView, EventDetail, HeatView, ResultInput, Status } from "../../mygo";
+import { ResultsController } from "./controller";
+import { mergeRows, sameRow, toRow, toRows, type Row, type Rows } from "./rows";
 
 const isAttemptWord = (t: string) => /^(x|×|-|—|犯规|免跳|免)$/i.test(t);
 const isTrials = (t: string) => /^[oOxX0×\-—]{1,3}$/.test(t);
@@ -36,15 +23,23 @@ function nextRow(e: KeyboardEvent<HTMLInputElement>) {
 export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventDetail; heat: HeatView; entries: Map<string, EntryView>; onDirty: (heatId: string, dirty: boolean) => void }) {
   const kind = detail.event.kind;
   const timed = kind === "track" || kind === "relay";
-  const initial = useMemo(() => Object.fromEntries(heat.slots.map((s) => [s.position, toRow(s, kind === "distance" ? detail.event.attemptCount : 0)])), [heat, kind, detail.event.attemptCount]);
-  const [rows, setRows] = useState<Record<number, Row>>(initial);
+  const initial = useMemo(() => toRows(heat.slots, kind === "distance" ? detail.event.attemptCount : 0), [heat, kind, detail.event.attemptCount]);
+  const [rows, setRows] = useState<Rows>(initial);
   const [extra, setExtra] = useState<string[]>([]);
   const [height, setHeight] = useState("");
   const [busy, setBusy] = useState(false);
-  const dirty = JSON.stringify(rows) !== JSON.stringify(initial);
+  // base is what rows were typed over; accepted is what a save sent and
+  // the next reload has not shown yet.
+  const base = useRef(initial);
+  const accepted = useRef<Rows | undefined>(undefined);
+  const dirty = heat.slots.some((s) => !sameRow(rows[s.position], initial[s.position]));
   useEffect(() => {
-    setRows(initial);
-    setExtra([]);
+    const from = base.current;
+    const sent = accepted.current;
+    if (from === initial) return;
+    base.current = initial;
+    accepted.current = undefined;
+    setRows((old) => mergeRows(from, initial, old, sent));
   }, [initial]);
   useEffect(() => {
     onDirty(heat.id, dirty);
@@ -58,20 +53,33 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
   }, [heat, extra]);
   const set = (pos: number, patch: Partial<Row>) => setRows((old) => ({ ...old, [pos]: { ...old[pos]!, ...patch } }));
   const addHeight = async () => {
-    const tidy = await act(() => Marks.normalize(kind, height));
+    const tidy = await ResultsController.normalize(kind, height);
     if (typeof tidy !== "string") return;
     setExtra((list) => (list.includes(tidy) ? list : [...list, tidy]));
     setHeight("");
   };
+  const discard = () => {
+    setRows(initial);
+    setExtra([]);
+  };
   const save = async () => {
-    const inputs: ResultInput[] = heat.slots.filter((s) => JSON.stringify(rows[s.position]) !== JSON.stringify(initial[s.position])).map((s) => {
+    const sent = rows;
+    const loaded = base.current;
+    const inputs: ResultInput[] = heat.slots.filter((s) => !sameRow(rows[s.position], initial[s.position])).map((s) => {
       const r = rows[s.position]!;
       return { position: s.position, status: r.status, mark: timed ? r.mark : "", attempts: kind === "distance" ? r.attempts : [], note: s.result?.note ?? "",
         bars: kind === "height" ? heights.map((h) => ({ height: h, trials: r.bars[h] ?? "" })) : [] };
     });
     setBusy(true);
-    await act(() => Results.save(heat.id, inputs), "已保存");
+    const saved = await ResultsController.save(heat.id, inputs);
     setBusy(false);
+    if (saved === undefined) return;
+    if (base.current === loaded) {
+      accepted.current = sent; // the reload this save causes shows the stored text
+    } else {
+      const now = base.current; // that reload came first
+      setRows((old) => mergeRows(now, now, old, sent));
+    }
   };
 
   const inputCols = timed ? 1 : kind === "distance" ? detail.event.attemptCount : heights.length;
@@ -93,7 +101,7 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
               <StButton disabled={height.trim() === ""} onClick={addHeight}>添加高度</StButton>
             </StRow>
           )}
-          <StButton disabled={!dirty} onClick={() => setRows(initial)}>放弃</StButton>
+          <StButton disabled={!dirty} onClick={discard}>放弃</StButton>
           <StButton variant="primary" disabled={!dirty} loading={busy} onClick={save}>保存</StButton>
         </>
       }>
