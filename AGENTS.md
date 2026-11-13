@@ -43,7 +43,7 @@ SportsMeet 是一款开源的**单机离线**田径与校园运动会编排软�
 
 ```
 SportsMeet/
-├── AGENTS.md / CLAUDE.md / README.md
+├── AGENTS.md / CLAUDE.md / README.md / LICENSE(MIT)
 ├── main.go                  ← mygo 入口:窗口、Bind 各服务、MCP 开关;数据打不开时弹窗说明后退出
 ├── go.mod
 ├── mygo.config.ts           ← 应用名、标识、版本(唯一来源,Go 经 `mygo.App.Version()` 读取)、打包;bindings 输出 src/mygo.ts
@@ -73,6 +73,7 @@ SportsMeet/
 ├── tests/ui/                ← Playwright 页面冒烟测试(模拟 mygo 桥接)
 ├── playwright.config.ts      ← 宽窄窗口与浅深色页面验证
 ├── scripts/check-design-system.sh   ← 前端棘轮检查(设计系统 + 绑定引用);基线 design-system-baseline.txt
+├── website/                 ← 静态官网(index.html + styles.css,无构建);assets/ 里是应用界面截图(浅色 / 深色各一张)与图标
 ├── .github/workflows/check.yml      ← CI:`bun run check`、绑定生成物比对、页面冒烟测试
 ├── docs/
 │   ├── interchange-format.md          ← 交换格式规范(事实源)

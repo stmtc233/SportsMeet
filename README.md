@@ -26,6 +26,10 @@ bun run dev
 
 查询与单条基础数据保存可直接调用。批量操作、删除、覆盖已有成绩须先预览,用户确认后携带预览指纹提交。已有成绩的赛事、项目和组不能经 MCP 删除;空成绩可直接录入,名次与晋级由应用计算。工具目录与边界见 [MCP 说明](docs/agents/mcp.md)。
 
+## 官网
+
+静态页面在 `website/`,无构建,直接打开 `website/index.html` 即可预览。
+
 ## 验证
 
 ```sh
@@ -33,3 +37,7 @@ bun run check
 ```
 
 页面冒烟需先 `bunx playwright install chromium`,再运行 `bun run test:ui`。完整检查命令、桌面实测与跨平台限制见 [验证范围](docs/verification.md)。
+
+## 协议
+
+[MIT](LICENSE),免费使用、修改和分发。
