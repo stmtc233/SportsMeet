@@ -106,7 +106,7 @@ function Day({ title, count, folded = false, onFold, rounds, meetId, onStart, on
           title={
             <span className="timetable__round">
               <span className="timetable__time">{r.startText}</span>
-              <span>{r.eventName} {r.roundLabel}</span>
+              <span className="timetable__name" title={`${r.eventName} ${r.roundLabel}`}>{r.eventName} {r.roundLabel}</span>
               <StMuted>{r.peopleEntered ? `报名 ${r.people} 人` : `${r.heatCount} 组 · ${r.people} 人`}</StMuted>
             </span>
           }

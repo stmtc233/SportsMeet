@@ -153,3 +153,21 @@ test("设置里的最短休息时间与竞赛日程表", async ({ page }) => {
   await nav.getByRole("button", { name: "打印", exact: true }).click();
   await expect(page.getByText("竞赛日程表", { exact: true })).toBeVisible();
 });
+
+test("日期、轮次标题与表头逐层吸顶", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 420 });
+  await openTimetable(page);
+  const body = page.locator(".st-page__body");
+  await body.evaluate((el) => { el.scrollTop = 260; });
+  const day = page.getByRole("region", { name: "2026-11-12", exact: true });
+  const round = day.locator(".st-card").first();
+  const box = async (l: ReturnType<Page["locator"]>) => (await l.boundingBox())!;
+  // Each layer sits right under the one above (polled: the cards rise in).
+  await expect.poll(async () => {
+    const top = await box(body);
+    const dayHead = await box(day.locator(".timetable__day-head"));
+    const roundHead = await box(round.locator(".st-section__head"));
+    const tableHead = await box(round.locator(".st-table__head"));
+    return [dayHead.y - top.y, roundHead.y - (dayHead.y + dayHead.height), tableHead.y - (roundHead.y + roundHead.height)].map(Math.round);
+  }).toEqual([0, 0, 0]);
+});
