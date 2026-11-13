@@ -1,0 +1,48 @@
+name: pages
+
+# Publishes website/ to GitHub Pages with the download links of the newest
+# release: after the release workflow has uploaded the packages, and
+# whenever the website changes.
+on:
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - website/**
+      - scripts/website-downloads.mjs
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # A release whose packages failed to build has no files to link.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the website
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" > "$RUNNER_TEMP/releases.json"
+          node scripts/website-downloads.mjs "$RUNNER_TEMP/releases.json" _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -28,7 +28,7 @@ bun run dev
 
 ## 官网
 
-静态页面在 `website/`,无构建,直接打开 `website/index.html` 即可预览。
+静态页面在 `website/`,无构建,直接打开 `website/index.html` 即可预览。发布到 GitHub Pages 时,下载区自动换成最新 release 的链接。
 
 ## 品牌资源
 

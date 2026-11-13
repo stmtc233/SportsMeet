@@ -147,6 +147,8 @@ h1, h2, h3 { line-height: 1.25; text-wrap: balance; }
   display: inline-block; margin-top: 16px; padding: 4px 14px; border-radius: 999px;
   background: var(--primary); color: var(--on-primary); font-size: 14px; font-weight: 600;
 }
+.platform a.tag:hover { text-decoration: none; filter: brightness(1.08); }
+.platform .alt { display: flex; justify-content: center; gap: 16px; margin-top: 14px; font-size: 14px; }
 .platform.soon { cursor: default; }
 .platform.soon:hover { border-color: var(--outline); transform: none; }
 .platform.soon .tag { background: var(--hover); color: var(--muted); }

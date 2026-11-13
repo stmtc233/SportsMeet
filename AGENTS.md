@@ -76,9 +76,11 @@ SportsMeet/
 ├── playwright.config.ts      ← 宽窄窗口与浅深色页面验证
 ├── scripts/check-design-system.sh   ← 前端棘轮检查(设计系统 + 绑定引用);基线 design-system-baseline.txt
 ├── scripts/generate-brand.mjs       ← 从品牌母版导出资源,同步应用与官网图标
-├── website/                 ← 静态官网(index.html + styles.css,无构建);assets/ 里是应用界面截图(浅色 / 深色各一张)与图标
+├── scripts/website-downloads.mjs    ← 生成要发布的官网:复制 website/,把下载区换成最新 release 的链接
+├── website/                 ← 静态官网(index.html + styles.css,无构建;下载区在发布时替换);assets/ 里是应用界面截图(浅色 / 深色各一张)与图标
 ├── .github/workflows/check.yml      ← CI:`bun run check`、绑定生成物比对、页面冒烟测试
 ├── .github/workflows/release.yml    ← 发布 release 后打三个系统的安装包、便携包与签名的更新文件,上传到该 release
+├── .github/workflows/pages.yml      ← 发布工作流成功后或官网有改动时,把官网发布到 GitHub Pages
 ├── docs/
 │   ├── brand-guidelines.md             ←「跑道 S」品牌设计规范与资源索引
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
@@ -127,6 +129,8 @@ bun run test:ui                      # 先 bunx playwright install chromium
 更新用一对密钥签名:公钥在 `mygo.config.ts` 的 `updates.publicKey`,私钥是仓库的 Actions 密钥 `MYGO_UPDATER_PRIVATE_KEY`。换密钥后已安装的应用收不到更新,私钥要另行备份。
 
 `resources/brand/` 是设计资料,经 `resourcesExclude` 不进安装包。
+
+官网:`release.yml` 成功后,`pages.yml` 把 `website/` 发布到 GitHub Pages,下载区(`index.html` 里 `downloads:start` 与 `downloads:end` 之间)换成最新正式版的链接,还没有正式版时用最新的测试版;仓库里的 `index.html` 保持「即将发布」。链接按文件名匹配,改 `release.yml` 的文件名时同步改 `scripts/website-downloads.mjs`。本地预览:`gh api repos/stmtc233/SportsMeet/releases > /tmp/r.json && node scripts/website-downloads.mjs /tmp/r.json /tmp/site`。
 
 ---
 
