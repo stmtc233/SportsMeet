@@ -4,15 +4,15 @@ import { useData } from "../../lib/useData";
 import { Entries, Events, Marks, type Event, type EventRules, type Gender, type EntryInput, type TeamInput, type EventInput } from "../../mygo";
 
 export function useEvents(meetId: string) {
-  return useData(() => Events.list(meetId), [meetId], (c) => c.meetId === meetId);
+  return useData(() => Events.list(meetId), [meetId], (c) => c.meetId === meetId, `events:${meetId}`);
 }
 
 export function useEventDetail(eventId: string, meetId: string) {
-  return useData(() => Events.get(eventId), [eventId], (c) => c.meetId === meetId && (c.eventId === eventId || c.eventId === ""));
+  return useData(() => Events.get(eventId), [eventId], (c) => c.meetId === meetId && (c.eventId === eventId || c.eventId === ""), `event:${eventId}`);
 }
 
 export function useEventPresets() {
-  return useData(() => Events.presets(), [], () => false);
+  return useData(() => Events.presets(), [], () => false, "presets");
 }
 
 export function useEventRules(input: EventInput, enabled: boolean) {

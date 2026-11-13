@@ -83,7 +83,7 @@ for (const width of [1280, 800]) {
       await openMeet(page);
       await page.locator(".app__side").getByRole("button", { name: "打印", exact: true }).click();
       await page.getByRole("radio", { name: "检录单", exact: true }).click();
-      const frame = page.frameLocator(".report-frame iframe");
+      const frame = page.frameLocator('iframe[title="预览"]');
       await expect(frame.getByText("全部日期 · 全部轮次", { exact: true })).toBeVisible();
       const side = page.locator(".split__side");
       await expect(side.getByText("男子100m 初中组", { exact: true })).toBeVisible();

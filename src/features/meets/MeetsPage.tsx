@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNav } from "../../app/nav";
+import { lastMeetTab, useNav } from "../../app/nav";
 import { IconAdd, IconDelete, IconEdit, IconImport, IconSettings, IconMeet, StButton, StCard, StEmpty, StIconButton, StListItem, StNotice, StPage, StToolbar, iconStroke } from "../../design";
 import type { Meet, MeetCounts, PickedFile } from "../../mygo";
 import { ImportMeetDialog } from "../exchange/ImportMeetDialog";
@@ -14,7 +14,7 @@ export function MeetsPage() {
   const [editing, setEditing] = useState<{ meet?: Meet } | null>(null);
   const [deleting, setDeleting] = useState<{ meet: Meet; counts: MeetCounts } | null>(null);
   const [file, setFile] = useState<PickedFile | null>(null);
-  const open = (meetId: string) => go({ page: "meet", meetId, tab: "events" });
+  const open = (meetId: string) => go({ page: "meet", meetId, tab: lastMeetTab(meetId) });
 
   const askDelete = async (meet: Meet) => {
     const counts = await MeetsController.count(meet.id);
@@ -26,7 +26,7 @@ export function MeetsPage() {
   };
 
   return (
-    <StPage
+    <StPage scrollKey="meets"
       toolbar={
         <StToolbar title="赛事">
           <StIconButton label="设置" onClick={() => go({ page: "settings", section: null })}>

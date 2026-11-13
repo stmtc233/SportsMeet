@@ -3,8 +3,8 @@ import { act } from "../../lib/action";
 import { useData } from "../../lib/useData";
 import { blankEvent } from "../events/form";
 
-export const useCombinedList = (meetId: string) => useData(() => Combined.list(meetId), [meetId], (c) => c.meetId === meetId);
-export const useCombinedDetail = (id: string, meetId: string) => useData(() => Combined.get(id), [id], (c) => c.meetId === meetId);
+export const useCombinedList = (meetId: string) => useData(() => Combined.list(meetId), [meetId], (c) => c.meetId === meetId, `combineds:${meetId}`);
+export const useCombinedDetail = (id: string, meetId: string) => useData(() => Combined.get(id), [id], (c) => c.meetId === meetId, `combined:${id}`);
 export const CombinedController = {
   get: (id: string) => act(() => Combined.get(id)),
   save: (meetId: string, id: string, input: CombinedInput) => act(() => Combined.save(meetId, id, input), "已保存"),

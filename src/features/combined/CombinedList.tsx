@@ -15,7 +15,7 @@ export function CombinedList({ meetId }: { meetId: string }) {
   return <StPage flush toolbar={<StToolbar title="全能" leading={<StIconButton label="返回项目列表" onClick={() => go({ page: "meet", meetId, tab: "events" })}><IconBack size={18} strokeWidth={iconStroke} /></StIconButton>}>
     <StButton variant="primary" onClick={() => setAdding(true)}>添加全能</StButton>
   </StToolbar>}>
-    <div className="table-card"><StTable<CombinedRowSummary> fill rows={rows ?? []} rowKey={(r) => r.combined.id} onRowClick={(r) => go({ page: "combined", meetId, combinedId: r.combined.id })}
+    <div className="table-card"><StTable<CombinedRowSummary> fill rows={rows ?? []} loading={!rows} scrollKey={`combineds:${meetId}`} rowKey={(r) => r.combined.id} onRowClick={(r) => go({ page: "combined", meetId, combinedId: r.combined.id })}
       empty={<StEmpty>还没有全能</StEmpty>} columns={[
         { key: "name", title: "全能", render: (r) => <span className="cell-strong">{r.combined.name}</span> },
         { key: "gender", title: "性别", render: (r) => r.combined.gender },

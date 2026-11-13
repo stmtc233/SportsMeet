@@ -1,13 +1,19 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+import { useScrollMemory } from "../lib/viewState";
 
 export type Tone = "neutral" | "info" | "success" | "warning" | "danger";
 
-/** Page skeleton: a toolbar on top, the content scrolling under it. */
-export function StPage({ toolbar, children, flush }: { toolbar?: ReactNode; children: ReactNode; flush?: boolean }) {
+/**
+ * Page skeleton: a toolbar on top, the content scrolling under it. With a
+ * scrollKey the body comes back at the position it was left at.
+ */
+export function StPage({ toolbar, children, flush, scrollKey }: { toolbar?: ReactNode; children: ReactNode; flush?: boolean; scrollKey?: string }) {
+  const body = useRef<HTMLDivElement>(null);
+  useScrollMemory(body, flush ? undefined : scrollKey);
   return (
     <div className="st-page">
       {toolbar}
-      <div className={flush ? "st-page__body st-page__body--flush" : "st-page__body"}>{children}</div>
+      <div ref={body} className={flush ? "st-page__body st-page__body--flush" : "st-page__body"}>{children}</div>
     </div>
   );
 }

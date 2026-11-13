@@ -35,7 +35,7 @@ export function EventsPage({ meetId }: { meetId: string }) {
       }>
       <div className="filters" />
       <div className="table-card">
-        <StTable<EventRow> fill rows={rows ?? []} rowKey={(r) => r.event.id} onRowClick={(r) => open(r, r.heats === 0 ? "entries" : r.results > 0 ? "results" : "arrange")}
+        <StTable<EventRow> fill rows={rows ?? []} loading={!rows} scrollKey={`events:${meetId}`} rowKey={(r) => r.event.id} onRowClick={(r) => open(r, r.heats === 0 ? "entries" : r.results > 0 ? "results" : "arrange")}
           empty={<StEmpty action={<StButton variant="primary" onClick={() => setEditing({})}>添加项目</StButton>}>还没有项目</StEmpty>}
           columns={[
             { key: "name", title: "项目", width: "minmax(160px, 2fr)", render: (r) => <span className="cell-strong">{r.event.name}</span> },

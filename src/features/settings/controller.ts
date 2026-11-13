@@ -4,9 +4,9 @@ import { act } from "../../lib/action";
 import { App, Settings, type Preferences } from "../../mygo";
 import { appendOlder, mergeNewest, type AuditLog } from "./auditLog";
 
-export const usePreferences = () => useData(() => Settings.preferences(), [], (c) => c.kind === "settings");
-export const useMCPStatus = () => useData(() => Settings.mcpStatus(), [], (c) => c.kind === "settings");
-export const useAppInfo = () => useData(() => App.info(), [], () => false);
+export const usePreferences = () => useData(() => Settings.preferences(), [], (c) => c.kind === "settings", "preferences");
+export const useMCPStatus = () => useData(() => Settings.mcpStatus(), [], (c) => c.kind === "settings", "mcpStatus");
+export const useAppInfo = () => useData(() => App.info(), [], () => false, "appInfo");
 
 const auditPage = 50;
 

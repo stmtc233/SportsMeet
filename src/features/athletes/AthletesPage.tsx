@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useViewState } from "../../lib/viewState";
 import { IconAdd, IconImport, StButton, StEmpty, StPage, StSearchField, StSelect, StTable, StTag, StToolbar, iconStroke } from "../../design";
 import type { Athlete, AthleteRow } from "../../mygo";
 import { DeleteDialog } from "../meets/DeleteDialog";
@@ -10,17 +11,19 @@ import { ImportDialog } from "./ImportDialog";
 export function AthletesPage({ meetId }: { meetId: string }) {
   const { data: rows } = useAthletes(meetId);
   const { data: units } = useUnits(meetId);
-  const [query, setQuery] = useState("");
-  const [unit, setUnit] = useState("");
+  const [query, setQuery] = useViewState(`athletes:query:${meetId}`, "");
+  const [unit, setUnit] = useViewState(`athletes:unit:${meetId}`, "");
   const [selected, setSelected] = useState(new Set<string>());
   const [editing, setEditing] = useState<{ athlete?: Athlete } | null>(null);
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // A remembered unit that was deleted since filters nothing.
+  const unitId = units && !units.some((u) => u.id === unit) ? "" : unit;
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (rows ?? []).filter((r) => (unit === "" || r.athlete.unitId === unit) && (q === "" || [r.athlete.name, r.athlete.bib, r.athlete.studentNumber, r.athlete.className].some((v) => v.toLowerCase().includes(q))));
-  }, [rows, query, unit]);
+    return (rows ?? []).filter((r) => (unitId === "" || r.athlete.unitId === unitId) && (q === "" || [r.athlete.name, r.athlete.bib, r.athlete.studentNumber, r.athlete.className].some((v) => v.toLowerCase().includes(q))));
+  }, [rows, query, unitId]);
   const picked = shown.filter((r) => selected.has(r.athlete.id));
 
   return (
@@ -36,10 +39,10 @@ export function AthletesPage({ meetId }: { meetId: string }) {
       }>
       <div className="filters">
         <StSearchField value={query} onChange={setQuery} placeholder="搜索姓名、号码、学号" />
-        <StSelect value={unit} onChange={setUnit} placeholder="全部单位" options={[{ value: "", label: "全部单位" }, ...(units ?? []).map((u) => ({ value: u.id, label: u.name }))]} />
+        <StSelect value={unitId} onChange={setUnit} placeholder="全部单位" options={[{ value: "", label: "全部单位" }, ...(units ?? []).map((u) => ({ value: u.id, label: u.name }))]} />
       </div>
       <div className="table-card">
-        <StTable<AthleteRow> fill rows={shown} rowKey={(r) => r.athlete.id} selected={selected} onSelect={setSelected} onRowClick={(r) => setEditing({ athlete: r.athlete })}
+        <StTable<AthleteRow> fill rows={shown} loading={!rows} scrollKey={`athletes:${meetId}`} rowKey={(r) => r.athlete.id} selected={selected} onSelect={setSelected} onRowClick={(r) => setEditing({ athlete: r.athlete })}
           empty={<StEmpty>{rows?.length === 0 ? "还没有运动员" : "没有符合条件的运动员"}</StEmpty>}
           columns={[
             { key: "bib", title: "号码", width: "88px", render: (r) => r.athlete.bib },

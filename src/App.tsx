@@ -61,7 +61,8 @@ function MeetHeader({ meetId }: { meetId: string }) {
   const meet = useMeet(meetId).data;
   return (
     <div className="app__meet">
-      <StListItem title={<strong>{meet?.name ?? ""}</strong>} subtitle={meet?.datesText ?? ""} />
+      {/* The subtitle line is kept while loading and without dates: the tabs below never shift. */}
+      <StListItem title={<strong>{meet?.name ?? ""}</strong>} subtitle={meet?.datesText || "\u00a0"} />
     </div>
   );
 }

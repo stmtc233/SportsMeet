@@ -5,6 +5,7 @@ interface Toast {
   id: number;
   text: string;
   tone: Tone;
+  leaving?: boolean;
 }
 
 let next = 1;
@@ -20,8 +21,15 @@ function publish(list: Toast[]) {
 export function toast(text: string, tone: Tone = "neutral") {
   const t = { id: next++, text, tone };
   publish([...current.slice(-2), t]);
-  setTimeout(() => publish(current.filter((x) => x.id !== t.id)), tone === "danger" ? 5000 : 2600);
+  // Fades out first (components.css), then leaves the list.
+  setTimeout(() => {
+    publish(current.map((x) => (x.id === t.id ? { ...x, leaving: true } : x)));
+    setTimeout(() => publish(current.filter((x) => x.id !== t.id)), leaveMs);
+  }, tone === "danger" ? 5000 : 2600);
 }
+
+/** --st-motion-fast. */
+const leaveMs = 100;
 
 /** Mounted once, at the app's root. */
 export function StToastHost() {
@@ -33,7 +41,7 @@ export function StToastHost() {
   return (
     <div className="st-toasts" aria-live="polite">
       {list.map((t) => (
-        <div key={t.id} className={`st-toast st-tone-${t.tone}`}>
+        <div key={t.id} className={`st-toast st-tone-${t.tone}`} data-leaving={t.leaving || undefined}>
           {t.text}
         </div>
       ))}

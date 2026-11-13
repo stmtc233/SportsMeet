@@ -30,6 +30,15 @@
   --st-control-md: 34px;
   --st-control-lg: 42px;
 
+  /* Motion: short enough never to hold up the next click. Hover and press
+     follow at once; things that appear fade in; things that leave go
+     faster than they came. Reduced motion turns all of it off. */
+  --st-ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --st-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --st-motion-fast: 100ms;
+  --st-motion-medium: 160ms;
+  --st-motion-slow: 220ms;
+
   --st-bg: #f5f6f8;
   --st-surface: #ffffff;
   --st-surface-raised: #ffffff;
@@ -131,6 +140,14 @@
     --st-tone-danger-on-container: #f7b0b0;
 }
 :root[data-theme="light"] { color-scheme: light; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --st-motion-fast: 0ms;
+    --st-motion-medium: 0ms;
+    --st-motion-slow: 0ms;
+  }
+}
 
 html {
   font-family: var(--st-font);

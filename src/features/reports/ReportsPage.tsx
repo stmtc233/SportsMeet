@@ -1,11 +1,13 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { IconPrint, StButton, StCheckbox, StEmpty, StNotice, StPage, StSegmented, StSelect, StToolbar, iconStroke } from "../../design";
+import { useScrollMemory, useViewState } from "../../lib/viewState";
 import type { Zoom } from "./paginate";
 import { ReportPreview } from "./ReportPreview";
 import { checkInRows, checkInSelection } from "./checkin";
 import { ReportsController, useCheckInTargets, useReportHTML, useReportTargets, useSheetHTML } from "./controller";
 
 type Kind = "startlist" | "results" | "checkin" | "record";
+const kinds: Kind[] = ["startlist", "results", "checkin", "record"];
 
 const zooms: { value: Zoom; label: string }[] = [
   { value: "fit", label: "适合宽度" }, { value: "0.5", label: "50%" }, { value: "0.75", label: "75%" }, { value: "1", label: "100%" }, { value: "1.5", label: "150%" },
@@ -13,31 +15,32 @@ const zooms: { value: Zoom; label: string }[] = [
 
 /** 秩序册, 成绩册, 检录单 and 成绩记录表: rendered by Go, previewed on A4 sheets, printed from a window of their own. */
 export function ReportsPage({ meetId }: { meetId: string }) {
-  const [kind, setKind] = useState<Kind>("startlist");
+  const [savedKind, setKind] = useViewState<Kind>("reports:kind", "startlist", true);
+  const kind = kinds.includes(savedKind) ? savedKind : "startlist";
   const [busy, setBusy] = useState(false);
-  const [zoom, setZoom] = useState<Zoom>("fit");
+  const [savedZoom, setZoom] = useViewState<Zoom>("reports:zoom", "fit", true);
+  const zoom = zooms.some((z) => z.value === savedZoom) ? savedZoom : "fit";
   const [pages, setPages] = useState(0);
   // 秩序册 and 成绩册: by event.
   const { data: events, error: eventsError } = useReportTargets(meetId);
-  const [skipped, setSkipped] = useState(new Set<string>());
+  // What was unticked stays unticked while the app runs, per meet.
+  const [skipped, setSkipped] = useViewState(`reports:skipped:${meetId}`, () => new Set<string>());
   const all = events ?? [];
   const chosen = all.filter((r) => !skipped.has(r.id)).map((r) => r.id);
-  const ids = skipped.size === 0 ? [] : chosen;
+  // Every event ticked prints them all (ids empty), also when what was unticked has since been deleted.
+  const ids = chosen.length === all.length ? [] : chosen;
   const sheet = kind === "checkin" || kind === "record" ? kind : null;
   const { data: bookHTML, error: bookError } = useReportHTML(sheet ? "startlist" : kind, meetId, ids, all.length, chosen.length, !sheet);
   // 检录单 and 成绩记录表: by round, optionally one day.
   const { data: targets, error: targetsError } = useCheckInTargets(meetId);
-  const [day, setDay] = useState("");
-  const [skippedRounds, setSkippedRounds] = useState(new Set<string>());
+  const [chosenDay, setDay] = useViewState(`reports:day:${meetId}`, "");
+  const [skippedRounds, setSkippedRounds] = useViewState(`reports:skippedRounds:${meetId}`, () => new Set<string>());
+  // A remembered day with no heats left lists every day.
+  const day = targets && !targets.days.includes(chosenDay) ? "" : chosenDay;
   const rows = checkInRows(targets, day);
   const rounds = checkInSelection(rows, skippedRounds);
   const req = { meetId, roundIds: rounds.roundIds, day };
   const { data: sheetHTML, error: sheetError } = useSheetHTML(sheet ?? "checkin", req, sheet ? rounds.chosen.length : 0);
-  useEffect(() => {
-    setSkipped(new Set());
-    setSkippedRounds(new Set());
-    setDay("");
-  }, [meetId]);
 
   const html = sheet ? sheetHTML : bookHTML;
   const count = sheet ? rounds.chosen.length : chosen.length;
@@ -61,13 +64,13 @@ export function ReportsPage({ meetId }: { meetId: string }) {
       }>
       <div className="split">
         {sheet ? (
-          <ChoiceList title="轮次" items={rows} skipped={skippedRounds} onChange={setSkippedRounds}
+          <ChoiceList title="轮次" scrollKey={`reports:rounds:${meetId}`} items={rows} skipped={skippedRounds} onChange={setSkippedRounds}
             filter={
               <StSelect label="日期" width="fill" value={day} onChange={setDay}
                 options={[{ value: "", label: "全部日期" }, ...(targets?.days ?? []).map((d) => ({ value: d, label: d }))]} />
             } />
         ) : (
-          <ChoiceList title="项目" items={all.map((e) => ({ id: e.id, label: e.name }))} skipped={skipped} onChange={setSkipped} />
+          <ChoiceList title="项目" scrollKey={`reports:events:${meetId}`} items={all.map((e) => ({ id: e.id, label: e.name }))} skipped={skipped} onChange={setSkipped} />
         )}
         <div className="report-main">
           {error ? <div className="report-note"><StNotice tone="danger">{error}</StNotice></div> : count === 0 ? (none && <StEmpty>{none}</StEmpty>) : (
@@ -87,13 +90,16 @@ export function ReportsPage({ meetId }: { meetId: string }) {
 }
 
 /** The side list of what to print: everything ticked unless unticked here. */
-function ChoiceList({ title, items, skipped, onChange, filter }: {
+function ChoiceList({ title, scrollKey, items, skipped, onChange, filter }: {
   title: string;
+  scrollKey: string;
   items: { id: string; label: string }[];
   skipped: ReadonlySet<string>;
   onChange: (next: Set<string>) => void;
   filter?: ReactNode;
 }) {
+  const list = useRef<HTMLDivElement>(null);
+  useScrollMemory(list, scrollKey);
   const none = items.every((i) => !skipped.has(i.id));
   const toggle = (id: string) => {
     const next = new Set(skipped);
@@ -110,7 +116,7 @@ function ChoiceList({ title, items, skipped, onChange, filter }: {
           {none ? "取消全选" : "全选"}
         </StButton>
       </div>
-      <div className="split__side-list">
+      <div ref={list} className="split__side-list">
         {items.map((i) => (
           <StCheckbox key={i.id} checked={!skipped.has(i.id)} onChange={() => toggle(i.id)} label={i.label} />
         ))}

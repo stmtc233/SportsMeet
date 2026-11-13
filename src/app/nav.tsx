@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { SettingsSection } from "../features/settings/SettingsPage";
 import { StButton, StDialog } from "../design";
+import { recall, remember } from "../lib/viewState";
 
 export type MeetTab = "events" | "schedule" | "athletes" | "units" | "reports" | "exchange";
 export type EventTab = "entries" | "arrange" | "results";
@@ -21,6 +22,19 @@ interface Nav {
 }
 
 const NavContext = createContext<Nav | null>(null);
+
+const meetTabs: MeetTab[] = ["events", "schedule", "athletes", "units", "reports", "exchange"];
+
+/** The meet's page last shown while the app runs: opening the meet again goes back there. */
+export function lastMeetTab(meetId: string): MeetTab {
+  const tab = recall<MeetTab>(`meet:tab:${meetId}`);
+  return tab && meetTabs.includes(tab) ? tab : "events";
+}
+
+function shown(route: Route) {
+  if (route.page === "meet") remember(`meet:tab:${route.meetId}`, route.tab);
+  return route;
+}
 
 export function useNav(): Nav {
   const nav = useContext(NavContext);
@@ -43,7 +57,7 @@ export function NavProvider({ children }: { children: ReactNode }) {
   const dirty = useRef(false);
   const go = useCallback((next: Route) => {
     if (dirty.current) setPending(next);
-    else setRoute(next);
+    else setRoute(shown(next));
   }, []);
   const setDirty = useCallback((v: boolean) => {
     dirty.current = v;
@@ -52,7 +66,7 @@ export function NavProvider({ children }: { children: ReactNode }) {
   const leave = () => {
     if (!pending) return;
     dirty.current = false;
-    setRoute(pending);
+    setRoute(shown(pending));
     setPending(null);
   };
   return (

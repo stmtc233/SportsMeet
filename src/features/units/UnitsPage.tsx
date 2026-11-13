@@ -6,7 +6,7 @@ import { Units, type Unit, type UnitInput } from "../../mygo";
 import { DeleteDialog } from "../meets/DeleteDialog";
 
 export function useUnits(meetId: string) {
-  return useData(() => Units.list(meetId), [meetId], (c) => c.meetId === meetId && (c.kind === "units" || c.kind === "athletes" || c.kind === "meets"));
+  return useData(() => Units.list(meetId), [meetId], (c) => c.meetId === meetId && (c.kind === "units" || c.kind === "athletes" || c.kind === "meets"), `units:${meetId}`);
 }
 
 export const UnitsController = {
@@ -19,7 +19,7 @@ export function UnitsPage({ meetId }: { meetId: string }) {
   const [editing, setEditing] = useState<{ unit?: Unit } | null>(null);
   const [deleting, setDeleting] = useState<Unit | null>(null);
   return (
-    <StPage
+    <StPage scrollKey={`units:${meetId}`}
       toolbar={
         <StToolbar title="参赛单位" subtitle={units ? `${units.length} 个` : ""}>
           <StButton variant="primary" icon={<IconAdd size={16} strokeWidth={iconStroke} />} onClick={() => setEditing({})}>添加单位</StButton>

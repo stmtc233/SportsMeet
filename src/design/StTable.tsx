@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useScrollMemory } from "../lib/viewState";
 import { StCheckbox } from "./StFields";
 
 export interface StColumn<T> {
@@ -23,6 +24,10 @@ interface StTableProps<T> {
   /** Fills its container and scrolls inside, the header staying on top. */
   fill?: boolean;
   dense?: boolean;
+  /** Rows still loading: the empty placeholder waits, so it does not flash. */
+  loading?: boolean;
+  /** With fill: the scroll position comes back under this key. */
+  scrollKey?: string;
 }
 
 const rowHeight = { normal: 40, dense: 34 };
@@ -32,8 +37,9 @@ const overscan = 12;
  * A data table on a CSS grid. The header sticks to the top; long lists
  * render only the rows in view (rows have a fixed height).
  */
-export function StTable<T>({ columns, rows, rowKey, onRowClick, selected, onSelect, empty, fill, dense }: StTableProps<T>) {
+export function StTable<T>({ columns, rows, rowKey, onRowClick, selected, onSelect, empty, fill, dense, loading, scrollKey }: StTableProps<T>) {
   const scroller = useRef<HTMLDivElement>(null);
+  useScrollMemory(scroller, fill ? scrollKey : undefined);
   const [top, setTop] = useState(0);
   const [view, setView] = useState(800);
   const h = dense ? rowHeight.dense : rowHeight.normal;
@@ -77,7 +83,7 @@ export function StTable<T>({ columns, rows, rowKey, onRowClick, selected, onSele
           </div>
         ))}
       </div>
-      {rows.length === 0 && empty}
+      {rows.length === 0 && !loading && empty}
       {virtual && first > 0 && <div style={{ height: first * h, flexShrink: 0 }} />}
       {rows.slice(first, last).map((row, i) => {
         const key = rowKey(row);

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLeaveGuard } from "../../app/nav";
 import { IconAdd, IconAuto, IconMore, IconRedo, IconTime, IconUndo, StButton, StConfirmButton, StDialog, StEmpty, StIconButton, StMenu, StSegmented, StTextField, iconStroke, toast } from "../../design";
 import { errorText, isStale } from "../../lib/errors";
+import { useScrollMemory, useViewState } from "../../lib/viewState";
 import type { EntryView, EventDetail } from "../../mygo";
 import { AddEntriesDialog } from "../event/AddEntriesDialog";
 import { AutoDialog } from "./AutoDialog";
@@ -18,7 +19,8 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   const laned = detail.rules.usesLanes;
   const [loaded, setLoaded] = useState(() => fromDetail(detail));
   const [history, setHistory] = useState<History>(() => ({ past: [], present: loaded, future: [] }));
-  const [roundId, setRoundId] = useState(detail.rounds[0]?.id ?? "");
+  // Shared with the results page: switching tabs keeps the round.
+  const [roundId, setRoundId] = useViewState(`event:round:${event.id}`, detail.rounds[0]?.id ?? "");
   const [picked, setPicked] = useState("");
   const [saving, setSaving] = useState(false);
   const [auto, setAuto] = useState(false);
@@ -114,6 +116,10 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   const entries = useMemo(() => new Map<string, EntryView>(detail.entries.map((e) => [e.competitorId, e])), [detail.entries]);
   const placed = useMemo(() => placedIn(round), [round]);
   const conflicts = useDraftConflicts(event.id, meetId, draft.rounds);
+  const rosterBox = useRef<HTMLDivElement>(null);
+  const heatsBox = useRef<HTMLDivElement>(null);
+  useScrollMemory(rosterBox, `arrange:roster:${event.id}:${roundView?.id}`);
+  useScrollMemory(heatsBox, `arrange:heats:${event.id}:${roundView?.id}`);
   if (!roundView || !round) return <StEmpty>没有轮次</StEmpty>;
   const firstOpen = roundView.heats.find((h) => !h.keepReason);
   const free = detail.entries.filter((e) => !placed.has(e.competitorId));
@@ -125,7 +131,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   };
 
   return (
-    <div className="fill" inert={saving}>
+    <div className="fill view-enter" inert={saving}>
       <div className="subbar">
         {detail.rounds.length > 1 && <StSegmented size="small" value={roundView.id} onChange={setRoundId} options={detail.rounds.map((r) => ({ value: r.id, label: r.label }))} />}
         <StButton variant="ghost" icon={<IconTime size={16} strokeWidth={iconStroke} />} title="轮次开始时间" disabled={saving} onClick={() => setStarting(true)}>
@@ -163,7 +169,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
             <span>未分组</span>
             <span className="chip__meta">{free.length}/{detail.entries.length}</span>
           </div>
-          <div className="split__side-list drop-roster" data-over={rosterOver || undefined}
+          <div ref={rosterBox} className="split__side-list drop-roster" data-over={rosterOver || undefined}
             onDragOver={(e) => { e.preventDefault(); setRosterOver(true); }} onDragLeave={() => setRosterOver(false)}
             onDrop={(e) => {
               e.preventDefault();
@@ -181,7 +187,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
             <StButton icon={<IconAdd size={16} strokeWidth={iconStroke} />} disabled={Boolean(event.combinedId)} onClick={() => setAdding(true)}>{detail.rules.team ? "管理队伍" : "从赛事添加"}</StButton>
           </div>
         </aside>
-        <div className="split__main" onClick={() => setPicked("")}>
+        <div ref={heatsBox} className="split__main" onClick={() => setPicked("")}>
           {round.heats.length === 0 && <StEmpty action={<StButton variant="primary" onClick={() => setAuto(true)}>自动编排</StButton>}>{draft.reset ? "保存后将删除全部组" : "还没有组"}</StEmpty>}
           <div className="heats">
             {round.heats.map((h, i) => (

@@ -4,7 +4,7 @@ import { useData } from "../../lib/useData";
 import { Athletes, type AthleteImport, type AthleteInput } from "../../mygo";
 
 export function useAthletes(meetId: string) {
-  return useData(() => Athletes.list(meetId), [meetId], (c) => c.meetId === meetId);
+  return useData(() => Athletes.list(meetId), [meetId], (c) => c.meetId === meetId, `athletes:${meetId}`);
 }
 
 export const AthletesController = {

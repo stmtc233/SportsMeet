@@ -14,6 +14,13 @@ textarea {
   outline-offset: 1px;
 }
 
+/* ---- motion (tokens.css「Motion」) ----
+   Appearing: a fade with a few pixels of rise. No staggered lists and
+   nothing that moves content already in place. */
+@keyframes st-fade-in { from { opacity: 0; } }
+@keyframes st-rise-in { from { opacity: 0; transform: translateY(4px); } }
+@keyframes st-page-in { from { opacity: 0.4; } }
+
 /* ---- tones ---- */
 .st-tone-neutral { --tone-accent: var(--st-tone-neutral-accent); --tone-bg: var(--st-tone-neutral-container); --tone-fg: var(--st-tone-neutral-on-container); }
 .st-tone-info { --tone-accent: var(--st-tone-info-accent); --tone-bg: var(--st-tone-info-container); --tone-fg: var(--st-tone-info-on-container); }
@@ -37,6 +44,7 @@ textarea {
   white-space: nowrap;
   cursor: pointer;
   flex: none;
+  transition: background-color var(--st-motion-fast), color var(--st-motion-fast), border-color var(--st-motion-fast), opacity var(--st-motion-fast), transform var(--st-motion-fast) var(--st-ease-out);
 }
 .st-button--small { height: var(--st-control-sm); padding: 0 var(--st-space-8); font-size: var(--st-text-sm); }
 .st-button--large { height: var(--st-control-lg); padding: 0 var(--st-space-16); font-size: var(--st-text-lg); }
@@ -49,7 +57,7 @@ textarea {
 .st-button--secondary:hover:not(:disabled),
 .st-button--ghost:hover:not(:disabled),
 .st-button--tonal:hover:not(:disabled) { background-image: linear-gradient(var(--st-hover), var(--st-hover)); }
-.st-button:active:not(:disabled) { background-image: linear-gradient(var(--st-pressed), var(--st-pressed)); }
+.st-button:active:not(:disabled) { background-image: linear-gradient(var(--st-pressed), var(--st-pressed)); transform: scale(0.97); }
 .st-button:disabled { opacity: 0.45; cursor: default; }
 .st-button[data-loading] { cursor: progress; }
 .st-button__icon { display: inline-flex; }
@@ -70,7 +78,9 @@ textarea {
   color: var(--st-text-muted);
   cursor: pointer;
   flex: none;
+  transition: background-color var(--st-motion-fast), color var(--st-motion-fast), opacity var(--st-motion-fast), transform var(--st-motion-fast) var(--st-ease-out);
 }
+.st-icon-button:active:not(:disabled) { background-image: linear-gradient(var(--st-pressed), var(--st-pressed)); transform: scale(0.94); }
 .st-icon-button--small { width: var(--st-control-sm); height: var(--st-control-sm); }
 .st-icon-button--tonal { background: var(--st-tone-neutral-container); color: var(--st-text); }
 .st-icon-button--filled { background: var(--st-primary); color: var(--st-on-primary); }
@@ -79,8 +89,9 @@ textarea {
 .st-icon-button:disabled { opacity: 0.4; cursor: default; }
 
 /* ---- page ---- */
-.st-page { display: flex; flex-direction: column; height: 100%; min-width: 0; }
-.st-page__body { flex: 1; min-height: 0; overflow: auto; padding: var(--st-space-page); display: flex; flex-direction: column; gap: var(--st-space-section); }
+.st-page { display: flex; flex-direction: column; height: 100%; min-width: 0; animation: st-page-in var(--st-motion-medium) var(--st-ease-out) backwards; }
+/* A stable gutter: a scrollbar showing up (Windows, Linux) does not push the content sideways. */
+.st-page__body { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; padding: var(--st-space-page); display: flex; flex-direction: column; gap: var(--st-space-section); }
 .st-page__body--flush { padding: 0; gap: 0; overflow: hidden; }
 .st-toolbar {
   display: flex;
@@ -117,6 +128,7 @@ textarea {
   background: var(--tone-bg);
   color: var(--tone-fg);
   font-size: var(--st-text-sm);
+  animation: st-rise-in var(--st-motion-medium) var(--st-ease-out) backwards;
 }
 .st-tag {
   display: inline-flex;
@@ -130,6 +142,7 @@ textarea {
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
+  transition: background-color var(--st-motion-medium), color var(--st-motion-medium);
 }
 .st-divider { border: 0; border-top: 1px solid var(--st-outline); margin: 0; }
 .st-empty { display: flex; flex-direction: column; align-items: center; gap: var(--st-space-12); padding: var(--st-space-32) var(--st-space-16); color: var(--st-text-muted); }
@@ -156,6 +169,7 @@ textarea {
   corner-shape: superellipse(1.78);
   background: transparent;
   text-align: start;
+  transition: background-color var(--st-motion-fast), color var(--st-motion-fast);
 }
 .st-list-item--action { cursor: pointer; }
 .st-list-item--action:hover:not(:disabled, [aria-disabled]) { background: var(--st-hover); }
@@ -188,6 +202,7 @@ textarea {
   border-radius: var(--st-radius-8);
   corner-shape: superellipse(1.78);
   background: var(--st-surface);
+  transition: border-color var(--st-motion-fast), background-color var(--st-motion-fast);
 }
 .st-input:focus-within { border-color: var(--st-primary); outline: 2px solid var(--st-focus); outline-offset: 0; }
 .st-input[data-invalid] { border-color: var(--st-tone-danger-accent); }
@@ -224,7 +239,10 @@ textarea {
   border-radius: var(--st-radius-6);
   corner-shape: superellipse(1.78);
   flex: none;
+  transition: background-color var(--st-motion-fast), border-color var(--st-motion-fast);
 }
+.st-checkbox > * { animation: st-check-in var(--st-motion-fast) var(--st-ease-out) backwards; }
+@keyframes st-check-in { from { opacity: 0; transform: scale(0.6); } }
 .st-checkbox[data-checked] { background: var(--st-primary); border-color: var(--st-primary); color: var(--st-on-primary); }
 .st-checkbox__dash { width: 8px; height: 2px; background: currentColor; }
 
@@ -236,7 +254,7 @@ textarea {
   corner-shape: round;
   background: var(--st-tone-neutral-accent);
   position: relative;
-  transition: background 120ms;
+  transition: background-color var(--st-motion-medium) var(--st-ease-out);
   flex: none;
 }
 .st-switch::after {
@@ -249,7 +267,7 @@ textarea {
   border-radius: 50%;
   corner-shape: round;
   background: var(--st-on-primary);
-  transition: transform 120ms;
+  transition: transform var(--st-motion-medium) var(--st-ease-out);
 }
 .st-switch[data-checked] { background: var(--st-primary); }
 .st-switch[data-checked]::after { transform: translateX(14px); }
@@ -262,7 +280,23 @@ textarea {
   corner-shape: superellipse(1.78);
   background: var(--st-tone-neutral-container);
   align-self: flex-start;
+  position: relative;
 }
+/* The selected option's background slides between options once measured
+   (StSegmented); until then the selected button paints its own. */
+.st-segmented__thumb {
+  position: absolute;
+  top: var(--st-space-2);
+  bottom: var(--st-space-2);
+  left: 0;
+  width: var(--thumb-w);
+  transform: translateX(var(--thumb-x));
+  border-radius: var(--st-radius-6);
+  corner-shape: superellipse(1.78);
+  background: var(--st-surface);
+  pointer-events: none;
+}
+.st-segmented[data-animate] .st-segmented__thumb { transition: transform var(--st-motion-medium) var(--st-ease-out), width var(--st-motion-medium) var(--st-ease-out); }
 .st-segmented button {
   height: calc(var(--st-control-md) - 4px);
   padding: 0 var(--st-space-12);
@@ -273,9 +307,13 @@ textarea {
   color: var(--st-text-muted);
   white-space: nowrap;
   cursor: pointer;
+  position: relative;
+  transition: color var(--st-motion-fast), opacity var(--st-motion-fast);
 }
+.st-segmented button:hover:not(:disabled, [aria-checked="true"]) { color: var(--st-text); }
 .st-segmented--small button { height: calc(var(--st-control-sm) - 4px); padding: 0 var(--st-space-8); font-size: var(--st-text-sm); }
 .st-segmented button[aria-checked="true"] { background: var(--st-surface); color: var(--st-text); font-weight: 500; }
+.st-segmented[data-thumb] button[aria-checked="true"] { background: transparent; }
 .st-segmented button:disabled { opacity: 0.45; cursor: default; }
 
 .st-select {
@@ -291,7 +329,9 @@ textarea {
   cursor: pointer;
   text-align: start;
   color: var(--st-text-muted);
+  transition: border-color var(--st-motion-fast), opacity var(--st-motion-fast);
 }
+.st-select:hover:not(:disabled) { border-color: var(--st-tone-neutral-accent); }
 .st-select--small { height: var(--st-control-sm); font-size: var(--st-text-sm); }
 .st-select:disabled { opacity: 0.45; cursor: default; }
 .st-select__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--st-text); }
@@ -313,11 +353,11 @@ textarea {
   background: var(--st-surface-raised);
   box-shadow: var(--st-shadow);
   transform-origin: top;
-  animation: st-pop-out 100ms ease-in forwards;
+  animation: st-pop-out var(--st-motion-fast) var(--st-ease-in) forwards;
 }
 .st-popover:not([data-open]) { pointer-events: none; }
 .st-popover[data-up] { transform-origin: bottom; --st-pop-shift: 6px; }
-.st-popover[data-open] { animation: st-pop-in 150ms ease-out; }
+.st-popover[data-open] { animation: st-pop-in var(--st-motion-medium) var(--st-ease-out); }
 @keyframes st-pop-in {
   from { opacity: 0; transform: translateY(var(--st-pop-shift, -6px)) scale(0.96); }
 }
@@ -338,6 +378,7 @@ textarea {
   white-space: nowrap;
   cursor: pointer;
   flex: none;
+  transition: background-color var(--st-motion-fast);
 }
 .st-menu-item:hover:not(:disabled) { background: var(--st-hover); }
 .st-menu-item:disabled { opacity: 0.45; cursor: default; }
@@ -364,7 +405,12 @@ textarea {
 .st-dialog--small { width: min(400px, calc(100vw - 48px)); }
 .st-dialog--large { width: min(880px, calc(100vw - 48px)); }
 .st-dialog::backdrop { background: var(--st-scrim); }
-.st-dialog[open] { animation: st-pop-in 150ms ease-out; display: flex; }
+/* Dialogs animate in only and close at once: what they show after closing
+   comes from state already cleared, and the page stays blocked while a
+   modal fades out. */
+.st-dialog[open] { animation: st-dialog-in var(--st-motion-medium) var(--st-ease-out); display: flex; }
+.st-dialog[open]::backdrop { animation: st-fade-in var(--st-motion-medium) var(--st-ease-out); }
+@keyframes st-dialog-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
 .st-dialog__form { display: flex; flex-direction: column; min-height: 0; width: 100%; max-height: calc(100vh - 48px); }
 .st-dialog__head { display: flex; align-items: center; gap: var(--st-space-8); padding: var(--st-space-12) var(--st-space-12) var(--st-space-8) var(--st-space-24); }
 .st-dialog__head h2 { margin: 0; flex: 1; font-size: var(--st-text-lg); font-weight: 600; }
@@ -381,14 +427,15 @@ textarea {
   color: var(--tone-fg);
   border: 1px solid var(--tone-accent);
   box-shadow: var(--st-shadow);
-  animation: st-pop-in 150ms ease-out;
+  animation: st-pop-in var(--st-motion-medium) var(--st-ease-out);
   --st-pop-shift: 6px;
 }
+.st-toast[data-leaving] { animation: st-pop-out var(--st-motion-fast) var(--st-ease-in) forwards; }
 
 /* ---- table ---- */
 .st-table { display: flex; flex-direction: column; min-width: 0; }
-.st-table[data-fill] { flex: 1; min-height: 0; overflow: auto; }
-.st-table__row { display: grid; align-items: center; height: 40px; border-bottom: 1px solid var(--st-outline); flex: none; }
+.st-table[data-fill] { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+.st-table__row { display: grid; align-items: center; height: 40px; border-bottom: 1px solid var(--st-outline); flex: none; transition: background-color var(--st-motion-fast); }
 .st-table[data-dense] .st-table__row { height: 34px; }
 .st-table__row:last-child { border-bottom: 0; }
 .st-table__row[data-clickable] { cursor: pointer; }

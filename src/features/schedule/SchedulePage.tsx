@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNav } from "../../app/nav";
+import { useViewState } from "../../lib/viewState";
 import { IconChevronDown, IconChevronRight, IconEdit, IconTime, StButton, StEmpty, StIconButton, StMuted, StPage, StSection, StTable, StTag, StToolbar, iconStroke } from "../../design";
 import type { ScheduleHeatRef, Timetable, TimetableHeat, TimetableRound } from "../../mygo";
 import { ConflictList } from "../arrange/ConflictList";
@@ -23,14 +24,14 @@ export function SchedulePage({ meetId }: { meetId: string }) {
   const data = useTimetable(meetId).data ?? undefined;
   const meet = useMeet(meetId).data;
   const [chaining, setChaining] = useState(false);
-  const [unfolded, setUnfolded] = useState(false);
+  const [unfolded, setUnfolded] = useViewState("schedule:unfolded", false, true);
   const [starting, setStarting] = useState<TimetableRound | null>(null);
   const [editing, setEditing] = useState<{ round: TimetableRound; heat: TimetableHeat } | null>(null);
   const defaultDay = data?.days[0]?.day || meet?.startDate || "";
   const empty = data !== undefined && data.days.length === 0 && data.unscheduled.length === 0;
   const edit = (round: TimetableRound, heat: TimetableHeat) => setEditing({ round, heat });
   return (
-    <StPage
+    <StPage scrollKey={`schedule:${meetId}`}
       toolbar={
         <StToolbar title="日程">
           <StButton icon={<IconTime size={16} strokeWidth={iconStroke} />} disabled={!data || empty} onClick={() => setChaining(true)}>连排…</StButton>

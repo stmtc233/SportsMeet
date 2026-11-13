@@ -4,7 +4,7 @@ import { Arrange, type HeatEdit } from "../../mygo";
 
 /** The meet's timetable; any change in the meet, or the minimum rest, moves it. */
 export const useTimetable = (meetId: string) =>
-  useData(() => Arrange.meetSchedule(meetId), [meetId], (c) => c.meetId === meetId || c.kind === "settings");
+  useData(() => Arrange.meetSchedule(meetId), [meetId], (c) => c.meetId === meetId || c.kind === "settings", `timetable:${meetId}`);
 
 export const ScheduleController = {
   editHeat: (input: HeatEdit) => act(() => Arrange.editHeat(input), "已保存"),
