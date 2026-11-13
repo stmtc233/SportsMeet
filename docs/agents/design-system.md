@@ -32,6 +32,7 @@
 | 组件 | 用途 |
 |---|---|
 | `StButton`(`primary / secondary / tonal / danger / ghost` × `small / medium / large`,可 `loading`) | 所有文字按钮。同一位置会切换文字时(「全选」↔「取消全选」)传 `reserveWidthFor` 列出全部文字,宽度取最宽者,切换时旁边的控件不跳动 |
+| `StLinkButton` | 按钮外观的导航链接，使用带 `href` 的原生 `<a>`，保留链接语义与键盘操作；应用外部链接经 controller 调用 mygo 在系统浏览器打开 |
 | `StIconButton`(`plain / tonal / filled`) | 图标按钮,必须带无障碍标签 |
 | `StConfirmButton` | 危险操作:第一次点击变红色「再按一次确认」,数秒内再点才执行 |
 | `StCard` / `StSection` | 卡片 / 带标题的分组卡片 |

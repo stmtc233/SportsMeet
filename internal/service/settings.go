@@ -12,10 +12,12 @@ import (
 
 // Preferences contains only settings used by the app. MCP secrets have a separate API.
 type Preferences struct {
-	Theme         string `json:"theme"`
-	SeparateUnits bool   `json:"separateUnits"`
-	Balance       bool   `json:"balance"`
-	PrintNewPage  bool   `json:"printNewPage"`
+	Theme string `json:"theme"`
+	// UpdatePrereleases includes test versions in mygo's update checks.
+	UpdatePrereleases bool `json:"updatePrereleases"`
+	SeparateUnits     bool `json:"separateUnits"`
+	Balance           bool `json:"balance"`
+	PrintNewPage      bool `json:"printNewPage"`
 	// PrintSchedule puts the competition schedule at the start of the 秩序册.
 	PrintSchedule bool `json:"printSchedule"`
 	// PrintRoster puts the units' athletes at the start of the 秩序册.

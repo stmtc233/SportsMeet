@@ -2,10 +2,10 @@ import type { Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
-    let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false };
+    let prefs = { updatePrereleases: false, theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false };
     let mcp = { enabled: false, running: false, port: 18765, address: "http://127.0.0.1:18765/mcp", error: "" };
     const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12" };
     const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0, participantMode: "athlete", teamSize: 0, scoreDecimals: 0, rankDirection: "", attemptMode: "" };
@@ -138,7 +138,10 @@ export async function installRuntime(page: Page, options: { athleteCount?: numbe
           case "Groups.List": return [];
           case "Groups.Suggestions": return [];
           case "Settings.Preferences": return { ...prefs };
-          case "Settings.SavePreferences": prefs = { ...args[0] }; changed(); return null;
+          case "Settings.SavePreferences":
+            if (options.slowUpdatePreferences) await new Promise((resolve) => setTimeout(resolve, 250));
+            if (options.rejectUpdatePreferences) return error("设置无法保存，请重试");
+            prefs = { ...args[0] }; changed(); return null;
           case "Settings.MCPStatus": return { ...mcp };
           case "Settings.ConfigureMCP":
             if (args[1] === 9999) return error("端口无法监听，请更换端口");
@@ -153,8 +156,12 @@ export async function installRuntime(page: Page, options: { athleteCount?: numbe
             return { rows, next: last && all.indexOf(last) < all.length - 1 ? { at: last.at, id: last.id } : null };
           }
           case "Settings.CopyToken": case "Settings.CopyConnection": return null;
-          case "App.Info": return { version: "0.1.0" };
-          case "App.CheckForUpdates": return null;
+          case "App.Info": return { version: "0.1.0-beta.2", canSelfUpdate: options.selfUpdate !== false,
+            updateMessage: options.selfUpdate === false ? "开发运行，请从发布页下载安装" : "", repositoryURL: "https://github.com/stmtc233/SportsMeet" };
+          case "App.CheckForUpdates":
+            (globalThis as any).__updateChecks = [...((globalThis as any).__updateChecks ?? []), { prereleases: prefs.updatePrereleases, selfUpdate: options.selfUpdate !== false }];
+            return null;
+          case "App.OpenRepository": (globalThis as any).__repositoryOpened = true; return null;
           case "Meets.List": return [meet];
           case "Meets.Get": return meet;
           case "Units.List": return [{ id: "unit", meetId: "meet", name: "一班", shortName: "" }];

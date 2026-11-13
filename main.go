@@ -42,7 +42,23 @@ func main() {
 			mygo.App.Exit(1)
 			return
 		}
-		core.Svc = service.New(st, bind.Notify)
+		// Apply the saved channel before the plugin's first background check,
+		// and before notifying the page after any settings write.
+		syncUpdates := func() {
+			prefs, err := core.Svc.Preferences(context.Background())
+			if err != nil {
+				log.Printf("读取更新设置失败：%v", err)
+				return
+			}
+			mygo.Updater.SetPrereleases(prefs.UpdatePrereleases)
+		}
+		core.Svc = service.New(st, func(c service.Change) {
+			if c.Kind == "settings" {
+				syncUpdates()
+			}
+			bind.Notify(c)
+		})
+		syncUpdates()
 		core.MCP = mcp.New(core.Svc)
 		if err := core.MCP.Start(context.Background()); err != nil {
 			log.Printf("MCP: %v", err)

@@ -450,15 +450,38 @@ func (Marks) EventName(gender domain.Gender, discipline, group string) string {
 
 // AppInfo describes the running app.
 type AppInfo struct {
-	Version string `json:"version"`
+	Version       string `json:"version"`
+	CanSelfUpdate bool   `json:"canSelfUpdate"`
+	UpdateMessage string `json:"updateMessage"`
+	RepositoryURL string `json:"repositoryURL"`
 }
+
+const repositoryURL = "https://github.com/stmtc233/SportsMeet"
 
 // App tells the page about the app itself.
 type App struct{}
 
-// Info returns the app's version.
-func (App) Info() AppInfo { return AppInfo{Version: service.Version} }
+// Info describes the running build and how it can receive updates.
+func (App) Info() AppInfo {
+	info := AppInfo{Version: service.Version, CanSelfUpdate: mygo.Updater.Enabled(), RepositoryURL: repositoryURL}
+	if !info.CanSelfUpdate {
+		info.UpdateMessage = "当前安装方式需手动下载安装"
+		if mygo.IsDev() {
+			info.UpdateMessage = "开发运行，请从发布页下载安装"
+		}
+	}
+	return info
+}
 
-// CheckForUpdates opens the update window, which says whether a newer
-// version is out.
-func (App) CheckForUpdates() { updater.CheckForUpdates() }
+// CheckForUpdates uses mygo's update window for installable builds. Other
+// builds open releases in the system browser so users can choose a download.
+func (App) CheckForUpdates() error {
+	if !mygo.Updater.Enabled() {
+		return mygo.Shell.OpenExternal(repositoryURL + "/releases")
+	}
+	updater.CheckForUpdates()
+	return nil
+}
+
+// OpenRepository opens the project's repository in the system browser.
+func (App) OpenRepository() error { return mygo.Shell.OpenExternal(repositoryURL) }

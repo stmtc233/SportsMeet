@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useData } from "../../lib/useData";
 import { act } from "../../lib/action";
 import { App, Settings, type Preferences } from "../../mygo";
@@ -7,6 +7,39 @@ import { appendOlder, mergeNewest, type AuditLog } from "./auditLog";
 export const usePreferences = () => useData(() => Settings.preferences(), [], (c) => c.kind === "settings", "preferences");
 export const useMCPStatus = () => useData(() => Settings.mcpStatus(), [], (c) => c.kind === "settings", "mcpStatus");
 export const useAppInfo = () => useData(() => App.info(), [], () => false, "appInfo");
+
+/**
+ * Each control takes effect at once: it shows the new value straight away
+ * and the saves go out one after another, each with every change so far.
+ * A value stays shown as chosen until the reloaded settings carry it, and
+ * goes back if its save fails. Controls are not disabled while saving: the
+ * whole panel would blink on every click.
+ */
+export function useOptimisticPreferences() {
+  const { data, error } = usePreferences();
+  const [pending, setPending] = useState<Partial<Preferences>>({});
+  const latest = useRef({ data, pending });
+  latest.current = { data, pending };
+  const queue = useRef(Promise.resolve());
+  useEffect(() => {
+    if (!data) return;
+    setPending((old) => {
+      const left = Object.fromEntries(Object.entries(old).filter(([k, v]) => data[k as keyof Preferences] !== v));
+      return Object.keys(left).length === Object.keys(old).length ? old : left;
+    });
+  }, [data]);
+  const save = (patch: Partial<Preferences>) => {
+    latest.current.pending = { ...latest.current.pending, ...patch };
+    setPending((old) => ({ ...old, ...patch }));
+    queue.current = queue.current.then(async () => {
+      const { data: saved, pending: changes } = latest.current;
+      if (!saved) return;
+      const ok = await SettingsController.save({ ...saved, ...changes });
+      if (!ok) setPending((old) => Object.fromEntries(Object.entries(old).filter(([k]) => !(k in patch))));
+    });
+  };
+  return { data: data && { ...data, ...pending }, error, save, waitForSave: () => queue.current };
+}
 
 const auditPage = 50;
 
@@ -43,5 +76,6 @@ export const SettingsController = {
   reveal: () => act(() => Settings.revealToken()),
   copyToken: () => act(() => Settings.copyToken(), "已复制令牌"),
   checkForUpdates: () => act(() => App.checkForUpdates()),
+  openRepository: () => act(() => App.openRepository()),
   copyConnection: () => act(() => Settings.copyConnection(), "已复制连接信息"),
 };

@@ -1,5 +1,5 @@
-import { StButton, StListItem, StNotice, StSection } from "../../design";
-import { SettingsController, useAppInfo } from "../settings/controller";
+import { StButton, StLinkButton, StListItem, StNotice, StSection, StSwitchItem } from "../../design";
+import { SettingsController, useAppInfo, useOptimisticPreferences } from "../settings/controller";
 
 // Open-source software the app ships with; keep in step with go.mod and
 // package.json (docs/agents/design-system.md「图标」).
@@ -18,12 +18,22 @@ const licenses = [
 
 export function AboutContent() {
  const { data, error } = useAppInfo();
+ const { data: preferences, error: preferencesError, save, waitForSave } = useOptimisticPreferences();
  return <>
  {error && <StNotice tone="danger">{error}</StNotice>}
  <StSection title="SportsMeet" padded={false}>
-  <StListItem title="版本" subtitle={data?.version ?? ""}
-   trailing={<StButton onClick={SettingsController.checkForUpdates}>检查更新</StButton>} />
+  <StListItem title="版本" subtitle={data?.version ?? ""} />
+  <StListItem title="GitHub 仓库" subtitle="stmtc233/SportsMeet"
+   trailing={data && <StLinkButton href={data.repositoryURL} onClick={(e) => { e.preventDefault(); void SettingsController.openRepository(); }}>打开仓库</StLinkButton>} />
   <StListItem title="数据保存在本机" />
+ </StSection>
+ <StSection title="软件更新" padded={false}>
+  {preferencesError && <StNotice tone="danger">{preferencesError}</StNotice>}
+  <StListItem title={data && !data.canSelfUpdate ? "手动更新" : "更新检查"} subtitle={data?.updateMessage}
+   trailing={<StButton disabled={!data} reserveWidthFor={["检查更新", "查看发布"]}
+    onClick={() => void waitForSave().then(SettingsController.checkForUpdates)}>{data && !data.canSelfUpdate ? "查看发布" : "检查更新"}</StButton>} />
+  <StSwitchItem title="接收测试版" subtitle="测试版可能不稳定" checked={preferences?.updatePrereleases ?? false} disabled={!preferences}
+   onChange={(updatePrereleases) => save({ updatePrereleases })} />
  </StSection>
  <StSection title="开源许可" padded={false}>
   {licenses.map((l) => <StListItem key={l.name} title={l.name} trailing={l.license} />)}

@@ -1,7 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import type { Preferences } from "../../mygo";
 import { StNotice, StSection, StSegmented, StSelect, StSwitchItem } from "../../design";
-import { SettingsController, usePreferences } from "./controller";
+import { useOptimisticPreferences } from "./controller";
 import { minuteOptions } from "./minutes";
 
 /** The minimum rest choices; 0 checks overlaps only. */
@@ -11,39 +9,6 @@ const leads = [0, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240];
 
 /** Where the 检录单 and the 成绩记录表 start a new page. */
 const sheetBreaks = [{ value: "none", label: "不分页" }, { value: "round", label: "每个轮次一页" }, { value: "heat", label: "每组一页" }];
-
-/**
- * Each control takes effect at once: it shows the new value straight away
- * and the saves go out one after another, each with every change so far.
- * A value stays shown as chosen until the reloaded settings carry it, and
- * goes back if its save fails. Controls are not disabled while saving: the
- * whole panel would blink on every click.
- */
-function useOptimisticPreferences() {
-  const { data, error } = usePreferences();
-  const [pending, setPending] = useState<Partial<Preferences>>({});
-  const latest = useRef({ data, pending });
-  latest.current = { data, pending };
-  const queue = useRef(Promise.resolve());
-  useEffect(() => {
-    if (!data) return;
-    setPending((old) => {
-      const left = Object.fromEntries(Object.entries(old).filter(([k, v]) => data[k as keyof Preferences] !== v));
-      return Object.keys(left).length === Object.keys(old).length ? old : left;
-    });
-  }, [data]);
-  const save = (patch: Partial<Preferences>) => {
-    latest.current.pending = { ...latest.current.pending, ...patch };
-    setPending((old) => ({ ...old, ...patch }));
-    queue.current = queue.current.then(async () => {
-      const { data: saved, pending: changes } = latest.current;
-      if (!saved) return;
-      const ok = await SettingsController.save({ ...saved, ...changes });
-      if (!ok) setPending((old) => Object.fromEntries(Object.entries(old).filter(([k]) => !(k in patch))));
-    });
-  };
-  return { data: data && { ...data, ...pending }, error, save };
-}
 
 export function PreferencesPanel({ section }: { section: "general" | "arrange" | "print" }) {
   const { data, error, save } = useOptimisticPreferences();

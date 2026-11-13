@@ -16,6 +16,9 @@ export interface Advance {
 /** AppInfo describes the running app. */
 export interface AppInfo {
   version: string;
+  canSelfUpdate: boolean;
+  updateMessage: string;
+  repositoryURL: string;
 }
 
 /** Athlete belongs to a meet and is shared by its events. */
@@ -907,6 +910,8 @@ export interface PointRulePreview {
 /** Preferences contains only settings used by the app. MCP secrets have a separate API. */
 export interface Preferences {
   theme: string;
+  /** UpdatePrereleases includes test versions in mygo's update checks. */
+  updatePrereleases: boolean;
   separateUnits: boolean;
   balance: boolean;
   printNewPage: boolean;
@@ -1829,15 +1834,19 @@ export const Marks = {
 /** App tells the page about the app itself. */
 export const App = {
   /**
-   * CheckForUpdates opens the update window, which says whether a newer
-   * version is out.
+   * CheckForUpdates uses mygo's update window for installable builds. Other
+   * builds open releases in the system browser so users can choose a download.
    */
   checkForUpdates(): Promise<void> {
     return call("App.CheckForUpdates");
   },
-  /** Info returns the app's version. */
+  /** Info describes the running build and how it can receive updates. */
   info(): Promise<AppInfo> {
     return call("App.Info");
+  },
+  /** OpenRepository opens the project's repository in the system browser. */
+  openRepository(): Promise<void> {
+    return call("App.OpenRepository");
   },
 } as const;
 

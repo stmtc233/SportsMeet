@@ -131,7 +131,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 同一次打包还上传各平台的更新文件:`update-<平台>.json`、`sportsmeet-<版本>-<平台>.tar.gz`、增量包、`install.sh` 与 `SHA256SUMS`。已安装的应用从最新 release 读 `update-<平台>.json`,所以 mygo 生成的文件不改名、不从 release 里删。
 
-测试版的版本写成 `0.1.0-beta.1` 这样并勾选预发布:已安装的应用只更新到正式版,测试版要手动下载。
+测试版的版本写成 `0.1.0-beta.1` 这样并勾选预发布:应用默认只检查正式版，用户可在「关于」开启「接收测试版」，选择持久保存；更新渠道规则见 [frontend.md](docs/agents/frontend.md)「设置页」。
 
 更新用一对密钥签名:公钥在 `mygo.config.ts` 的 `updates.publicKey`,私钥是仓库的 Actions 密钥 `MYGO_UPDATER_PRIVATE_KEY`。换密钥后已安装的应用收不到更新,私钥要另行备份。
 
@@ -166,7 +166,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 - **包的依赖方向由 `internal/layers` 的测试把关**:新增包或新增依赖时,在它的分层表里登记并同步 §3。
 - **业务规则只在 Go**:成绩解析与格式化、排名、晋级、项目名称组成、时间的校验与显示都在 Go,前端只调用(→ domain.md)。
 - **打印的是预览排好的 A4 纸面**:表格断开处的「续下页」/「（续）」与页眉页码由前端分页时画上并随之印出,不让 WebView 自己给 Go 的连续文档分页(→ frontend.md「打印」)。
-- **新版本检测与安装用 mygo 的更新窗口**:启动后与每天在后台检查 GitHub release,「关于」页可手动检查;这是应用唯一的出网(→ frontend.md「设置页」)。
+- **新版本检测与安装用 mygo 的更新窗口**:默认检查正式版，「关于」可选择接收测试版并打开仓库；不能自更新时提供发布页入口，这是应用唯一的出网(→ frontend.md「设置页」)。
 - **`src/mygo.ts` 是生成物**,不手改。
 - **前端只有 `src/lib/` 与各 feature 的 `controller` / `data` 文件调用 Go**,其余文件只从 `src/mygo.ts` 引入类型;棘轮把关(→ frontend.md)。
 - **页面只用 `src/design/` 的 `St*` 组件、token 与统一图标**;`scripts/check-design-system.sh` 棘轮把关,基线只减不增(→ design-system.md)。

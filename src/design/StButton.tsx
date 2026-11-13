@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useRef, useState, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type Variant = "primary" | "secondary" | "tonal" | "danger" | "ghost";
 type Size = "small" | "medium" | "large";
@@ -27,6 +27,15 @@ export function StButton({ variant = "secondary", size = "medium", loading, icon
       </span>
     </button>
   );
+}
+
+/** A navigation link with the same appearance and focus treatment as buttons. */
+export function StLinkButton({ variant = "secondary", size = "medium", children, ...rest }: Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "className" | "href"> & {
+  href: string;
+  variant?: Variant;
+  size?: Size;
+}) {
+  return <a {...rest} className={`st-button st-button--${variant} st-button--${size}`}>{children}</a>;
 }
 
 interface StIconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "aria-label"> {
