@@ -437,7 +437,7 @@ textarea {
 /* ---- table ---- */
 .st-table { display: flex; flex-direction: column; min-width: 0; }
 .st-table[data-fill] { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
-.st-table__row { display: grid; align-items: center; height: 40px; border-bottom: 1px solid var(--st-outline); flex: none; transition: background-color var(--st-motion-fast); }
+.st-table__row { display: grid; align-items: center; height: 40px; border-bottom: 1px solid var(--st-outline); flex: none; }
 .st-table[data-dense] .st-table__row { height: 34px; }
 .st-table__row:last-child { border-bottom: 0; }
 .st-table__row[data-clickable] { cursor: pointer; }

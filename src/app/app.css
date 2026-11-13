@@ -136,7 +136,7 @@
 .height-cell[data-state="done"] .st-input { border-color: transparent; }
 .height-row-error { grid-column: 3 / -1; padding-bottom: var(--st-space-4); color: var(--st-tone-danger-accent); font-size: var(--st-text-sm); line-height: 1.4; }
 .result-rows { width: max-content; min-width: 100%; }
-.result-row { display: grid; grid-template-columns: var(--result-cols); align-items: center; column-gap: var(--st-space-8); min-height: 40px; padding: var(--st-space-4) var(--st-space-16) var(--st-space-4) var(--st-space-8); border-bottom: 1px solid var(--st-outline); transition: background-color var(--st-motion-fast); }
+.result-row { display: grid; grid-template-columns: var(--result-cols); align-items: center; column-gap: var(--st-space-8); min-height: 40px; padding: var(--st-space-4) var(--st-space-16) var(--st-space-4) var(--st-space-8); border-bottom: 1px solid var(--st-outline); }
 .result-row:last-child { border-bottom: 0; }
 .result-row:hover { background: var(--st-hover); }
 .result-row:focus-within { background: var(--st-tone-info-container); }
