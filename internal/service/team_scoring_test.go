@@ -216,6 +216,13 @@ func TestTeamScoresCombinedOnlyAndRoundtripReports(t *testing.T) {
 		if kind == ReportTeamScores && strings.Contains(html, "分项 1") {
 			t.Fatal("standalone includes events")
 		}
+		if strings.Contains(html, "混合得分") {
+			t.Fatal("mixed column of zeros printed")
+		}
+		// The standalone table's title block names it; no heading repeats it.
+		if kind == ReportTeamScores && strings.Contains(html, "<h2>团体总分表") || kind == ReportResults && !strings.Contains(html, "<h2>团体总分表") {
+			t.Fatal("team score heading")
+		}
 		if kind == ReportTeamScores && os.Getenv("SPORTSMEET_TEAM_REPORT_OUTPUT") != "" {
 			must(t, os.WriteFile(os.Getenv("SPORTSMEET_TEAM_REPORT_OUTPUT"), []byte(html), 0o644))
 		}
@@ -269,7 +276,7 @@ func TestTeamScoresRelayAndOrdinaryTeamFiltersAndSelectedPrint(t *testing.T) {
 	}
 	html, err := f.svc.RenderReport(f.ctx, ReportTeamScores, f.meet, []string{e.ID})
 	must(t, err)
-	if strings.Contains(html, ">18<") || !strings.Contains(html, ">9<") || !strings.Contains(html, "所选项目") {
+	if strings.Contains(html, ">18<") || !strings.Contains(html, ">9<") || !strings.Contains(html, "所选项目") || !strings.Contains(html, "混合得分") {
 		t.Fatal("selected report contains unselected points")
 	}
 	// An athlete's unit does not determine the team's unit. Updating the team's

@@ -43,7 +43,7 @@ func TestRecordSheetColumns(t *testing.T) {
 
 	// Track in lanes: the mark, the rank and the heat's wind.
 	html := recordSheetOf(t, f, track())
-	order(t, html, "秋季运动会 · 成绩记录表", "计划时间", "实际开赛", "风速", "道次", "号码", "姓名", "单位", ">成绩<", "名次", "001", "选手01", "一班", "裁判签名")
+	order(t, html, "秋季运动会 · 成绩记录表", "计划时间", "实际开赛", "风速", "道次", "号码", "姓名", "单位", ">成绩<", "名次", "001", "选手01", "一班", "应到 2 人", "记录员", "裁判长")
 	has(html, map[string]bool{wind: true, attemptWind: false, group: false})
 	if tries(html) != 0 {
 		t.Fatalf("track has attempt columns:\n%s", html)

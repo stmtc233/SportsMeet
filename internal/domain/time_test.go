@@ -74,6 +74,19 @@ func TestScheduledText(t *testing.T) {
 	}
 }
 
+func TestDayText(t *testing.T) {
+	for _, c := range []struct{ day, want string }{
+		{"2026-11-12", "2026-11-12 周四"},
+		{"2026-11-15", "2026-11-15 周日"},
+		{"", ""},
+		{"2026-02-30", "2026-02-30"},
+	} {
+		if got := DayText(c.day); got != c.want {
+			t.Errorf("DayText(%q) = %q", c.day, got)
+		}
+	}
+}
+
 func TestDateRangeText(t *testing.T) {
 	for _, c := range []struct{ start, end, want string }{
 		{"2026-11-12", "", "2026-11-12"},

@@ -93,6 +93,16 @@ func ScheduledText(s, day string) string {
 	return t.Format(minuteLayout)
 }
 
+// DayText shows a day with its weekday: 2026-11-12 周四. Unreadable
+// values show as they are.
+func DayText(day string) string {
+	t, ok := ParseDate(day)
+	if !ok {
+		return day
+	}
+	return day + " " + [...]string{"周日", "周一", "周二", "周三", "周四", "周五", "周六"}[t.Weekday()]
+}
+
 // DateRangeText shows a meet's days: 2026-11-12, or 2026-11-12 – 2026-11-13.
 func DateRangeText(start, end string) string {
 	if end == "" || end == start {

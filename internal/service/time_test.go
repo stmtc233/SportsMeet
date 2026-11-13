@@ -169,7 +169,7 @@ func TestEventTimes(t *testing.T) {
 
 	html, err := f.svc.RenderReport(f.ctx, ReportStartList, f.meet, nil)
 	must(t, err)
-	for _, want := range []string{"打印时间 2026-11-12 10:08", "<small>09:30</small>", "<small>2026-11-13 08:05</small>"} {
+	for _, want := range []string{"打印时间 2026-11-12 10:08", "<small>09:30 · ", "<small>2026-11-13 08:05 · "} {
 		if !strings.Contains(html, want) {
 			t.Errorf("start list lacks %q", want)
 		}
@@ -291,7 +291,7 @@ func TestRoundStartAndDuration(t *testing.T) {
 	}
 	html, err := f.svc.RenderReport(f.ctx, ReportStartList, f.meet, nil)
 	must(t, err)
-	if !strings.Contains(html, "<small>14:00</small>") || !strings.Contains(html, "<small>14:20</small>") {
+	if !strings.Contains(html, "<small>14:00 · ") || !strings.Contains(html, "<small>14:20 · ") {
 		t.Fatal("start list lacks the effective times")
 	}
 	file, err := f.svc.ExportMeet(f.ctx, f.meet)

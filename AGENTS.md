@@ -165,6 +165,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 - **所有写操作只经 `internal/service`**:前端绑定与 MCP 共用同一组方法和校验,`bind/`、`mcp/` 不直接碰 `store/`;否则会绕过校验,界面也收不到变更事件。
 - **包的依赖方向由 `internal/layers` 的测试把关**:新增包或新增依赖时,在它的分层表里登记并同步 §3。
 - **业务规则只在 Go**:成绩解析与格式化、排名、晋级、项目名称组成、时间的校验与显示都在 Go,前端只调用(→ domain.md)。
+- **打印的是预览排好的 A4 纸面**:表格断开处的「续下页」/「（续）」与页眉页码由前端分页时画上并随之印出,不让 WebView 自己给 Go 的连续文档分页(→ frontend.md「打印」)。
 - **新版本检测与安装用 mygo 的更新窗口**:启动后与每天在后台检查 GitHub release,「关于」页可手动检查;这是应用唯一的出网(→ frontend.md「设置页」)。
 - **`src/mygo.ts` 是生成物**,不手改。
 - **前端只有 `src/lib/` 与各 feature 的 `controller` / `data` 文件调用 Go**,其余文件只从 `src/mygo.ts` 引入类型;棘轮把关(→ frontend.md)。

@@ -103,13 +103,16 @@ for (const width of [1280, 800]) {
       await expect(frame.getByText("全部日期 · round", { exact: true })).toBeVisible();
       const print = page.locator(".st-button--primary", { hasText: "打印" });
       await print.click();
-      await expect.poll(() => calls(page, "__checkInPrints")).toEqual([{ meetId: "meet", roundIds: ["round"], day: "" }]);
+      // What prints is the sheets shown.
+      await expect.poll(() => calls(page, "__prints")).toHaveLength(1);
+      expect((await calls(page, "__prints"))[0]).toMatch(/class="pv-page"[\s\S]*全部日期 · round/);
       // 成绩记录表 prints the same choice.
       await page.getByRole("radio", { name: "成绩记录表", exact: true }).click();
       await expect(frame.getByRole("heading", { name: "成绩记录表", exact: true })).toBeVisible();
       await expect(frame.getByText("全部日期 · round", { exact: true })).toBeVisible();
       await print.click();
-      await expect.poll(() => calls(page, "__recordPrints")).toEqual([{ meetId: "meet", roundIds: ["round"], day: "" }]);
+      await expect.poll(() => calls(page, "__prints")).toHaveLength(2);
+      expect((await calls(page, "__prints"))[1]).toMatch(/<h1>成绩记录表<\/h1>[\s\S]*全部日期 · round/);
       await noOverflow(page);
       await side.getByRole("button", { name: "全选", exact: true }).click();
       await expect(frame.getByText("全部日期 · 全部轮次", { exact: true })).toBeVisible();

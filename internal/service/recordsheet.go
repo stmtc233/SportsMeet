@@ -33,9 +33,9 @@ func (s *Service) RenderRecordSheet(ctx context.Context, req CheckInRequest) (st
 	breaks := sheetBreaks(list, prefs.PrintRecordBreak)
 	for i, t := range list {
 		e := t.event
+		lines, label := d.sheetLines(e, t.heat)
 		sheet := report.RecordSheet{Break: breaks[i], Event: e.Name, Round: t.round.Label(), Heat: domain.HeatLabel(t.heat.Ordinal, t.heat.Name),
-			Time: domain.ScheduledText(t.at, ""), PositionLabel: e.Rules().PositionLabel, Team: e.IsTeam(), RosterLabel: rosterLabel(e),
-			Lines: d.sheetLines(e, t.heat)}
+			Time: domain.ScheduledText(t.at, ""), PositionLabel: e.Rules().PositionLabel, Team: e.IsTeam(), NameLabel: label, Lines: lines}
 		recordColumns(e, &sheet)
 		book.Sheets = append(book.Sheets, sheet)
 	}

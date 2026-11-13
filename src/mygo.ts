@@ -1739,22 +1739,14 @@ export const Reports = {
     return call("Reports.CheckInTargets", meetID);
   },
   /**
-   * Print opens the report in a window of its own and shows the system's
-   * print dialog, where it can also be saved as a PDF.
+   * PrintPages opens the preview's laid-out sheets (paginate.ts printable) in
+   * a window of its own and shows the system's print dialog, where they can
+   * also be saved as a PDF. The sheets are printed rather than Go's document
+   * so that the pages are the ones the preview shows. The main window is not
+   * printed: it would print the app's sidebar too.
    */
-  print(kind: string, meetID: string, eventIDs: string[]): Promise<void> {
-    return call("Reports.Print", kind, meetID, eventIDs);
-  },
-  /** PrintCheckIn opens the 检录单 in a window of its own and shows the print dialog. */
-  printCheckIn(req: CheckInRequest): Promise<void> {
-    return call("Reports.PrintCheckIn", req);
-  },
-  printGrouped(req: GroupReportRequest): Promise<void> {
-    return call("Reports.PrintGrouped", req);
-  },
-  /** PrintRecordSheet opens the 成绩记录表 in a window of its own and shows the print dialog. */
-  printRecordSheet(req: CheckInRequest): Promise<void> {
-    return call("Reports.PrintRecordSheet", req);
+  printPages(title: string, html: string): Promise<void> {
+    return call("Reports.PrintPages", title, html);
   },
   /** Render returns the report as an HTML document, for the preview. */
   render(kind: string, meetID: string, eventIDs: string[]): Promise<string> {

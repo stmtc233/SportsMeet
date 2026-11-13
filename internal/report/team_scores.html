@@ -1,9 +1,8 @@
 {{define "teamScores"}}{{if .}}
 <section class="event team-scores">
-<h2>团体总分表<small>{{.State}}</small></h2>
-<p>{{.Scope}} · 已计分 {{.Counted}} / {{.Total}} 项</p>
-<table><thead><tr><th class="num">名次</th><th>参赛单位</th><th class="mark">男子得分</th><th class="mark">女子得分</th><th class="mark">混合得分</th><th class="mark">总分</th></tr></thead>
-<tbody>{{range .Rows}}<tr><td class="num">{{.Rank}}</td><td>{{.Unit}}</td><td class="mark">{{.Male}}</td><td class="mark">{{.Female}}</td><td class="mark">{{.Mixed}}</td><td class="mark">{{.Total}}</td></tr>{{end}}</tbody></table>
-{{if .Targets}}<p>统计项目：{{range $i,$t := .Targets}}{{if $i}}、{{end}}{{$t}}{{end}}</p>{{end}}
+{{if .Standalone}}<p class="scope">{{.Scope}} · 已计分 {{.Counted}} / {{.Total}} 项 · {{.State}}</p>{{else}}<h2>团体总分表<small>{{.Scope}} · 已计分 {{.Counted}} / {{.Total}} 项 · {{.State}}</small></h2>{{end}}
+<table><thead><tr><th class="num">名次</th><th>参赛单位</th><th class="mark">男子得分</th><th class="mark">女子得分</th>{{if .Mixed}}<th class="mark">混合得分</th>{{end}}<th class="mark">总分</th></tr></thead>
+<tbody>{{$mixed := .Mixed}}{{range .Rows}}<tr><td class="num">{{.Rank}}</td><td>{{.Unit}}</td><td class="mark">{{.Male}}</td><td class="mark">{{.Female}}</td>{{if $mixed}}<td class="mark">{{.Mixed}}</td>{{end}}<td class="mark total">{{.Total}}</td></tr>{{end}}</tbody></table>
+{{if .Targets}}<p class="note">统计项目：{{range $i,$t := .Targets}}{{if $i}}、{{end}}{{$t}}{{end}}</p>{{end}}
 </section>
 {{end}}{{end}}

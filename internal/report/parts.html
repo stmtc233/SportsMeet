@@ -1,0 +1,3 @@
+{{/* Shared by the 秩序册 and the 成绩册. */}}
+{{define "competitor"}}{{.Name}}{{if .Members}}<div class="members">{{range .Members}}<span>{{.}}</span>{{end}}</div>{{end}}{{end}}
+{{define "bars"}}{{range .}}<span>{{.}}</span>{{end}}{{end}}

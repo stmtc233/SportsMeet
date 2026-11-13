@@ -159,44 +159,31 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 		}
 	}
 	book.Rosters = rosterBook(units, athletes, listed)
-	book.Schedule = scheduleBook(newMeetPlan(*meet, events, rounds, teams, athletes, entries, 0).timetable(only))
+	titles := map[string]string{}
+	for _, p := range parents {
+		titles[p.Combined.ID] = combinedTitle(p.Combined)
+	}
+	book.Schedule = scheduleBook(newMeetPlan(*meet, events, rounds, teams, athletes, entries, 0).timetable(only), combinedState.events, titles)
 	for _, e := range domain.ScheduleOrder(events, rounds, meet.StartDate) {
 		if len(only) > 0 && !only[e.ID] {
 			continue
 		}
-		date := domain.PlannedDay(e, rounds[e.ID], meet.StartDate)
 		st.event = e
-		rules := e.Rules()
-		ev := report.Event{Name: e.Name, Date: date, PositionLabel: rules.PositionLabel, AttemptLabel: rules.AttemptLabel, Configuration: rules.StartLabel, Relay: e.IsTeam(), RosterLabel: "成员"}
-		if e.Kind == domain.KindRelay {
-			ev.RosterLabel = "棒次"
-		}
-		if rules.AttemptLabel != "" {
-			ev.Configuration = fmt.Sprintf("%s %d 次", rules.AttemptLabel, e.AttemptCount)
-		}
-		if e.Kind == domain.KindRelay && e.RelayLegCount > 0 {
-			ev.Configuration += fmt.Sprintf(" · 建议 %d 棒", e.RelayLegCount)
-		}
-		if e.IsTeam() && e.Kind != domain.KindRelay && e.TeamSize > 0 {
-			ev.Configuration += fmt.Sprintf(" · 建议 %d 人", e.TeamSize)
-		}
-		if e.Kind.Scalar() {
-			method := map[string]string{"single": "一次", "best": "取最好", "sum": "求和"}[e.AttemptMode]
-			ev.Configuration = e.Kind.Label() + " · " + method
-			if e.MultipleAttempts() {
-				ev.Configuration += fmt.Sprintf(" · %d 次", e.AttemptCount)
-			}
-		}
+		date := domain.PlannedDay(e, rounds[e.ID], meet.StartDate)
+		named := printedTeamNames(e, st)
+		ev := reportEvent(e, domain.DayText(date), len(named) > 0, withResults)
 		line := func(sl domain.Slot) report.Line {
 			a, _ := st.competitor(sl.CompetitorID())
-			l := report.Line{Position: sl.Position, Bib: a.Bib, Name: a.Name, Unit: st.unitName(a.UnitID)}
+			l := report.Line{Position: sl.Position, Bib: a.Bib, Name: a.Name, Unit: st.unitName(a.UnitID), Best: -1}
 			if sl.TeamID != "" {
-				for i, id := range st.teams[sl.TeamID].MemberIDs {
-					l.Members = append(l.Members, teamMemberLabel(e, i, st.athletes[id].Name))
+				if !named[sl.TeamID] {
+					l.Name = ""
 				}
+				l.Members = st.memberLabels(sl.TeamID)
 			}
 			if seed := seeds[e.ID+"|"+a.ID]; seed != nil {
 				l.Seed = scoring.FormatEventMark(e, *seed)
+				ev.Seeded = true
 			}
 			if r := sl.Result; r != nil && withResults {
 				l.Mark, l.Qualify = r.Status.Label(), r.Qualify
@@ -205,6 +192,10 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 				}
 				if r.Status == domain.StatusOK && r.Mark != nil {
 					l.Mark = scoring.FormatEventMark(e, *r.Mark)
+					l.Best = bestAttemptIndex(e, r.Attempts, *r.Mark)
+				}
+				for _, b := range r.Bars {
+					l.Bars = append(l.Bars, scoring.FormatEventMark(e, b.Height)+" "+b.Trials)
 				}
 				if r.Rank != nil {
 					l.Rank = strconv.Itoa(*r.Rank)
@@ -222,6 +213,9 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 				at, _ := domain.EffectiveScheduled(r, h)
 				heat := report.Heat{Label: domain.HeatLabel(h.Ordinal, h.Name), Time: domain.ScheduledText(at, date),
 					Started: domain.ScheduledText(h.StartedAt, date)}
+				if !withResults {
+					heat.Count = countText(len(h.Slots), e.IsTeam())
+				}
 				if resultsTime {
 					heat.ResultsTime = domain.RecordedText(h.ResultsUpdatedAt, s.zone)
 				}
@@ -249,18 +243,24 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 			}
 			ev.Rounds = append(ev.Rounds, rr)
 		}
+		padAttempts(&ev)
 		book.Events = append(book.Events, ev)
 	}
 	for _, parent := range parents {
 		if len(only) > 0 && !only[parent.Combined.ID] {
 			continue
 		}
-		c := report.Combined{Name: parent.Combined.Name, State: "暂列排名", Tables: []report.CombinedTable{}, Roster: []report.Line{}}
+		c := report.Combined{Name: titles[parent.Combined.ID], State: "暂列排名", Tables: []report.CombinedTable{}, Roster: []report.Line{}}
 		for _, id := range parent.AthleteIDs {
 			a := st.athletes[id]
 			c.Roster = append(c.Roster, report.Line{Name: a.Name, Bib: a.Bib, Unit: st.unitName(a.UnitID)})
 		}
 		if !withResults {
+			for i, part := range parent.Components {
+				e := combinedState.events[part.EventID]
+				c.Components = append(c.Components, report.CombinedPart{No: i + 1, Name: e.Discipline,
+					Time: domain.ScheduledText(domain.EarliestScheduled(rounds[e.ID]), "")})
+			}
 			book.Combineds = append(book.Combineds, c)
 			continue
 		}
@@ -275,24 +275,25 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 		headers := []string{}
 		rows := []report.CombinedRow{}
 		for _, part := range d.Components {
-			headers = append(headers, part.Event.Discipline+" / 积分")
+			headers = append(headers, part.Event.Discipline)
 		}
 
 		for _, row := range d.Rows {
-			r := report.CombinedRow{Name: row.Name, Bib: row.Bib, Unit: row.UnitName, Total: strconv.FormatInt(row.Total, 10), Cells: []string{}}
+			r := report.CombinedRow{Name: row.Name, Bib: row.Bib, Unit: row.UnitName, Total: strconv.FormatInt(row.Total, 10), Cells: []report.CombinedCell{}}
 			if row.Rank != nil {
 				r.Rank = strconv.Itoa(*row.Rank)
 			}
 			for _, cell := range row.Cells {
-				text := "待录"
+				out := report.CombinedCell{Mark: "待录"}
 				if !cell.Pending {
+					out.Mark = cell.MarkText
 					if cell.Excluded {
-						text = cell.MarkText + " / 不列名次"
+						out.Points = "不列名次"
 					} else {
-						text = cell.MarkText + " / " + strconv.FormatInt(*cell.Points, 10)
+						out.Points = strconv.FormatInt(*cell.Points, 10)
 					}
 				}
-				r.Cells = append(r.Cells, text)
+				r.Cells = append(r.Cells, out)
 			}
 			rows = append(rows, r)
 		}
@@ -319,20 +320,183 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 }
 
 // scheduleBook is the 竞赛日程表: the timetable's scheduled rounds by day
-// and time; rounds with no time are not printed.
-func scheduleBook(t *Timetable) []report.ScheduleDay {
-	rows := func(list []TimetableRound) []report.ScheduleRow {
-		out := make([]report.ScheduleRow, 0, len(list))
-		for _, r := range list {
-			out = append(out, report.ScheduleRow{Time: r.StartText, Event: r.EventName, Round: r.RoundLabel, Heats: r.HeatCount, People: r.People})
-		}
-		return out
-	}
+// and time, numbered through; rounds with no time are not printed. A
+// component is named after its 全能 (titles), so it does not read as an
+// event of its own.
+func scheduleBook(t *Timetable, events map[string]domain.Event, titles map[string]string) []report.ScheduleDay {
+	no := 0
 	var out []report.ScheduleDay
 	for _, d := range t.Days {
-		out = append(out, report.ScheduleDay{Day: d.Day, Rows: rows(d.Rounds)})
+		day := report.ScheduleDay{Day: domain.DayText(d.Day), Rows: make([]report.ScheduleRow, 0, len(d.Rounds))}
+		for _, r := range d.Rounds {
+			no++
+			e := events[r.EventID]
+			name := r.EventName
+			if title := titles[e.CombinedID]; title != "" {
+				name = title + " · " + e.Discipline
+			}
+			day.Rows = append(day.Rows, report.ScheduleRow{No: no, Time: r.StartText, Kind: kindText(e.Kind), Event: name, Round: r.RoundLabel, Heats: r.HeatCount, People: r.People})
+		}
+		out = append(out, day)
 	}
 	return out
+}
+
+// kindText is an event's column in the 竞赛日程表.
+func kindText(k domain.EventKind) string {
+	switch k {
+	case domain.KindTrack, domain.KindRelay:
+		return "径赛"
+	case domain.KindDistance, domain.KindHeight:
+		return "田赛"
+	}
+	return k.Label()
+}
+
+// combinedTitle names a 全能 with its gender and group where its name does
+// not already say them: 男子三项全能 初一组.
+func combinedTitle(c domain.Combined) string {
+	name := c.Name
+	if prefix := domain.ComposeEventName(c.Gender, "", ""); prefix != "" && !strings.Contains(name, prefix) {
+		name = prefix + name
+	}
+	if g := strings.TrimSpace(c.GroupLabel); g != "" && !strings.Contains(name, g) {
+		name += " " + g
+	}
+	return name
+}
+
+// reportEvent is an event's heading and columns; its rounds are added after.
+// named says some team's name is printed.
+func reportEvent(e domain.Event, day string, named, withResults bool) report.Event {
+	rules := e.Rules()
+	config := rules.StartLabel
+	if rules.AttemptLabel != "" {
+		config = fmt.Sprintf("%s %d 次", rules.AttemptLabel, e.AttemptCount)
+	}
+	if e.Kind == domain.KindRelay && e.RelayLegCount > 0 {
+		config += fmt.Sprintf(" · 建议 %d 棒", e.RelayLegCount)
+	}
+	if e.IsTeam() && e.Kind != domain.KindRelay && e.TeamSize > 0 {
+		config += fmt.Sprintf(" · 建议 %d 人", e.TeamSize)
+	}
+	if e.Kind.Scalar() {
+		method := map[string]string{"single": "一次", "best": "取最好", "sum": "求和"}[e.AttemptMode]
+		config = e.Kind.Label() + " · " + method
+		if e.MultipleAttempts() {
+			config += fmt.Sprintf(" · %d 次", e.AttemptCount)
+		}
+	}
+	var meta []string
+	for _, part := range []string{day, strings.TrimPrefix(config, " · ")} {
+		if part != "" {
+			meta = append(meta, part)
+		}
+	}
+	ev := report.Event{Name: e.Name, Meta: strings.Join(meta, " · "), Team: e.IsTeam(), NameLabel: competitorHeading(e, named), PositionLabel: rules.PositionLabel}
+	if withResults && e.MultipleAttempts() {
+		for i := 1; i <= e.AttemptCount; i++ {
+			ev.TryHeads = append(ev.TryHeads, fmt.Sprintf("第%d次", i))
+		}
+	}
+	ev.Bars = withResults && e.Kind == domain.KindHeight
+	ev.Wide = ev.Team || len(ev.TryHeads) > 0 || ev.Bars
+	return ev
+}
+
+// padAttempts gives every line one cell per attempt column, adding columns
+// when a line has more attempts than the event's count.
+func padAttempts(ev *report.Event) {
+	if len(ev.TryHeads) == 0 {
+		return
+	}
+	n := len(ev.TryHeads)
+	each := func(f func(l *report.Line)) {
+		for ri := range ev.Rounds {
+			r := &ev.Rounds[ri]
+			for hi := range r.Heats {
+				for li := range r.Heats[hi].Lines {
+					f(&r.Heats[hi].Lines[li])
+				}
+			}
+			for li := range r.Standings {
+				f(&r.Standings[li])
+			}
+		}
+	}
+	each(func(l *report.Line) { n = max(n, len(l.Attempts)) })
+	for i := len(ev.TryHeads) + 1; i <= n; i++ {
+		ev.TryHeads = append(ev.TryHeads, fmt.Sprintf("第%d次", i))
+	}
+	each(func(l *report.Line) {
+		for len(l.Attempts) < n {
+			l.Attempts = append(l.Attempts, "")
+		}
+	})
+}
+
+// bestAttemptIndex is the attempt that made the mark, -1 when the mark is
+// not one attempt's (a sum) or none matches.
+func bestAttemptIndex(e domain.Event, attempts []domain.Attempt, mark int64) int {
+	if e.Kind != domain.KindDistance && e.AttemptMode != "best" {
+		return -1
+	}
+	for i, a := range attempts {
+		if a.Outcome == "valid" && a.Mark != nil && *a.Mark == mark {
+			return i
+		}
+	}
+	return -1
+}
+
+// printedTeamNames are the event's teams whose name is printed. A name
+// every team shares, or the unit's own, says nothing the unit column does
+// not.
+func printedTeamNames(e domain.Event, st *eventState) map[string]bool {
+	out := map[string]bool{}
+	if !e.IsTeam() {
+		return out
+	}
+	var list []domain.Team
+	names := map[string]bool{}
+	for _, t := range st.teams {
+		if t.EventID == e.ID {
+			list = append(list, t)
+			names[strings.TrimSpace(t.Name)] = true
+		}
+	}
+	if len(list) > 1 && len(names) == 1 {
+		return out
+	}
+	for _, t := range list {
+		name, u := strings.TrimSpace(t.Name), st.units[t.UnitID]
+		if name != "" && name != u.Name && name != u.ShortName {
+			out[t.ID] = true
+		}
+	}
+	return out
+}
+
+// memberLabels are a team's members in order: 1棒 周书航 12101.
+func (st *eventState) memberLabels(teamID string) []string {
+	var out []string
+	for i, id := range st.teams[teamID].MemberIDs {
+		a := st.athletes[id]
+		label := teamMemberLabel(st.event, i, a.Name)
+		if a.Bib != "" {
+			label += " " + a.Bib
+		}
+		out = append(out, label)
+	}
+	return out
+}
+
+// countText is how many competitors a heat has: 6 人 / 3 队.
+func countText(n int, team bool) string {
+	if team {
+		return fmt.Sprintf("%d 队", n)
+	}
+	return fmt.Sprintf("%d 人", n)
 }
 
 // rosterBook is the 代表队名单: each unit's athletes by gender and bib, the
@@ -356,7 +520,15 @@ func rosterBook(units []domain.Unit, athletes []domain.Athlete, listed map[strin
 			return
 		}
 		sort.SliceStable(list, func(i, j int) bool { return bibLess(list[i].Bib, list[j].Bib) })
-		u := report.UnitRoster{Name: name, Count: len(list)}
+		u := report.UnitRoster{Name: name, Count: len(list), Bibs: list[0].Bib}
+		for i := len(list) - 1; i > 0; i-- {
+			if b := list[i].Bib; b != "" {
+				if b != u.Bibs {
+					u.Bibs += "–" + b
+				}
+				break
+			}
+		}
 		for _, g := range genders {
 			group := report.RosterGroup{Label: g.label}
 			for _, a := range list {

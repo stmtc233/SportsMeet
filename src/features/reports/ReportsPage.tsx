@@ -4,7 +4,7 @@ import { useScrollMemory, useViewState } from "../../lib/viewState";
 import { useGroups } from "../groups/controller";
 import { ungrouped } from "../groups/GroupFields";
 import type { Zoom } from "./paginate";
-import { ReportPreview } from "./ReportPreview";
+import { ReportPreview, type PrintPages } from "./ReportPreview";
 import { checkInRows, checkInSelection } from "./checkin";
 import { ReportsController, useCheckInTargets, useReportHTML, useReportTargets, useReportTeamScores, useSheetHTML } from "./controller";
 
@@ -15,7 +15,7 @@ const zooms: { value: Zoom; label: string }[] = [
   { value: "fit", label: "适合宽度" }, { value: "0.5", label: "50%" }, { value: "0.75", label: "75%" }, { value: "1", label: "100%" }, { value: "1.5", label: "150%" },
 ];
 
-/** 秩序册, 成绩册, 检录单 and 成绩记录表: rendered by Go, previewed on A4 sheets, printed from a window of their own. */
+/** 秩序册, 成绩册, 检录单 and 成绩记录表: rendered by Go, laid out on A4 sheets here, those sheets printed from a window of their own. */
 export function ReportsPage({ meetId }: { meetId: string }) {
   const [savedKind, setKind] = useViewState<Kind>("reports:kind", "startlist", true);
   const kind = kinds.includes(savedKind) ? savedKind : "startlist";
@@ -23,6 +23,9 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   const [savedZoom, setZoom] = useViewState<Zoom>("reports:zoom", "fit", true);
   const zoom = zooms.some((z) => z.value === savedZoom) ? savedZoom : "fit";
   const [pages, setPages] = useState(0);
+  // The report on the sheets shown; printing waits for the newest one.
+  const [shown, setShown] = useState<string>();
+  const printPages = useRef<PrintPages | null>(null);
   // 秩序册 and 成绩册: by event.
   const { data: events, error: eventsError } = useReportTargets(meetId);
   // What was unticked stays unticked while the app runs, per meet.
@@ -60,8 +63,10 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   const listed = sheet ? rows.length : all.length;
   const none = teamUnavailable ? (teamScores ? "尚未启用团体计分" : "") : (sheet ? targets : events) === undefined ? "" : listed > 0 ? (sheet ? "未选择轮次" : "未选择项目") : !sheet ? "还没有项目" : day ? "当天没有组" : "还没有组";
   const print = async () => {
+    const doc = printPages.current?.();
+    if (!doc) return;
     setBusy(true);
-    await (sheet ? ReportsController.printSheet(sheet, req) : ReportsController.print(kind, meetId, ids, groupIds));
+    await ReportsController.printPages(doc.title, doc.html);
     setBusy(false);
   };
   return (
@@ -70,7 +75,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
         <StToolbar title="打印">
           <StSegmented value={kind} onChange={setKind}
             options={[{ value: "startlist", label: "秩序册" }, { value: "results", label: "成绩册" }, { value: "checkin", label: "检录单" }, { value: "record", label: "成绩记录表" }, { value: "team_scores", label: "团体总分" }]} />
-          <StButton variant="primary" icon={<IconPrint size={16} strokeWidth={iconStroke} />} disabled={count === 0} loading={busy} onClick={print}>打印</StButton>
+          <StButton variant="primary" icon={<IconPrint size={16} strokeWidth={iconStroke} />} disabled={count === 0 || !html || shown !== html} loading={busy} onClick={print}>打印</StButton>
         </StToolbar>
       }>
       <div className="split">
@@ -92,7 +97,8 @@ export function ReportsPage({ meetId }: { meetId: string }) {
                 <span className="subbar__spacer" />
                 <span className="subbar__count">{pages > 0 && `${pages} 页`}</span>
               </div>
-              <ReportPreview html={html} zoom={zoom} onPages={setPages} />
+              <ReportPreview html={html} zoom={zoom} printRef={printPages}
+                onPages={(n, h) => { setPages(n); setShown(h); }} />
             </>
           )}
         </div>

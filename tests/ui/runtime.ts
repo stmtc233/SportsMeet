@@ -340,13 +340,10 @@ export async function installRuntime(page: Page, options: { athleteCount?: numbe
           case "Reports.RenderCheckIn":
             (globalThis as any).__checkInCalls = [...((globalThis as any).__checkInCalls ?? []), structuredClone(args[0])];
             return `<!DOCTYPE html><html><body><h1>检录单</h1><p>${args[0].day || "全部日期"} · ${args[0].roundIds.join(",") || "全部轮次"}</p></body></html>`;
-          case "Reports.PrintCheckIn":
-            (globalThis as any).__checkInPrints = [...((globalThis as any).__checkInPrints ?? []), structuredClone(args[0])];
-            return null;
           case "Reports.RenderRecordSheet":
             return `<!DOCTYPE html><html><body><h1>成绩记录表</h1><p>${args[0].day || "全部日期"} · ${args[0].roundIds.join(",") || "全部轮次"}</p></body></html>`;
-          case "Reports.PrintRecordSheet":
-            (globalThis as any).__recordPrints = [...((globalThis as any).__recordPrints ?? []), structuredClone(args[0])];
+          case "Reports.PrintPages":
+            (globalThis as any).__prints = [...((globalThis as any).__prints ?? []), args[1]];
             return null;
           case "Combined.List": return [];
           case "Reports.Render": return "<!DOCTYPE html><html><body><h1>秋季运动会</h1><p>秩序册</p></body></html>";

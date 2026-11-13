@@ -291,24 +291,6 @@ func (r Reports) Render(ctx context.Context, kind, meetID string, eventIDs []str
 	return r.Svc.RenderReport(ctx, kind, meetID, eventIDs)
 }
 
-// Print opens the report in a window of its own and shows the system's
-// print dialog, where it can also be saved as a PDF.
-func (r Reports) Print(ctx context.Context, kind, meetID string, eventIDs []string) error {
-	html, err := r.Svc.RenderReport(ctx, kind, meetID, eventIDs)
-	if err != nil {
-		return err
-	}
-	title := "秩序册"
-	if kind == service.ReportResults {
-		title = "成绩册"
-	}
-	if kind == service.ReportTeamScores {
-		title = "团体总分表"
-	}
-	printWindow(title, html)
-	return nil
-}
-
 // CheckInTargets lists the rounds the 检录单 can print and its days.
 func (r Reports) CheckInTargets(ctx context.Context, meetID string) (*service.CheckInTargets, error) {
 	return r.Svc.CheckInTargets(ctx, meetID)
@@ -319,40 +301,23 @@ func (r Reports) RenderCheckIn(ctx context.Context, req service.CheckInRequest) 
 	return r.Svc.RenderCheckIn(ctx, req)
 }
 
-// PrintCheckIn opens the 检录单 in a window of its own and shows the print dialog.
-func (r Reports) PrintCheckIn(ctx context.Context, req service.CheckInRequest) error {
-	html, err := r.Svc.RenderCheckIn(ctx, req)
-	if err != nil {
-		return err
-	}
-	printWindow("检录单", html)
-	return nil
-}
-
 // RenderRecordSheet returns the 成绩记录表 as an HTML document, for the preview.
 func (r Reports) RenderRecordSheet(ctx context.Context, req service.CheckInRequest) (string, error) {
 	return r.Svc.RenderRecordSheet(ctx, req)
 }
 
-// PrintRecordSheet opens the 成绩记录表 in a window of its own and shows the print dialog.
-func (r Reports) PrintRecordSheet(ctx context.Context, req service.CheckInRequest) error {
-	html, err := r.Svc.RenderRecordSheet(ctx, req)
-	if err != nil {
-		return err
-	}
-	printWindow("成绩记录表", html)
-	return nil
-}
-
-// printWindow loads a report into a window of its own and shows the
-// system's print dialog once it has loaded. The main window is not printed:
-// it would print the app's sidebar too.
-func printWindow(title, html string) {
+// PrintPages opens the preview's laid-out sheets (paginate.ts printable) in
+// a window of its own and shows the system's print dialog, where they can
+// also be saved as a PDF. The sheets are printed rather than Go's document
+// so that the pages are the ones the preview shows. The main window is not
+// printed: it would print the app's sidebar too.
+func (r Reports) PrintPages(title, html string) error {
 	win := mygo.NewWindow(mygo.WindowOptions{Title: title, Width: 900, Height: 760})
 	page := win.Page()
 	var once sync.Once
 	page.OnDidFinishLoad(func() { once.Do(page.Print) })
 	page.LoadHTML(html, "")
+	return nil
 }
 
 // Exchange imports and exports interchange files (.meet.json).

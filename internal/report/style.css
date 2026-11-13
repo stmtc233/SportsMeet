@@ -4,74 +4,120 @@ body {
   margin: 0;
   padding: 24px;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-  font-size: 12px;
+  font-size: 9.5pt;
+  line-height: 1.4;
   font-variant-numeric: tabular-nums;
   color: #111;
   background: #fff;
 }
 @media print { body { padding: 0; } }
-header { text-align: center; margin-bottom: 20px; }
-header h1 { font-size: 22px; margin: 0 0 4px; }
-header p { margin: 2px 0; color: #444; }
-.rosters, .schedule { margin-bottom: 20px; }
-.unit { break-inside: avoid; page-break-inside: avoid; }
-.unit > h3 { font-size: 13px; margin: 10px 0 4px; display: flex; justify-content: space-between; align-items: baseline; break-after: avoid; page-break-after: avoid; }
-.unit > h3 small { font-size: 11px; font-weight: 400; color: #444; }
-.unit > h4 { font-size: 12px; margin: 6px 0 2px; break-after: avoid; page-break-after: avoid; }
-.names { table-layout: fixed; }
-.names .bib { display: inline-block; min-width: 3.6em; }
-.rosters > h2, .schedule > h2 { font-size: 15px; margin: 0 0 6px; padding-bottom: 4px; border-bottom: 1.5px solid #111; }
-.schedule > h3 { font-size: 13px; margin: 10px 0 4px; break-after: avoid; page-break-after: avoid; }
-.schedule .time { width: 4.2em; }
-.event { margin-bottom: 20px; }
-.event > h2 { font-size: 15px; margin: 0 0 6px; padding-bottom: 4px; border-bottom: 1.5px solid #111; display: flex; justify-content: space-between; align-items: baseline; }
-.event > h2 small { font-size: 11px; font-weight: 400; color: #444; }
-.round > h3 { font-size: 13px; margin: 10px 0 4px; }
-.round > h3 small { font-size: 11px; font-weight: 400; color: #444; margin-left: 8px; }
-.heats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
-.heat { break-inside: avoid; }
-.heat h4 { font-size: 12px; margin: 0 0 2px; display: flex; justify-content: space-between; }
-.heat h4 small { font-weight: 400; color: #444; }
+
+/* Title block */
+header { text-align: center; margin-bottom: 18pt; }
+header h1 { font-size: 18pt; margin: 0 0 6pt; letter-spacing: .02em; }
+header .title { font-size: 13pt; font-weight: 600; margin: 0 0 4pt; letter-spacing: .4em; text-indent: .4em; }
+header .meta { margin: 0; color: #444; }
+
+/* Headings: section h2 > round h3 > heat h4; the small text on the right adds to them. */
+h2, h3, h4 { break-after: avoid; page-break-after: avoid; display: flex; justify-content: space-between; align-items: baseline; gap: 12pt; }
+h2 small, h3 small, h4 small { font-size: 8pt; font-weight: 400; color: #555; }
+.rosters > h2, .schedule > h2, .event > h2, .sheet > h2 { font-size: 12.5pt; margin: 0 0 6pt; padding-bottom: 3pt; border-bottom: 1.2pt solid #111; }
+.rosters, .schedule, .event { margin-bottom: 18pt; }
+.round > h3, .schedule > h3, .event > h3 { font-size: 10.5pt; margin: 9pt 0 4pt; justify-content: flex-start; }
+.round > h3 small { margin-left: 2pt; }
+.heat h4 { font-size: 9.5pt; margin: 0 0 3pt; }
+.report-group + .report-group { break-before: page; page-break-before: always; }
+.report-group__title { margin: 0 0 14pt; font-size: 16pt; }
+
+/* Tables to read: horizontal rules only. */
 table { width: 100%; border-collapse: collapse; break-inside: auto; }
 thead { display: table-header-group; }
 /* page-break-* for WebKit, which ignores break-inside on table rows. */
 tr { break-inside: avoid; page-break-inside: avoid; }
-th, td { border: 1px solid #999; padding: 3px 6px; text-align: left; }
-th { background: #f0f0f0; font-weight: 600; }
-.num { text-align: right; width: 3.2em; }
-.mark { text-align: right; width: 6em; }
-.narrow { width: 4.2em; }
-.empty { color: #666; margin: 4px 0; }
-.printed { margin-top: 16px; text-align: right; font-size: 10px; color: #666; }
+th, td { padding: 2.2pt 5pt; text-align: left; vertical-align: top; }
+th { font-size: 8pt; font-weight: 600; color: #333; white-space: nowrap; }
+table { border-top: 1pt solid #111; border-bottom: 1pt solid #111; }
+thead th { border-bottom: .6pt solid #111; }
+tbody tr + tr > td { border-top: .3pt solid #c8c8c8; }
 
-.member { font-size: 9pt; color: #555; }
+/* Column widths: the name column takes what is left. */
+.num { text-align: right; width: 2.8em; white-space: nowrap; }
+.bib { width: 4.4em; white-space: nowrap; }
+.org { width: 7.5em; }
+.mark { text-align: right; width: 5.2em; white-space: nowrap; }
+.try { text-align: right; width: 4.2em; white-space: nowrap; }
+.try.best { font-weight: 700; }
+.q { text-align: center; width: 2.6em; }
+.time { width: 4em; white-space: nowrap; }
+.kind { width: 3.2em; white-space: nowrap; }
+.heat-col { width: 3.4em; white-space: nowrap; }
+.total { font-weight: 700; }
+.pts { font-size: 7.5pt; font-weight: 400; color: #555; }
+.members { font-size: 8pt; color: #444; }
+.members span { white-space: nowrap; margin-right: .9em; }
+.member { font-size: 8pt; color: #444; }
+.bars { font-size: 8.5pt; }
+.bars span { white-space: nowrap; margin-right: .8em; }
+.empty { color: #666; margin: 4pt 0; }
+.note { margin: 4pt 0 0; font-size: 8pt; color: #555; }
+.scope { margin: 0 0 4pt; text-align: right; font-size: 8pt; color: #555; }
+.heat-meta { margin: 2pt 0 0; font-size: 8pt; color: #555; }
+.printed { margin-top: 14pt; text-align: right; font-size: 8pt; color: #666; }
 
-.heat-meta { margin: 2px 0 0; font-size: 10px; color: #444; }
+.heats { display: grid; grid-template-columns: 1fr 1fr; gap: 8pt 14pt; }
+.heats.wide { grid-template-columns: 1fr; }
+.heat { break-inside: avoid; }
+/* Half a page wide: cells keep to one line and the unit takes only its text. */
+.heats:not(.wide) th, .heats:not(.wide) td { padding: 2pt 3pt; white-space: nowrap; }
+.heats:not(.wide) .org { width: auto; }
+.heats:not(.wide) .num, .heats:not(.wide) .q { width: auto; }
 
-/* 检录单 */
-.sheet { margin-bottom: 24px; break-inside: avoid; page-break-inside: avoid; }
+/* Rosters of the units. */
+.unit { break-inside: avoid; page-break-inside: avoid; }
+.unit > h3 { font-size: 10.5pt; margin: 9pt 0 3pt; }
+.unit > h4 { font-size: 9pt; margin: 4pt 0 1pt; justify-content: flex-start; }
+.unit > h4 small { margin-left: 4pt; }
+.names, .names td { border: 0; }
+.names { table-layout: fixed; }
+.names td { padding: 1.2pt 4pt 1.2pt 0; }
+.names .bib { display: inline-block; width: 4.2em; color: #555; }
+
+/* Check-in and record sheets are written on: full grid. */
+.sheet { margin-bottom: 20pt; break-inside: avoid; page-break-inside: avoid; }
 /* Not limited to print: the preview reads it to lay out its pages. */
 .sheet.break { break-before: page; page-break-before: always; }
-.sheet-meet { margin: 0 0 2px; color: #444; }
-.sheet > h2 { font-size: 15px; margin: 0 0 6px; padding-bottom: 4px; border-bottom: 1.5px solid #111; }
-.sheet-times { width: auto; margin-bottom: 6px; }
-.sheet-times th, .sheet-times td { border: 0; background: none; padding: 0 12px 0 0; }
-.sheet-times th { font-weight: 400; color: #444; padding-right: 6px; }
-.sheet-times td { min-width: 8em; font-weight: 600; }
+.sheet-meet { margin: 0 0 2pt; font-size: 8pt; color: #555; }
+.sheet-times { width: auto; margin-bottom: 6pt; border: 0; }
+.sheet-times th, .sheet-times td { border: 0; padding: 0 12pt 0 0; font-size: 9.5pt; }
+.sheet-times th { font-weight: 400; color: #444; padding-right: 5pt; }
+.sheet-times td { min-width: 7em; font-weight: 600; }
+.grid { border: 0; }
+.grid th, .grid td { border: .6pt solid #555; padding: 3pt 5pt; vertical-align: middle; }
+.grid th { background: #f2f2f2; color: #111; }
+.grid tbody tr + tr > td { border-top: .6pt solid #555; }
+.grid td.bib { font-size: 11pt; font-weight: 700; }
+.grid .member { font-size: 9pt; color: #111; }
 .check { text-align: center; width: 3em; }
-.box { display: inline-block; width: 12px; height: 12px; border: 1px solid #111; vertical-align: middle; }
-.sign { margin: 10px 0 0; display: flex; justify-content: flex-end; align-items: flex-end; gap: 6px; }
-.sign-line { display: inline-block; width: 12em; border-bottom: 1px solid #111; }
+.box { display: inline-block; width: 11pt; height: 11pt; border: .8pt solid #111; vertical-align: middle; }
+.sheet-foot { margin: 10pt 0 0; display: flex; justify-content: space-between; align-items: flex-end; gap: 16pt; }
+.sheet-foot > span { display: flex; align-items: flex-end; gap: 5pt; }
+.sign-line { display: inline-block; width: 9em; border-bottom: .8pt solid #111; }
+.blank { display: inline-block; width: 3em; border-bottom: .8pt solid #111; }
 
-/* 成绩记录表: cells are written in by hand. */
-.record td { height: 30px; }
+/* Record sheets. */
+.record .grid td { height: 9mm; }
 .record .line { break-inside: avoid; page-break-inside: avoid; }
-.record .try { text-align: center; min-width: 3em; }
-.record .write { background: #fff; height: 24px; }
-.record .tag { width: 3.2em; text-align: center; color: #444; font-size: 10px; white-space: nowrap; }
+.record .grid .try { text-align: center; min-width: 3.4em; }
+.record .grid th.write { background: #fff; height: 8mm; }
+.record .grid td { white-space: nowrap; }
+/* Ten bars to fill in: narrower cells, still wide enough for XXO. */
+.record.bars .grid th, .record.bars .grid td { padding: 2pt 3pt; }
+.record.bars .grid .try { min-width: 0; width: 2.8em; }
+.record.bars .grid td.bib { font-size: 10pt; }
+.record .tag { width: 3.2em; text-align: center; color: #444; font-size: 8pt; white-space: nowrap; }
 .record .sheet-times td { height: auto; }
-.record .sheet-times .fill { border-bottom: 1px solid #111; }
-.record .sheet-times td + th { padding-left: 16px; }
+.record .sheet-times .fill { border-bottom: .8pt solid #111; }
+.record .sheet-times td + th { padding-left: 14pt; }
 
 /* The app's preview (src/features/reports/paginate.ts) moves the content onto
    sheets of @page's size and margins; printing does not use these. */
@@ -79,8 +125,23 @@ th { background: #f0f0f0; font-weight: 600; }
 .pv body { margin: 0; padding: 0; }
 .pv-view { margin: 16px auto; }
 .pv-pages { width: 210mm; transform-origin: 0 0; display: flex; flex-direction: column; gap: 16px; }
-.pv-page { width: 210mm; height: 297mm; padding: 15mm; background: #fff; color: #111; overflow: hidden; contain: strict; box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
+.pv-page { position: relative; width: 210mm; height: 297mm; padding: 15mm; background: #fff; color: #111; overflow: hidden; contain: strict; box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
 .pv-body { height: 100%; overflow: hidden; }
-
-.report-group + .report-group { break-before: page; page-break-before: always; }
-.report-group__title { margin: 0 0 16px; font-size: 18px; break-after: avoid; page-break-after: avoid; }
+/* In the margins: the running head and the page number. Where a table is
+   cut, 续下页 under it and, on the next sheet, what it continues. */
+.pv-head, .pv-foot { position: absolute; left: 15mm; right: 15mm; display: flex; justify-content: space-between; font-size: 8pt; color: #666; }
+.pv-head { top: 7mm; }
+.pv-foot { bottom: 7mm; justify-content: center; }
+/* 续下页 sits right under the cut table (its top is set there). */
+.pv-more { position: absolute; left: 15mm; margin-top: 2pt; font-size: 8pt; color: #555; }
+.pv-cont { margin: 0 0 3pt; font-size: 9pt; font-weight: 600; color: #333; }
+/* The print window prints these sheets, one per page (paginate.ts sets
+   @page's margins to 0). A page a little short of A4 keeps rounding from
+   spilling a sheet onto a blank page. */
+@media print {
+  .pv, .pv body { background: #fff; }
+  .pv-view { margin: 0; }
+  .pv-pages { gap: 0; }
+  .pv-page { height: 296mm; padding-bottom: 14mm; box-shadow: none; break-after: page; page-break-after: always; }
+  .pv-page:last-child { break-after: auto; page-break-after: auto; }
+}

@@ -164,11 +164,12 @@ func (d *checkInData) sheetHeats(req CheckInRequest) ([]sheetHeat, error) {
 	return list, nil
 }
 
-// sheetLines are a heat's competitors by position; teams list their members
-// with bibs.
-func (d *checkInData) sheetLines(e domain.Event, h domain.Heat) []report.Line {
+// sheetLines are a heat's competitors by position, and the heading of their
+// column; teams list their members with bibs.
+func (d *checkInData) sheetLines(e domain.Event, h domain.Heat) ([]report.Line, string) {
 	st := d.state
 	st.event = e
+	named := printedTeamNames(e, st)
 	lines := []report.Line{}
 	for _, sl := range h.Slots {
 		c, ok := st.competitor(sl.CompetitorID())
@@ -177,25 +178,41 @@ func (d *checkInData) sheetLines(e domain.Event, h domain.Heat) []report.Line {
 		}
 		l := report.Line{Position: sl.Position, Bib: c.Bib, Name: c.Name, Unit: st.unitName(c.UnitID)}
 		if sl.TeamID != "" {
-			for i, id := range st.teams[sl.TeamID].MemberIDs {
-				a := st.athletes[id]
-				label := teamMemberLabel(e, i, a.Name)
-				if a.Bib != "" {
-					label += " " + a.Bib
-				}
-				l.Members = append(l.Members, label)
+			if !named[sl.TeamID] {
+				l.Name = ""
 			}
+			l.Members = st.memberLabels(sl.TeamID)
 		}
 		lines = append(lines, l)
 	}
-	return lines
+	return lines, competitorHeading(e, len(named) > 0)
 }
 
-func rosterLabel(e domain.Event) string {
-	if e.Kind == domain.KindRelay {
-		return "棒次"
+// previousRound is the label of the round before roundID, "" for the first.
+func (d *checkInData) previousRound(eventID, roundID string) string {
+	list := d.rounds[eventID]
+	for i, r := range list {
+		if r.ID == roundID && i > 0 {
+			return list[i-1].Label()
+		}
 	}
-	return "成员"
+	return ""
+}
+
+// competitorHeading heads the column of names: 姓名, or for teams 棒次 /
+// 成员, after 队伍 / when some team's name is printed.
+func competitorHeading(e domain.Event, named bool) string {
+	if !e.IsTeam() {
+		return "姓名"
+	}
+	label := "成员"
+	if e.Kind == domain.KindRelay {
+		label = "棒次"
+	}
+	if named {
+		label = "队伍 / " + label
+	}
+	return label
 }
 
 // RenderCheckIn returns the 检录单 as a printable HTML document: one sheet per
@@ -220,9 +237,10 @@ func (s *Service) RenderCheckIn(ctx context.Context, req CheckInRequest) (string
 	breaks := sheetBreaks(list, prefs.PrintCheckInBreak)
 	for i, t := range list {
 		e := t.event
-		book.Sheets = append(book.Sheets, report.CheckInSheet{Break: breaks[i], Event: e.Name, Round: t.round.Label(), Heat: domain.HeatLabel(t.heat.Ordinal, t.heat.Name),
+		lines, label := d.sheetLines(e, t.heat)
+		book.Sheets = append(book.Sheets, report.CheckInSheet{Break: breaks[i], Event: e.Name, Round: t.round.Label(), From: d.previousRound(e.ID, t.round.ID), Heat: domain.HeatLabel(t.heat.Ordinal, t.heat.Name),
 			Time: domain.ScheduledText(t.at, ""), CheckIn: domain.ScheduledText(domain.CheckInAt(t.at, prefs.CheckInLeadMinutes), domain.ScheduledDay(t.at)),
-			PositionLabel: e.Rules().PositionLabel, Team: e.IsTeam(), RosterLabel: rosterLabel(e), Lines: d.sheetLines(e, t.heat)})
+			PositionLabel: e.Rules().PositionLabel, Team: e.IsTeam(), NameLabel: label, Lines: lines})
 	}
 	return report.CheckIn(book)
 }

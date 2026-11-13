@@ -5,20 +5,20 @@
 <title>{{.Meet}} {{.Title}}</title>
 <style>{{.Style}}</style>
 </head>
-<body>
+<body data-meet="{{.Meet}}" data-title="{{.Title}}">
 <header>
   <h1>{{.Meet}}</h1>
-  <p>{{.Title}}</p>
-  <p>{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
+  <p class="title">{{.Title}}</p>
+  <p class="meta">{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
 </header>
 {{if .Rosters}}
 <section class="rosters">
   <h2>代表队名单</h2>
   {{range .Rosters}}
   <div class="unit">
-    <h3>{{.Name}}<small>{{.Count}} 人</small></h3>
+    <h3>{{.Name}}<small>{{.Count}} 人{{if .Bibs}} · {{.Bibs}}{{end}}</small></h3>
     {{range .Groups}}
-    {{if .Label}}<h4>{{.Label}}</h4>{{end}}
+    {{if .Label}}<h4>{{.Label}}<small>{{len .Athletes}} 人</small></h4>{{end}}
     <table class="names">
       <tbody>
         {{range .Rows}}<tr>{{range .}}<td>{{if .Name}}<span class="bib">{{.Bib}}</span>{{.Name}}{{end}}</td>{{end}}</tr>
@@ -36,31 +36,30 @@
   {{range .Schedule}}
   <h3>{{.Day}}</h3>
   <table>
-    <thead><tr><th class="time">时间</th><th>项目</th><th>轮次</th><th class="num">组数</th><th class="num">人数</th></tr></thead>
+    <thead><tr><th class="num">序号</th><th class="time">时间</th><th class="kind">类别</th><th>项目</th><th>轮次</th><th class="num">组数</th><th class="num">人数</th></tr></thead>
     <tbody>
-      {{range .Rows}}<tr><td class="time">{{.Time}}</td><td>{{.Event}}</td><td>{{.Round}}</td><td class="num">{{.Heats}}</td><td class="num">{{.People}}</td></tr>
+      {{range .Rows}}<tr><td class="num">{{.No}}</td><td class="time">{{.Time}}</td><td class="kind">{{.Kind}}</td><td>{{.Event}}</td><td>{{.Round}}</td><td class="num">{{.Heats}}</td><td class="num">{{.People}}</td></tr>
       {{end}}
     </tbody>
   </table>
   {{end}}
 </section>
 {{end}}
-{{range .Events}}{{$position := .PositionLabel}}{{$attempt := .AttemptLabel}}{{$relay := .Relay}}{{$roster := .RosterLabel}}
+{{range .Events}}{{$e := .}}
 <section class="event">
-  <h2>{{.Name}}{{if .Date}}<small>{{.Date}}</small>{{end}}</h2>
-  {{if .Configuration}}<p>{{.Configuration}}</p>{{end}}
+  <h2>{{.Name}}{{if .Meta}}<small>{{.Meta}}</small>{{end}}</h2>
   {{range .Rounds}}
   <div class="round">
     <h3>{{.Label}}{{if .Advance}}<small>{{.Advance}}</small>{{end}}</h3>
     {{if .Heats}}
-    <div class="heats">
+    <div class="heats{{if $e.Wide}} wide{{end}}">
       {{range .Heats}}
       <div class="heat">
-        <h4>{{.Label}}{{if .Time}}<small>{{.Time}}</small>{{end}}</h4>
+        <h4>{{.Label}}<small>{{if .Time}}{{.Time}} · {{end}}{{.Count}}</small></h4>
         <table>
-          <thead><tr><th class="num">{{$position}}</th><th class="narrow">号码</th><th>{{if $relay}}队伍 / {{$roster}}{{else}}姓名{{end}}</th><th>单位</th><th class="mark">报名成绩</th></tr></thead>
+          <thead><tr><th class="num">{{$e.PositionLabel}}</th>{{if not $e.Team}}<th class="bib">号码</th>{{end}}<th>{{$e.NameLabel}}</th><th class="org">单位</th>{{if $e.Seeded}}<th class="mark">报名成绩</th>{{end}}</tr></thead>
           <tbody>
-            {{range .Lines}}<tr><td class="num">{{.Position}}</td><td>{{.Bib}}</td><td>{{.Name}}{{range .Members}}<div class="member">{{.}}</div>{{end}}</td><td>{{.Unit}}</td><td class="mark">{{.Seed}}</td></tr>
+            {{range .Lines}}<tr><td class="num">{{.Position}}</td>{{if not $e.Team}}<td class="bib">{{.Bib}}</td>{{end}}<td>{{template "competitor" .}}</td><td class="org">{{.Unit}}</td>{{if $e.Seeded}}<td class="mark">{{.Seed}}</td>{{end}}</tr>
             {{end}}
           </tbody>
         </table>
@@ -74,8 +73,19 @@
 {{else}}<p class="empty">没有项目</p>
 {{end}}
 {{range .Combineds}}
-<section class="event"><h2>{{.Name}}</h2>
-<table><thead><tr><th>号码</th><th>姓名</th><th>单位</th></tr></thead><tbody>{{range .Roster}}<tr><td>{{.Bib}}</td><td>{{.Name}}</td><td>{{.Unit}}</td></tr>{{end}}</tbody></table>
+<section class="event">
+  <h2>{{.Name}}<small>{{len .Roster}} 人</small></h2>
+  {{if .Components}}
+  <table>
+    <thead><tr><th class="num">序号</th><th>分项</th><th>时间</th></tr></thead>
+    <tbody>{{range .Components}}<tr><td class="num">{{.No}}</td><td>{{.Name}}</td><td>{{.Time}}</td></tr>{{end}}</tbody>
+  </table>
+  {{end}}
+  <h3>名单</h3>
+  <table>
+    <thead><tr><th class="bib">号码</th><th>姓名</th><th class="org">单位</th></tr></thead>
+    <tbody>{{range .Roster}}<tr><td class="bib">{{.Bib}}</td><td>{{.Name}}</td><td class="org">{{.Unit}}</td></tr>{{end}}</tbody>
+  </table>
 </section>{{end}}
 {{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
 </body>

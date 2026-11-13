@@ -124,7 +124,7 @@ func TestThrowingAndRelayConfiguration(t *testing.T) {
 	}
 	html, err := f.svc.RenderReport(f.ctx, ReportResults, f.meet, nil)
 	must(t, err)
-	if !strings.Contains(html, "逐次试投") || !strings.Contains(html, "8.50 / X / -") {
+	if !strings.Contains(html, `<th class="try">第3次</th>`) || !strings.Contains(html, `<td class="try best">8.50</td><td class="try">X</td><td class="try">-</td>`) {
 		t.Fatal("throwing attempts not printed")
 	}
 	_, err = f.svc.SaveEvent(f.ctx, ui, f.meet, f.event, EventInput{Gender: "男", Discipline: "铅球", Kind: "distance", DistanceMode: "throw", AttemptCount: 2})

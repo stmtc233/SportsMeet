@@ -14,8 +14,8 @@ const renderSheet = (kind: SheetKind, req: CheckInRequest) => (kind === "record"
 export const useSheetHTML = (kind: SheetKind, req: CheckInRequest, chosen: number) =>
   useData(() => (chosen === 0 ? Promise.resolve("") : renderSheet(kind, req)), [kind, req.meetId, req.roundIds.join(), req.day, chosen], (c) => c.meetId === req.meetId || c.kind === "settings");
 export const ReportsController = {
-  print: (kind: string, meetId: string, ids: string[], groupIds: string[] = []) => act(() => groupIds.length ? Reports.printGrouped({ kind, meetId, eventIds: ids, groupIds }) : Reports.print(kind, meetId, ids)),
-  printSheet: (kind: SheetKind, req: CheckInRequest) => act(() => (kind === "record" ? Reports.printRecordSheet(req) : Reports.printCheckIn(req))),
+  /** Prints the preview's laid-out sheets, so the pages are the ones shown. */
+  printPages: (title: string, html: string) => act(() => Reports.printPages(title, html)),
 };
 
 export const useReportTeamScores = (meetId: string, enabled: boolean) => useData(() => enabled ? TeamScoring.get({ meetId }) : Promise.resolve(null), [meetId, enabled], (c) => enabled && c.meetId === meetId);

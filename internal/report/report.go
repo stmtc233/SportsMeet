@@ -31,7 +31,8 @@ type Book struct {
 // UnitRoster is one unit of the 代表队名单.
 type UnitRoster struct {
 	Name   string
-	Count  int // athletes in Groups
+	Count  int    // athletes in Groups
+	Bibs   string // 11101–11208, the lowest and highest bib; "" = none
 	Groups []RosterGroup
 }
 
@@ -64,7 +65,9 @@ type ScheduleDay struct {
 
 // ScheduleRow is one round in the 竞赛日程表.
 type ScheduleRow struct {
+	No     int    // across the whole schedule, from 1
 	Time   string // 09:30
+	Kind   string // 径赛 / 田赛 / 计次 / 计分
 	Event  string
 	Round  string
 	Heats  int
@@ -74,13 +77,17 @@ type ScheduleRow struct {
 // Event is one item.
 type Event struct {
 	Name          string
-	Date          string
-	Relay         bool
-	RosterLabel   string
+	Meta          string // 2026-11-12 周四 · 分道: its day and configuration
+	Team          bool   // Lines are teams: no bib column, members listed
+	NameLabel     string // 姓名 / 队伍 / 棒次 / 棒次 …
 	PositionLabel string
-	AttemptLabel  string
-	Configuration string
-	Rounds        []Round
+	Seeded        bool     // some line has an entry mark (start lists)
+	TryHeads      []string // 第1次 …, one column per attempt; empty = none
+	Bars          bool     // height trials (Line.Bars) are printed
+	// Wide lays the heats one per row: their tables have too many columns,
+	// or team members, for half the page.
+	Wide   bool
+	Rounds []Round
 }
 
 // Round is one round. Ranked rounds print Standings across the heats;
@@ -97,6 +104,7 @@ type Round struct {
 type Heat struct {
 	Label string
 	Time  string // 09:30, with the date when it differs from the event's day
+	Count string // 6 人 / 3 队, start lists
 	// Started is when it actually started, shown as Time is; "" = not recorded.
 	Started string
 	// ResultsTime is when its results were last written, results books only
@@ -108,10 +116,12 @@ type Heat struct {
 // Line is one athlete.
 type Line struct {
 	Position int
-	Attempts []string
+	Attempts []string // one per Event.TryHeads, "" when not taken
+	Best     int      // index of the attempt that is the mark, -1 = none
+	Bars     []string // height trials, one per bar: 1.10 XO
 	Rank     string
 	Bib      string
-	Name     string
+	Name     string // a team's name, "" when it tells nothing (Unit says it)
 	Members  []string
 	Unit     string
 	Seed     string // entry mark, start lists
@@ -122,6 +132,9 @@ type Line struct {
 
 //go:embed style.css
 var style string
+
+//go:embed parts.html
+var partsHTML string
 
 //go:embed startlist.html
 var startListHTML string
@@ -140,8 +153,8 @@ var recordSheetHTML string
 
 var (
 	recordSheetTmpl = template.Must(template.New("recordsheet").Parse(recordSheetHTML))
-	startListTmpl   = template.Must(template.New("startlist").Parse(startListHTML))
-	resultsTmpl     = template.Must(template.New("results").Parse(resultsHTML + teamScoresHTML))
+	startListTmpl   = template.Must(template.New("startlist").Parse(startListHTML + partsHTML))
+	resultsTmpl     = template.Must(template.New("results").Parse(resultsHTML + teamScoresHTML + partsHTML))
 	checkInTmpl     = template.Must(template.New("checkin").Parse(checkInHTML))
 )
 
@@ -189,12 +202,13 @@ type CheckInSheet struct {
 	Break         bool // Start on a new page (.sheet.break in style.css).
 	Event         string
 	Round         string
+	From          string // the round its athletes advanced from; "" = first round
 	Heat          string
 	Time          string // planned, with its date; "" = not planned
 	CheckIn       string // 09:10, with the date when it differs from Time's; "" = none
 	PositionLabel string // 道次 / 顺序
 	Team          bool
-	RosterLabel   string // 棒次 / 成员
+	NameLabel     string // 姓名 / 棒次 / 队伍 / 棒次 …
 	Lines         []Line
 }
 
@@ -230,7 +244,7 @@ type RecordSheet struct {
 	HeatWind      bool   // Leave a place for the heat's wind.
 	PositionLabel string // 道次 / 顺序
 	Team          bool
-	RosterLabel   string // 棒次 / 成员
+	NameLabel     string // 姓名 / 棒次 / 队伍 / 棒次 …
 	// Columns are the headings of the cells before the mark: attempt
 	// numbers, or "" for a heading written by hand.
 	Columns []string
@@ -270,12 +284,23 @@ func RecordSheets(b RecordBook) (string, error) {
 	return buf.String(), nil
 }
 
+// Combined is a 全能: its components and roster (start lists), or its
+// standings in tables of at most four components (results books).
 type Combined struct {
-	Name   string
-	State  string
-	Roster []Line
-	Tables []CombinedTable
+	Name       string // with its gender and group: 男子三项全能 初一组
+	State      string
+	Components []CombinedPart
+	Roster     []Line
+	Tables     []CombinedTable
 }
+
+// CombinedPart is a component in the start list: its order and first time.
+type CombinedPart struct {
+	No   int
+	Name string
+	Time string // 2026-11-12 08:30; "" = not planned
+}
+
 type CombinedTable struct {
 	Label   string
 	Headers []string
@@ -287,7 +312,13 @@ type CombinedRow struct {
 	Unit  string
 	Rank  string
 	Total string
-	Cells []string
+	Cells []CombinedCell
+}
+
+// CombinedCell is a component's mark and the points it earns.
+type CombinedCell struct {
+	Mark   string // 待录 when pending
+	Points string // "" when pending; 不列名次 when excluded
 }
 
 type TeamScoreTable struct {
@@ -296,6 +327,9 @@ type TeamScoreTable struct {
 	Counted int
 	Total   int
 	Targets []string
+	Mixed   bool // some unit has mixed points; otherwise the column is left out
+	// Standalone is the 团体总分表 printed on its own: no heading of its own.
+	Standalone bool
 	Rows    []TeamScoreRow
 }
 type TeamScoreRow struct{ Rank, Unit, Male, Female, Mixed, Total string }
@@ -303,5 +337,14 @@ type TeamScoreRow struct{ Rank, Unit, Male, Female, Mixed, Total string }
 func TeamScores(b Book) (string, error) {
 	b.Title = "团体总分表"
 	b.TeamOnly = true
+	// The title block names the table; it does not head it again.
+	if b.TeamScores != nil {
+		b.TeamScores.Standalone = true
+	}
+	for _, g := range b.GroupBooks {
+		if g.TeamScores != nil {
+			g.TeamScores.Standalone = true
+		}
+	}
 	return render(resultsTmpl, b)
 }

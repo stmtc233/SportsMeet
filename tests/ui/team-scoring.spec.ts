@@ -44,7 +44,7 @@ async function installTeamScoring(page: Page, disabled = false) {
         }
         case "Reports.Targets": return targets.map((t) => ({ id: t.eventId, name: t.name }));
         case "Reports.Render": return `<!doctype html><html><head><style>${style}</style></head><body><header><h1>秋季运动会</h1></header><section class="event"><h2>团体总分表</h2><p>正式排名</p><table><thead><tr><th>名次</th><th>参赛单位</th><th>总分</th></tr></thead><tbody><tr><td>1</td><td>一班</td><td>16</td></tr><tr><td>1</td><td>二班</td><td>16</td></tr></tbody></table></section></body></html>`;
-        case "Reports.Print": return null;
+        case "Reports.PrintPages": return null;
         default: return baseCall(method, ...args);
       }
     };
@@ -105,7 +105,8 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     await expect(page.frameLocator('iframe[title="预览"]').getByRole("heading", { name: "团体总分表", exact: true })).toBeVisible();
     await page.getByRole("checkbox", { name: "混合4×100m 初中组", exact: true }).uncheck();
     await page.locator(".st-toolbar").getByRole("button", { name: "打印", exact: true }).click();
-    expect((await calls(page)).findLast((c: any) => c.method === "Reports.Print").args).toEqual(["team_scores", "meet", ["event"]]);
+    expect((await calls(page)).findLast((c: any) => c.method === "Reports.Render").args).toEqual(["team_scores", "meet", ["event"]]);
+    await expect.poll(async () => (await calls(page)).findLast((c: any) => c.method === "Reports.PrintPages")?.args[1] ?? "").toContain("团体总分表");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }

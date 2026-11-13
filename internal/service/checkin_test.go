@@ -61,7 +61,7 @@ func TestCheckInSheets(t *testing.T) {
 		t.Fatalf("%d sheets", n)
 	}
 	// List order, the default lead of 20 minutes, a blank time for 第4组.
-	order(t, html, "秋季运动会 · 检录单", "第1组", "2026-11-12 09:30", "09:10", "到", "缺", "001", "选手01", "一班", "裁判签名",
+	order(t, html, "秋季运动会 · 检录单", "第1组", "2026-11-12 09:30", "09:10", "到", "缺", "001", "选手01", "一班", "应到 1 人", "检录员",
 		"第2组", "2026-11-13 08:00", "07:40", "第3组", "07:50", "第4组", "选手04")
 	// One round: its heats share pages.
 	if strings.Count(html, "检录时间") != 4 || strings.Contains(html, `class="sheet break"`) {

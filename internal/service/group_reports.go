@@ -109,6 +109,8 @@ func (s *Service) RenderGroupedReport(ctx context.Context, req GroupReportReques
 				}
 				for _, r := range d.Rows {
 					row := report.TeamScoreRow{Unit: r.UnitName, Male: r.Male.Text, Female: r.Female.Text, Mixed: r.Mixed.Text, Total: r.Total.Text}
+					// A column of zeros says nothing; the mixed one is printed only when some unit scored.
+					table.Mixed = table.Mixed || r.Mixed.Text != "" && r.Mixed.Text != "0"
 					if r.Rank != nil {
 						row.Rank = strconv.Itoa(*r.Rank)
 					}

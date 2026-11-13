@@ -38,15 +38,3 @@ func (g Groups) Change(ctx context.Context, req service.GroupChangeRequest) erro
 func (r Reports) RenderGrouped(ctx context.Context, req service.GroupReportRequest) (string, error) {
 	return r.Svc.RenderGroupedReport(ctx, req)
 }
-func (r Reports) PrintGrouped(ctx context.Context, req service.GroupReportRequest) error {
-	html, err := r.Svc.RenderGroupedReport(ctx, req)
-	if err != nil {
-		return err
-	}
-	title := "成绩册"
-	if req.Kind == service.ReportTeamScores {
-		title = "团体总分表"
-	}
-	printWindow(title, html)
-	return nil
-}

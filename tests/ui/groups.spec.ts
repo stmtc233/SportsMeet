@@ -38,7 +38,7 @@ async function installGroups(page: Page) {
         }
         case "Reports.Targets": return groups.slice(0, 2).map((g, i) => ({ id: i ? "event2" : "event", groupId: g.id, name: `男子100m ${g.name}` }));
         case "Reports.RenderGrouped": return `<!doctype html><html><body><h1>分组成绩册</h1><p>${args[0].groupIds.join(",")}</p></body></html>`;
-        case "Reports.PrintGrouped": return null;
+        case "Reports.PrintPages": return null;
         default: return base(method, ...args);
       }
     };
@@ -99,7 +99,10 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     await expect(page.getByRole("checkbox", { name: "男子100m 初二", exact: true })).toHaveCount(0);
     await expect(page.frameLocator('iframe[title="预览"]').getByRole("heading", { name: "分组成绩册" })).toBeVisible();
     await page.locator(".st-toolbar").getByRole("button", { name: "打印", exact: true }).click();
-    expect((await lastCall(page, "Reports.PrintGrouped"))[0]).toMatchObject({ kind: "results", meetId: "meet", groupIds: ["g1"] });
+    expect((await lastCall(page, "Reports.RenderGrouped"))[0]).toMatchObject({ kind: "results", meetId: "meet", groupIds: ["g1"] });
+    // The sheets shown are what prints.
+    await expect.poll(() => lastCall(page, "Reports.PrintPages").then((a) => a?.[1] ?? "")).toContain('class="pv-page"');
+    expect((await lastCall(page, "Reports.PrintPages"))[1]).toContain("分组成绩册");
   });
 }
 

@@ -28,6 +28,47 @@ const keep = ".heat, .sheet, .line, .unit";
 // sheet, and taken along instead of being left at the bottom of one.
 const heading = new Set(["H1", "H2", "H3", "H4", "P", "THEAD"]);
 
+/** The headings a container gives its continuation: its title and section, not the group's. */
+const titled = new Set(["H2", "H3", "H4"]);
+
+/** A heading's own words, without the details in its <small>. */
+const ownText = (el: Element) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim();
+
+/**
+ * What a new sheet continues, from the containers split across the break,
+ * outermost first: each one's last heading of each level before where it
+ * breaks (男子100m 初一组 · 决赛). The group title of a 成绩册 is left out:
+ * the event names say the group. "" when nothing is titled.
+ */
+export function continuedTitle(open: readonly Element[]): string {
+  const parts: string[] = [];
+  open.forEach((container, i) => {
+    const last = new Map<string, string>();
+    for (const child of container.children) {
+      if (child === open[i + 1]) break;
+      if (titled.has(child.tagName) && !child.classList.contains("report-group__title")) last.set(child.tagName, ownText(child));
+    }
+    for (const tag of titled) {
+      const text = last.get(tag);
+      if (text) parts.push(text);
+    }
+  });
+  return parts.join(" · ");
+}
+
+/**
+ * The laid-out sheets as a document of their own, for the print window: at
+ * scale 1, without the pane's colour. Printing them rather than Go's
+ * document keeps the printed pages what the preview shows, continuation
+ * lines and page numbers included, on every WebView.
+ */
+export function printable(doc: Document): string {
+  const root = doc.documentElement.cloneNode(true) as HTMLElement;
+  root.removeAttribute("style");
+  for (const el of root.querySelectorAll(".pv-view, .pv-pages")) el.removeAttribute("style");
+  return `<!DOCTYPE html>\n${root.outerHTML}`;
+}
+
 /**
  * Moves a report document's content onto A4 sheets and returns how many
  * there are. A container that does not fit continues on the next sheet,
@@ -37,8 +78,16 @@ const heading = new Set(["H1", "H2", "H3", "H4", "P", "THEAD"]);
 export async function paginate(doc: Document, signal?: AbortSignal): Promise<number> {
   if (signal?.aborted) return 0;
   const nodes = [...doc.body.childNodes];
+  // Every sheet has its page number; books (body's data-meet) also have a
+  // running head after the first sheet, whose title block says the same.
+  const { meet, title } = doc.body.dataset;
   // The sheets' look (.pv-*) is in internal/report/style.css, beside @page.
   doc.documentElement.classList.add("pv");
+  // Printed, each sheet is a page with its margins inside it. Only here:
+  // Go's own document keeps @page's margins for printing it as it is.
+  const sheets = doc.createElement("style");
+  sheets.textContent = "@page { size: A4; margin: 0; }";
+  doc.head.append(sheets);
   const view = doc.createElement("div");
   view.className = "pv-view";
   const pages = doc.createElement("div");
@@ -79,13 +128,27 @@ export async function paginate(doc: Document, signal?: AbortSignal): Promise<num
     }
   };
 
+  let current: HTMLElement | null = null;
   const open = () => {
     const before = [...stack];
+    const previous = current;
     const page = doc.createElement("div");
+    current = page;
     page.className = "pv-page";
     sheet = doc.createElement("div");
     sheet.className = "pv-body";
     page.append(sheet);
+    if (meet !== undefined && count > 0) {
+      const head = doc.createElement("div");
+      head.className = "pv-head";
+      head.append(doc.createElement("span"), doc.createElement("span"));
+      head.children[0]!.textContent = meet;
+      head.children[1]!.textContent = title ?? "";
+      page.append(head);
+    }
+    const foot = doc.createElement("div");
+    foot.className = "pv-foot";
+    page.append(foot);
     pages.append(page);
     count++;
     placed = 0;
@@ -105,6 +168,25 @@ export async function paginate(doc: Document, signal?: AbortSignal): Promise<num
       const lead = [...old.children].filter((c) => c.tagName !== "THEAD");
       stack[i]!.prepend(...lead);
       old.remove();
+    }
+    // A table cut between its rows says so at both ends of the break:
+    // 续下页 right under its last row, and what it continues above the rest.
+    // Anything else starts the new sheet with its own heading (a round, a
+    // heat, a unit), which says what it is already.
+    const kept = before.filter((el) => el.isConnected); // those whose headings came along start afresh
+    const table = kept.find((el) => el.tagName === "TABLE");
+    const text = table && previous ? continuedTitle(kept) : "";
+    if (table && previous && text) {
+      const scale = layoutScale();
+      const more = doc.createElement("div");
+      more.className = "pv-more";
+      more.textContent = "续下页";
+      more.style.top = `${(table.getBoundingClientRect().bottom - previous.getBoundingClientRect().top) / scale}px`;
+      previous.append(more);
+      const cont = doc.createElement("p");
+      cont.className = "pv-cont";
+      cont.textContent = `${text}（续）`;
+      sheet.prepend(cont);
     }
   };
 
@@ -220,6 +302,9 @@ export async function paginate(doc: Document, signal?: AbortSignal): Promise<num
       deadline = performance.now() + 8;
     }
   }
+  pages.querySelectorAll(":scope > .pv-page > .pv-foot").forEach((foot, i) => {
+    foot.textContent = `第 ${i + 1} 页 / 共 ${count} 页`;
+  });
   return count;
 }
 

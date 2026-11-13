@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { paginate, scalePages, type Zoom } from "./paginate";
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import { paginate, printable, scalePages, type Zoom } from "./paginate";
+
+/** The sheets shown, ready for the print window; null while none is laid out. */
+export type PrintPages = () => { title: string; html: string } | null;
 
 interface Sheet {
   html: string;
@@ -24,12 +27,26 @@ let layers = 0;
  * hidden) as not scrollable after the style goes, so the wheel scrolls
  * the window instead. The first report is hidden by a cover instead.
  */
-export function ReportPreview({ html, zoom, onPages }: { html: string | undefined; zoom: Zoom; onPages: (n: number) => void }) {
+export function ReportPreview({ html, zoom, onPages, printRef }: {
+  html: string | undefined;
+  zoom: Zoom;
+  /** The report now shown and its number of sheets. */
+  onPages: (n: number, html: string) => void;
+  printRef: MutableRefObject<PrintPages | null>;
+}) {
   const box = useRef<HTMLDivElement>(null);
   const frames = useRef(new Map<string, HTMLIFrameElement>());
   const pagination = useRef<AbortController | null>(null);
   const [sheets, setSheets] = useState<Sheet[]>([]);
+  const shown = useRef<string | null>(null);
   useEffect(() => () => pagination.current?.abort(), []);
+  useEffect(() => {
+    printRef.current = () => {
+      const doc = shown.current === null ? null : frames.current.get(shown.current)?.contentDocument;
+      return doc?.querySelector(".pv-view") ? { title: doc.title, html: printable(doc) } : null;
+    };
+    return () => { printRef.current = null; };
+  }, [printRef]);
   useEffect(() => {
     if (!html) return;
     setSheets((old) => {
@@ -82,7 +99,8 @@ export function ReportPreview({ html, zoom, onPages }: { html: string | undefine
       // A failed layout still replaces the old report rather than hiding the new one.
       if (!run.signal.aborted && frames.current.get(key)?.contentDocument === doc) {
         scaleOne(doc);
-        onPages(pages);
+        shown.current = key;
+        onPages(pages, key);
         setSheets((old) => {
           const at = old.findIndex((s) => s.html === key);
           return at < 0 ? old : [{ ...old[at]!, ready: true }, ...old.slice(at + 1)];
