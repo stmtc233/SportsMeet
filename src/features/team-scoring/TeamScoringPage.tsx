@@ -48,7 +48,7 @@ export function TeamScoringPage({ meetId }: { meetId: string }) {
       {detail && enabled && (
         <StStack gap={24}>
           <StRow>
-            <StSegmented value={gender} onChange={setGender}
+            <StSegmented aria-label="性别" value={gender} onChange={setGender}
               options={[{ value: "", label: "全部" }, { value: "男", label: "男子" }, { value: "女", label: "女子" }, { value: "混合", label: "混合" }]} />
             {!!groups?.length && <GroupFilter meetId={meetId} value={group} onChange={setGroup} />}
           </StRow>
@@ -96,7 +96,7 @@ function Board({ board, titled, gender, onUnit, onSources }: { board: TeamScoreB
         title={<>{titled ? board.groupName : "单位排名"} <StTag tone={data.complete ? "success" : "neutral"}>{data.state}</StTag></>}
         actions={<StButton size="small" variant="ghost" onClick={onSources}>已计分 {data.counted} / {data.total} 项</StButton>}>
         <div className="team-score-table">
-          <StTable<UnitStanding> rows={data.rows} rowKey={(r) => r.unitId} onRowClick={onUnit} empty="还没有参赛单位" columns={columns} />
+          <StTable<UnitStanding> rows={data.rows} rowKey={(r) => r.unitId} actionColumn="unit" onRowClick={onUnit} empty="还没有参赛单位" columns={columns} />
         </div>
       </StSection>
       {data.unassigned.length > 0 && (

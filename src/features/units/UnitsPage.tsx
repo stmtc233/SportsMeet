@@ -25,7 +25,7 @@ export function UnitsPage({ meetId }: { meetId: string }) {
         </StToolbar>
       }>
       <div className="table-card table-card--top">
-        <StTable<Unit> fill rows={units ?? []} loading={!units} scrollKey={`units:${meetId}`} rowKey={(u) => u.id} selected={selected} onSelect={setSelected}
+        <StTable<Unit> fill rows={units ?? []} loading={!units} scrollKey={`units:${meetId}`} rowKey={(u) => u.id} rowLabel={(u) => u.name} selected={selected} onSelect={setSelected}
           onRowClick={(u) => setEditing({ unit: u })}
           empty={<StEmpty action={<StButton variant="primary" onClick={() => setEditing({})}>添加单位</StButton>}>还没有参赛单位</StEmpty>}
           columns={[

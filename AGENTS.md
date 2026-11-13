@@ -170,6 +170,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 - **`src/mygo.ts` 是生成物**,不手改。
 - **前端只有 `src/lib/` 与各 feature 的 `controller` / `data` 文件调用 Go**,其余文件只从 `src/mygo.ts` 引入类型;棘轮把关(→ frontend.md)。
 - **页面只用 `src/design/` 的 `St*` 组件、token 与统一图标**;`scripts/check-design-system.sh` 棘轮把关,基线只减不增(→ design-system.md)。
+- **共享控件支持键盘与读屏**：下拉框与分段控件管理焦点，表格提供原生行操作按钮、具名勾选与完整行号，字段错误关联输入并在提交失败后聚焦，文字和焦点遵守对比度要求（→ design-system.md）。
 - **数字一律等宽**,界面与打印模板都设 `tabular-nums`(→ design-system.md)。
 - **圆角用 `superellipse(1.78)` 平滑轮廓**,胶囊、圆形与开关显式 `round`(→ design-system.md)。
 - **动效只用 `--st-motion-*` token**,不推迟下一次点击;对话框只有进入动画,录入格不加动画,减少动态效果时归零(→ design-system.md「动效」)。

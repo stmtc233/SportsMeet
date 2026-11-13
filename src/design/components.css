@@ -54,7 +54,7 @@ textarea {
 .st-button--primary:hover:not(:disabled) { background: var(--st-primary-hover); }
 .st-button--secondary { background: var(--st-surface); border-color: var(--st-outline); }
 .st-button--tonal { background: var(--st-tone-info-container); color: var(--st-tone-info-on-container); }
-.st-button--danger { background: var(--st-tone-danger-accent); color: var(--st-on-primary); }
+.st-button--danger { background: var(--st-tone-danger-accent); color: var(--st-on-danger); }
 .st-button--ghost { color: var(--st-primary); }
 .st-button--secondary:hover:not(:disabled),
 .st-button--ghost:hover:not(:disabled),
@@ -200,7 +200,7 @@ textarea {
   gap: var(--st-space-4);
   height: var(--st-control-md);
   padding: 0 var(--st-space-8);
-  border: 1px solid var(--st-outline);
+  border: 1px solid var(--st-control-outline);
   border-radius: var(--st-radius-8);
   corner-shape: superellipse(1.78);
   background: var(--st-surface);
@@ -216,7 +216,7 @@ textarea {
 .st-textarea {
   width: 100%;
   padding: var(--st-space-8);
-  border: 1px solid var(--st-outline);
+  border: 1px solid var(--st-control-outline);
   border-radius: var(--st-radius-8);
   corner-shape: superellipse(1.78);
   background: var(--st-surface);
@@ -324,7 +324,7 @@ textarea {
   gap: var(--st-space-4);
   height: var(--st-control-md);
   padding: 0 var(--st-space-8);
-  border: 1px solid var(--st-outline);
+  border: 1px solid var(--st-control-outline);
   border-radius: var(--st-radius-8);
   corner-shape: superellipse(1.78);
   background: var(--st-surface);
@@ -447,3 +447,18 @@ textarea {
 .st-table__cell { padding: 0 var(--st-space-12); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: var(--st-space-4); }
 .st-table__cell[data-align="end"] { justify-content: flex-end; text-align: end; }
 .st-table__cell[data-align="center"] { justify-content: center; }
+
+/* Names in actionable rows remain real buttons without adding a column. */
+.st-table__action { border: 0; padding: 0; background: transparent; text-align: inherit; cursor: pointer; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-table__cell:has(.st-table__action) { overflow: visible; }
+.st-menu-item:focus-visible { outline-offset: -2px; }
+.st-sr-only { position: absolute; clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; white-space: nowrap; }
+
+@media (forced-colors: active) {
+  .st-button, .st-icon-button, .st-popover { border: 1px solid ButtonText; }
+  .st-input:focus-within, .st-textarea:focus, :focus-visible { outline-color: Highlight; }
+  .st-checkbox[data-checked], .st-switch[data-checked] { border: 1px solid Highlight; }
+  .st-switch, .st-switch::after { border: 1px solid ButtonText; }
+  .st-segmented button[aria-checked="true"] { outline: 2px solid ButtonText; outline-offset: -2px; }
+  .st-table__row[data-selected] { outline: 1px solid Highlight; outline-offset: -1px; }
+}

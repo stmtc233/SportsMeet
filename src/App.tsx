@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { ErrorBoundary } from "./app/ErrorBoundary";
 import { NavProvider, useNav, type MeetTab } from "./app/nav";
-import { IconAthletes, IconBack, IconEvent, IconExport, IconGroup, IconMeet, IconPrint, IconSettings, IconTime, IconUnit, StListItem, StToastHost, iconStroke } from "./design";
+import { IconAthletes, IconBack, IconEvent, IconExport, IconGroup, IconMeet, IconPrint, IconSettings, IconTime, IconUnit, StFieldFeedback, StListItem, StToastHost, iconStroke } from "./design";
 import { AthletesPage } from "./features/athletes/AthletesPage";
 import { CombinedList } from "./features/combined/CombinedList";
 import { CombinedWorkspace } from "./features/combined/CombinedWorkspace";
@@ -88,8 +88,10 @@ export function App() {
   useEffect(() => { if (data) document.documentElement.dataset.theme = data.theme; }, [data]);
   return (
     <NavProvider>
-      <Guarded />
-      <StToastHost />
+      <StFieldFeedback>
+        <Guarded />
+        <StToastHost />
+      </StFieldFeedback>
     </NavProvider>
   );
 }

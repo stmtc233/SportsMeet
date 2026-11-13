@@ -24,7 +24,7 @@ export function ResultsTab({ detail }: { detail: EventDetail }) {
   return (
     <div className="fill view-enter">
       <div className="subbar">
-        {detail.rounds.length > 1 && <StSegmented size="small" value={round.id} onChange={selectRound} options={detail.rounds.map((r) => ({ value: r.id, label: r.label }))} />}
+        {detail.rounds.length > 1 && <StSegmented aria-label="轮次" size="small" value={round.id} onChange={selectRound} options={detail.rounds.map((r) => ({ value: r.id, label: r.label }))} />}
         <span className="subbar__spacer" />
         {round.heats.length > 0 && <StTag tone={round.complete && !roundDirty ? "success" : "neutral"}>{round.complete && !roundDirty ? "已录完" : "录入中"}</StTag>}
       </div>

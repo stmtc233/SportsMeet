@@ -49,7 +49,7 @@ export function AthletesPage({ meetId }: { meetId: string }) {
         {!!groups?.length && <GroupFilter meetId={meetId} value={group} onChange={setGroup} />}
       </div>
       <div className="table-card">
-        <StTable<AthleteRow> fill rows={shown} loading={!rows} scrollKey={`athletes:${meetId}`} rowKey={(r) => r.athlete.id} selected={selected} onSelect={setSelected} onRowClick={(r) => setEditing({ athlete: r.athlete })}
+        <StTable<AthleteRow> fill rows={shown} loading={!rows} scrollKey={`athletes:${meetId}`} rowKey={(r) => r.athlete.id} rowLabel={(r) => r.athlete.name} actionColumn="name" selected={selected} onSelect={setSelected} onRowClick={(r) => setEditing({ athlete: r.athlete })}
           empty={<StEmpty>{rows?.length === 0 ? "还没有运动员" : "没有符合条件的运动员"}</StEmpty>}
           columns={[
             { key: "bib", title: "号码", width: "88px", render: (r) => r.athlete.bib },

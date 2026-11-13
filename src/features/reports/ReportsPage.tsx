@@ -73,7 +73,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
     <StPage flush
       toolbar={
         <StToolbar title="打印">
-          <StSegmented value={kind} onChange={setKind}
+          <StSegmented aria-label="报表种类" value={kind} onChange={setKind}
             options={[{ value: "startlist", label: "秩序册" }, { value: "results", label: "成绩册" }, { value: "checkin", label: "检录单" }, { value: "record", label: "成绩记录表" }, { value: "team_scores", label: "团体总分" }]} />
           <StButton variant="primary" icon={<IconPrint size={16} strokeWidth={iconStroke} />} disabled={count === 0 || !html || shown !== html} loading={busy} onClick={print}>打印</StButton>
         </StToolbar>

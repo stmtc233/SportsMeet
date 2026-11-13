@@ -15,7 +15,7 @@ for (const width of [1280, 800]) {
     await editor.getByLabel("队名", { exact: true }).fill("一班A队");
     for (const i of [1, 2, 3, 4]) {
       await editor.getByLabel("添加下一棒", { exact: true }).click();
-      await page.getByRole("menuitemradio", { name: `运动员${i} · ${99 + i}`, exact: true }).click();
+      await page.getByRole("option", { name: `运动员${i} · ${99 + i}`, exact: true }).click();
       await expect(editor.getByLabel(`第 ${i} 棒`, { exact: true })).toHaveText(new RegExp(`运动员${i}`));
     }
     await editor.getByRole("button", { name: "上移第 2 棒", exact: true }).click();
@@ -67,7 +67,7 @@ test("接力保存失败保留队名和棒次", async ({ page }) => {
   const editor = page.getByRole("dialog", { name: "添加队伍", exact: true });
   await editor.getByLabel("队名", { exact: true }).fill("未保存的队伍");
   await editor.getByLabel("添加下一棒", { exact: true }).click();
-  await page.getByRole("menuitemradio", { name: "运动员1 · 100", exact: true }).click();
+  await page.getByRole("option", { name: "运动员1 · 100", exact: true }).click();
   await editor.getByRole("button", { name: "保存", exact: true }).click();
   await expect(page.getByText("队伍已有比赛记录，不能改棒次", { exact: true })).toBeVisible();
   await expect(editor.getByLabel("队名", { exact: true })).toHaveValue("未保存的队伍");

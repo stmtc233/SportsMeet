@@ -156,3 +156,4 @@
 - 纯函数单测(`bun test`,文件名 `*.test.ts`,不进 `tsc` 检查范围)与 Go 单测为主。
 - `bun run test:ui` 使用 Playwright,覆盖宽屏 1280、窄屏 800 与浅色 / 深色,检查核心页面不出现整页横向溢出、设置输入与焦点保留、离开确认、保存与错误反馈。浏览器测试模拟 mygo 桥接,业务持久化与 HTTP MCP 使用 Go 的真实 SQLite 测试;两者不能替代 WebView 原生行为实测(见 [verification.md](../verification.md))。
 - `tests/ui/performance.spec.ts` 通过 `SPORTSMEET_PERF=1` 按需测量大名单与真实秩序册分页，默认跳过；数据规模、桥接口径、已复现的问题与复跑命令见 [performance.md](../performance.md)。
+- `tests/ui/accessibility.spec.ts` 覆盖 1280 / 800 宽的下拉框与单选组键盘导航、操作菜单跳过禁用项及焦点返回、表格键盘编辑与半选、千人虚拟表格行号、错误描述与播报、提交失败后的焦点、浅深色主题对比度和强制颜色模式；读屏语音与原生 WebView 行为仍需实机验证。

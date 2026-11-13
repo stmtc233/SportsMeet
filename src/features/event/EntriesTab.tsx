@@ -42,7 +42,7 @@ export function EntriesTab({ detail, meetId }: { detail: EventDetail; meetId: st
       </div>
       <div className="filters" />
       <div className="table-card">
-        <StTable<EntryView> fill rows={detail.entries} scrollKey={`entries:${eventId}`} rowKey={(e) => e.competitorId} selected={selected} onSelect={setSelected}
+        <StTable<EntryView> fill rows={detail.entries} scrollKey={`entries:${eventId}`} rowKey={(e) => e.competitorId} rowLabel={(e) => e.name} selected={selected} onSelect={setSelected}
           empty={<StEmpty action={<StButton variant="primary" disabled={Boolean(detail.event.combinedId)} onClick={() => setAdding(true)}>{detail.rules.team ? "管理队伍" : "从赛事添加"}</StButton>}>还没有报名</StEmpty>}
           columns={[
             ...(!relay ? [{ key: "bib", title: "号码", width: "88px", render: (e: EntryView) => e.bib }] : []),

@@ -43,7 +43,7 @@ for (const width of [1280, 800]) {
     await expect(editor.getByText("人数与项目建议不符", { exact: true })).toBeVisible();
     for (const i of [1, 2]) {
       await editor.getByLabel("添加成员", { exact: true }).click();
-      await page.getByRole("menuitemradio", { name: `运动员${i} · ${99 + i}`, exact: true }).click();
+      await page.getByRole("option", { name: `运动员${i} · ${99 + i}`, exact: true }).click();
     }
     await expect(editor.getByText("人数与项目建议不符", { exact: true })).toHaveCount(0);
     await editor.getByRole("button", { name: "保存", exact: true }).click();

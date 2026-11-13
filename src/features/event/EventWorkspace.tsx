@@ -23,7 +23,7 @@ export function EventWorkspace({ meetId, eventId, tab }: { meetId: string; event
             <StSelect value={eventId} width="auto" onChange={(id) => go({ page: "event", meetId, eventId: id, tab })}
               options={(events ?? []).filter((r) => (r.event.combinedId ?? "") === (detail?.event.combinedId ?? "")).map((r) => ({ value: r.event.id, label: r.event.name }))} placeholder={detail?.event.name ?? ""} />
           }>
-          <StSegmented value={tab} onChange={(t) => go({ page: "event", meetId, eventId, tab: t })}
+          <StSegmented aria-label="项目页面" value={tab} onChange={(t) => go({ page: "event", meetId, eventId, tab: t })}
             options={[{ value: "entries", label: "报名" }, { value: "arrange", label: "编排" }, { value: "results", label: "成绩" }]} />
         </StToolbar>
       }>

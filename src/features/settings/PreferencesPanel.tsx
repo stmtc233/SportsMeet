@@ -16,7 +16,7 @@ export function PreferencesPanel({ section }: { section: "general" | "arrange" |
   if (!data) return null;
   if (section === "general") return (
     <StSection title="外观">
-      <StSegmented value={data.theme} onChange={(theme) => save({ theme })}
+      <StSegmented aria-label="外观" value={data.theme} onChange={(theme) => save({ theme })}
         options={[{ value: "system", label: "跟随系统" }, { value: "light", label: "浅色" }, { value: "dark", label: "深色" }]} />
     </StSection>
   );

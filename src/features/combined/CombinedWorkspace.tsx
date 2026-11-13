@@ -22,7 +22,7 @@ export function CombinedWorkspace({ meetId, combinedId }: { meetId: string; comb
   </StToolbar>}>
     {error && <StNotice tone="danger">{error}</StNotice>}
     {detail && <>
-      <div className="subbar"><StSegmented value={tab} onChange={setTab} options={[{ value: "components", label: "分项" }, { value: "entries", label: "报名" }, { value: "results", label: "总成绩" }]} /><span className="subbar__spacer" /><StTag>{detail.complete ? "正式排名" : "暂列排名"}</StTag></div>
+      <div className="subbar"><StSegmented aria-label="全能页面" value={tab} onChange={setTab} options={[{ value: "components", label: "分项" }, { value: "entries", label: "报名" }, { value: "results", label: "总成绩" }]} /><span className="subbar__spacer" /><StTag>{detail.complete ? "正式排名" : "暂列排名"}</StTag></div>
       {tab === "components" && <div className="table-card view-enter"><StTable<CombinedComponentView> fill scrollKey={`combined:components:${combinedId}`} rows={detail.components} rowKey={(c) => c.event.id} columns={[
         { key: "order", title: "顺序", width: "72px", render: (c) => c.ordinal },
         { key: "name", title: "分项", render: (c) => c.event.discipline },

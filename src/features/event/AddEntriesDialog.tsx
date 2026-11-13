@@ -58,7 +58,7 @@ function AddAthletesDialog({ open, detail, meetId, onClose }: Props) {
         {gender !== "混合" && <StCheckbox checked={sameGender} onChange={setSameGender} label={`只看${gender}生`} />}
       </StRow>
       <div className="preview-table">
-        <StTable<AthleteRow> dense rows={rows} rowKey={(r) => r.athlete.id} selected={selected} onSelect={setSelected}
+        <StTable<AthleteRow> dense rows={rows} rowKey={(r) => r.athlete.id} rowLabel={(r) => r.athlete.name} actionColumn="name" selected={selected} onSelect={setSelected}
           onRowClick={(r) => setSelected((old) => {
             const next = new Set(old);
             if (!next.delete(r.athlete.id)) next.add(r.athlete.id);

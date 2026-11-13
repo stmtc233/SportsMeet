@@ -24,7 +24,7 @@ export function CombinedList({ meetId }: { meetId: string }) {
     <StButton variant="primary" onClick={() => setAdding(true)}>添加全能</StButton>
   </StToolbar>}>
     {groups?.length ? <div className="filters"><GroupFilter meetId={meetId} value={group} onChange={setGroup} /></div> : null}
-    <div className={groups?.length ? "table-card" : "table-card table-card--top"}><StTable<CombinedRowSummary> fill rows={rows ?? []} selected={selected} onSelect={setSelected} loading={!rows} scrollKey={`combineds:${meetId}`} rowKey={(r) => r.combined.id} onRowClick={(r) => go({ page: "combined", meetId, combinedId: r.combined.id })}
+    <div className={groups?.length ? "table-card" : "table-card table-card--top"}><StTable<CombinedRowSummary> fill rows={rows ?? []} selected={selected} onSelect={setSelected} loading={!rows} scrollKey={`combineds:${meetId}`} rowKey={(r) => r.combined.id} rowLabel={(r) => r.combined.name} onRowClick={(r) => go({ page: "combined", meetId, combinedId: r.combined.id })}
       empty={<StEmpty>还没有全能</StEmpty>} columns={[
         { key: "name", title: "全能", render: (r) => <span className="cell-strong">{r.combined.name}</span> },
         { key: "gender", title: "性别", render: (r) => r.combined.gender },

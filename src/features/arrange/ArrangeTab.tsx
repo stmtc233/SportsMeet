@@ -133,7 +133,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   return (
     <div className="fill view-enter" inert={saving}>
       <div className="subbar">
-        {detail.rounds.length > 1 && <StSegmented size="small" value={roundView.id} onChange={setRoundId} options={detail.rounds.map((r) => ({ value: r.id, label: r.label }))} />}
+        {detail.rounds.length > 1 && <StSegmented aria-label="轮次" size="small" value={roundView.id} onChange={setRoundId} options={detail.rounds.map((r) => ({ value: r.id, label: r.label }))} />}
         <StButton variant="ghost" icon={<IconTime size={16} strokeWidth={iconStroke} />} title="轮次开始时间" disabled={saving} onClick={() => setStarting(true)}>
           {roundView.scheduledText || "开始时间"}
         </StButton>

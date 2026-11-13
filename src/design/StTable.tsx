@@ -17,6 +17,10 @@ interface StTableProps<T> {
   columns: StColumn<T>[];
   rows: T[];
   rowKey: (row: T) => string;
+  /** Human-readable names for selection controls. */
+  rowLabel?: (row: T) => string;
+  /** The cell containing the native button for the row action. */
+  actionColumn?: string;
   onRowClick?: (row: T) => void;
   /** Selected row keys; passing it shows the check column. */
   selected?: Set<string>;
@@ -39,7 +43,7 @@ const overscan = 12;
  * A data table on a CSS grid. The header sticks to the top; long lists
  * render only the rows in view (rows have a fixed height).
  */
-export function StTable<T>({ columns, rows, rowKey, onRowClick, selected, onSelect, empty, fill, dense, loading, scrollKey }: StTableProps<T>) {
+export function StTable<T>({ columns, rows, rowKey, rowLabel, actionColumn = columns[0]?.key, onRowClick, selected, onSelect, empty, fill, dense, loading, scrollKey }: StTableProps<T>) {
   const scroller = useRef<HTMLDivElement>(null);
   useScrollMemory(scroller, fill ? scrollKey : undefined);
   const [top, setTop] = useState(0);
@@ -72,11 +76,11 @@ export function StTable<T>({ columns, rows, rowKey, onRowClick, selected, onSele
   };
 
   return (
-    <div ref={scroller} className="st-table" data-fill={fill || undefined} data-dense={dense || undefined} role="table" onScroll={virtual ? (e) => setTop(e.currentTarget.scrollTop) : undefined}>
-      <div className="st-table__row st-table__head" role="row" style={{ gridTemplateColumns: template }}>
+    <div ref={scroller} className="st-table" data-fill={fill || undefined} data-dense={dense || undefined} role="table" aria-rowcount={rows.length + 1} onScroll={virtual ? (e) => setTop(e.currentTarget.scrollTop) : undefined}>
+      <div className="st-table__row st-table__head" role="row" aria-rowindex={1} style={{ gridTemplateColumns: template }}>
         {selectable && (
           <div className="st-table__cell" role="columnheader">
-            <StCheckbox checked={all} indeterminate={some} onChange={() => onSelect(all ? new Set() : new Set(rows.map(rowKey)))} />
+            <StCheckbox checked={all} indeterminate={some && !all} aria-label="全选" onChange={() => onSelect(all ? new Set() : new Set(rows.map(rowKey)))} />
           </div>
         )}
         {columns.map((c) => (
@@ -86,27 +90,29 @@ export function StTable<T>({ columns, rows, rowKey, onRowClick, selected, onSele
         ))}
       </div>
       {rows.length === 0 && !loading && (typeof empty === "string" ? <StEmpty>{empty}</StEmpty> : empty)}
-      {virtual && first > 0 && <div style={{ height: first * h, flexShrink: 0 }} />}
+      {virtual && first > 0 && <div aria-hidden style={{ height: first * h, flexShrink: 0 }} />}
       {rows.slice(first, last).map((row, i) => {
         const key = rowKey(row);
         const on = selectable && selected.has(key);
         return (
-          <div key={key} className="st-table__row" role="row" style={{ gridTemplateColumns: template }} data-selected={on || undefined} data-clickable={onRowClick ? true : undefined}
-            onClick={onRowClick ? () => onRowClick(row) : undefined}>
+          <div key={key} className="st-table__row" role="row" aria-rowindex={first + i + 2} style={{ gridTemplateColumns: template }} data-selected={on || undefined} data-clickable={onRowClick ? true : undefined}
+            onClick={onRowClick ? (e) => {
+              if (!(e.target as Element).closest("button, a, input, select, textarea, [role=button]")) onRowClick(row);
+            } : undefined}>
             {selectable && (
               <div className="st-table__cell" role="cell" onClick={(e) => e.stopPropagation()}>
-                <StCheckbox checked={on} onChange={() => toggle(key)} />
+                <StCheckbox checked={on} aria-label={`选择${rowLabel?.(row) ?? `第 ${first + i + 1} 行`}`} onChange={() => toggle(key)} />
               </div>
             )}
             {columns.map((c) => (
               <div key={c.key} className="st-table__cell" role="cell" data-align={c.align}>
-                {c.render(row, first + i)}
+                {onRowClick && c.key === actionColumn ? <button type="button" className="st-table__action" onClick={() => onRowClick(row)}>{c.render(row, first + i)}</button> : c.render(row, first + i)}
               </div>
             ))}
           </div>
         );
       })}
-      {virtual && last < rows.length && <div style={{ height: (rows.length - last) * h, flexShrink: 0 }} />}
+      {virtual && last < rows.length && <div aria-hidden style={{ height: (rows.length - last) * h, flexShrink: 0 }} />}
     </div>
   );
 }

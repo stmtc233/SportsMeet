@@ -20,7 +20,7 @@ for (const width of [1280, 800]) {
       await expect(sections.nth(0).getByText("成绩标准", { exact: true })).toBeVisible();
       await sections.nth(1).getByLabel("项目名", { exact: true }).fill("跳远");
       await sections.nth(1).getByLabel("类型", { exact: true }).click();
-      await page.getByRole("menuitemradio", { name: "远度", exact: true }).click();
+      await page.getByRole("option", { name: "远度", exact: true }).click();
       await sections.nth(1).getByLabel("计分表", { exact: true }).fill("5\t100\n4\t80");
       await page.screenshot({ path: `test-results/combined-create-${width}-${colorScheme}.png`, animations: "disabled" });
       await create.getByRole("button", { name: "保存", exact: true }).click();

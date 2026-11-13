@@ -92,11 +92,11 @@ for (const width of [1280, 800]) {
 
       // A day lists only its rounds.
       await side.getByRole("button", { name: "日期", exact: true }).click();
-      await page.getByRole("menuitemradio", { name: "2026-11-13", exact: true }).click();
+      await page.getByRole("option", { name: "2026-11-13", exact: true }).click();
       await expect(side.getByText("男子100m 初中组", { exact: true })).toHaveCount(0);
       await expect(frame.getByText("2026-11-13 · 全部轮次", { exact: true })).toBeVisible();
       await side.getByRole("button", { name: "日期", exact: true }).click();
-      await page.getByRole("menuitemradio", { name: "全部日期", exact: true }).click();
+      await page.getByRole("option", { name: "全部日期", exact: true }).click();
 
       // Unticking a round asks for the rest.
       await side.getByText("男子跳远", { exact: true }).click();
@@ -122,7 +122,7 @@ for (const width of [1280, 800]) {
       const zoom = page.getByRole("button", { name: "比例", exact: true });
       await expect(zoom).toContainText("适合宽度");
       await zoom.click();
-      await page.getByRole("menuitemradio", { name: "50%", exact: true }).click();
+      await page.getByRole("option", { name: "50%", exact: true }).click();
       await expect(frame.locator(".pv-pages")).toHaveAttribute("style", /scale\(0\.5\)/);
       await noOverflow(page);
 
@@ -147,7 +147,7 @@ for (const width of [1280, 800]) {
       const lead = page.getByRole("button", { name: "检录提前时间", exact: true });
       await expect(lead).toContainText("20 分钟");
       await lead.click();
-      await page.getByRole("menuitemradio", { name: "不显示", exact: true }).click();
+      await page.getByRole("option", { name: "不显示", exact: true }).click();
       await expect(lead).toContainText("不显示");
       await noOverflow(page);
       if (width === 800) await page.getByRole("button", { name: "设置分类", exact: true }).click();
@@ -162,7 +162,7 @@ for (const width of [1280, 800]) {
       for (const [i, choice] of [[0, "每组一页"], [1, "不分页"]] as const) {
         await expect(breaks.nth(i)).toContainText("每个轮次一页");
         await breaks.nth(i).click();
-        await page.getByRole("menuitemradio", { name: choice, exact: true }).click();
+        await page.getByRole("option", { name: choice, exact: true }).click();
         await expect(breaks.nth(i)).toContainText(choice);
       }
       expect(await page.evaluate(async () => {

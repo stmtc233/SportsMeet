@@ -23,6 +23,7 @@
 - 新代码的间距 / 圆角只用 token 档位,不写 10 / 14 / 18 这类零散值。
 - **数字一律等宽**:根元素设 `font-variant-numeric: tabular-nums`,成绩跳动时不左右抖,表格数字纵向对齐。打印模板(`internal/report/`)同样在 `body` 上设。不要在组件里覆盖成 `proportional-nums`。
 - **语义色**经 tone 变量取,不写 `#4CAF50` 之类的硬编码。
+- **对比度**：普通文字与背景至少 4.5∶1，焦点轮廓与相邻表面至少 3∶1；主按钮用 `--st-on-primary`，危险按钮用独立的 `--st-on-danger`。输入框与下拉框边界用 `--st-control-outline`，分隔线用 `--st-outline`。强制颜色模式使用系统色，勾选、开关、分段选中与表格选择通过图形或轮廓保留状态。
 - **圆角统一 iOS 风格平滑轮廓**:圆角矩形用 `corner-shape: superellipse(1.78)` 作视觉近似;满圆角胶囊、真实圆形(头像、单选圆点)与开关轨道显式 `round`。WebView 不支持 `corner-shape` 时按普通圆角显示,不另写兜底。radius token 表示真实半径,页面不自行放大。
 
 ## 组件(`src/design/`)
@@ -39,21 +40,27 @@
 | `StRow` / `StStack` / `StEmpty` / `StMuted` | 一行控件(底边对齐)/ 纵向排列 / 空列表占位 / 次要文字 |
 | `StNotice` / `StTag` | 提示条 / 小标签(状态、`Q` / `q` 晋级标记) |
 | `StListItem` / `StSwitchItem` / `StDivider` | 设置式列表行,整行可点;`StListItem` 是 `div[role=button]`,右侧可再放按钮 |
-| `StSwitch` / `StCheckbox` | 开关 / 复选;在列表行里只展示,点击由整行处理 |
-| `StTextField` / `StSearchField` / `StTextArea` | 文本输入(多行框用于粘贴表格):标签在框**上方**(不做浮动标签),说明与错误在框下方;`prefix` / `suffix` 插槽放单位(「m」「s」) |
+| `StSwitch` / `StCheckbox` | 开关 / 复选;在列表行里只展示,点击由整行处理；交互复选框支持 `aria-label`，半选同步原生 `indeterminate`，全选时清除半选 |
+| `StTextField` / `StSearchField` / `StTextArea` | 文本输入(多行框用于粘贴表格):标签在框**上方**(不做浮动标签),说明与错误在框下方;`prefix` / `suffix` 插槽放单位(「m」「s」)；说明、错误经 `aria-describedby` 关联，错误状态同步 `aria-invalid`，保留调用方提供的描述 |
 | `StMarkField` | 成绩输入:按项目类型解析(`12.34`、`1:05.67`、`6.52`),失焦时调用 Go `scoring` 校验并整理成显示格式,前端不自己解析;`accept` 放行田赛的 `X` / `-` 等记号 |
 | `StTrialsField` | 高度试跳文本格，使用文字键盘、数字右对齐；页面可传 `readOnly` 拦截按键做单键录入；`invalid` 只标红框不写文字，错误由页面在行下方显示并经 `aria-describedby` 关联；接收整组 Go 预览返回的错误，解析与动作规则见 [domain.md](domain.md)「成绩」 |
 | `StDateField` / `StTimeField` | 本地日期 / 24 小时制时分,分开选择,支持 `disabled`;改日期保留时分,改时分保留日期 |
-| `StSegmented` | 2–5 个互斥选项、页内 Tab;选中底色是一块滑动的底板,量好位置后才开始带过渡,控件不可见(隐藏的面板)时由选中按钮自己画底色 |
+| `StSegmented` | 2–5 个互斥选项、页内 Tab；以单选组暴露语义，标签或 `aria-label` 命名，只有当前选项进入 Tab 顺序，方向键循环切换、Home / End 到首尾并跳过禁用项；选中底色是一块滑动的底板,量好位置后才开始带过渡,控件不可见(隐藏的面板)时由选中按钮自己画底色 |
 | `StSelect` / `StMultiSelect` / `StMenu` | 下拉单选 / 下拉多选 / 操作菜单,见下文；`StSelect` 可传 `aria-label` 为表内无独立可见标签的选择框命名。`StMultiSelect` 勾选时菜单不关闭,不勾或全勾都表示「全部」,显示 `allLabel` |
-| `StDialog` | 所有对话框(内部用原生 `<dialog>` 模态);页面不直接写 `<dialog>` 或自绘外壳;组件用 `aria-labelledby` 关联标题,供读屏与自动测试识别。对话框里的下拉菜单挂在对话框内,否则会被模态层盖住 |
-| `StTable` | 数据表格:表头吸顶、列宽可配置、数字列右对齐、行可选中;填满容器且超过 200 行时按固定行高只渲染可见行，上下占位禁止 flex 收缩；筛选时钳制渲染范围并同步真实滚动位置，观察容器高度变化。`empty` 传文字时按 `StEmpty` 排版;数据未到时传 `loading`,不显示空列表占位;`fill` 时传 `scrollKey` 记住滚动位置 |
+| `StDialog` | 所有对话框(内部用原生 `<dialog>` 模态);页面不直接写 `<dialog>` 或自绘外壳;组件用 `aria-labelledby` 关联标题,供读屏与自动测试识别。对话框里的下拉菜单挂在对话框内,否则会被模态层盖住；表单提交时优先聚焦已标错的字段，异步校验返回后再检查一次 |
+| `StTable` | 数据表格:表头吸顶、列宽可配置、数字列右对齐、行可选中；`rowLabel` 给勾选框命名，`onRowClick` 同时在 `actionColumn`（默认首列）生成原生按钮，该列内容须为非交互内容。填满容器且超过 200 行时按固定行高只渲染可见行，上下占位禁止 flex 收缩；总行数与行号经 ARIA 暴露，表头计为第一行；筛选时钳制渲染范围并同步真实滚动位置，观察容器高度变化。`empty` 传文字时按 `StEmpty` 排版;数据未到时传 `loading`,不显示空列表占位;`fill` 时传 `scrollKey` 记住滚动位置 |
+| `StFieldFeedback` | 外壳与每个模态各有一个轻声播报区；字段离焦后或异步校验返回错误时延后 500ms 播报，修正、重新聚焦或卸载时清除该字段的待播报内容，避免打断输入与焦点播报；模态内的错误使用模态内的播报区 |
 | `StPage` / `StToolbar` | 页面骨架与顶部工具栏;非 `flush` 页面传 `scrollKey` 记住正文滚动位置 |
 | `StToast` | 操作结果提示,文案 ≤ 15 字 |
 
 **下拉菜单**用自有弹出层:整块菜单从锚点一侧淡入 + 6px 位移 + 0.96→1 缩放(入 `--st-motion-medium` / 出 `--st-motion-fast`);锚点在右半边时右缘对齐、否则左对齐,下方放不下且上方更宽裕时向上弹出,超高内部滚动。不用逐项依次淡入的展开动画,看起来又慢又生硬。退出动画期间弹出层设为 `inert`、对读屏隐藏且不接收指针,避免连续选项时点到正在消失的菜单。
 
-- 表格单元格里的下拉框与输入框没有可见标签，经 `aria-label` 带上对象名称区分（「运动员1的组别」）。`StCheckbox` 的 `label` 是可见文字，不能拿来当无障碍名称。
+- 单选下拉使用 `listbox / option / aria-selected`，操作与多选使用 `menu / menuitem / menuitemcheckbox`；触发按钮声明匹配的 `aria-haspopup`，打开时通过 `aria-controls` 关联弹出层。
+- Enter / 空格沿原生按钮行为打开，↑ / ↓ 也可打开；键盘打开后聚焦已选项或首个可用项，操作菜单按 ↑ 打开时聚焦末项；鼠标打开保留触发按钮焦点。弹出层内 ↑ / ↓ 循环、Home / End 到首尾，输入字符按名称前缀查找，均跳过禁用项；输入法组合期间不处理这些快捷键。
+- 单选与操作执行后、Esc 关闭后焦点返回触发按钮；Esc 不关闭其所在对话框。Tab / Shift+Tab 关闭弹出层并从触发按钮继续原生顺序，焦点移到弹出层与触发按钮之外时关闭；多选勾选保留菜单和当前焦点。
+
+- 表格单元格里的下拉框与输入框没有可见标签，经 `aria-label` 带上对象名称区分（「运动员1的组别」）。`StCheckbox` 的 `label` 是可见文字，无文字的勾选框用 `aria-label`；表格行操作经名称单元格的原生按钮进入键盘顺序，整行点击保留。
+- 字段说明与错误只在存在时建立描述关联，成绩窄格的错误保留读屏文本；解析、校验和错误文案仍由 Go 提供。对话框主要提交按钮使用 `type="submit"`，以共享表单入口处理校验后的焦点。
 
 ## 动效
 

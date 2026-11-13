@@ -7,6 +7,7 @@ export * from "./icons";
 export * from "./StButton";
 export * from "./StDialog";
 export * from "./StFields";
+export { StFieldFeedback } from "./StFieldFeedback";
 export * from "./StLayout";
 export * from "./StMenu";
 export * from "./StTable";

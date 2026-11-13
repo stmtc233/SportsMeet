@@ -81,9 +81,9 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     await page.getByRole("button", { name: "团体总分", exact: true }).click();
     await expect(page.getByRole("heading", { name: "初一 正式排名", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "初二 正式排名", exact: true })).toBeVisible();
-    await page.getByLabel("组别", { exact: true }).click(); await page.getByRole("menuitemradio", { name: "未分组", exact: true }).click();
+    await page.getByLabel("组别", { exact: true }).click(); await page.getByRole("option", { name: "未分组", exact: true }).click();
     await expect(page.getByText("没有符合条件的计分项目", { exact: true })).toBeVisible();
-    await page.getByLabel("组别", { exact: true }).click(); await page.getByRole("menuitemradio", { name: "全部组别", exact: true }).click();
+    await page.getByLabel("组别", { exact: true }).click(); await page.getByRole("option", { name: "全部组别", exact: true }).click();
     await expect(page.getByText("16", { exact: true }).last()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `test-results/groups-boards-${width}-${colorScheme}.png`, animations: "disabled" });
@@ -108,7 +108,7 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
 
 test("项目按组别筛选、添加并直接调整组别", async ({ page }) => {
   await installGroups(page); await page.goto("/"); await page.getByText("秋季运动会", { exact: true }).click();
-  await page.getByLabel("组别", { exact: true }).click(); await page.getByRole("menuitemradio", { name: "初二", exact: true }).click();
+  await page.getByLabel("组别", { exact: true }).click(); await page.getByRole("option", { name: "初二", exact: true }).click();
   await expect(page.getByText("男子100m 初一", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "添加项目", exact: true }).click();
   const add = page.getByRole("dialog", { name: "添加项目", exact: true });
