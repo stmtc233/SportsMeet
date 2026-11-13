@@ -633,6 +633,52 @@ export interface HeatView {
   base: string;
 }
 
+/** HeightCellPreview describes one editable height, including permitted next trials. */
+export interface HeightCellPreview {
+  height: string;
+  trials: string;
+  error: string;
+  canSuccess: boolean;
+  canFailure: boolean;
+  canPass: boolean;
+  /**
+   * State is the cell's place in the rotation: open (still to jump),
+   * done (cleared, passed or ended by a third failure), skipped (empty
+   * below a height already jumped), out (eliminated earlier) or off
+   * (a status is set or the row does not parse).
+   */
+  state: string;
+}
+
+/** HeightNext is the trial that comes next in the jumping order. */
+export interface HeightNext {
+  position: number;
+  height: string;
+  attempt: number;
+}
+
+/** HeightPreview is a read-only view of a heat's draft; it never writes results. */
+export interface HeightPreview {
+  rows: HeightRowPreview[];
+  canFinish: boolean;
+  valid: boolean;
+  /** Next is nil when every athlete is done with every height. */
+  next: HeightNext | null;
+  /**
+   * NextHeight suggests the bar after the highest one: the last raise
+   * repeated, or 5 cm after a single height.
+   */
+  nextHeight: string;
+}
+
+export interface HeightRowPreview {
+  position: number;
+  markText: string;
+  rank: number | null;
+  error: string;
+  cells: HeightCellPreview[];
+}
+
 /**
  * ImportPreview says what importing a file would do. Hash identifies it:
  * the import must present the same one, so what is written is what was
@@ -826,6 +872,8 @@ export interface ReportTarget {
 
 /** Result is the mark at a slot. Mark is ms (timed) or mm (field). */
 export interface Result {
+  /** height trials saved before the heat is finished */
+  heightPending?: boolean;
   status: Status;
   mark: number | null;
   rank: number | null;
@@ -852,6 +900,8 @@ export interface ResultChange {
  * (no status, mark, attempts or trials) removes the slot's result.
  */
 export interface ResultInput {
+  /** height: confirm this competitor's final record; false saves progress */
+  heightFinished?: boolean;
   position: number;
   /** "" = from the marks: OK, or NM for a field record without a valid mark */
   status?: string;
@@ -866,6 +916,7 @@ export interface ResultInput {
 
 /** ResultView is a result with its texts as the page shows and edits them. */
 export interface ResultView {
+  heightPending?: boolean;
   status: Status;
   mark: number | null;
   markText: string;
@@ -939,7 +990,7 @@ export interface RoundView {
   scheduledText: string;
   heats: HeatView[];
   standings: Standing[];
-  /** every placed athlete has a result */
+  /** every placed competitor has a confirmed result */
   complete: boolean;
 }
 
@@ -1434,6 +1485,9 @@ export const Arrange = {
 
 /** Results records marks. */
 export const Results = {
+  previewHeight(inputs: ResultInput[]): Promise<HeightPreview> {
+    return call("Results.PreviewHeight", inputs);
+  },
   /** Save records what was typed for slots of a heat. */
   save(heatID: string, inputs: ResultInput[]): Promise<void> {
     return call("Results.Save", heatID, inputs);
@@ -1530,6 +1584,9 @@ export const Marks = {
   /** Format shows a mark of kind. */
   normalizeEvent(event: Event, input: string): Promise<string> {
     return call("Marks.NormalizeEvent", event, input);
+  },
+  normalizeHeight(input: string): Promise<string> {
+    return call("Marks.NormalizeHeight", input);
   },
   /** Parse reads typed input as a mark of kind. */
   parse(kind: EventKind, input: string): Promise<number> {

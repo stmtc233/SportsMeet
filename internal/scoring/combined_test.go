@@ -41,3 +41,19 @@ func TestCombinedZeroPendingInvalidAndThresholds(t *testing.T) {
 		t.Fatal("complete statuses")
 	}
 }
+
+func TestCombinedHeightProgressIsPending(t *testing.T) {
+	mark := int64(1500)
+	e := domain.Event{ID: "height", Kind: domain.KindHeight}
+	rule := domain.PointRule{Bands: []domain.PointBand{{Mark: 1500, Points: 100}}}
+	source := CombinedSource{Event: e, Rule: rule, Results: map[string]*domain.Result{"a": {Status: domain.StatusOK, Mark: &mark, HeightPending: true}}}
+	rows, complete, err := CombinedRank([]string{"a"}, []CombinedSource{source})
+	if err != nil || complete || !rows[0].Pending || !rows[0].Cells[0].Pending {
+		t.Fatalf("partial component: %+v %v", rows, err)
+	}
+	source.Results["a"].HeightPending = false
+	_, complete, err = CombinedRank([]string{"a"}, []CombinedSource{source})
+	if err != nil || !complete {
+		t.Fatal("finished component still pending")
+	}
+}

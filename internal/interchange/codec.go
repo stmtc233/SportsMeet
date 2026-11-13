@@ -40,7 +40,7 @@ func Decode(data []byte) (*File, error) {
 	if head.Version < 1 {
 		return nil, Problems{"version 必须为正整数"}
 	}
-	if head.Version < 5 {
+	if head.Version < 6 {
 		var err error
 		if data, err = withoutNewerFields(data, head.Version); err != nil {
 			return nil, fmt.Errorf("不是有效的 JSON:%w", err)
@@ -99,11 +99,8 @@ func Decode(data []byte) (*File, error) {
 	return &f, nil
 }
 
-// withoutNewerFields drops the fields later versions added to rounds and
-// heats from a file of an earlier version: the round start and heat
-// duration (v4) and the heat's actual start (v5) are unknown fields there,
-// whatever their JSON types. Parts that are not shaped as the spec says are
-// left for Validate.
+// withoutNewerFields ignores fields outside the file's declared format,
+// regardless of their JSON types. Validate handles malformed structures.
 func withoutNewerFields(data []byte, version int) ([]byte, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
@@ -129,7 +126,19 @@ func withoutNewerFields(data []byte, version int) ([]byte, error) {
 					if version < 4 {
 						delete(heat, "durationMinutes")
 					}
-					delete(heat, "startedAt")
+					if version < 5 {
+						delete(heat, "startedAt")
+					}
+					if version < 6 {
+						slots, _ := heat["slots"].([]any)
+						for _, s := range slots {
+							if slot, ok := s.(map[string]any); ok {
+								if result, ok := slot["result"].(map[string]any); ok {
+									delete(result, "heightPending")
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -391,6 +400,12 @@ func validateResult(at string, event domain.Event, r *Result) Problems {
 	var p Problems
 	kind := event.Kind
 	add := func(format string, a ...any) { p = append(p, fmt.Sprintf(format, a...)) }
+	if r.HeightPending && kind != domain.KindHeight {
+		add("%s.heightPending 只用于高度项目", at)
+	}
+	if r.HeightPending && r.Qualify != nil && *r.Qualify != "" {
+		add("%s 过程成绩不能指定晋级", at)
+	}
 	status := domain.Status(r.Status)
 	switch {
 	case !status.Valid():

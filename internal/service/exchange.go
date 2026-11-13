@@ -136,7 +136,7 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 					slot := interchange.Slot{Position: sl.Position, AthleteID: sl.AthleteID, TeamID: sl.TeamID}
 					if r := sl.Result; r != nil {
 						res := &interchange.Result{Status: string(r.Status), Mark: r.Mark, Rank: r.Rank, Qualify: optStr(r.Qualify),
-							Wind: r.Wind, Note: r.Note}
+							Wind: r.Wind, Note: r.Note, HeightPending: r.HeightPending}
 						for _, a := range r.Attempts {
 							res.Attempts = append(res.Attempts, interchange.Attempt{Outcome: a.Outcome, Mark: a.Mark, Wind: a.Wind})
 						}
@@ -191,7 +191,7 @@ type importPlan struct {
 }
 
 func resultFromFile(r *interchange.Result) domain.Result {
-	out := domain.Result{Status: domain.Status(r.Status), Mark: r.Mark, Rank: r.Rank, Wind: r.Wind, Note: r.Note}
+	out := domain.Result{Status: domain.Status(r.Status), Mark: r.Mark, Rank: r.Rank, Wind: r.Wind, Note: r.Note, HeightPending: r.HeightPending}
 	if r.Qualify != nil {
 		out.Qualify = *r.Qualify
 	}

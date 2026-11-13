@@ -1,8 +1,8 @@
-# 交换格式规范 v5
+# 交换格式规范 v6
 
 SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的完整快照**:参赛单位、运动员、项目、报名、轮次、组、成绩。
 
-- 机器可读定义：[v5](schema/interchange-v5.schema.json)；兼容读取 [v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
+- 机器可读定义：[v6](schema/interchange-v6.schema.json)；兼容读取 [v5](schema/interchange-v5.schema.json)、[v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
 - 示例:[examples/sample-meet.json](examples/sample-meet.json)
 
 ## 1. 文件
@@ -20,12 +20,12 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ## 2. 版本
 
 ```json
-{ "format": "sportsmeet-interchange", "version": 5 }
+{ "format": "sportsmeet-interchange", "version": 6 }
 ```
 
 - `format` 固定,不符即拒绝读取。
 - `version` 为正整数。增删字段、改字段含义、改单位、改枚举取值均须 +1。
-- 写出方总是写 v5；读取方支持 v1、v2、v3、v4、v5。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
+- 写出方总是写 v6；读取方支持 v1、v2、v3、v4、v5、v6。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
 - 读取方必须能读所有已发布版本;遇到比自己新的版本直接拒绝,并提示升级软件(不尝试猜测读取)。
 
 ## 3. 基本约定
@@ -67,7 +67,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ```jsonc
 {
   "format": "sportsmeet-interchange",
-  "version": 4,
+  "version": 6,
   "exportedAt": "2026-11-12T18:05:31+08:00",
   "generator": { "name": "SportsMeet", "version": "0.1.0" },
   "meet": { ... },
@@ -222,6 +222,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `wind` | integer \| null | | 个人风速(田赛最好一跳、或覆盖整组风速),单位同 §5.8 |
 | `attempts` | Attempt[] | | 远度及多次计次／计分项目的逐次成绩 |
 | `bars` | Bar[] | | 高度项目逐高度记录 |
+| `heightPending` | boolean | | 仅高度项目；`true` 表示过程记录，`false`、`null` 或省略表示已确认 |
 | `note` | string | | |
 
 逐次 `attempts[]`(按次序，单位随项目类型):
@@ -239,7 +240,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `height` | integer | 毫米 |
 | `trials` | string | 1–3 个字符,由 `O`(成功)、`X`(失败)、`-`(免跳)组成,如 `"XO"`、`"XXX"`、`"-"`;在某高度失败后免跳,剩余次数带到下一高度,所以下一高度可能只有 `"X"` |
 
-`result.mark` 是最终成绩：远度为最好一次，高度为最后成功高度，计次／计分多次模式按 `attemptMode` 汇总。犯规和免试不作为有效零值；全无有效尝试记 `NM`。计次／计分的有效最终值须与已有逐次记录一致，解析与求和检查整数溢出。
+`result.mark` 是当前最好或已确认的成绩：远度为最好一次，高度为最后成功高度，计次／计分多次模式按 `attemptMode` 汇总。犯规和免试不作为有效零值；全无有效尝试记 `NM`。计次／计分的有效最终值须与已有逐次记录一致，解析与求和检查整数溢出。高度的 `heightPending=true` 时，轮次尚未全部完成，不能带 `Q / q`；界面结束录入或 MCP 确认最终记录后为 `false`，全部位置确认后计算晋级。已有数据库与交换文件未填写该字段时按已确认读取。读取保留符合结构的既有试跳记录，新的成绩写入执行 [高度试跳顺序校验](agents/domain.md#成绩)。
 
 ### 5.11 全能 `combineds[]`
 

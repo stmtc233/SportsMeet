@@ -69,14 +69,15 @@ type Bar struct {
 
 // Result is the mark at a slot. Mark is ms (timed) or mm (field).
 type Result struct {
-	Status   Status    `json:"status"`
-	Mark     *int64    `json:"mark"`
-	Rank     *int      `json:"rank"`
-	Qualify  string    `json:"qualify"` // Q | q | ""
-	Wind     *int      `json:"wind"`    // 0.1 m/s
-	Attempts []Attempt `json:"attempts"`
-	Bars     []Bar     `json:"bars"`
-	Note     string    `json:"note"`
+	HeightPending bool      `json:"heightPending,omitempty"` // height trials saved before the heat is finished
+	Status        Status    `json:"status"`
+	Mark          *int64    `json:"mark"`
+	Rank          *int      `json:"rank"`
+	Qualify       string    `json:"qualify"` // Q | q | ""
+	Wind          *int      `json:"wind"`    // 0.1 m/s
+	Attempts      []Attempt `json:"attempts"`
+	Bars          []Bar     `json:"bars"`
+	Note          string    `json:"note"`
 }
 
 // Team belongs to a team-participant event; relay members are ordered by leg.

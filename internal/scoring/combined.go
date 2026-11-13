@@ -51,6 +51,9 @@ func CombinedRank(athletes []string, sources []CombinedSource) ([]CombinedStandi
 				row.Pending = true
 				complete = false
 			} else {
+				if result.HeightPending {
+					c.Pending, row.Pending, complete = true, true, false
+				}
 				c.Status = result.Status
 				var pts int64
 				if result.Status == domain.StatusOK && result.Mark != nil {

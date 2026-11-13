@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false };
@@ -41,6 +41,16 @@ export async function installRuntime(page: Page, options: { athleteCount?: numbe
     if (options.eventConfig === "throw") {
       Object.assign(event, { discipline: "铅球", name: "男子铅球", kind: "distance", startMode: "", distanceMode: "throw" });
       Object.assign(rules, { timed: false, usesLanes: false, positionLabel: "顺序", attemptLabel: "试投", multipleAttempts: true, startLabel: "", defaultPerHeat: 12 });
+    }
+    if (options.eventConfig === "height") {
+      Object.assign(event, { discipline: "跳高", name: "男子跳高", kind: "height", startMode: "", groupLabel: "" });
+      Object.assign(rules, { timed: false, usesLanes: false, positionLabel: "顺序", attemptLabel: "试跳", startLabel: "", defaultPerHeat: 12 });
+      detail.rounds[0]!.heats[0]!.slots = entries.slice(0, 3).map((a, i) => ({ position: i + 1, athleteId: a.athleteId, competitorId: a.competitorId, result: null }));
+      if (options.heightRounds) {
+        const second = structuredClone(detail.rounds[0]!);
+        second.id = "semi"; second.label = "半决赛"; second.stage = "semifinal"; second.heats[0]!.id = "semi-heat";
+        detail.rounds.push(second);
+      }
     }
     if (options.eventConfig === "count" || options.eventConfig === "teamCount") {
       Object.assign(event, { discipline: "跳绳", name: "男子跳绳", kind: "count", startMode: "", attemptMode: "best", rankDirection: "desc", attemptCount: 3 });
@@ -213,13 +223,55 @@ export async function installRuntime(page: Page, options: { athleteCount?: numbe
           }
           case "Marks.NormalizeEvent": return args[0].kind === "score" ? Number(args[1]).toFixed(args[0].scoreDecimals ?? 0) : args[1];
           case "Marks.Normalize": return args[1];
+          case "Marks.NormalizeHeight": {
+            const n = Number(args[0]);
+            if (!Number.isFinite(n) || n <= 0 || Math.abs(n * 100 - Math.round(n * 100)) > 0.000001) return error("高度需为正数，精确到厘米");
+            return n.toFixed(2);
+          }
+          case "Results.PreviewHeight": {
+            const inputs = args[0];
+            const valid = (s: string) => s.length <= 3 && /^(X{0,2}O|X{1,3}|X{0,2}-{1,3})$/.test(s);
+            const rows = inputs.map((input: any) => {
+              const bars = input.bars.map((b: any) => ({ ...b, trials: b.trials.trim().toUpperCase().replaceAll("0", "O").replaceAll("×", "X") }));
+              const invalid = bars.some((b: any) => b.trials && !valid(b.trials));
+              const best = Math.max(0, ...bars.filter((b: any) => b.trials.includes("O") && valid(b.trials)).map((b: any) => Number(b.height)));
+              return { position: input.position, markText: invalid || input.status ? "" : best ? best.toFixed(2) : bars.some((b: any) => b.trials) ? "未过杆" : "", rank: best && !input.status && !invalid ? 1 : null, error: invalid ? "试跳记录不正确" : "", cells: bars.map((b: any) => ({height: b.height, trials: b.trials, error: b.trials && !valid(b.trials) ? "试跳记录不正确" : "", canSuccess: !input.status && valid(b.trials+"O"), canFailure: !input.status && valid(b.trials+"X"), canPass: !input.status && valid(b.trials+"-")})) };
+            });
+            // A small copy of Go's jumping order (service/height.go).
+            for (const [r, row] of rows.entries()) {
+              const last = row.cells.reduce((at: number, c: any, i: number) => c.trials ? i : at, -1);
+              let failures = 0;
+              for (const [i, c] of row.cells.entries()) {
+                const off = inputs[r].status || row.error;
+                c.state = off ? "off" : !c.trials && failures >= 3 ? "out" : !c.trials && i < last ? "skipped" : "";
+                for (const ch of c.trials) failures = ch === "O" ? 0 : ch === "X" ? failures + 1 : failures;
+                if (!c.state) c.state = /[O-]/.test(c.trials) || c.trials.length >= 3 || failures >= 3 ? "done" : "open";
+              }
+            }
+            let next = null as any;
+            for (let i = 0; !next && i < (rows[0]?.cells.length ?? 0); i++) for (const [r, row] of rows.entries()) {
+              const c = row.cells[i];
+              if (c.state === "open" && (!next || c.trials.length + 1 < next.attempt)) next = { position: inputs[r].position, height: c.height, attempt: c.trials.length + 1 };
+            }
+            const hs = (inputs[0]?.bars ?? []).map((b: any) => Math.round(Number(b.height) * 100));
+            const nextHeight = !hs.length ? "" : ((hs.length === 1 ? hs[0] + 5 : 2 * hs.at(-1) - hs.at(-2)) / 100).toFixed(2);
+            return { rows, next, nextHeight, valid: rows.every((r: any) => !r.error), canFinish: inputs.length > 0 && rows.every((r: any, i: number) => !r.error && (inputs[i].status || inputs[i].bars.some((b: any) => b.trials.trim()))) };
+          }
           case "Results.Save": {
+            if (event.kind === "height" && options.rejectHeightSave) return error("保存失败，请重试");
             (globalThis as any).__relayCalls.push({ method, args });
-            const h = detail.rounds[0]!.heats.find((h) => h.id === args[0])!;
+            const h = detail.rounds.flatMap((r) => r.heats).find((h) => h.id === args[0])!;
             for (const input of args[1]) {
               const sl = h.slots.find((sl) => sl.position === input.position)!;
+              if (event.kind === "height") {
+                const bars = input.bars.filter((b: any) => b.trials.trim()).map((b: any) => ({height: Math.round(Number(b.height)*1000), heightText: b.height, trials: b.trials.trim().toUpperCase()}));
+                const mark = Math.max(0, ...bars.filter((b: any) => b.trials.includes("O")).map((b: any) => b.height));
+                (sl as any).result = !bars.length && !input.status ? null : { status: input.status || (mark ? "OK" : "NM"), heightPending: !input.heightFinished, mark: mark || null, markText: mark ? (mark/1000).toFixed(2) : "", rank: mark ? 1 : null, qualify: "", attempts: [], bars, note: input.note || "" };
+                continue;
+              }
               (sl as any).result = { status: "OK", mark: 50120, markText: event.kind === "score" ? Number(input.mark).toFixed(event.scoreDecimals) : event.kind === "count" ? String(Math.max(...(input.attempts ?? []).map(Number).filter(Number.isFinite))) : input.mark, rank: 1, qualify: "", attempts: input.attempts ?? [], bars: [], note: "" };
             }
+            if (event.kind === "height") for (const round of detail.rounds) round.complete = round.heats.every((heat) => heat.slots.every((slot: any) => slot.result && !slot.result.heightPending));
             h.keepReason = "已有成绩";
             (h as any).resultsUpdatedText = "2026-11-12 09:31";
             if (!h.startedAt) Object.assign(h, started(h.effectiveAt, "2026-11-12T09:12"));

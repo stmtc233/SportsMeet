@@ -2,6 +2,7 @@ package scoring
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -50,7 +51,44 @@ func ParseTrials(s string) (string, error) {
 	if !trialsRe.MatchString(s) {
 		return "", ErrBadTrials
 	}
+	for i, c := range s {
+		if c == 'O' && i != len(s)-1 {
+			return "", errors.New("成功后不能继续试跳")
+		}
+		if c == '-' && strings.ContainsAny(s[i+1:], "OX") {
+			return "", errors.New("免跳后不能在同一高度试跳")
+		}
+	}
 	return s, nil
+}
+
+// ValidateBars checks the sequence across heights, including failures carried
+// over a passed height. Partial records are valid while the event is running.
+func ValidateBars(bars []domain.Bar) error {
+	failures := 0
+	for i, b := range bars {
+		if i > 0 && b.Height <= bars[i-1].Height {
+			return errors.New("高度应从低到高")
+		}
+		trials, err := ParseTrials(b.Trials)
+		if err != nil {
+			return fmt.Errorf("%s：%w", FormatMark(domain.KindHeight, b.Height), err)
+		}
+		for _, c := range trials {
+			if c == '-' {
+				continue
+			}
+			if failures >= 3 {
+				return errors.New("连续三次失败后不能继续试跳")
+			}
+			if c == 'O' {
+				failures = 0
+			} else {
+				failures++
+			}
+		}
+	}
+	return nil
 }
 
 // BestAttempt is the final mark of a distance result: the best valid

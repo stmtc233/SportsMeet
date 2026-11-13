@@ -15,9 +15,10 @@ import (
 // ResultInput is what was typed for one slot. A row with nothing in it
 // (no status, mark, attempts or trials) removes the slot's result.
 type ResultInput struct {
-	Position int    `json:"position"`
-	Status   string `json:"status,omitempty"` // "" = from the marks: OK, or NM for a field record without a valid mark
-	Mark     string `json:"mark,omitempty"`   // timed events, and field events without a record
+	HeightFinished bool   `json:"heightFinished,omitempty"` // height: confirm this competitor's final record; false saves progress
+	Position       int    `json:"position"`
+	Status         string `json:"status,omitempty"` // "" = from the marks: OK, or NM for a field record without a valid mark
+	Mark           string `json:"mark,omitempty"`   // timed events, and field events without a record
 	// Attempts are a distance result's tries in order: a mark, X or -.
 	Attempts []string `json:"attempts,omitempty"`
 	// Bars are a height result's heights; blank trials are skipped.
@@ -72,7 +73,7 @@ func buildResultEvent(event domain.Event, in ResultInput) (*domain.Result, error
 		}
 		trials, err := scoring.ParseTrials(b.Trials)
 		if err != nil {
-			return nil, invalid("%s:%s", b.Height, err)
+			return nil, invalid("%s m：%s", b.Height, err)
 		}
 		r.Bars = append(r.Bars, domain.Bar{Height: h, Trials: trials})
 	}
@@ -80,6 +81,12 @@ func buildResultEvent(event domain.Event, in ResultInput) (*domain.Result, error
 		if r.Bars[i].Height <= r.Bars[i-1].Height {
 			return nil, invalid("高度应从低到高")
 		}
+	}
+	if kind == domain.KindHeight {
+		if err := scoring.ValidateBars(r.Bars); err != nil {
+			return nil, invalid("%s", err)
+		}
+		r.HeightPending = !in.HeightFinished
 	}
 	if len(r.Attempts) > 0 && !event.MultipleAttempts() || len(r.Bars) > 0 && kind != domain.KindHeight {
 		return nil, invalid("逐次记录与项目类型不符")
@@ -254,7 +261,7 @@ func (s *Service) SaveResults(ctx context.Context, src store.Source, heatID stri
 		}
 		r, err := buildResultEvent(st.event, in)
 		if err != nil {
-			return invalid("%s:%s", positionLabel(st.event, in.Position), err)
+			return invalid("%s：%s", positionLabel(st.event, in.Position), err)
 		}
 		if r != nil && slot.Result != nil {
 			r.Wind = slot.Result.Wind

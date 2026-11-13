@@ -1,10 +1,27 @@
 import { act } from "../../lib/action";
-import { Marks, Results, type EventKind, type HeatStartInput, type ResultInput } from "../../mygo";
+import { useEffect, useState } from "react";
+import { Marks, Results, type HeatStartInput, type ResultInput, type HeightPreview } from "../../mygo";
 
 export const ResultsController = {
   save: (heatId: string, inputs: ResultInput[]) => act(() => Results.save(heatId, inputs), "已保存"),
   /** Changes or clears a heat's actual start ("" clears). */
   setStarted: (input: HeatStartInput) => act(() => Results.setStarted(input), input.startedAt ? "已保存" : "已清除"),
-  /** What was typed, as marks are shown; undefined when it is not a mark. */
-  normalize: (kind: EventKind, input: string) => act(() => Marks.normalize(kind, input)),
+  height: (input: string) => act(() => Marks.normalizeHeight(input)),
 };
+
+/** Superseded previews cannot replace the view of the current draft. */
+export function useHeightPreview(inputs: ResultInput[]) {
+  const [state, setState] = useState<{ inputs: ResultInput[]; preview?: HeightPreview; error?: string }>();
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let current = true;
+    const timer = setTimeout(() => {
+      Results.previewHeight(inputs).then(
+        (preview) => { if (current) setState({ inputs, preview }); },
+        () => { if (current) setState({ inputs, error: "无法校验，请重试" }); },
+      );
+    }, 80);
+    return () => { current = false; clearTimeout(timer); };
+  }, [inputs, retry]);
+  return { ...(state?.inputs === inputs ? state : undefined), retry: () => { setState(undefined); setRetry((old) => old + 1); } };
+}

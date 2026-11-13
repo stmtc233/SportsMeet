@@ -40,6 +40,7 @@
 | `StSwitch` / `StCheckbox` | 开关 / 复选;在列表行里只展示,点击由整行处理 |
 | `StTextField` / `StSearchField` / `StTextArea` | 文本输入(多行框用于粘贴表格):标签在框**上方**(不做浮动标签),说明与错误在框下方;`prefix` / `suffix` 插槽放单位(「m」「s」) |
 | `StMarkField` | 成绩输入:按项目类型解析(`12.34`、`1:05.67`、`6.52`),失焦时调用 Go `scoring` 校验并整理成显示格式,前端不自己解析;`accept` 放行田赛的 `X` / `-` 等记号 |
+| `StTrialsField` | 高度试跳文本格，使用文字键盘、数字右对齐；页面可传 `readOnly` 拦截按键做单键录入；`invalid` 只标红框不写文字，错误由页面在行下方显示并经 `aria-describedby` 关联；接收整组 Go 预览返回的错误，解析与动作规则见 [domain.md](domain.md)「成绩」 |
 | `StDateField` / `StTimeField` | 本地日期 / 24 小时制时分,分开选择,支持 `disabled`;改日期保留时分,改时分保留日期 |
 | `StSegmented` | 2–5 个互斥选项、页内 Tab |
 | `StSelect` / `StMenu` | 下拉选择 / 操作菜单,见下文 |

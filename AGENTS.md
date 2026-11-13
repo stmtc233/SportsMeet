@@ -86,7 +86,7 @@ SportsMeet/
 ├── docs/
 │   ├── brand-guidelines.md             ←「跑道 S」品牌设计规范与资源索引
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
-│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json
+│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json · interchange-v6.schema.json
 │   ├── examples/sample-meet.json
 │   ├── performance.md · performance-results.json · performance-optimized-results.json ← 优化与压测对比
 │   └── agents/                        ← 专题细则(§5)
@@ -173,6 +173,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 - 项目 = 一个单项,必带性别与项目名、必属于赛事;男女、不同距离不得混在一个项目。
 - 运动员属于赛事,经报名进项目;排进位置即自动报名,取消报名不动已排位置;学号 / 号码布赛事内唯一。
 - 成绩 `mark` 存整数(计时毫秒、田赛毫米、计次次数、计分按精度缩放),并列同名次、下一名顺延。
+- 高度按试跳格录入，单键记一次、光标留在本格(用户要求),Go 预览标出下一跳；Go 预览与校验顺序及跨高度连续失败；过程保存后由「结束录入」确认整组，全部位置确认后才计算晋级，草稿跨轮次保留(→ domain.md、frontend.md)。
 - 位置在分道与分道后抢道项目中表示起跑道次,在不分道项目和田赛中表示顺序;同一轮次里一人只占一个位置,组名只存自定义名称。
 - 常用项目预设只提供初始配置;起跑方式、跳跃 / 投掷与建议棒数独立保存,已有数据不按项目名推断。
 - 有成绩的组锁定,不能删除、不被自动编排覆盖;判定只有 `HeatFacts.KeepReason` 一处。

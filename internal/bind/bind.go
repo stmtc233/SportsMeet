@@ -270,6 +270,10 @@ func (r Results) Save(ctx context.Context, heatID string, inputs []service.Resul
 	return r.Svc.SaveResults(ctx, ui, heatID, inputs)
 }
 
+func (r Results) PreviewHeight(inputs []service.ResultInput) service.HeightPreview {
+	return service.PreviewHeight(inputs)
+}
+
 // SetStarted records, changes or clears when a heat actually started.
 func (r Results) SetStarted(ctx context.Context, in service.HeatStartInput) (*service.HeatStartResult, error) {
 	return r.Svc.SetHeatStarted(ctx, ui, in)
@@ -433,6 +437,14 @@ func (x *Exchange) Import(ctx context.Context, path, meetID, hash string) (*serv
 
 // Marks parses and formats marks; the page never does it itself.
 type Marks struct{}
+
+func (Marks) NormalizeHeight(input string) (string, error) {
+	h, err := scoring.ParseMark(domain.KindHeight, input)
+	if err != nil || h <= 0 || h%10 != 0 {
+		return "", errors.New("高度需为正数，精确到厘米")
+	}
+	return scoring.FormatMark(domain.KindHeight, h), nil
+}
 
 // Parse reads typed input as a mark of kind.
 func (Marks) Parse(kind domain.EventKind, input string) (int64, error) {

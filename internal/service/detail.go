@@ -53,7 +53,7 @@ type RoundView struct {
 	ScheduledText string     `json:"scheduledText"`
 	Heats         []HeatView `json:"heats"`
 	Standings     []Standing `json:"standings"`
-	Complete      bool       `json:"complete"` // every placed athlete has a result
+	Complete      bool       `json:"complete"` // every placed competitor has a confirmed result
 }
 
 // HeatView is a heat; Base is its fingerprint when loaded.
@@ -126,14 +126,15 @@ type SlotView struct {
 
 // ResultView is a result with its texts as the page shows and edits them.
 type ResultView struct {
-	Status   domain.Status `json:"status"`
-	Mark     *int64        `json:"mark"`
-	MarkText string        `json:"markText"`
-	Rank     *int          `json:"rank"`
-	Qualify  string        `json:"qualify"`
-	Attempts []string      `json:"attempts"`
-	Bars     []BarView     `json:"bars"`
-	Note     string        `json:"note"`
+	HeightPending bool          `json:"heightPending,omitempty"`
+	Status        domain.Status `json:"status"`
+	Mark          *int64        `json:"mark"`
+	MarkText      string        `json:"markText"`
+	Rank          *int          `json:"rank"`
+	Qualify       string        `json:"qualify"`
+	Attempts      []string      `json:"attempts"`
+	Bars          []BarView     `json:"bars"`
+	Note          string        `json:"note"`
 }
 
 // BarView is one height of a height result.
@@ -320,7 +321,8 @@ func resultViewEvent(event domain.Event, r *domain.Result) *ResultView {
 		return nil
 	}
 	v := &ResultView{Status: r.Status, Mark: r.Mark, Rank: r.Rank, Qualify: r.Qualify, Note: r.Note,
-		Attempts: make([]string, len(r.Attempts)), Bars: make([]BarView, len(r.Bars))}
+		HeightPending: r.HeightPending,
+		Attempts:      make([]string, len(r.Attempts)), Bars: make([]BarView, len(r.Bars))}
 	if r.Mark != nil {
 		v.MarkText = scoring.FormatEventMark(event, *r.Mark)
 	}
@@ -348,6 +350,7 @@ func standingsEvent(event domain.Event, r domain.Round) (list []Standing, comple
 	var all []scoring.Ranked
 	list = []Standing{}
 	placed := 0
+	pending := false
 	for _, h := range r.Heats {
 		for _, sl := range h.Slots {
 			placed++
@@ -355,10 +358,13 @@ func standingsEvent(event domain.Event, r domain.Round) (list []Standing, comple
 				continue
 			}
 			all = append(all, ranked(sl.CompetitorID(), sl.Result))
+			pending = pending || sl.Result.HeightPending
 			row := Standing{AthleteID: sl.AthleteID, TeamID: sl.TeamID, CompetitorID: sl.CompetitorID(), HeatLabel: domain.HeatLabel(h.Ordinal, h.Name),
 				Position: sl.Position, Status: sl.Result.Status, Qualify: sl.Result.Qualify}
 			if sl.Result.Mark != nil {
 				row.MarkText = scoring.FormatEventMark(event, *sl.Result.Mark)
+			} else if sl.Result.HeightPending && sl.Result.Status == domain.StatusNM {
+				row.MarkText = "未过杆"
 			}
 			list = append(list, row)
 		}
@@ -379,7 +385,7 @@ func standingsEvent(event domain.Event, r domain.Round) (list []Standing, comple
 		}
 		return *a < *b
 	})
-	return list, placed > 0 && len(list) == placed
+	return list, placed > 0 && len(list) == placed && !pending
 }
 
 // rescore recomputes what follows from the marks of a round held in
@@ -397,6 +403,9 @@ func rescoreEvent(event domain.Event, advance *domain.Advance, heats []domain.He
 			if sl.Result == nil {
 				complete = false
 				continue
+			}
+			if sl.Result.HeightPending {
+				complete = false
 			}
 			list = append(list, ranked(sl.CompetitorID(), sl.Result))
 		}

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import { isCallError } from "mygo-runtime";
 import type { Event, EventKind } from "../mygo";
 import { normalizeMark } from "../lib/marks";
@@ -23,7 +23,7 @@ function FieldShell({ label, hint, error, width = "auto", id, children }: FieldS
         </label>
       )}
       {children}
-      {error ? <span className="st-field__error">{error}</span> : hint ? <span className="st-field__hint">{hint}</span> : null}
+      {error ? <span className="st-field__error" id={`${id}-error`}>{error}</span> : hint ? <span className="st-field__hint">{hint}</span> : null}
     </div>
   );
 }
@@ -38,20 +38,30 @@ interface StTextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "
   suffix?: ReactNode;
   width?: FieldShellProps["width"];
   align?: "start" | "end";
+  ref?: Ref<HTMLInputElement>;
+  /** Marks the box invalid without a message below it. */
+  invalid?: boolean;
 }
 
-export function StTextField({ label, hint, error, value, onChange, prefix, suffix, width, align, id, ...rest }: StTextFieldProps) {
+export function StTextField({ label, hint, error, invalid, value, onChange, prefix, suffix, width, align, id, ...rest }: StTextFieldProps) {
   const auto = useId();
   const fieldId = id ?? auto;
   return (
     <FieldShell label={label} hint={hint} error={error} width={width} id={fieldId}>
-      <span className="st-input" data-invalid={error ? true : undefined}>
+      <span className="st-input" data-invalid={error || invalid ? true : undefined}>
         {prefix && <span className="st-input__affix">{prefix}</span>}
         <input {...rest} id={fieldId} value={value} onChange={(e) => onChange(e.target.value)} autoComplete="off" spellCheck={false} data-align={align} />
         {suffix && <span className="st-input__affix">{suffix}</span>}
       </span>
     </FieldShell>
   );
+}
+
+/** Height trials are text in a narrow cell: the heat's Go preview marks it
+ * invalid and the page shows the message once for the row, linked through
+ * aria-describedby. */
+export function StTrialsField({ invalid, ...props }: Omit<StTextFieldProps, "inputMode" | "align" | "width" | "error" | "hint" | "label">) {
+  return <StTextField {...props} invalid={invalid} inputMode="text" align="end" width="fill" aria-invalid={invalid || undefined} />;
 }
 
 export function StSearchField({ value, onChange, placeholder = "搜索", width = "auto" }: { value: string; onChange: (v: string) => void; placeholder?: string; width?: FieldShellProps["width"] }) {

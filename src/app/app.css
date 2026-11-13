@@ -85,6 +85,43 @@
 
 /* results */
 .result-grid { overflow-x: auto; }
+.result-round { display: flex; flex-direction: column; gap: var(--st-space-section); }
+.result-round[hidden] { display: none; }
+.height-footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--st-space-8); padding: var(--st-space-12) var(--st-space-16); border-top: 1px solid var(--st-outline); }
+.height-footer > .st-muted { flex: 1; min-width: 0; }
+.height-footer__buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--st-space-8); }
+.height-footer__buttons { margin-left: auto; }
+.height-editor { display: flex; flex-wrap: wrap; align-items: center; gap: var(--st-space-8) var(--st-space-16); padding: var(--st-space-8) var(--st-space-16); background: var(--st-surface-raised); border-top: 1px solid var(--st-outline); border-bottom: 1px solid var(--st-outline); }
+.height-editor__subject { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: var(--st-space-8); min-width: 160px; }
+.height-grid { max-height: 480px; }
+/* Sticky cells paint the row's tint over an opaque surface, so they match
+   the row while scrolled content passes beneath them. */
+.height-grid .result-row { --row-tint: transparent; padding-left: 0; padding-right: 0; }
+.height-grid .result-row:hover { --row-tint: var(--st-hover); }
+.height-grid .result-row:focus-within { --row-tint: var(--st-tone-info-container); }
+.height-grid .result-row--head { position: sticky; top: 0; z-index: 3; background: var(--st-surface); --row-tint: transparent; }
+.height-grid .height-sticky-pos, .height-grid .height-identity, .height-grid .height-end { position: sticky; z-index: 1; align-self: stretch; display: flex; align-items: center; background: linear-gradient(var(--row-tint), var(--row-tint)) var(--st-surface); }
+.height-grid .height-sticky-pos { left: 0; justify-content: center; }
+.height-grid .height-identity { left: 40px; margin-left: calc(-1 * var(--st-space-8)); padding-left: var(--st-space-8); flex-direction: column; align-items: stretch; justify-content: center; padding-right: var(--st-space-8); border-right: 1px solid var(--st-outline); }
+.height-identity__name { display: flex; align-items: center; gap: var(--st-space-4); min-width: 0; }
+.height-grid .height-identity .unit { font-size: var(--st-text-sm); }
+.height-grid .height-end { justify-content: flex-end; margin-left: calc(-1 * var(--st-space-8)); padding-left: var(--st-space-8); }
+.height-grid .height-end--menu { right: 0; justify-content: center; }
+.height-grid .height-end--rank { right: 40px; }
+.height-grid .height-end--mark { right: 96px; border-left: 1px solid var(--st-outline); }
+.height-heading { display: flex; align-items: center; justify-content: flex-end; }
+.height-heading .st-button { padding: 0 var(--st-space-4); min-width: 0; font-size: var(--st-text-sm); color: var(--st-text-muted); }
+.height-heading[data-active] .st-button { color: var(--st-tone-info-accent); }
+.height-actions { display: flex; align-items: center; gap: var(--st-space-4); }
+.height-actions .st-icon-button { font-weight: 600; }
+.height-add { display: flex; align-items: flex-start; gap: var(--st-space-4); }
+.height-add .st-input { height: var(--st-control-sm); }
+.height-add .st-field__error { white-space: normal; }
+.height-cell .st-input { height: var(--st-control-sm); }
+.height-cell .st-input input[readonly] { cursor: default; caret-color: transparent; }
+.height-cell[data-state="out"] .st-input, .height-cell[data-state="skipped"] .st-input { background: var(--st-hover); border-color: transparent; }
+.height-cell[data-state="done"] .st-input { border-color: transparent; }
+.height-row-error { grid-column: 3 / -1; padding-bottom: var(--st-space-4); color: var(--st-tone-danger-accent); font-size: var(--st-text-sm); line-height: 1.4; }
 .result-rows { width: max-content; min-width: 100%; }
 .result-row { display: grid; grid-template-columns: var(--result-cols); align-items: center; column-gap: var(--st-space-8); min-height: 40px; padding: var(--st-space-4) var(--st-space-16) var(--st-space-4) var(--st-space-8); border-bottom: 1px solid var(--st-outline); }
 .result-row:last-child { border-bottom: 0; }

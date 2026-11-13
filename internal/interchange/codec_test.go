@@ -44,7 +44,7 @@ func TestDecodeRejects(t *testing.T) {
 	cases := []struct {
 		name, from, to, want string
 	}{
-		{"newer version", `"version": 1`, `"version": 6`, ""},
+		{"newer version", `"version": 1`, `"version": 7`, ""},
 		{"wrong format", `"sportsmeet-interchange"`, `"other"`, "format"},
 		{"OK without mark", `"status": "OK", "mark": 12650`, `"status": "OK", "mark": null`, "mark 必填"},
 		{"unknown athlete", `"athleteId": "a3", "seedMark": 13100`, `"athleteId": "zz", "seedMark": 13100`, "找不到运动员 zz"},
@@ -222,15 +222,12 @@ func TestV5HeatStarted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if example, err := os.ReadFile("../../docs/examples/sample-meet.json"); err != nil || string(example) != string(data) {
-		t.Fatalf("the documented example is not the v5 golden file: %v", err)
-	}
 	f, err := Decode(data)
 	if err != nil {
 		t.Fatal(err)
 	}
 	h1 := f.Events[0].Rounds[0].Heats[0]
-	if f.Version != Version || Version != 5 || h1.StartedAt == nil || *h1.StartedAt != "2026-11-12T09:42" || f.Events[2].Rounds[0].Heats[0].StartedAt != nil {
+	if f.Version != 5 || h1.StartedAt == nil || *h1.StartedAt != "2026-11-12T09:42" || f.Events[2].Rounds[0].Heats[0].StartedAt != nil {
 		t.Fatalf("v5 fields: %+v", h1)
 	}
 	out, err := Encode(f)

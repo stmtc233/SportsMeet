@@ -26,7 +26,8 @@ export function toRows(slots: SlotView[], attemptCount: number): Rows {
 }
 
 export function sameRow(a: Row | undefined, b: Row | undefined): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+  const comparable = (row: Row | undefined) => row && { ...row, bars: Object.entries(row.bars).filter(([, value]) => value.trim() !== "").sort(([a], [b]) => a.localeCompare(b)) };
+  return JSON.stringify(comparable(a)) === JSON.stringify(comparable(b));
 }
 
 /**

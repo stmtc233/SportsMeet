@@ -74,7 +74,7 @@ func registerMutations(s *sdk.Server, svc *service.Service) {
 	mutationPair(s, svc, "preview_remove_entries", "remove_entries", "取消报名，已排进组的运动员须先在界面移出", func(in removeEntriesArg) (service.Mutation, confirmation) {
 		return service.Mutation{Action: "remove_entries", EventID: in.EventID, IDs: append(in.AthleteIDs, in.TeamIDs...)}, in.confirmation
 	})
-	mutationPair(s, svc, "preview_results", "set_results", "录入成绩和状态、远度逐次记录或高度逐高度记录；位置不能为空，不可删除成绩或指定名次", func(in resultsArg) (service.Mutation, confirmation) {
+	mutationPair(s, svc, "preview_results", "set_results", "录入成绩和状态、远度逐次记录或高度逐高度记录；高度默认保存过程，heightFinished=true 确认最终记录，全部位置确认后计算晋级；位置不能为空，不可删除成绩或指定名次", func(in resultsArg) (service.Mutation, confirmation) {
 		return service.Mutation{Action: "set_results", HeatID: in.HeatID, Results: in.Results}, in.confirmation
 	})
 	mutationPair(s, svc, "preview_arrange", "auto_arrange", "只为未分组的报名者追加新组，seed 控制随机结果", func(in planArg) (service.Mutation, confirmation) {
