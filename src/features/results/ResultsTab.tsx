@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useLeaveGuard } from "../../app/nav";
-import { StEmpty, StSection, StSegmented, StTable, StTag } from "../../design";
+import { StEmpty, StMuted, StSection, StSegmented, StTable, StTag } from "../../design";
 import { statusLabels } from "../../lib/labels";
 import type { EntryView, EventDetail, Standing } from "../../mygo";
 import { HeatResults } from "./HeatResults";
@@ -30,11 +30,11 @@ export function ResultsTab({ detail }: { detail: EventDetail }) {
           <StSection title={`${round.label}排名`} padded={false}>
             <StTable<Standing> dense rows={round.standings} rowKey={(s) => s.competitorId}
               columns={[
-                { key: "rank", title: "名次", width: "64px", align: "end", render: (s) => s.rank ?? "" },
+                { key: "rank", title: "名次", width: "64px", align: "end", render: (s) => <span className="cell-strong">{s.rank ?? ""}</span> },
                 { key: "name", title: detail.rules.team ? "队伍" : "姓名", render: (s) => <span className="cell-strong">{entries.get(s.competitorId)?.name}</span> },
                 { key: "unit", title: "单位", render: (s) => entries.get(s.competitorId)?.unitName },
                 { key: "heat", title: "组", width: "96px", render: (s) => s.heatLabel },
-                { key: "mark", title: "成绩", width: "112px", align: "end", render: (s) => (s.status === "OK" ? s.markText : statusLabels[s.status]) },
+                { key: "mark", title: "成绩", width: "112px", align: "end", render: (s) => (s.status === "OK" ? <span className="result-mark">{s.markText}</span> : <StMuted>{statusLabels[s.status]}</StMuted>) },
                 { key: "q", title: "晋级", width: "64px", render: (s) => s.qualify && <StTag tone="success">{s.qualify}</StTag> },
               ]} />
           </StSection>

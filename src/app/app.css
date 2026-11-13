@@ -84,11 +84,26 @@
 .drop-roster[data-over] { background: var(--st-tone-info-container); }
 
 /* results */
-.result-grid { display: grid; align-items: center; gap: var(--st-space-4) var(--st-space-8); padding: var(--st-space-8) var(--st-space-16) var(--st-space-12); overflow-x: auto; }
-.result-grid > .head { color: var(--st-text-muted); font-size: var(--st-text-sm); white-space: nowrap; }
-.result-grid .num { text-align: end; }
-.result-grid .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.result-grid .st-field { width: 100%; }
+.result-grid { overflow-x: auto; }
+.result-rows { width: max-content; min-width: 100%; }
+.result-row { display: grid; grid-template-columns: var(--result-cols); align-items: center; column-gap: var(--st-space-8); min-height: 40px; padding: var(--st-space-4) var(--st-space-16) var(--st-space-4) var(--st-space-8); border-bottom: 1px solid var(--st-outline); }
+.result-row:last-child { border-bottom: 0; }
+.result-row:hover { background: var(--st-hover); }
+.result-row:focus-within { background: var(--st-tone-info-container); }
+.result-row--head { min-height: 36px; color: var(--st-text-muted); font-size: var(--st-text-sm); font-weight: 500; }
+.result-row--head:hover { background: none; }
+.result-row > * { min-width: 0; }
+.result-row .head { white-space: nowrap; }
+.result-row .num { text-align: end; }
+.result-row .pos { text-align: center; color: var(--st-text-muted); }
+.result-row[data-dirty] .pos { color: var(--st-tone-info-accent); font-weight: 600; }
+.result-row .name, .result-row .unit { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.result-row .name { font-weight: 500; }
+.result-row .unit { color: var(--st-text-muted); }
+.result-row[data-off] .name { color: var(--st-text-muted); }
+.result-row .rank { text-align: end; font-size: var(--st-text-lg); font-weight: 600; }
+.result-row .st-field { width: 100%; }
+.result-row:not([data-off]) .st-select__value { color: var(--st-text-muted); }
 .result-mark { font-family: var(--st-font-mono); font-weight: 600; text-align: end; }
 
 /* reports */

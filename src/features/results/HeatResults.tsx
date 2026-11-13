@@ -89,7 +89,8 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
   };
 
   const inputCols = direct ? 1 : attempts ? detail.event.attemptCount : heights.length;
-  const style: CSSProperties = { gridTemplateColumns: `36px minmax(88px, 1.2fr) minmax(72px, 1fr) repeat(${inputCols}, minmax(64px, 88px)) 112px 72px 48px 40px` };
+  // Fixed and fr tracks only, so every row lays out the same columns.
+  const style = { "--result-cols": `48px minmax(96px, 1fr) minmax(72px, 1fr) repeat(${inputCols}, minmax(64px, 88px)) 96px ${direct ? "" : "80px "}56px 40px` } as CSSProperties;
   const statuses: Status[] = timed ? ["DNS", "DNF", "DQ"] : kind === "count" || kind === "score" ? ["DNS", "DNF", "DQ", "NM"] : ["DNS", "DQ", "NM"];
   return (
     <StSection padded={false}
@@ -114,41 +115,47 @@ export function HeatResults({ detail, heat, entries, onDirty }: { detail: EventD
           <StButton variant="primary" disabled={!dirty} loading={busy} onClick={save}>保存</StButton>
         </>
       }>
-      <div className="result-grid" style={style}>
-        <span className="head num">{detail.rules.positionLabel}</span>
-        <span className="head">{detail.rules.team ? "队伍" : "姓名"}</span>
-        <span className="head">单位</span>
-        {direct && <span className="head num">{detail.rules.markLabel}</span>}
-        {attempts && Array.from({ length: inputCols }, (_, i) => <span key={i} className="head num">{detail.rules.attemptLabel} {i + 1}</span>)}
-        {kind === "height" && heights.map((h) => <span key={h} className="head num">{h}</span>)}
-        <span className="head">状态</span>
-        <span className="head num">{direct ? "" : detail.rules.markLabel}</span>
-        <span className="head num">名次</span>
-        <span className="head" />
-        {heat.slots.map((s, i) => {
-          const row = rows[s.position] ?? toRow(s, 0);
-          const e = entries.get(s.competitorId);
-          const off = row.status !== "";
-          return [
-            <span key={`p${s.position}`} className="num">{s.position}</span>,
-            <span key={`n${s.position}`} className="name">{e?.name}</span>,
-            <span key={`u${s.position}`} className="name st-muted">{e?.unitName}</span>,
-            direct && <StMarkField key={`m${s.position}`} event={detail.event} kind={kind} name={`m:${i}`} value={row.mark} disabled={off} width="fill" aria-label={detail.rules.markLabel} onChange={(mark) => set(s.position, { mark })} onKeyDown={nextRow} />,
-            attempts && row.attempts.slice(0, inputCols).map((a, j) => (
-              <StMarkField key={`a${s.position}-${j}`} event={detail.event} kind={kind} name={`a${j}:${i}`} value={a} disabled={off} width="fill" accept={isAttemptWord} aria-label={`${detail.rules.attemptLabel} ${j + 1}`} onKeyDown={nextRow}
-                onChange={(v) => set(s.position, { attempts: row.attempts.map((old, k) => (k === j ? v : old)) })} />
-            )),
-            kind === "height" && heights.map((h, j) => (
-              <StMarkField key={`b${s.position}-${h}`} event={detail.event} kind={kind} name={`b${j}:${i}`} value={row.bars[h] ?? ""} disabled={off} width="fill" accept={isTrials} placeholder="OX-" aria-label={h} onKeyDown={nextRow}
-                onChange={(v) => set(s.position, { bars: { ...row.bars, [h]: v.toUpperCase() } })} />
-            )),
-            <StSelect key={`s${s.position}`} size="small" width="fill" value={row.status} placeholder="正常" onChange={(status) => set(s.position, { status })}
-              options={[{ value: "", label: "正常" }, ...statuses.map((v) => ({ value: v as string, label: statusLabels[v] }))]} />,
-            <span key={`r${s.position}`} className="result-mark">{direct ? "" : s.result?.markText}</span>,
-            <span key={`k${s.position}`} className="num">{s.result?.rank ?? ""}</span>,
-            <span key={`q${s.position}`}>{s.result?.qualify && <StTag tone="success">{s.result.qualify}</StTag>}</span>,
-          ];
-        })}
+      <div className="result-grid" style={style} role="table">
+        <div className="result-rows">
+          <div className="result-row result-row--head" role="row">
+            <span className="head pos" role="columnheader">{detail.rules.positionLabel}</span>
+            <span className="head" role="columnheader">{detail.rules.team ? "队伍" : "姓名"}</span>
+            <span className="head" role="columnheader">单位</span>
+            {direct && <span className="head num" role="columnheader">{detail.rules.markLabel}</span>}
+            {attempts && Array.from({ length: inputCols }, (_, i) => <span key={i} className="head num" role="columnheader">{detail.rules.attemptLabel} {i + 1}</span>)}
+            {kind === "height" && heights.map((h) => <span key={h} className="head num" role="columnheader">{h}</span>)}
+            <span className="head" role="columnheader">状态</span>
+            {!direct && <span className="head num" role="columnheader">{detail.rules.markLabel}</span>}
+            <span className="head num" role="columnheader">名次</span>
+            <span className="head" role="columnheader" />
+          </div>
+          {heat.slots.map((s, i) => {
+            const row = rows[s.position] ?? toRow(s, 0);
+            const e = entries.get(s.competitorId);
+            const off = row.status !== "";
+            return (
+              <div key={s.position} className="result-row" role="row" data-off={off || undefined} data-dirty={!sameRow(row, initial[s.position]) || undefined}>
+                <span className="pos" role="cell">{s.position}</span>
+                <span className="name" role="cell" title={e?.name}>{e?.name}</span>
+                <span className="unit" role="cell" title={e?.unitName}>{e?.unitName}</span>
+                {direct && <StMarkField event={detail.event} kind={kind} name={`m:${i}`} value={row.mark} disabled={off} width="fill" aria-label={detail.rules.markLabel} onChange={(mark) => set(s.position, { mark })} onKeyDown={nextRow} />}
+                {attempts && row.attempts.slice(0, inputCols).map((a, j) => (
+                  <StMarkField key={j} event={detail.event} kind={kind} name={`a${j}:${i}`} value={a} disabled={off} width="fill" accept={isAttemptWord} aria-label={`${detail.rules.attemptLabel} ${j + 1}`} onKeyDown={nextRow}
+                    onChange={(v) => set(s.position, { attempts: row.attempts.map((old, k) => (k === j ? v : old)) })} />
+                ))}
+                {kind === "height" && heights.map((h, j) => (
+                  <StMarkField key={h} event={detail.event} kind={kind} name={`b${j}:${i}`} value={row.bars[h] ?? ""} disabled={off} width="fill" accept={isTrials} placeholder="OX-" aria-label={h} onKeyDown={nextRow}
+                    onChange={(v) => set(s.position, { bars: { ...row.bars, [h]: v.toUpperCase() } })} />
+                ))}
+                <StSelect size="small" width="fill" value={row.status} placeholder="正常" onChange={(status) => set(s.position, { status })}
+                  options={[{ value: "", label: "正常" }, ...statuses.map((v) => ({ value: v as string, label: statusLabels[v] }))]} />
+                {!direct && <span className="result-mark" role="cell">{s.result?.markText}</span>}
+                <span className="rank" role="cell">{s.result?.rank ?? ""}</span>
+                <span role="cell">{s.result?.qualify && <StTag tone="success">{s.result.qualify}</StTag>}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
       {editStart && <StartedDialog heat={heat} day={detail.day} onClose={() => setEditStart(false)} />}
     </StSection>

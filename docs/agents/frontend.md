@@ -40,6 +40,7 @@
 - 位置上换了人,该位置的输入丢弃,避免把成绩记到另一个人名下。刚保存的行跟随新数据,显示 Go 整理后的成绩文本,保存后该组不再算有改动。
 - 成绩输入根据 Go 的 `rules.multipleAttempts` 和 `rules.markLabel` 显示单值或逐次记录；`StMarkField` 经 `lib/marks.ts` 携带完整项目配置调用 Go，计分小数位不在前端推断。
 - 「放弃」恢复为已读取的数据,并去掉未保存的新增高度。读写经 `results/controller.ts`。
+- 每组的列表一行一个位置(`.result-row`),各行用同一份只含固定宽度与 `fr` 的列模板(`--result-cols`),列才对得齐;列宽不够时整表横向滚动。有未保存改动的行,位置序号用强调色;状态为「正常」时下拉框文字用次要色,其余状态的行姓名变淡。
 - 组标题经 `features/event/HeatTime.tsx` 显示生效时间 `scheduledText`:单独指定的用 `StTag`,沿用轮次(`scheduleInherited`)的用次要文字;其后经 `features/event/HeatStarted.tsx` 显示「开赛 `startedText`」与差值标签 `startDeltaText`,窄窗口下换到第二行;组内有成绩时,操作区左侧显示「修改于」与 `resultsUpdatedText`。
 - 操作区的「开赛时间」图标按钮打开 `results/StartedDialog.tsx`(日期 + 时间):已有开赛时间时填入它并提供「清除」;没有时日期取生效计划日期,再取 `EventDetail.day`,时间留空(`results/started.ts` 的纯函数,有单测)。保存与清除经 `ResultsController.setStarted`(`Results.setStarted`)立即写入,成功后由 `heats` 事件重读。规则见 [domain.md](domain.md)「时间」。
 
