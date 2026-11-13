@@ -37,9 +37,7 @@ func confirm(t *testing.T, f *fixture, op Mutation) *MutationPreview {
 
 func TestRelayCompleteWorkflow(t *testing.T) {
 	in := relay()
-	in.Prelim = true
-	in.AdvanceByPlace = 1
-	in.AdvanceByMark = 1
+	in.Rounds = []RoundInput{{Stage: "heat", AdvanceByPlace: 1, AdvanceByMark: 1}}
 	f := newFixture(t, 24, in)
 	ids := []string{}
 	for i := range 6 {

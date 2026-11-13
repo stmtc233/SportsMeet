@@ -274,7 +274,7 @@ func (s *Service) SaveCombined(ctx context.Context, src store.Source, meetID, id
 	}
 	for i, input := range in.Components {
 		input.Event.Gender, input.Event.GroupLabel = string(gender), c.GroupLabel
-		if input.Event.Prelim {
+		if len(input.Event.Rounds) > 0 {
 			return nil, invalid("全能分项须直接决赛")
 		}
 		e, err := input.Event.event()

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -12,41 +13,50 @@ import (
 
 func itoa(n int) string { return strconv.Itoa(n) }
 
-// EventInput creates or updates an event. Prelim asks for a 预赛 before
-// the final, advancing by AdvanceByPlace and AdvanceByMark.
+// RoundInput is a round held before the final (预赛 heat, 次赛
+// quarterfinal, 半决赛 semifinal) and who advances from it: the first
+// AdvanceByPlace of each heat plus the AdvanceByMark best of the rest.
+type RoundInput struct {
+	Stage          string `json:"stage"`
+	AdvanceByPlace int    `json:"advanceByPlace"`
+	AdvanceByMark  int    `json:"advanceByMark"`
+}
+
+// EventInput creates or updates an event. Rounds lists the rounds before
+// the final, which every event has; empty means the final alone.
 type EventInput struct {
-	ParticipantMode string `json:"participantMode,omitempty"`
-	TeamSize        int    `json:"teamSize,omitempty"`
-	ScoreDecimals   int    `json:"scoreDecimals,omitempty"`
-	RankDirection   string `json:"rankDirection,omitempty"`
-	AttemptMode     string `json:"attemptMode,omitempty"`
-	StartMode       string `json:"startMode,omitempty"`
-	DistanceMode    string `json:"distanceMode,omitempty"`
-	RelayLegCount   int    `json:"relayLegCount,omitempty"`
-	Name            string `json:"name,omitempty"` // "" = composed from the fields below
-	Gender          string `json:"gender"`
-	Discipline      string `json:"discipline"`
-	GroupLabel      string `json:"groupLabel,omitempty"`
-	Kind            string `json:"kind"`
-	Date            string `json:"date,omitempty"`
-	LaneCount       int    `json:"laneCount,omitempty"`
-	AttemptCount    int    `json:"attemptCount,omitempty"`
-	Note            string `json:"note,omitempty"`
-	Prelim          bool   `json:"prelim,omitempty"`
-	AdvanceByPlace  int    `json:"advanceByPlace,omitempty"`
-	AdvanceByMark   int    `json:"advanceByMark,omitempty"`
+	ParticipantMode string       `json:"participantMode,omitempty"`
+	TeamSize        int          `json:"teamSize,omitempty"`
+	ScoreDecimals   int          `json:"scoreDecimals,omitempty"`
+	RankDirection   string       `json:"rankDirection,omitempty"`
+	AttemptMode     string       `json:"attemptMode,omitempty"`
+	StartMode       string       `json:"startMode,omitempty"`
+	DistanceMode    string       `json:"distanceMode,omitempty"`
+	RelayLegCount   int          `json:"relayLegCount,omitempty"`
+	Name            string       `json:"name,omitempty"` // "" = composed from the fields below
+	Gender          string       `json:"gender"`
+	Discipline      string       `json:"discipline"`
+	GroupLabel      string       `json:"groupLabel,omitempty"`
+	Kind            string       `json:"kind"`
+	Date            string       `json:"date,omitempty"`
+	LaneCount       int          `json:"laneCount,omitempty"`
+	AttemptCount    int          `json:"attemptCount,omitempty"`
+	Note            string       `json:"note,omitempty"`
+	Rounds          []RoundInput `json:"rounds,omitempty"`
 }
 
 // EventRow is an event in the meet's list, with its progress.
 type EventRow struct {
-	Event    domain.Event    `json:"event"`
-	AutoName bool            `json:"autoName"` // the name is the composed one
-	Prelim   bool            `json:"prelim"`
-	Advance  *domain.Advance `json:"advance"`
-	Entries  int             `json:"entries"`
-	Heats    int             `json:"heats"`
-	Placed   int             `json:"placed"`
-	Results  int             `json:"results"`
+	Event    domain.Event `json:"event"`
+	AutoName bool         `json:"autoName"` // the name is the composed one
+	// Rounds are the rounds before the final, in order; FormatText names
+	// the whole sequence (「预赛 + 决赛」, 「直接决赛」).
+	Rounds     []RoundInput `json:"rounds"`
+	FormatText string       `json:"formatText"`
+	Entries    int          `json:"entries"`
+	Heats      int          `json:"heats"`
+	Placed     int          `json:"placed"`
+	Results    int          `json:"results"`
 	// TimeText is when the event starts: its earliest planned time, a
 	// round's start or a heat's own (HH:mm on the meet's first day, else
 	// with the date), or its date when nothing has a time and the date is
@@ -84,7 +94,7 @@ func (s *Service) ListEvents(ctx context.Context, meetID string) ([]EventRow, er
 	events = domain.ScheduleOrder(events, rounds, start)
 	out := make([]EventRow, len(events))
 	for i, e := range events {
-		row := EventRow{Event: e, Entries: entered[e.ID],
+		row := EventRow{Event: e, Entries: entered[e.ID], Rounds: []RoundInput{}, FormatText: formatText(rounds[e.ID]),
 			AutoName: e.Name == domain.ComposeEventName(e.Gender, e.Discipline, e.GroupLabel)}
 		if first := domain.EarliestScheduled(rounds[e.ID]); first != "" {
 			row.TimeText = domain.ScheduledText(first, start)
@@ -92,8 +102,12 @@ func (s *Service) ListEvents(ctx context.Context, meetID string) ([]EventRow, er
 			row.TimeText = day
 		}
 		for _, r := range rounds[e.ID] {
-			if r.Stage == domain.StageHeat {
-				row.Prelim, row.Advance = true, r.Advance
+			if r.Stage != domain.StageFinal {
+				in := RoundInput{Stage: string(r.Stage)}
+				if r.Advance != nil {
+					in.AdvanceByPlace, in.AdvanceByMark = r.Advance.ByPlace, r.Advance.ByMark
+				}
+				row.Rounds = append(row.Rounds, in)
 			}
 			row.Heats += len(r.Heats)
 			for _, h := range r.Heats {
@@ -143,8 +157,6 @@ func (in EventInput) event() (domain.Event, error) {
 		return e, invalid("道数应在 1 到 12 之间")
 	case e.AttemptCount < 1 || e.AttemptCount > 6:
 		return e, invalid("尝试次数应在 1 到 6 之间")
-	case in.Prelim && (in.AdvanceByPlace < 0 || in.AdvanceByMark < 0 || in.AdvanceByPlace+in.AdvanceByMark == 0):
-		return e, invalid("请填写晋级人数")
 	}
 	if err := e.NormalizeConfig(); err != nil {
 		return e, invalid("%s", err)
@@ -154,6 +166,40 @@ func (in EventInput) event() (domain.Event, error) {
 		e.Name = domain.ComposeEventName(e.Gender, e.Discipline, e.GroupLabel)
 	}
 	return e, nil
+}
+
+// formatText names an event's rounds in order; the final alone is 「直接决赛」.
+func formatText(rounds []domain.Round) string {
+	if len(rounds) <= 1 {
+		return "直接决赛"
+	}
+	labels := make([]string, len(rounds))
+	for i, r := range rounds {
+		labels[i] = r.Label()
+	}
+	return strings.Join(labels, " + ")
+}
+
+// qualifying validates the rounds before the final and returns them in
+// stage order.
+func (in EventInput) qualifying() ([]domain.Round, error) {
+	out := make([]domain.Round, 0, len(in.Rounds))
+	seen := map[domain.Stage]bool{}
+	for _, r := range in.Rounds {
+		stage := domain.Stage(strings.TrimSpace(r.Stage))
+		switch {
+		case !stage.Valid() || stage == domain.StageFinal:
+			return nil, invalid("轮次只能是预赛、次赛或半决赛")
+		case seen[stage]:
+			return nil, invalid("%s重复", stage.Label())
+		case r.AdvanceByPlace < 0 || r.AdvanceByMark < 0 || r.AdvanceByPlace+r.AdvanceByMark == 0:
+			return nil, invalid("请填写%s晋级人数", stage.Label())
+		}
+		seen[stage] = true
+		out = append(out, domain.Round{Stage: stage, Advance: &domain.Advance{ByPlace: r.AdvanceByPlace, ByMark: r.AdvanceByMark}})
+	}
+	sort.SliceStable(out, func(i, j int) bool { return domain.StageOrder(out[i].Stage) < domain.StageOrder(out[j].Stage) })
+	return out, nil
 }
 
 func insertRound(r domain.Round) sqlite.Statement {
@@ -173,9 +219,14 @@ func insertEvent(e domain.Event, now int64) sqlite.Statement {
 }
 
 // SaveEvent creates an event (id "") or updates one. A new event gets its
-// final round, and a 预赛 before it when asked.
+// final round and the rounds asked for before it. An update adds and
+// removes rounds to match; a round that has heats is not removed.
 func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id string, in EventInput) (*domain.Event, error) {
 	e, err := in.event()
+	if err != nil {
+		return nil, err
+	}
+	before, err := in.qualifying()
 	if err != nil {
 		return nil, err
 	}
@@ -203,10 +254,6 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 			return nil, invalid("已有相同的项目「%s」", o.Name)
 		}
 	}
-	var advance *domain.Advance
-	if in.Prelim {
-		advance = &domain.Advance{ByPlace: in.AdvanceByPlace, ByMark: in.AdvanceByMark}
-	}
 	audit := store.Audit{Source: src, Action: "event.updated", MeetID: meetID, EventID: id, Message: e.Name}
 	var stmts []sqlite.Statement
 
@@ -214,12 +261,11 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 		e.ID = newID()
 		audit.Action, audit.EventID = "event.created", e.ID
 		stmts = append(stmts, insertEvent(e, s.store.Now()))
-		final := domain.Round{ID: newID(), EventID: e.ID, Stage: domain.StageFinal, Ordinal: 1}
-		if in.Prelim {
-			stmts = append(stmts, insertRound(domain.Round{ID: newID(), EventID: e.ID, Stage: domain.StageHeat, Ordinal: 1, Advance: advance}))
-			final.Ordinal = 2
+		for i, r := range before {
+			r.ID, r.EventID, r.Ordinal = newID(), e.ID, i+1
+			stmts = append(stmts, insertRound(r))
 		}
-		stmts = append(stmts, insertRound(final))
+		stmts = append(stmts, insertRound(domain.Round{ID: newID(), EventID: e.ID, Stage: domain.StageFinal, Ordinal: len(before) + 1}))
 	} else {
 		if old == nil {
 			return nil, invalid("项目不存在或已删除")
@@ -232,11 +278,9 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 			return nil, err
 		}
 		results := 0
-		var prelim *domain.Round
+		have := map[domain.Stage]domain.Round{}
 		for _, r := range rounds[id] {
-			if r.Stage == domain.StageHeat {
-				prelim = &r
-			}
+			have[r.Stage] = r
 			for _, h := range r.Heats {
 				results += h.Facts().Results
 			}
@@ -301,22 +345,28 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 		stmts = append(stmts, store.Stmt(`UPDATE events SET name = ?, gender = ?, discipline = ?, group_label = ?,
 			kind = ?, date = ?, lane_count = ?, attempt_count = ?, note = ?, start_mode = ?, distance_mode = ?, relay_leg_count = ?, config_json = ? WHERE id = ?`,
 			e.Name, string(e.Gender), e.Discipline, e.GroupLabel, string(e.Kind), e.Date, e.LaneCount, e.AttemptCount, e.Note, string(e.StartMode), string(e.DistanceMode), e.RelayLegCount, store.EventConfigJSON(e), id))
-		switch {
-		case in.Prelim && prelim == nil:
-			// Later rounds move up by one to make room for the 预赛.
-			stmts = append(stmts,
-				store.Stmt(`UPDATE rounds SET ordinal = ordinal + 1 WHERE event_id = ?`, id),
-				insertRound(domain.Round{ID: newID(), EventID: id, Stage: domain.StageHeat, Ordinal: 1, Advance: advance}))
-		case in.Prelim:
-			stmts = append(stmts, store.Stmt(`UPDATE rounds SET advance_by_place = ?, advance_by_mark = ? WHERE id = ?`,
-				advance.ByPlace, advance.ByMark, prelim.ID))
-		case prelim != nil:
-			if len(prelim.Heats) > 0 {
-				return nil, invalid("预赛已有组，请先删除这些组")
+		// Rounds match by stage and are numbered in stage order, the final last.
+		want := map[domain.Stage]bool{}
+		for i, r := range before {
+			want[r.Stage] = true
+			if old, ok := have[r.Stage]; ok {
+				stmts = append(stmts, store.Stmt(`UPDATE rounds SET ordinal = ?, advance_by_place = ?, advance_by_mark = ? WHERE id = ?`,
+					i+1, r.Advance.ByPlace, r.Advance.ByMark, old.ID))
+				continue
 			}
-			stmts = append(stmts,
-				store.Stmt(`DELETE FROM rounds WHERE id = ?`, prelim.ID),
-				store.Stmt(`UPDATE rounds SET ordinal = ordinal - 1 WHERE event_id = ? AND ordinal > ?`, id, prelim.Ordinal))
+			r.ID, r.EventID, r.Ordinal = newID(), id, i+1
+			stmts = append(stmts, insertRound(r))
+		}
+		for _, r := range rounds[id] {
+			switch {
+			case r.Stage == domain.StageFinal:
+				stmts = append(stmts, store.Stmt(`UPDATE rounds SET ordinal = ? WHERE id = ?`, len(before)+1, r.ID))
+			case want[r.Stage]:
+			case len(r.Heats) > 0:
+				return nil, invalid("%s已有组，请先删除这些组", r.Label())
+			default:
+				stmts = append(stmts, store.Stmt(`DELETE FROM rounds WHERE id = ?`, r.ID))
+			}
 		}
 	}
 	if err := s.write(ctx, audit, Change{Kind: "events", MeetID: meetID, EventID: e.ID}, stmts...); err != nil {

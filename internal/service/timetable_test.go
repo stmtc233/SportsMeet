@@ -401,7 +401,7 @@ func TestDraftConflicts(t *testing.T) {
 func TestTimetablePeopleOrderAndDays(t *testing.T) {
 	tf := newTimetableFixture(t)
 	in := track()
-	in.Discipline, in.Prelim, in.AdvanceByPlace = "200m", true, 2
+	in.Discipline, in.Rounds = "200m", []RoundInput{{Stage: "heat", AdvanceByPlace: 2}}
 	e, err := tf.svc.SaveEvent(tf.ctx, ui, tf.meet, "", in)
 	must(t, err)
 	tf.on(e.ID).enter(tf.athletes[:3]...)

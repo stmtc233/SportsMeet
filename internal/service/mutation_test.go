@@ -28,7 +28,7 @@ func previewApply(t *testing.T, svc *Service, op Mutation) *MutationPreview {
 
 func TestMCPWorkflowRoundTrip(t *testing.T) {
 	// Complete flow on real SQLite: table -> entries -> prelim -> results -> final -> reports -> interchange.
-	f := newFixture(t, 0, EventInput{Gender: "男", Discipline: "100m", Kind: "track", Prelim: true, AdvanceByPlace: 1, AdvanceByMark: 1})
+	f := newFixture(t, 0, EventInput{Gender: "男", Discipline: "100m", Kind: "track", Rounds: []RoundInput{{Stage: "heat", AdvanceByPlace: 1, AdvanceByMark: 1}}})
 	table, err := ParseTable("姓名,性别,号码,单位,项目\n甲,男,101,一班,100m\n乙,男,102,二班,100m\n丙,男,103,一班,100m\n丁,男,104,二班,100m")
 	must(t, err)
 	previewApply(t, f.svc, Mutation{Action: "import_athletes", MeetID: f.meet, Table: AthleteImport{Rows: table.Rows[1:], Mapping: table.Mapping}})

@@ -138,14 +138,14 @@ func TestEventRules(t *testing.T) {
 		t.Fatalf("new event = %+v", d)
 	}
 	in := track()
-	in.Prelim, in.AdvanceByPlace, in.AdvanceByMark = true, 1, 2
+	in.Rounds = []RoundInput{{Stage: "heat", AdvanceByPlace: 1, AdvanceByMark: 2}}
 	_, err = f.svc.SaveEvent(f.ctx, ui, f.meet, f.event, in)
 	must(t, err)
 	d = f.detail()
 	if len(d.Rounds) != 2 || d.Rounds[0].Stage != domain.StageHeat || d.Rounds[0].Advance.ByMark != 2 || d.Rounds[1].Ordinal != 2 {
 		t.Fatalf("with prelim = %+v", d.Rounds)
 	}
-	in.Prelim = false
+	in.Rounds = nil
 	_, err = f.svc.SaveEvent(f.ctx, ui, f.meet, f.event, in)
 	must(t, err)
 	if d = f.detail(); len(d.Rounds) != 1 || d.Rounds[0].Ordinal != 1 {
@@ -153,8 +153,80 @@ func TestEventRules(t *testing.T) {
 	}
 	rows, err := f.svc.ListEvents(f.ctx, f.meet)
 	must(t, err)
-	if len(rows) != 1 || !rows[0].AutoName || rows[0].Prelim {
+	if len(rows) != 1 || !rows[0].AutoName || len(rows[0].Rounds) != 0 || rows[0].FormatText != "直接决赛" {
 		t.Fatalf("ListEvents = %+v", rows)
+	}
+}
+
+func TestEventRounds(t *testing.T) {
+	in := track()
+	// Rounds may come in any order; they are stored in stage order.
+	in.Rounds = []RoundInput{{Stage: "semifinal", AdvanceByPlace: 2, AdvanceByMark: 2}, {Stage: "heat", AdvanceByPlace: 3}}
+	f := newFixture(t, 4, in)
+	a := f.athletes
+	shape := func() string {
+		var parts []string
+		for _, r := range f.detail().Rounds {
+			parts = append(parts, itoa(r.Ordinal)+r.Label)
+		}
+		return strings.Join(parts, ",")
+	}
+	if got := shape(); got != "1预赛,2半决赛,3决赛" {
+		t.Fatalf("rounds = %s", got)
+	}
+	rows, err := f.svc.ListEvents(f.ctx, f.meet)
+	must(t, err)
+	if rows[0].FormatText != "预赛 + 半决赛 + 决赛" || len(rows[0].Rounds) != 2 || rows[0].Rounds[1] != in.Rounds[0] {
+		t.Fatalf("row = %+v", rows[0])
+	}
+
+	// The 半决赛 gets heats and results; the final is then filled from it.
+	f.addHeat(1, a[0], a[1], a[2], a[3])
+	semi := f.detail().Rounds[1]
+	must(t, f.svc.SaveResults(f.ctx, ui, semi.Heats[0].ID, []ResultInput{
+		{Position: 1, Mark: "12.10"}, {Position: 2, Mark: "12.20"}, {Position: 3, Mark: "12.30"}, {Position: 4, Mark: "12.40"}}))
+	plan, err := f.svc.PlanHeats(f.ctx, PlanRequest{EventID: f.event, RoundID: f.detail().Rounds[2].ID, FromAdvance: true, PerHeat: 8,
+		Order: arrange.OrderSeed, Lanes: arrange.LanesCenter})
+	must(t, err)
+	if len(plan) != 1 || len(plan[0].Slots) != 4 {
+		t.Fatalf("final plan = %+v", plan)
+	}
+
+	// Adding a round keeps the others and their heats; ordinals follow the stages.
+	in.Rounds = append(in.Rounds, RoundInput{Stage: "quarterfinal", AdvanceByMark: 8})
+	_, err = f.svc.SaveEvent(f.ctx, ui, f.meet, f.event, in)
+	must(t, err)
+	if got := shape(); got != "1预赛,2次赛,3半决赛,4决赛" {
+		t.Fatalf("rounds = %s", got)
+	}
+	d := f.detail()
+	if d.Rounds[2].ID != semi.ID || len(d.Rounds[2].Heats) != 1 || d.Rounds[1].Advance.ByMark != 8 || d.Rounds[0].Advance.ByPlace != 3 {
+		t.Fatalf("after adding = %+v", d.Rounds)
+	}
+
+	// A round with heats stays; empty ones go.
+	in.Rounds = nil
+	_, err = f.svc.SaveEvent(f.ctx, ui, f.meet, f.event, in)
+	wantInvalid(t, err, "半决赛已有组")
+	in.Rounds = []RoundInput{{Stage: "semifinal", AdvanceByPlace: 2}}
+	_, err = f.svc.SaveEvent(f.ctx, ui, f.meet, f.event, in)
+	must(t, err)
+	if got := shape(); got != "1半决赛,2决赛" {
+		t.Fatalf("rounds = %s", got)
+	}
+
+	for _, bad := range []struct {
+		rounds []RoundInput
+		want   string
+	}{
+		{[]RoundInput{{Stage: "final", AdvanceByPlace: 1}}, "轮次只能是"},
+		{[]RoundInput{{Stage: "heat", AdvanceByPlace: 1}, {Stage: "heat", AdvanceByPlace: 1}}, "预赛重复"},
+		{[]RoundInput{{Stage: "quarterfinal"}}, "请填写次赛晋级人数"},
+		{[]RoundInput{{Stage: "heat", AdvanceByPlace: -1, AdvanceByMark: 3}}, "请填写预赛晋级人数"},
+	} {
+		in.Rounds = bad.rounds
+		_, err = f.svc.SaveEvent(f.ctx, ui, f.meet, f.event, in)
+		wantInvalid(t, err, bad.want)
 	}
 }
 
@@ -284,7 +356,7 @@ func TestSaveBoard(t *testing.T) {
 
 func TestTrackResultsRankAndQualify(t *testing.T) {
 	in := track()
-	in.Prelim, in.AdvanceByPlace, in.AdvanceByMark = true, 1, 1
+	in.Rounds = []RoundInput{{Stage: "heat", AdvanceByPlace: 1, AdvanceByMark: 1}}
 	f := newFixture(t, 6, in)
 	a := f.athletes
 	f.addHeat(0, a[0], a[1], a[2])

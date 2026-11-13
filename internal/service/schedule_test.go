@@ -232,8 +232,7 @@ func TestScheduleLocalCalendar(t *testing.T) {
 
 func TestScheduleRoundScopeAndScoredOnly(t *testing.T) {
 	in := track()
-	in.Prelim = true
-	in.AdvanceByPlace = 1
+	in.Rounds = []RoundInput{{Stage: "heat", AdvanceByPlace: 1}}
 	f := newFixture(t, 1, in)
 	f.addHeat(0, f.athletes[0])
 	f.addHeat(1, f.athletes[0])

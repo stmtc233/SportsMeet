@@ -146,7 +146,7 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
           case "Meets.Get": return meet;
           case "Units.List": return [{ id: "unit", meetId: "meet", name: "一班", shortName: "" }];
           case "Athletes.List": return athletes.map((athlete) => ({ athlete, unitName: "一班", entries: 1, placed: true }));
-          case "Events.List": return [{ event, autoName: true, prelim: false, advance: null, entries: 24, heats: 1, placed: 8, results: 0, timeText: "09:00" }];
+          case "Events.List": return [{ event, autoName: true, rounds: [], formatText: "直接决赛", entries: 24, heats: 1, placed: 8, results: 0, timeText: "09:00" }];
           case "Events.Presets": return presets;
           case "Events.Rules": {
             const e = args[0];

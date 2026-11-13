@@ -77,7 +77,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	}) (any, error) {
 		return svc.SaveTeam(ctx, store.SourceMCP, in.EventID, in.ID, in.Input)
 	})
-	addTool(s, "save_event", "创建或更新一个项目。id 留空创建；必须有性别、项目名与类型。更新时 input 是全部字段。startMode 为 lanes（分道）、group（不分道）、break（分道后抢道）；distanceMode 为 jump 或 throw；relayLegCount 是建议棒数，0 为未指定。participantMode 为 athlete 或 team；count/score 支持 rankDirection（asc/desc）、attemptMode（single/best/sum）；scoreDecimals 为计分小数位 0–3。", false, func(ctx context.Context, in saveEventArg) (any, error) {
+	addTool(s, "save_event", "创建或更新一个项目。id 留空创建；必须有性别、项目名与类型。更新时 input 是全部字段。startMode 为 lanes（分道）、group（不分道）、break（分道后抢道）；distanceMode 为 jump 或 throw；relayLegCount 是建议棒数，0 为未指定。participantMode 为 athlete 或 team；count/score 支持 rankDirection（asc/desc）、attemptMode（single/best/sum）；scoreDecimals 为计分小数位 0–3。rounds 列出决赛之前的轮次，留空即直接决赛：stage 为 heat（预赛）、quarterfinal（次赛）、semifinal（半决赛），各带 advanceByPlace（各组前几名晋级）与 advanceByMark（其余按成绩晋级人数），两者至少一个大于 0；更新时未列出的轮次会被删除，已有组的轮次不能删除。", false, func(ctx context.Context, in saveEventArg) (any, error) {
 		return svc.SaveEvent(ctx, store.SourceMCP, in.MeetID, in.ID, in.Input)
 	})
 	addTool(s, "set_seed", "设置一个报名成绩；seed 留空清除。", false, func(ctx context.Context, in struct {

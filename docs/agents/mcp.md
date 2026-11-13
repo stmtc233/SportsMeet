@@ -138,6 +138,7 @@
 
 ## 全能与计次、计分
 
+- `save_event` 的 `rounds` 列出决赛之前的轮次(`stage` 为 `heat / quarterfinal / semifinal`,各带 `advanceByPlace / advanceByMark`),留空即直接决赛;更新时未列出的轮次被删除,已有组的轮次不能删除(→ [domain.md](domain.md)「层级」)。
 - `save_event` 支持 `count / score`，以及 `participantMode`、`teamSize`、`scoreDecimals`、`rankDirection`、`attemptMode`；`set_results` 使用项目配置解析、汇总和排名，多次模式须提交逐次成绩。普通队伍使用 `teamId`，规则与接力一致。
 - `list_combined / get_combined / parse_point_rule` 查询；`preview_save_combined → save_combined` 保存全能及独立分项；`preview_combined_entries → set_combined_entries` 保存完整名单；`preview_delete_combined → delete_combined` 删除无成绩全能。批量操作沿用赛事快照指纹。
 - `preview_combined_rules → apply_combined_rules` 接受 `request: {combinedId, rules: [{eventId, rule: {table, invalidPolicies}}]}`，必须给出所有分项；预览包含每人原、新逐项积分、总分、名次和资格，确认时携带 `previewHash`、`confirmed=true`。原始成绩不被规则修改覆盖，数据变化须重新预览。

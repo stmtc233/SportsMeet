@@ -84,6 +84,37 @@ for (const width of [1280, 800]) {
   });
 }
 
+for (const width of [1280, 800]) {
+  test(`赛制与各轮晋级人数 ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await installRuntime(page);
+    await page.goto("/");
+    await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "添加项目", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "添加项目", exact: true });
+    await dialog.getByLabel("项目名", { exact: true }).fill("200m");
+    await expect(dialog.getByLabel("预赛各组前几名晋级", { exact: true })).toHaveCount(0);
+    await dialog.getByLabel("赛制", { exact: true }).click();
+    await page.getByRole("menuitemradio", { name: "预赛 + 决赛", exact: true }).click();
+    await dialog.getByLabel("预赛各组前几名晋级", { exact: true }).fill("3");
+    await dialog.getByLabel("赛制", { exact: true }).click();
+    await page.getByRole("menuitemradio", { name: "预赛 + 次赛 + 半决赛 + 决赛", exact: true }).click();
+    await expect(dialog.getByLabel("预赛各组前几名晋级", { exact: true })).toHaveValue("3");
+    await dialog.getByLabel("半决赛另按成绩晋级", { exact: true }).fill("0");
+    await dialog.getByLabel("次赛各组前几名晋级", { exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `test-results/event-rounds-${width}.png`, animations: "disabled" });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await dialog.getByRole("button", { name: "保存", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    const calls = await page.evaluate(() => (globalThis as any).__eventCalls);
+    expect(calls[0][2].rounds).toEqual([
+      { stage: "heat", advanceByPlace: 3, advanceByMark: 2 },
+      { stage: "quarterfinal", advanceByPlace: 2, advanceByMark: 2 },
+      { stage: "semifinal", advanceByPlace: 2, advanceByMark: 0 },
+    ]);
+  });
+}
+
 test("外部起跑方式变化清除不适用的编排草稿", async ({ page }) => {
   await installRuntime(page, { emptyBoard: true });
   await page.goto("/");

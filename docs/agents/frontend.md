@@ -24,6 +24,7 @@
 - `features/events/EventDialog.tsx` 的「常用项目」读取 Go 的 35 个预设，仅创建时提供；选择后带出项目名、类型、起跑方式、跳跃 / 投掷或建议棒数，可继续编辑。性别通常保留当前选择，混合接力预设选择「混合」。编辑已保存项目读取实际配置，不套用预设。
 - 项目名称预览、配置显示规则、接力名单人数提示均经 `events/controller.ts` 调用 Go；自动编排与草稿保存经 `arrange/controller.ts`。不分道时道数输入置灰，已有值保留。
 - `EventMeasurementFields.tsx` 共用项目配置控件，`form.ts` 保存表单初始值；计次、计分提供精度、排名方向、单次／取最好／求和，普通队伍提供建议人数。
+- 「赛制」下拉与各轮次的晋级人数由 `events/format.ts` 的纯函数组织(可选组合、切换组合时保留仍在的轮次的人数),表单里的 `rounds` 原样交给 Go 校验;项目列表的「赛制」列显示 Go 的 `formatText`。
 - `features/combined/` 提供列表、创建／编辑、分项工作区入口、统一报名、总成绩、计分表预览与规则重算，完整规则见 [combined.md](combined.md)。
 - 成绩页位置名称和逐次表头来自 `EventDetail.rules`；投掷显示「试投」，支持 `X`、`-` 与「免投」。
 

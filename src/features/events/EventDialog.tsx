@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { StButton, StDateField, StDialog, StSegmented, StSelect, StTextField } from "../../design";
-import type { EventInput, EventKind, EventRow } from "../../mygo";
+import type { EventInput, EventKind, EventRow, Stage } from "../../mygo";
+import { stageLabels } from "../../lib/labels";
 import { EventsController, useEventPresets } from "./controller";
 
+import { formatKey, formatOptions, withFormat, withRound } from "./format";
 import { blankEvent as blank, EventMeasurementFields } from "./EventMeasurementFields";
 
 function toInput(row: EventRow): Required<EventInput> {
   const e = row.event;
   return { ...blank, participantMode: e.participantMode || (e.kind === "relay" ? "team" : "athlete"), teamSize: e.teamSize ?? 0, scoreDecimals: e.scoreDecimals ?? 0, rankDirection: e.rankDirection ?? "", attemptMode: e.attemptMode ?? "", name: row.autoName ? "" : e.name, gender: e.gender, discipline: e.discipline, groupLabel: e.groupLabel, kind: e.kind, date: e.date, laneCount: e.laneCount, attemptCount: e.attemptCount, note: e.note,
-    prelim: row.prelim, advanceByPlace: row.advance?.byPlace ?? 2, advanceByMark: row.advance?.byMark ?? 2,
+    rounds: row.rounds,
     startMode: e.startMode, distanceMode: e.distanceMode, relayLegCount: e.relayLegCount };
 }
 
@@ -68,12 +70,17 @@ export function EventDialog({ meetId, open, row, onClose }: { meetId: string; op
         <div className="span"><StTextField label="显示名称" placeholder={auto} value={form.name} onChange={(name) => set({ name })} width="fill" /></div>
         <EventMeasurementFields form={form} onChange={(patch) => { setPresetId(""); set(patch); }} />
         <StDateField label="日期" value={form.date} onChange={(date) => set({ date })} />
-        <div className="span"><StSegmented label="赛制" value={form.prelim ? "prelim" : "final"} onChange={(v) => set({ prelim: v === "prelim" })}
-          options={[{ value: "final", label: "直接决赛" }, { value: "prelim", label: "预赛 + 决赛" }]} /></div>
-        {form.prelim && <>
-          <StTextField label="各组前几名晋级" inputMode="numeric" suffix="名" value={String(form.advanceByPlace)} onChange={(v) => set({ advanceByPlace: int(v) })} />
-          <StTextField label="另按成绩晋级" inputMode="numeric" suffix="名" value={String(form.advanceByMark)} onChange={(v) => set({ advanceByMark: int(v) })} />
-        </>}
+        <div className="span"><StSelect label="赛制" value={formatKey(form.rounds)} onChange={(key) => set({ rounds: withFormat(form.rounds, key) })} width="fill"
+          options={formatOptions(row?.rounds ?? [])} /></div>
+        {form.rounds.map((r) => {
+          const label = stageLabels[r.stage as Stage];
+          return (
+            <Fragment key={r.stage}>
+              <StTextField label={`${label}各组前几名晋级`} inputMode="numeric" suffix="名" value={String(r.advanceByPlace)} onChange={(v) => set({ rounds: withRound(form.rounds, r.stage, { advanceByPlace: int(v) }) })} />
+              <StTextField label={`${label}另按成绩晋级`} inputMode="numeric" suffix="名" value={String(r.advanceByMark)} onChange={(v) => set({ rounds: withRound(form.rounds, r.stage, { advanceByMark: int(v) }) })} />
+            </Fragment>
+          );
+        })}
       </div>
     </StDialog>
   );

@@ -1,4 +1,4 @@
-import type { EventKind, Status } from "../mygo";
+import type { EventKind, Stage, Status } from "../mygo";
 
 export const kindLabels: Record<EventKind, string> = {
   track: "径赛",
@@ -7,6 +7,13 @@ export const kindLabels: Record<EventKind, string> = {
   height: "高度",
  count: "计次",
  score: "计分",
+};
+
+export const stageLabels: Record<Stage, string> = {
+  heat: "预赛",
+  quarterfinal: "次赛",
+  semifinal: "半决赛",
+  final: "决赛",
 };
 
 export const statusLabels: Record<Status, string> = {

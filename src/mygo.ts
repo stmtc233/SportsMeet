@@ -408,8 +408,8 @@ export interface EventDetail {
 }
 
 /**
- * EventInput creates or updates an event. Prelim asks for a 预赛 before
- * the final, advancing by AdvanceByPlace and AdvanceByMark.
+ * EventInput creates or updates an event. Rounds lists the rounds before
+ * the final, which every event has; empty means the final alone.
  */
 export interface EventInput {
   participantMode?: string;
@@ -430,9 +430,7 @@ export interface EventInput {
   laneCount?: number;
   attemptCount?: number;
   note?: string;
-  prelim?: boolean;
-  advanceByPlace?: number;
-  advanceByMark?: number;
+  rounds?: RoundInput[];
 }
 
 /** EventKind decides how marks are measured and ranked. */
@@ -451,8 +449,12 @@ export interface EventRow {
   event: Event;
   /** the name is the composed one */
   autoName: boolean;
-  prelim: boolean;
-  advance: Advance | null;
+  /**
+   * Rounds are the rounds before the final, in order; FormatText names
+   * the whole sequence (「预赛 + 决赛」, 「直接决赛」).
+   */
+  rounds: RoundInput[];
+  formatText: string;
   entries: number;
   heats: number;
   placed: number;
@@ -869,6 +871,17 @@ export interface ResultView {
   attempts: string[];
   bars: BarView[];
   note: string;
+}
+
+/**
+ * RoundInput is a round held before the final (预赛 heat, 次赛
+ * quarterfinal, 半决赛 semifinal) and who advances from it: the first
+ * AdvanceByPlace of each heat plus the AdvanceByMark best of the rest.
+ */
+export interface RoundInput {
+  stage: string;
+  advanceByPlace: number;
+  advanceByMark: number;
 }
 
 /** RoundRef names one round of a multi-round schedule. */
