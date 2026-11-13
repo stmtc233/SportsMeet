@@ -461,9 +461,10 @@ export interface EventRow {
   results: number;
   /**
    * TimeText is when the event starts: its earliest planned time, a
-   * round's start or a heat's own (HH:mm on the meet's first day, else
-   * with the date), or its date when nothing has a time and the date is
-   * not the first day; "" otherwise.
+   * round's start or a heat's own. The whole list reads alike: while
+   * every event is on the meet's first day it is HH:mm ("" without a
+   * time); once any is on another day every row carries its date, alone
+   * when the event has no time.
    */
   timeText: string;
 }

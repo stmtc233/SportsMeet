@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean; conflicts?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false };
@@ -146,7 +146,7 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
           case "Meets.Get": return meet;
           case "Units.List": return [{ id: "unit", meetId: "meet", name: "一班", shortName: "" }];
           case "Athletes.List": return athletes.map((athlete) => ({ athlete, unitName: "一班", entries: 1, placed: true }));
-          case "Events.List": return [{ event, autoName: true, rounds: [], formatText: "直接决赛", entries: 24, heats: 1, placed: 8, results: 0, timeText: "09:00" }];
+          case "Events.List": return [{ event, autoName: true, rounds: [], formatText: "直接决赛", entries: 24, heats: 1, placed: 8, results: 0, timeText: options.datedList ? "2026-11-12 09:00" : "09:00" }];
           case "Events.Presets": return presets;
           case "Events.Rules": {
             const e = args[0];

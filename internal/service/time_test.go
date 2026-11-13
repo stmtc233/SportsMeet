@@ -219,13 +219,26 @@ func TestEventListOrder(t *testing.T) {
 	for _, r := range rows {
 		got = append(got, r.Event.ID+"="+r.TimeText)
 	}
-	want := []string{early + "=09:00", late + "=15:00", untimed + "=", day2 + "=2026-11-13 09:00"}
+	// One event is on the second day, so every row carries its date.
+	want := []string{early + "=2026-11-12 09:00", late + "=2026-11-12 15:00", untimed + "=2026-11-12", day2 + "=2026-11-13 09:00"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("ListEvents = %v, want %v", got, want)
 	}
+	// With every event on the first day only the times show.
+	must(t, f.svc.DeleteEvent(f.ctx, ui, day2, true))
+	rows, err = f.svc.ListEvents(f.ctx, f.meet)
+	must(t, err)
+	got = nil
+	for _, r := range rows {
+		got = append(got, r.Event.ID+"="+r.TimeText)
+	}
+	want = []string{early + "=09:00", late + "=15:00", untimed + "="}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("one day = %v, want %v", got, want)
+	}
 	targets, err := f.svc.ReportTargets(f.ctx, f.meet)
 	must(t, err)
-	if len(targets) != 4 || targets[0].ID != early || targets[3].ID != day2 {
+	if len(targets) != 3 || targets[0].ID != early || targets[2].ID != untimed {
 		t.Fatalf("targets = %+v", targets)
 	}
 }

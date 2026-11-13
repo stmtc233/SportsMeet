@@ -115,6 +115,19 @@ for (const width of [1280, 800]) {
   });
 }
 
+for (const width of [1280, 800]) {
+  test(`项目列表带日期的时间不被截断 ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await installRuntime(page, { datedList: true });
+    await page.goto("/");
+    await page.getByText("秋季运动会", { exact: true }).click();
+    const cell = page.getByText("2026-11-12 09:00", { exact: true });
+    await expect(cell).toBeVisible();
+    expect(await cell.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/event-list-dated-${width}.png`, animations: "disabled" });
+  });
+}
+
 test("外部起跑方式变化清除不适用的编排草稿", async ({ page }) => {
   await installRuntime(page, { emptyBoard: true });
   await page.goto("/");

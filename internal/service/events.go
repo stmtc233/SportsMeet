@@ -58,9 +58,10 @@ type EventRow struct {
 	Placed     int          `json:"placed"`
 	Results    int          `json:"results"`
 	// TimeText is when the event starts: its earliest planned time, a
-	// round's start or a heat's own (HH:mm on the meet's first day, else
-	// with the date), or its date when nothing has a time and the date is
-	// not the first day; "" otherwise.
+	// round's start or a heat's own. The whole list reads alike: while
+	// every event is on the meet's first day it is HH:mm ("" without a
+	// time); once any is on another day every row carries its date, alone
+	// when the event has no time.
 	TimeText string `json:"timeText"`
 }
 
@@ -92,14 +93,20 @@ func (s *Service) ListEvents(ctx context.Context, meetID string) ([]EventRow, er
 		entered[e.EventID]++
 	}
 	events = domain.ScheduleOrder(events, rounds, start)
+	dated := false // some event is on another day than the meet's first
+	for _, e := range events {
+		dated = dated || domain.PlannedDay(e, rounds[e.ID], start) != start
+	}
 	out := make([]EventRow, len(events))
 	for i, e := range events {
 		row := EventRow{Event: e, Entries: entered[e.ID], Rounds: []RoundInput{}, FormatText: formatText(rounds[e.ID]),
 			AutoName: e.Name == domain.ComposeEventName(e.Gender, e.Discipline, e.GroupLabel)}
-		if first := domain.EarliestScheduled(rounds[e.ID]); first != "" {
+		if first := domain.EarliestScheduled(rounds[e.ID]); first != "" && dated {
+			row.TimeText = domain.ScheduledText(first, "")
+		} else if first != "" {
 			row.TimeText = domain.ScheduledText(first, start)
-		} else if day := domain.EventDay(e, start); day != start {
-			row.TimeText = day
+		} else if dated {
+			row.TimeText = domain.EventDay(e, start)
 		}
 		for _, r := range rounds[e.ID] {
 			if r.Stage != domain.StageFinal {

@@ -39,7 +39,7 @@ export function EventsPage({ meetId }: { meetId: string }) {
           empty={<StEmpty action={<StButton variant="primary" onClick={() => setEditing({})}>添加项目</StButton>}>还没有项目</StEmpty>}
           columns={[
             { key: "name", title: "项目", width: "minmax(160px, 2fr)", render: (r) => <span className="cell-strong">{r.event.name}</span> },
-            { key: "time", title: "时间", width: "minmax(56px, 128px)", render: (r) => r.timeText },
+            { key: "time", title: "时间", width: rows?.some((r) => r.timeText.length > 5) ? "152px" : "72px", render: (r) => r.timeText },
             { key: "kind", title: "类型", width: "72px", render: (r) => kindLabels[r.event.kind] },
             { key: "format", title: "赛制", width: "minmax(104px, 1fr)", render: (r) => r.formatText },
             { key: "entries", title: "报名", width: "72px", align: "end", render: (r) => r.entries },
