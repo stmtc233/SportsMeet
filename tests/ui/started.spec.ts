@@ -104,6 +104,13 @@ for (const width of [1280, 800]) {
       const print = page.locator(".st-button--primary", { hasText: "打印" });
       await print.click();
       await expect.poll(() => calls(page, "__checkInPrints")).toEqual([{ meetId: "meet", roundIds: ["round"], day: "" }]);
+      // 成绩记录表 prints the same choice.
+      await page.getByRole("radio", { name: "成绩记录表", exact: true }).click();
+      await expect(frame.getByRole("heading", { name: "成绩记录表", exact: true })).toBeVisible();
+      await expect(frame.getByText("全部日期 · round", { exact: true })).toBeVisible();
+      await print.click();
+      await expect.poll(() => calls(page, "__recordPrints")).toEqual([{ meetId: "meet", roundIds: ["round"], day: "" }]);
+      await noOverflow(page);
       await side.getByRole("button", { name: "全选", exact: true }).click();
       await expect(frame.getByText("全部日期 · 全部轮次", { exact: true })).toBeVisible();
       await side.getByRole("button", { name: "取消全选", exact: true }).click();
@@ -123,16 +130,17 @@ for (const width of [1280, 800]) {
       await noOverflow(page);
       if (width === 800) await page.getByRole("button", { name: "设置分类", exact: true }).click();
       await nav.getByRole("button", { name: "打印", exact: true }).click();
-      for (const name of ["成绩时间", "每组另起一页"]) {
-        const item = page.getByRole("switch", { name: new RegExp(name) });
-        await expect(item).toHaveAttribute("aria-checked", "false");
+      // 每组另起一页: 检录单 first (off), then 成绩记录表 (on).
+      const pages = page.getByRole("switch", { name: /每组另起一页/ });
+      for (const [item, before] of [[page.getByRole("switch", { name: /成绩时间/ }), "false"], [pages.nth(0), "false"], [pages.nth(1), "true"]] as const) {
+        await expect(item).toHaveAttribute("aria-checked", before);
         await item.click();
-        await expect(item).toHaveAttribute("aria-checked", "true");
+        await expect(item).toHaveAttribute("aria-checked", before === "true" ? "false" : "true");
       }
       expect(await page.evaluate(async () => {
         const p = await (globalThis as any).mygo.call("Settings.Preferences");
-        return [p.checkInLeadMinutes, p.printResultsTime, p.printCheckInNewPage];
-      })).toEqual([0, true, true]);
+        return [p.checkInLeadMinutes, p.printResultsTime, p.printCheckInNewPage, p.printRecordNewPage];
+      })).toEqual([0, true, true, false]);
       await noOverflow(page);
       expect(errors).toEqual([]);
     });

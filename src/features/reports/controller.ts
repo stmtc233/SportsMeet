@@ -7,10 +7,13 @@ export const useReportTargets = (meetId: string) => useData(() => Reports.target
 export const useReportHTML = (kind: string, meetId: string, ids: string[], count: number, chosen: number, enabled: boolean) =>
   useData(() => (!enabled || (count > 0 && chosen === 0) ? Promise.resolve("") : Reports.render(kind, meetId, ids)), [kind, meetId, ids.join(), count, enabled], (c) => c.meetId === meetId || c.kind === "settings");
 export const useCheckInTargets = (meetId: string) => useData(() => Reports.checkInTargets(meetId), [meetId], (c) => c.meetId === meetId);
-/** The 检录单; nothing chosen (chosen 0) shows an empty preview. */
-export const useCheckInHTML = (req: CheckInRequest, chosen: number) =>
-  useData(() => (chosen === 0 ? Promise.resolve("") : Reports.renderCheckIn(req)), [req.meetId, req.roundIds.join(), req.day, chosen], (c) => c.meetId === req.meetId || c.kind === "settings");
+/** The per-heat sheets, chosen by round and day. */
+export type SheetKind = "checkin" | "record";
+const renderSheet = (kind: SheetKind, req: CheckInRequest) => (kind === "record" ? Reports.renderRecordSheet(req) : Reports.renderCheckIn(req));
+/** A 检录单 or 成绩记录表; nothing chosen (chosen 0) shows an empty preview. */
+export const useSheetHTML = (kind: SheetKind, req: CheckInRequest, chosen: number) =>
+  useData(() => (chosen === 0 ? Promise.resolve("") : renderSheet(kind, req)), [kind, req.meetId, req.roundIds.join(), req.day, chosen], (c) => c.meetId === req.meetId || c.kind === "settings");
 export const ReportsController = {
   print: (kind: string, meetId: string, ids: string[]) => act(() => Reports.print(kind, meetId, ids)),
-  printCheckIn: (req: CheckInRequest) => act(() => Reports.printCheckIn(req)),
+  printSheet: (kind: SheetKind, req: CheckInRequest) => act(() => (kind === "record" ? Reports.printRecordSheet(req) : Reports.printCheckIn(req))),
 };

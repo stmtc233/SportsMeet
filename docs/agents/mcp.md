@@ -130,7 +130,7 @@
 - 组第一次写入成绩时,`set_results` 与界面录入一样自动记下当时时刻(已有就不覆盖);规则见 [domain.md](domain.md)「时间」。
 - `set_heat_started` 接受 `input: {heatId, startedAt}`,`startedAt` 为本地 `YYYY-MM-DDTHH:mm`,空字符串清除。只改这一个字段,不进组指纹、不影响锁定与成绩,已比赛的组也可改,所以直接写入、不走预览;值不变时不写日志。日志动作 `heat.started`、来源 `mcp`。
 - 返回 `{heatId, startedAt, startedText, startDeltaText}`,与 `get_event` 中该组的字段相同。
-- 检录单与检录提前时间只在应用里打印和设置,MCP 不提供。
+- 检录单、成绩记录表与检录提前时间只在应用里打印和设置,MCP 不提供。
 
 ## 客户端连接
 

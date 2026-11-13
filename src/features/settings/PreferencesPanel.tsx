@@ -52,6 +52,9 @@ export function PreferencesPanel({ section }: { section: "general" | "arrange" |
       <StSection title="检录单" padded={false}>
         <StSwitchItem title="每组另起一页" checked={data.printCheckInNewPage} disabled={busy} onChange={(printCheckInNewPage) => void save({ printCheckInNewPage })} />
       </StSection>
+      <StSection title="成绩记录表" padded={false}>
+        <StSwitchItem title="每组另起一页" checked={data.printRecordNewPage} disabled={busy} onChange={(printRecordNewPage) => void save({ printRecordNewPage })} />
+      </StSection>
       <StSection title="分页" padded={false}>
         <StSwitchItem title="每个项目另起一页" checked={data.printNewPage} disabled={busy} onChange={(printNewPage) => void save({ printNewPage })} />
       </StSection>

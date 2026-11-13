@@ -26,6 +26,8 @@ type Preferences struct {
 	CheckInLeadMinutes int `json:"checkInLeadMinutes"`
 	// PrintCheckInNewPage starts each heat's check-in sheet on a new page.
 	PrintCheckInNewPage bool `json:"printCheckInNewPage"`
+	// PrintRecordNewPage starts each heat's record sheet on a new page.
+	PrintRecordNewPage bool `json:"printRecordNewPage"`
 	// PrintResultsTime prints each heat's results time in the 成绩册.
 	PrintResultsTime bool `json:"printResultsTime"`
 }
@@ -37,7 +39,7 @@ type MCPConfig struct {
 }
 
 func (s *Service) Preferences(ctx context.Context) (Preferences, error) {
-	p := Preferences{Theme: "system", SeparateUnits: true, Balance: true, PrintSchedule: true, CheckInLeadMinutes: domain.DefaultCheckInLeadMinutes}
+	p := Preferences{Theme: "system", SeparateUnits: true, Balance: true, PrintSchedule: true, CheckInLeadMinutes: domain.DefaultCheckInLeadMinutes, PrintRecordNewPage: true}
 	raw, err := s.store.GetSetting(ctx, "preferences")
 	if err != nil {
 		return p, err

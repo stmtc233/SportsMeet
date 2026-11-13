@@ -274,7 +274,7 @@ func (r Results) SetStarted(ctx context.Context, in service.HeatStartInput) (*se
 	return r.Svc.SetHeatStarted(ctx, ui, in)
 }
 
-// Reports renders and prints 秩序册, 成绩册 and 检录单.
+// Reports renders and prints 秩序册, 成绩册, 检录单 and 成绩记录表.
 type Reports struct{ *Core }
 
 func (r Reports) Targets(ctx context.Context, meetID string) ([]service.ReportTarget, error) {
@@ -318,6 +318,21 @@ func (r Reports) PrintCheckIn(ctx context.Context, req service.CheckInRequest) e
 		return err
 	}
 	printWindow("检录单", html)
+	return nil
+}
+
+// RenderRecordSheet returns the 成绩记录表 as an HTML document, for the preview.
+func (r Reports) RenderRecordSheet(ctx context.Context, req service.CheckInRequest) (string, error) {
+	return r.Svc.RenderRecordSheet(ctx, req)
+}
+
+// PrintRecordSheet opens the 成绩记录表 in a window of its own and shows the print dialog.
+func (r Reports) PrintRecordSheet(ctx context.Context, req service.CheckInRequest) error {
+	html, err := r.Svc.RenderRecordSheet(ctx, req)
+	if err != nil {
+		return err
+	}
+	printWindow("成绩记录表", html)
 	return nil
 }
 

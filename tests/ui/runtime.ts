@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test";
 export async function installRuntime(page: Page, options: { schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean; conflicts?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
-    let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInNewPage: false, printResultsTime: false };
+    let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInNewPage: false, printRecordNewPage: true, printResultsTime: false };
     let mcp = { enabled: false, running: false, port: 18765, address: "http://127.0.0.1:18765/mcp", error: "" };
     const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12" };
     const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0, participantMode: "athlete", teamSize: 0, scoreDecimals: 0, rankDirection: "", attemptMode: "" };
@@ -287,6 +287,11 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
             return `<!DOCTYPE html><html><body><h1>检录单</h1><p>${args[0].day || "全部日期"} · ${args[0].roundIds.join(",") || "全部轮次"}</p></body></html>`;
           case "Reports.PrintCheckIn":
             (globalThis as any).__checkInPrints = [...((globalThis as any).__checkInPrints ?? []), structuredClone(args[0])];
+            return null;
+          case "Reports.RenderRecordSheet":
+            return `<!DOCTYPE html><html><body><h1>成绩记录表</h1><p>${args[0].day || "全部日期"} · ${args[0].roundIds.join(",") || "全部轮次"}</p></body></html>`;
+          case "Reports.PrintRecordSheet":
+            (globalThis as any).__recordPrints = [...((globalThis as any).__recordPrints ?? []), structuredClone(args[0])];
             return null;
           case "Combined.List": return [];
           case "Reports.Render": return "<!DOCTYPE html><html><body><h1>秋季运动会</h1><p>秩序册</p></body></html>";

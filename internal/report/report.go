@@ -1,5 +1,5 @@
 // Package report renders printable HTML: 秩序册 (start lists), 成绩册
-// (results) and 检录单 (check-in sheets). The page shows it in a frame and
+// (results), 检录单 (check-in sheets) and 成绩记录表 (blank record sheets). The page shows it in a frame and
 // prints it from the WebView (docs/agents/frontend.md「打印」). Texts follow
 // docs/agents/copywriting.md.
 package report
@@ -99,10 +99,14 @@ var resultsHTML string
 //go:embed checkin.html
 var checkInHTML string
 
+//go:embed recordsheet.html
+var recordSheetHTML string
+
 var (
-	startListTmpl = template.Must(template.New("startlist").Parse(startListHTML))
-	resultsTmpl   = template.Must(template.New("results").Parse(resultsHTML))
-	checkInTmpl   = template.Must(template.New("checkin").Parse(checkInHTML))
+	recordSheetTmpl = template.Must(template.New("recordsheet").Parse(recordSheetHTML))
+	startListTmpl   = template.Must(template.New("startlist").Parse(startListHTML))
+	resultsTmpl     = template.Must(template.New("results").Parse(resultsHTML))
+	checkInTmpl     = template.Must(template.New("checkin").Parse(checkInHTML))
 )
 
 type page struct {
@@ -134,6 +138,9 @@ func Results(b Book) (string, error) {
 	return render(resultsTmpl, b)
 }
 
+// sheetPageBreak starts each per-heat sheet on a new printed page.
+const sheetPageBreak = "\n@media print { .sheet ~ .sheet { break-before: page; page-break-before: always; } }"
+
 // CheckInBook is the 检录单: one sheet per heat.
 type CheckInBook struct {
 	NewPage   bool // Start each sheet on a new printed page.
@@ -163,11 +170,74 @@ func CheckIn(b CheckInBook) (string, error) {
 	b.Title = "检录单"
 	css := style
 	if b.NewPage {
-		css += "\n@media print { .sheet ~ .sheet { break-before: page; page-break-before: always; } }"
+		css += sheetPageBreak
 	}
 	var buf bytes.Buffer
 	if err := checkInTmpl.Execute(&buf, struct {
 		CheckInBook
+		Style template.CSS
+	}{b, template.CSS(css)}); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+// RecordBook is the 成绩记录表: one blank sheet per heat, filled in by hand.
+type RecordBook struct {
+	NewPage   bool // Start each sheet on a new printed page.
+	Title     string
+	Meet      string
+	PrintedAt string
+	Sheets    []RecordSheet
+}
+
+// RecordSheet is one heat to judge. After the competitor it has Columns to
+// fill in, then the mark and the rank.
+type RecordSheet struct {
+	Event         string
+	Round         string
+	Heat          string
+	Time          string // planned, with its date; "" = not planned
+	HeatWind      bool   // Leave a place for the heat's wind.
+	PositionLabel string // 道次 / 顺序
+	Team          bool
+	RosterLabel   string // 棒次 / 成员
+	// Columns are the headings of the cells before the mark: attempt
+	// numbers, or "" for a heading written by hand.
+	Columns []string
+	// ColumnsTitle heads Columns as a group (高度); "" = no group heading.
+	ColumnsTitle string
+	// AttemptWind gives each competitor a second row for the wind of each attempt.
+	AttemptWind bool
+	MarkLabel   string // 成绩 / 最好成绩 / 次数 / 分数
+	Lines       []Line
+}
+
+// HeadRows and LineRows are the row spans of the cells beside Columns.
+func (s RecordSheet) HeadRows() int {
+	if s.ColumnsTitle != "" {
+		return 2
+	}
+	return 1
+}
+
+func (s RecordSheet) LineRows() int {
+	if s.AttemptWind {
+		return 2
+	}
+	return 1
+}
+
+// RecordSheets renders the 成绩记录表.
+func RecordSheets(b RecordBook) (string, error) {
+	b.Title = "成绩记录表"
+	css := style
+	if b.NewPage {
+		css += sheetPageBreak
+	}
+	var buf bytes.Buffer
+	if err := recordSheetTmpl.Execute(&buf, struct {
+		RecordBook
 		Style template.CSS
 	}{b, template.CSS(css)}); err != nil {
 		return "", err

@@ -806,6 +806,8 @@ export interface Preferences {
   checkInLeadMinutes: number;
   /** PrintCheckInNewPage starts each heat's check-in sheet on a new page. */
   printCheckInNewPage: boolean;
+  /** PrintRecordNewPage starts each heat's record sheet on a new page. */
+  printRecordNewPage: boolean;
   /** PrintResultsTime prints each heat's results time in the 成绩册. */
   printResultsTime: boolean;
 }
@@ -1424,7 +1426,7 @@ export const Results = {
   },
 } as const;
 
-/** Reports renders and prints 秩序册, 成绩册 and 检录单. */
+/** Reports renders and prints 秩序册, 成绩册, 检录单 and 成绩记录表. */
 export const Reports = {
   /** CheckInTargets lists the rounds the 检录单 can print and its days. */
   checkInTargets(meetID: string): Promise<CheckInTargets | null> {
@@ -1441,6 +1443,10 @@ export const Reports = {
   printCheckIn(req: CheckInRequest): Promise<void> {
     return call("Reports.PrintCheckIn", req);
   },
+  /** PrintRecordSheet opens the 成绩记录表 in a window of its own and shows the print dialog. */
+  printRecordSheet(req: CheckInRequest): Promise<void> {
+    return call("Reports.PrintRecordSheet", req);
+  },
   /** Render returns the report as an HTML document, for the preview. */
   render(kind: string, meetID: string, eventIDs: string[]): Promise<string> {
     return call("Reports.Render", kind, meetID, eventIDs);
@@ -1448,6 +1454,10 @@ export const Reports = {
   /** RenderCheckIn returns the 检录单 as an HTML document, for the preview. */
   renderCheckIn(req: CheckInRequest): Promise<string> {
     return call("Reports.RenderCheckIn", req);
+  },
+  /** RenderRecordSheet returns the 成绩记录表 as an HTML document, for the preview. */
+  renderRecordSheet(req: CheckInRequest): Promise<string> {
+    return call("Reports.RenderRecordSheet", req);
   },
   targets(meetID: string): Promise<ReportTarget[]> {
     return call("Reports.Targets", meetID);

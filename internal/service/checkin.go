@@ -125,39 +125,26 @@ func (s *Service) CheckInTargets(ctx context.Context, meetID string) (*CheckInTa
 	return out, nil
 }
 
-// RenderCheckIn returns the 检录单 as a printable HTML document: one sheet per
-// heat, in the event list's order, or with a day by planned time. The
-// check-in time is the heat's effective planned time minus the settings'
-// lead (domain.CheckInAt); a heat without a time prints it blank.
-func (s *Service) RenderCheckIn(ctx context.Context, req CheckInRequest) (string, error) {
+// sheetHeat is one heat a per-heat sheet prints.
+type sheetHeat struct {
+	event domain.Event
+	round domain.Round
+	heat  domain.Heat
+	at    string // effective planned time
+}
+
+// sheetHeats selects a request's heats and leaves d.state on no particular
+// event: in the event list's order, or with a day by planned time.
+func (d *checkInData) sheetHeats(req CheckInRequest) ([]sheetHeat, error) {
 	if req.Day != "" && !domain.ValidDate(req.Day) {
-		return "", invalid("日期格式不正确")
-	}
-	prefs, err := s.Preferences(ctx)
-	if err != nil {
-		return "", err
-	}
-	d, err := s.loadCheckIn(ctx, req.MeetID)
-	if err != nil {
-		return "", err
+		return nil, invalid("日期格式不正确")
 	}
 	only := map[string]bool{}
 	for _, id := range req.RoundIDs {
 		only[id] = true
 	}
-	type timed struct {
-		at    string
-		sheet report.CheckInSheet
-	}
-	var list []timed
-	st := d.state
+	var list []sheetHeat
 	for _, e := range d.events {
-		st.event = e
-		rules := e.Rules()
-		roster := "成员"
-		if e.Kind == domain.KindRelay {
-			roster = "棒次"
-		}
 		for _, r := range d.rounds[e.ID] {
 			if len(only) > 0 && !only[r.ID] {
 				continue
@@ -167,37 +154,73 @@ func (s *Service) RenderCheckIn(ctx context.Context, req CheckInRequest) (string
 				if req.Day != "" && domain.ScheduledDay(at) != req.Day {
 					continue
 				}
-				sheet := report.CheckInSheet{Event: e.Name, Round: r.Label(), Heat: domain.HeatLabel(h.Ordinal, h.Name),
-					Time: domain.ScheduledText(at, ""), CheckIn: domain.ScheduledText(domain.CheckInAt(at, prefs.CheckInLeadMinutes), domain.ScheduledDay(at)),
-					PositionLabel: rules.PositionLabel, Team: e.IsTeam(), RosterLabel: roster, Lines: []report.Line{}}
-				for _, sl := range h.Slots {
-					c, ok := st.competitor(sl.CompetitorID())
-					if !ok {
-						continue
-					}
-					l := report.Line{Position: sl.Position, Bib: c.Bib, Name: c.Name, Unit: st.unitName(c.UnitID)}
-					if sl.TeamID != "" {
-						for i, id := range st.teams[sl.TeamID].MemberIDs {
-							a := st.athletes[id]
-							label := teamMemberLabel(e, i, a.Name)
-							if a.Bib != "" {
-								label += " " + a.Bib
-							}
-							l.Members = append(l.Members, label)
-						}
-					}
-					sheet.Lines = append(sheet.Lines, l)
-				}
-				list = append(list, timed{at, sheet})
+				list = append(list, sheetHeat{e, r, h, at})
 			}
 		}
 	}
 	if req.Day != "" {
 		sort.SliceStable(list, func(i, j int) bool { return list[i].at < list[j].at })
 	}
+	return list, nil
+}
+
+// sheetLines are a heat's competitors by position; teams list their members
+// with bibs.
+func (d *checkInData) sheetLines(e domain.Event, h domain.Heat) []report.Line {
+	st := d.state
+	st.event = e
+	lines := []report.Line{}
+	for _, sl := range h.Slots {
+		c, ok := st.competitor(sl.CompetitorID())
+		if !ok {
+			continue
+		}
+		l := report.Line{Position: sl.Position, Bib: c.Bib, Name: c.Name, Unit: st.unitName(c.UnitID)}
+		if sl.TeamID != "" {
+			for i, id := range st.teams[sl.TeamID].MemberIDs {
+				a := st.athletes[id]
+				label := teamMemberLabel(e, i, a.Name)
+				if a.Bib != "" {
+					label += " " + a.Bib
+				}
+				l.Members = append(l.Members, label)
+			}
+		}
+		lines = append(lines, l)
+	}
+	return lines
+}
+
+func rosterLabel(e domain.Event) string {
+	if e.Kind == domain.KindRelay {
+		return "棒次"
+	}
+	return "成员"
+}
+
+// RenderCheckIn returns the 检录单 as a printable HTML document: one sheet per
+// heat, in the event list's order, or with a day by planned time. The
+// check-in time is the heat's effective planned time minus the settings'
+// lead (domain.CheckInAt); a heat without a time prints it blank.
+func (s *Service) RenderCheckIn(ctx context.Context, req CheckInRequest) (string, error) {
+	prefs, err := s.Preferences(ctx)
+	if err != nil {
+		return "", err
+	}
+	d, err := s.loadCheckIn(ctx, req.MeetID)
+	if err != nil {
+		return "", err
+	}
+	list, err := d.sheetHeats(req)
+	if err != nil {
+		return "", err
+	}
 	book := report.CheckInBook{NewPage: prefs.PrintCheckInNewPage, Meet: d.meet.Name, PrintedAt: domain.RecordedText(s.store.Now(), s.zone), ShowCheckIn: prefs.CheckInLeadMinutes > 0}
 	for _, t := range list {
-		book.Sheets = append(book.Sheets, t.sheet)
+		e := t.event
+		book.Sheets = append(book.Sheets, report.CheckInSheet{Event: e.Name, Round: t.round.Label(), Heat: domain.HeatLabel(t.heat.Ordinal, t.heat.Name),
+			Time: domain.ScheduledText(t.at, ""), CheckIn: domain.ScheduledText(domain.CheckInAt(t.at, prefs.CheckInLeadMinutes), domain.ScheduledDay(t.at)),
+			PositionLabel: e.Rules().PositionLabel, Team: e.IsTeam(), RosterLabel: rosterLabel(e), Lines: d.sheetLines(e, t.heat)})
 	}
 	return report.CheckIn(book)
 }

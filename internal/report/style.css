@@ -54,3 +54,13 @@ th { background: #f0f0f0; font-weight: 600; }
 .box { display: inline-block; width: 12px; height: 12px; border: 1px solid #111; vertical-align: middle; }
 .sign { margin: 10px 0 0; display: flex; justify-content: flex-end; align-items: flex-end; gap: 6px; }
 .sign-line { display: inline-block; width: 12em; border-bottom: 1px solid #111; }
+
+/* 成绩记录表: cells are written in by hand. */
+.record td { height: 30px; }
+.record .line { break-inside: avoid; page-break-inside: avoid; }
+.record .try { text-align: center; min-width: 3em; }
+.record .write { background: #fff; height: 24px; }
+.record .tag { width: 3.2em; text-align: center; color: #444; font-size: 10px; white-space: nowrap; }
+.record .sheet-times td { height: auto; }
+.record .sheet-times .fill { border-bottom: 1px solid #111; }
+.record .sheet-times td + th { padding-left: 16px; }
