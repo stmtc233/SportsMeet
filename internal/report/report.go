@@ -117,7 +117,7 @@ type page struct {
 func render(t *template.Template, b Book) (string, error) {
 	css := style
 	if b.NewPage {
-		css += "\n@media print { .event ~ .event, .schedule + .event { break-before: page; } }"
+		css += "\n.event ~ .event, .schedule + .event { break-before: page; page-break-before: always; }"
 	}
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, page{Book: b, Style: template.CSS(css)}); err != nil {
@@ -138,8 +138,9 @@ func Results(b Book) (string, error) {
 	return render(resultsTmpl, b)
 }
 
-// sheetPageBreak starts each per-heat sheet on a new printed page.
-const sheetPageBreak = "\n@media print { .sheet ~ .sheet { break-before: page; page-break-before: always; } }"
+// sheetPageBreak starts each per-heat sheet on a new page. Like the books'
+// break it is not limited to print: the preview reads it to lay out its pages.
+const sheetPageBreak = "\n.sheet ~ .sheet { break-before: page; page-break-before: always; }"
 
 // CheckInBook is the 检录单: one sheet per heat.
 type CheckInBook struct {

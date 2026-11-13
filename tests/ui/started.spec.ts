@@ -83,7 +83,7 @@ for (const width of [1280, 800]) {
       await openMeet(page);
       await page.locator(".app__side").getByRole("button", { name: "打印", exact: true }).click();
       await page.getByRole("radio", { name: "检录单", exact: true }).click();
-      const frame = page.frameLocator("iframe.report-frame");
+      const frame = page.frameLocator(".report-frame iframe");
       await expect(frame.getByText("全部日期 · 全部轮次", { exact: true })).toBeVisible();
       const side = page.locator(".split__side");
       await expect(side.getByText("男子100m 初中组", { exact: true })).toBeVisible();
@@ -113,9 +113,28 @@ for (const width of [1280, 800]) {
       await noOverflow(page);
       await side.getByRole("button", { name: "全选", exact: true }).click();
       await expect(frame.getByText("全部日期 · 全部轮次", { exact: true })).toBeVisible();
+      // The preview is on sheets, with a page count and a scale.
+      await expect(page.locator(".subbar__count")).toHaveText("1 页");
+      await expect(frame.locator(".pv-page")).toHaveCount(1);
+      const zoom = page.getByRole("button", { name: "比例", exact: true });
+      await expect(zoom).toContainText("适合宽度");
+      await zoom.click();
+      await page.getByRole("menuitemradio", { name: "50%", exact: true }).click();
+      await expect(frame.locator(".pv-pages")).toHaveAttribute("style", /scale\(0\.5\)/);
+      await noOverflow(page);
+
+      // Nothing chosen says so; choosing again brings the preview back.
       await side.getByRole("button", { name: "取消全选", exact: true }).click();
       await expect(print).toBeDisabled();
+      await expect(page.getByText("未选择轮次", { exact: true })).toBeVisible();
       await noOverflow(page);
+      await page.getByRole("radio", { name: "秩序册", exact: true }).click();
+      await expect(frame.getByText("秩序册", { exact: true })).toBeVisible();
+      await side.getByRole("button", { name: "取消全选", exact: true }).click();
+      await expect(page.getByText("未选择项目", { exact: true })).toBeVisible();
+      await side.getByRole("button", { name: "全选", exact: true }).click();
+      await expect(frame.getByText("秩序册", { exact: true })).toBeVisible();
+      await expect(print).toBeEnabled();
 
       // The settings it follows.
       await page.goto("/");

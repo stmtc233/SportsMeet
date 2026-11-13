@@ -64,3 +64,12 @@ th { background: #f0f0f0; font-weight: 600; }
 .record .sheet-times td { height: auto; }
 .record .sheet-times .fill { border-bottom: 1px solid #111; }
 .record .sheet-times td + th { padding-left: 16px; }
+
+/* The app's preview (src/features/reports/paginate.ts) moves the content onto
+   sheets of @page's size and margins; printing does not use these. */
+.pv body { background: transparent; }
+.pv body { margin: 0; padding: 0; }
+.pv-view { margin: 16px auto; }
+.pv-pages { width: 210mm; transform-origin: 0 0; display: flex; flex-direction: column; gap: 16px; }
+.pv-page { width: 210mm; height: 297mm; padding: 15mm; background: #fff; color: #111; overflow: hidden; contain: strict; box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
+.pv-body { height: 100%; overflow: hidden; }

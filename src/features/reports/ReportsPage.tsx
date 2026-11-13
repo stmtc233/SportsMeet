@@ -1,30 +1,38 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { IconPrint, StButton, StCheckbox, StPage, StSegmented, StSelect, StToolbar, iconStroke } from "../../design";
+import { IconPrint, StButton, StCheckbox, StEmpty, StNotice, StPage, StSegmented, StSelect, StToolbar, iconStroke } from "../../design";
+import type { Zoom } from "./paginate";
+import { ReportPreview } from "./ReportPreview";
 import { checkInRows, checkInSelection } from "./checkin";
 import { ReportsController, useCheckInTargets, useReportHTML, useReportTargets, useSheetHTML } from "./controller";
 
 type Kind = "startlist" | "results" | "checkin" | "record";
 
-/** 秩序册, 成绩册, 检录单 and 成绩记录表: rendered by Go, previewed in a frame, printed from a window of their own. */
+const zooms: { value: Zoom; label: string }[] = [
+  { value: "fit", label: "适合宽度" }, { value: "0.5", label: "50%" }, { value: "0.75", label: "75%" }, { value: "1", label: "100%" }, { value: "1.5", label: "150%" },
+];
+
+/** 秩序册, 成绩册, 检录单 and 成绩记录表: rendered by Go, previewed on A4 sheets, printed from a window of their own. */
 export function ReportsPage({ meetId }: { meetId: string }) {
   const [kind, setKind] = useState<Kind>("startlist");
   const [busy, setBusy] = useState(false);
+  const [zoom, setZoom] = useState<Zoom>("fit");
+  const [pages, setPages] = useState(0);
   // 秩序册 and 成绩册: by event.
-  const { data: events } = useReportTargets(meetId);
+  const { data: events, error: eventsError } = useReportTargets(meetId);
   const [skipped, setSkipped] = useState(new Set<string>());
   const all = events ?? [];
   const chosen = all.filter((r) => !skipped.has(r.id)).map((r) => r.id);
   const ids = skipped.size === 0 ? [] : chosen;
   const sheet = kind === "checkin" || kind === "record" ? kind : null;
-  const { data: bookHTML } = useReportHTML(sheet ? "startlist" : kind, meetId, ids, all.length, chosen.length, !sheet);
+  const { data: bookHTML, error: bookError } = useReportHTML(sheet ? "startlist" : kind, meetId, ids, all.length, chosen.length, !sheet);
   // 检录单 and 成绩记录表: by round, optionally one day.
-  const { data: targets } = useCheckInTargets(meetId);
+  const { data: targets, error: targetsError } = useCheckInTargets(meetId);
   const [day, setDay] = useState("");
   const [skippedRounds, setSkippedRounds] = useState(new Set<string>());
   const rows = checkInRows(targets, day);
   const rounds = checkInSelection(rows, skippedRounds);
   const req = { meetId, roundIds: rounds.roundIds, day };
-  const { data: sheetHTML } = useSheetHTML(sheet ?? "checkin", req, sheet ? rounds.chosen.length : 0);
+  const { data: sheetHTML, error: sheetError } = useSheetHTML(sheet ?? "checkin", req, sheet ? rounds.chosen.length : 0);
   useEffect(() => {
     setSkipped(new Set());
     setSkippedRounds(new Set());
@@ -33,6 +41,10 @@ export function ReportsPage({ meetId }: { meetId: string }) {
 
   const html = sheet ? sheetHTML : bookHTML;
   const count = sheet ? rounds.chosen.length : chosen.length;
+  const error = sheet ? targetsError || sheetError : eventsError || bookError;
+  // Why there is nothing to preview; "" while the choices are still loading.
+  const listed = sheet ? rows.length : all.length;
+  const none = (sheet ? targets : events) === undefined ? "" : listed > 0 ? (sheet ? "未选择轮次" : "未选择项目") : !sheet ? "还没有项目" : day ? "当天没有组" : "还没有组";
   const print = async () => {
     setBusy(true);
     await (sheet ? ReportsController.printSheet(sheet, req) : ReportsController.print(kind, meetId, ids));
@@ -57,7 +69,18 @@ export function ReportsPage({ meetId }: { meetId: string }) {
         ) : (
           <ChoiceList title="项目" items={all.map((e) => ({ id: e.id, label: e.name }))} skipped={skipped} onChange={setSkipped} />
         )}
-        <iframe className="report-frame" title="预览" sandbox="" srcDoc={html ?? ""} />
+        <div className="report-main">
+          {error ? <div className="report-note"><StNotice tone="danger">{error}</StNotice></div> : count === 0 ? (none && <StEmpty>{none}</StEmpty>) : (
+            <>
+              <div className="subbar">
+                <StSelect label="比例" size="small" value={zoom} onChange={setZoom} options={zooms} />
+                <span className="subbar__spacer" />
+                <span className="subbar__count">{pages > 0 && `${pages} 页`}</span>
+              </div>
+              <ReportPreview html={html} zoom={zoom} onPages={setPages} />
+            </>
+          )}
+        </div>
       </div>
     </StPage>
   );

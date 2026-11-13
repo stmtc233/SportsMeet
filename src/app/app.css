@@ -92,7 +92,10 @@
 .result-mark { font-family: var(--st-font-mono); font-weight: 600; text-align: end; }
 
 /* reports */
-.report-frame { flex: 1; min-width: 0; border: 0; background: var(--st-surface); }
+.report-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.report-note { padding: var(--st-space-16) var(--st-space-page); }
+.report-frame { flex: 1; min-height: 0; display: flex; background: var(--st-bg); }
+.report-frame > iframe { flex: 1; min-width: 0; border: 0; }
 
 /* Settings keeps its content in the same tree across width changes. */
 .settings { display: flex; flex: 1; min-height: 0; }
