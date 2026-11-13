@@ -17,7 +17,7 @@ func main() {
 	// the data directory is known (mygo generate never reaches it).
 	core := &bind.Core{}
 	mygo.Bind(bind.Meets{Core: core}, bind.Units{Core: core}, bind.Athletes{Core: core}, bind.Events{Core: core},
-		bind.Combined{Core: core}, bind.TeamScoring{Core: core}, bind.Entries{Core: core}, bind.Arrange{Core: core}, bind.Results{Core: core}, bind.Reports{Core: core},
+		bind.Combined{Core: core}, bind.TeamScoring{Core: core}, bind.Groups{Core: core}, bind.Entries{Core: core}, bind.Arrange{Core: core}, bind.Results{Core: core}, bind.Reports{Core: core},
 		&bind.Exchange{Core: core}, bind.Marks{}, bind.App{}, bind.Settings{Core: core})
 
 	// The update window checks in the background and offers new versions;

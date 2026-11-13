@@ -4,6 +4,7 @@ import "errors"
 
 // Combined owns independently arranged component events and one shared roster.
 type Combined struct {
+	GroupID     string `json:"groupId"`
 	ID          string `json:"id"`
 	MeetID      string `json:"meetId"`
 	Name        string `json:"name"`

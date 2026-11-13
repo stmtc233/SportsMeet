@@ -1,0 +1,1017 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sportsmeet.invalid/schema/interchange-v8.schema.json",
+  "title": "SportsMeet 交换格式 v8",
+  "description": "结构约束。引用完整性、唯一性与成绩一致性见 docs/interchange-format.md §6,由读取方校验。",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "exportedAt",
+    "generator",
+    "meet",
+    "units",
+    "athletes",
+    "events"
+  ],
+  "properties": {
+    "format": {
+      "const": "sportsmeet-interchange"
+    },
+    "version": {
+      "const": 8
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generator": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "meet": {
+      "$ref": "#/$defs/meet"
+    },
+    "units": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/unit"
+      }
+    },
+    "athletes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/athlete"
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    },
+    "combineds": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/combined"
+      }
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/group"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "refOrNull": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "dateOrNull": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/date"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "localMinute": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$"
+    },
+    "mark": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "markOrNull": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "windOrNull": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "text": {
+      "type": "string"
+    },
+    "meet": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "startDate"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "startDate": {
+          "$ref": "#/$defs/date"
+        },
+        "endDate": {
+          "$ref": "#/$defs/dateOrNull"
+        },
+        "location": {
+          "$ref": "#/$defs/text"
+        },
+        "note": {
+          "$ref": "#/$defs/text"
+        },
+        "teamScoring": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/teamScoring"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "unit": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shortName": {
+          "$ref": "#/$defs/text"
+        },
+        "groupIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      }
+    },
+    "athlete": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "gender": {
+          "enum": [
+            "男",
+            "女",
+            ""
+          ]
+        },
+        "bib": {
+          "$ref": "#/$defs/text"
+        },
+        "studentNumber": {
+          "$ref": "#/$defs/text"
+        },
+        "unitId": {
+          "$ref": "#/$defs/refOrNull"
+        },
+        "affiliation": {
+          "$ref": "#/$defs/text"
+        },
+        "className": {
+          "$ref": "#/$defs/text"
+        },
+        "grade": {
+          "$ref": "#/$defs/text"
+        },
+        "birthDate": {
+          "$ref": "#/$defs/dateOrNull"
+        },
+        "note": {
+          "$ref": "#/$defs/text"
+        },
+        "groupId": {
+          "$ref": "#/$defs/refOrNull"
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "required": [
+        "id",
+        "gender",
+        "discipline",
+        "kind",
+        "entries",
+        "rounds"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "gender": {
+          "enum": [
+            "男",
+            "女",
+            "混合"
+          ]
+        },
+        "discipline": {
+          "type": "string",
+          "minLength": 1
+        },
+        "groupLabel": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "enum": [
+            "track",
+            "relay",
+            "distance",
+            "height",
+            "count",
+            "score"
+          ]
+        },
+        "date": {
+          "$ref": "#/$defs/dateOrNull"
+        },
+        "laneCount": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 8
+        },
+        "attemptCount": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3
+        },
+        "note": {
+          "$ref": "#/$defs/text"
+        },
+        "teams": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/team"
+          }
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entry"
+          }
+        },
+        "rounds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/round"
+          }
+        },
+        "startMode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "",
+            "lanes",
+            "group",
+            "break",
+            null
+          ],
+          "description": "仅计时项目，缺省为 lanes"
+        },
+        "distanceMode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "",
+            "jump",
+            "throw",
+            null
+          ],
+          "description": "仅远度项目，缺省为 jump"
+        },
+        "relayLegCount": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "仅接力，0 为未指定建议棒数"
+        },
+        "participantMode": {
+          "enum": [
+            "",
+            "athlete",
+            "team",
+            null
+          ]
+        },
+        "teamSize": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "scoreDecimals": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 3
+        },
+        "rankDirection": {
+          "enum": [
+            "",
+            "asc",
+            "desc",
+            null
+          ]
+        },
+        "attemptMode": {
+          "enum": [
+            "",
+            "single",
+            "best",
+            "sum",
+            null
+          ]
+        },
+        "combinedId": {
+          "$ref": "#/$defs/refOrNull"
+        },
+        "groupId": {
+          "$ref": "#/$defs/refOrNull"
+        }
+      }
+    },
+    "team": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "memberIds"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unitId": {
+          "$ref": "#/$defs/refOrNull"
+        },
+        "memberIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      }
+    },
+    "competitor": {
+      "oneOf": [
+        {
+          "required": [
+            "athleteId"
+          ],
+          "not": {
+            "required": [
+              "teamId"
+            ]
+          }
+        },
+        {
+          "required": [
+            "teamId"
+          ],
+          "not": {
+            "required": [
+              "athleteId"
+            ]
+          }
+        }
+      ]
+    },
+    "entry": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/competitor"
+        }
+      ],
+      "properties": {
+        "athleteId": {
+          "$ref": "#/$defs/id"
+        },
+        "teamId": {
+          "$ref": "#/$defs/id"
+        },
+        "seedMark": {
+          "$ref": "#/$defs/markOrNull"
+        }
+      }
+    },
+    "round": {
+      "type": "object",
+      "required": [
+        "id",
+        "stage",
+        "ordinal",
+        "heats"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "stage": {
+          "enum": [
+            "heat",
+            "quarterfinal",
+            "semifinal",
+            "final"
+          ]
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "scheduledAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/localMinute"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "advance": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "byPlace",
+                "byMark"
+              ],
+              "properties": {
+                "byPlace": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "byMark": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        },
+        "heats": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/heat"
+          }
+        }
+      }
+    },
+    "heat": {
+      "type": "object",
+      "required": [
+        "id",
+        "ordinal",
+        "slots"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "scheduledAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/localMinute"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "durationMinutes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1440
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "startedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/localMinute"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "wind": {
+          "$ref": "#/$defs/windOrNull"
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/slot"
+          }
+        }
+      }
+    },
+    "slot": {
+      "type": "object",
+      "required": [
+        "position"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/competitor"
+        }
+      ],
+      "properties": {
+        "position": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "athleteId": {
+          "$ref": "#/$defs/id"
+        },
+        "teamId": {
+          "$ref": "#/$defs/id"
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/result"
+            }
+          ]
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "OK",
+            "DNS",
+            "DNF",
+            "DQ",
+            "NM"
+          ]
+        },
+        "mark": {
+          "$ref": "#/$defs/markOrNull"
+        },
+        "rank": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "qualify": {
+          "enum": [
+            "Q",
+            "q",
+            null
+          ]
+        },
+        "wind": {
+          "$ref": "#/$defs/windOrNull"
+        },
+        "attempts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/attempt"
+          }
+        },
+        "bars": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/bar"
+          }
+        },
+        "note": {
+          "$ref": "#/$defs/text"
+        },
+        "heightPending": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "仅高度项目。true 为过程记录，false 或省略为已结束。"
+        }
+      },
+      "if": {
+        "properties": {
+          "status": {
+            "const": "OK"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "mark"
+        ],
+        "properties": {
+          "mark": {
+            "$ref": "#/$defs/mark"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "mark": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "required": [
+        "outcome"
+      ],
+      "properties": {
+        "outcome": {
+          "enum": [
+            "valid",
+            "foul",
+            "pass"
+          ]
+        },
+        "mark": {
+          "$ref": "#/$defs/markOrNull"
+        },
+        "wind": {
+          "$ref": "#/$defs/windOrNull"
+        }
+      },
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "valid"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "mark"
+        ],
+        "properties": {
+          "mark": {
+            "$ref": "#/$defs/mark"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "mark": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    "bar": {
+      "type": "object",
+      "required": [
+        "height",
+        "trials"
+      ],
+      "properties": {
+        "height": {
+          "$ref": "#/$defs/mark"
+        },
+        "trials": {
+          "type": "string",
+          "pattern": "^[OX-]{1,3}$"
+        }
+      }
+    },
+    "pointRule": {
+      "type": "object",
+      "required": [
+        "bands",
+        "invalidPolicies"
+      ],
+      "properties": {
+        "bands": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "mark",
+              "points"
+            ],
+            "properties": {
+              "mark": {
+                "$ref": "#/$defs/mark"
+              },
+              "points": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "invalidPolicies": {
+          "type": "object",
+          "required": [
+            "DNS",
+            "DNF",
+            "DQ",
+            "NM"
+          ],
+          "properties": {
+            "DNS": {
+              "enum": [
+                "zero",
+                "exclude"
+              ]
+            },
+            "DNF": {
+              "enum": [
+                "zero",
+                "exclude"
+              ]
+            },
+            "DQ": {
+              "enum": [
+                "zero",
+                "exclude"
+              ]
+            },
+            "NM": {
+              "enum": [
+                "zero",
+                "exclude"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "combined": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "gender",
+        "ruleVersion",
+        "components",
+        "athleteIds"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "gender": {
+          "enum": [
+            "男",
+            "女",
+            "混合"
+          ]
+        },
+        "groupLabel": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "ruleVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "components": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": [
+              "eventId",
+              "ordinal",
+              "rule"
+            ],
+            "properties": {
+              "eventId": {
+                "$ref": "#/$defs/id"
+              },
+              "ordinal": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "rule": {
+                "$ref": "#/$defs/pointRule"
+              }
+            }
+          }
+        },
+        "athleteIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "groupId": {
+          "$ref": "#/$defs/refOrNull"
+        }
+      }
+    },
+    "teamScoring": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "places",
+        "tiePolicy",
+        "relayMultiplier",
+        "overrides"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "places": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "tiePolicy": {
+          "enum": [
+            "average",
+            "same"
+          ]
+        },
+        "relayMultiplier": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "overrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/teamScoreOverride"
+          }
+        }
+      }
+    },
+    "teamScoreOverride": {
+      "type": "object",
+      "required": [
+        "multiplier"
+      ],
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/id"
+        },
+        "combinedId": {
+          "$ref": "#/$defs/id"
+        },
+        "multiplier": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "eventId"
+          ],
+          "not": {
+            "required": [
+              "combinedId"
+            ]
+          }
+        },
+        {
+          "required": [
+            "combinedId"
+          ],
+          "not": {
+            "required": [
+              "eventId"
+            ]
+          }
+        }
+      ]
+    },
+    "group": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "ordinal"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

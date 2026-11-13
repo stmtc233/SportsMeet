@@ -177,8 +177,8 @@ func TestTeamScoresCombinedOnlyAndRoundtripReports(t *testing.T) {
 	wantInvalid(t, err, "不属于本赛事")
 	file, err := f.svc.ExportMeet(f.ctx, f.meet)
 	must(t, err)
-	if file.Version != 7 || file.Meet.TeamScoring == nil {
-		t.Fatal("missing v7 rules")
+	if file.Version != 8 || file.Meet.TeamScoring == nil {
+		t.Fatal("missing current rules")
 	}
 	data, err := interchange.Encode(file)
 	must(t, err)
@@ -319,4 +319,20 @@ func TestTeamScoringLegacyImportAndDeletedTargets(t *testing.T) {
 	if len(file.Meet.TeamScoring.Overrides) != 0 || len(interchange.Validate(file)) > 0 {
 		t.Fatal("dangling exported rule")
 	}
+}
+
+func TestTeamScoringSaveParsesInputDirectly(t *testing.T) {
+	f := newFixture(t, 2, EventInput{})
+	rules, err := f.svc.SaveTeamScoring(f.ctx, ui, f.meet, TeamScoringInput{Enabled: true, Places: "7、5，3 1", TiePolicy: "average", RelayMultiplier: "2", Overrides: []TeamScoreOverrideInput{}})
+	must(t, err)
+	if !rules.Enabled || len(rules.Places) != 4 || rules.Places[0] != 7 || rules.Places[3] != 1 {
+		t.Fatal("saved rules", rules)
+	}
+	detail, err := f.svc.GetTeamScores(f.ctx, TeamScoreFilter{MeetID: f.meet})
+	must(t, err)
+	if !detail.Rules.Enabled || detail.Rules.Places[0] != 7 {
+		t.Fatal("rules not stored", detail.Rules)
+	}
+	_, err = f.svc.SaveTeamScoring(f.ctx, ui, f.meet, TeamScoringInput{Enabled: true, Places: "1、x", TiePolicy: "average", RelayMultiplier: "2"})
+	wantInvalid(t, err, "非负整数")
 }

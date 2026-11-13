@@ -4,14 +4,16 @@ import (
 	"context"
 	"strings"
 
+	"github.com/egoist/mygo/plugins/sqlite"
 	"github.com/stmtc233/sportsmeet/internal/domain"
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
 // UnitInput creates or updates a 参赛单位.
 type UnitInput struct {
-	Name      string `json:"name"`
-	ShortName string `json:"shortName,omitempty"`
+	GroupIDs  []string `json:"groupIds,omitempty"`
+	Name      string   `json:"name"`
+	ShortName string   `json:"shortName,omitempty"`
 }
 
 // ListUnits returns a meet's units.
@@ -22,7 +24,7 @@ func (s *Service) ListUnits(ctx context.Context, meetID string) ([]domain.Unit, 
 // SaveUnit creates a unit (id "") or updates one. Names are unique in a
 // meet, compared loosely.
 func (s *Service) SaveUnit(ctx context.Context, src store.Source, meetID, id string, in UnitInput) (*domain.Unit, error) {
-	u := domain.Unit{ID: id, MeetID: meetID, Name: strings.TrimSpace(in.Name), ShortName: strings.TrimSpace(in.ShortName)}
+	u := domain.Unit{ID: id, MeetID: meetID, Name: strings.TrimSpace(in.Name), ShortName: strings.TrimSpace(in.ShortName), GroupIDs: append([]string{}, in.GroupIDs...)}
 	if u.Name == "" {
 		return nil, invalid("请填写单位名称")
 	}
@@ -46,6 +48,9 @@ func (s *Service) SaveUnit(ctx context.Context, src store.Source, meetID, id str
 	if !found {
 		return nil, invalid("参赛单位不存在或已删除")
 	}
+	if err := s.validateGroupIDs(ctx, meetID, u.GroupIDs); err != nil {
+		return nil, err
+	}
 	a := store.Audit{Source: src, Action: "unit.updated", MeetID: meetID, Message: u.Name}
 	stmt := store.Stmt(`UPDATE units SET name = ?, short_name = ? WHERE id = ? AND meet_id = ?`, u.Name, u.ShortName, id, meetID)
 	if id == "" {
@@ -53,7 +58,11 @@ func (s *Service) SaveUnit(ctx context.Context, src store.Source, meetID, id str
 		a.Action = "unit.created"
 		stmt = store.Stmt(`INSERT INTO units(id, meet_id, name, short_name) VALUES (?, ?, ?, ?)`, u.ID, meetID, u.Name, u.ShortName)
 	}
-	if err := s.write(ctx, a, Change{Kind: "units", MeetID: meetID}, stmt); err != nil {
+	stmts := []sqlite.Statement{stmt, store.Stmt(`DELETE FROM unit_groups WHERE unit_id=?`, u.ID)}
+	for _, gid := range u.GroupIDs {
+		stmts = append(stmts, store.Stmt(`INSERT INTO unit_groups(unit_id,group_id) VALUES (?,?)`, u.ID, gid))
+	}
+	if err := s.write(ctx, a, Change{Kind: "units", MeetID: meetID}, stmts...); err != nil {
 		return nil, err
 	}
 	return &u, nil

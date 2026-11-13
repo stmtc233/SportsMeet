@@ -3,7 +3,7 @@ import { IconDelete, IconDown, IconUp, StButton, StDialog, StIconButton, StNotic
 import type { EventDetail, TeamView } from "../../mygo";
 import { useAthletes } from "../athletes/controller";
 import { EventsController, useTeamWarnings } from "../events/controller";
-import { useUnits } from "../units/UnitsPage";
+import { useUnits } from "../units/controller";
 
 export function TeamDialog({ detail, meetId, team, onClose }: { detail: EventDetail; meetId: string; team: TeamView | null; onClose: () => void }) {
   const { data: athletes } = useAthletes(meetId);

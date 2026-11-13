@@ -118,8 +118,9 @@ export function StMenu({ items, trigger }: { items: StMenuItem[]; trigger: (prop
 }
 
 /** A dropdown choice; for 5 options or fewer prefer StSegmented. */
-export function StSelect<T extends string>({ label, value, options, onChange, placeholder = "请选择", width = "auto", disabled, size = "medium" }: {
+export function StSelect<T extends string>({ label, value, options, onChange, placeholder = "请选择", width = "auto", disabled, size = "medium", "aria-label": ariaLabel }: {
   label?: ReactNode;
+  "aria-label"?: string;
   value: T | "";
   options: StOption<T>[];
   onChange: (v: T) => void;
@@ -139,7 +140,7 @@ export function StSelect<T extends string>({ label, value, options, onChange, pl
           {label}
         </label>
       )}
-      <button id={id} ref={setAnchor} type="button" className={`st-select st-select--${size}`} aria-haspopup="listbox" aria-expanded={open} disabled={disabled} onClick={() => setOpen((v) => !v)}>
+      <button id={id} aria-label={ariaLabel} ref={setAnchor} type="button" className={`st-select st-select--${size}`} aria-haspopup="listbox" aria-expanded={open} disabled={disabled} onClick={() => setOpen((v) => !v)}>
         <span className="st-select__value" data-placeholder={current ? undefined : true}>
           {current ? current.label : placeholder}
         </span>

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useScrollMemory } from "../lib/viewState";
 import { StCheckbox } from "./StFields";
+import { StEmpty } from "./StLayout";
 
 export interface StColumn<T> {
   key: string;
@@ -20,6 +21,7 @@ interface StTableProps<T> {
   /** Selected row keys; passing it shows the check column. */
   selected?: Set<string>;
   onSelect?: (keys: Set<string>) => void;
+  /** Shown when there are no rows; plain text is laid out as StEmpty. */
   empty?: ReactNode;
   /** Fills its container and scrolls inside, the header staying on top. */
   fill?: boolean;
@@ -83,7 +85,7 @@ export function StTable<T>({ columns, rows, rowKey, onRowClick, selected, onSele
           </div>
         ))}
       </div>
-      {rows.length === 0 && !loading && empty}
+      {rows.length === 0 && !loading && (typeof empty === "string" ? <StEmpty>{empty}</StEmpty> : empty)}
       {virtual && first > 0 && <div style={{ height: first * h, flexShrink: 0 }} />}
       {rows.slice(first, last).map((row, i) => {
         const key = rowKey(row);

@@ -18,7 +18,8 @@ type TeamInput struct {
 }
 
 type TeamView struct {
-	SizeWarning string `json:"sizeWarning"`
+	GroupMismatch bool   `json:"groupMismatch"`
+	SizeWarning   string `json:"sizeWarning"`
 	domain.Team
 	UnitName       string   `json:"unitName"`
 	MemberNames    []string `json:"memberNames"`
@@ -31,7 +32,7 @@ type TeamView struct {
 func (st *eventState) teamViews() []TeamView {
 	out := make([]TeamView, 0, len(st.teamList))
 	for _, t := range st.teamList {
-		v := TeamView{SizeWarning: st.event.TeamSizeWarning(len(t.MemberIDs)), Team: t, UnitName: st.unitName(t.UnitID), MemberNames: []string{}, Entered: st.entered[t.ID] != nil}
+		v := TeamView{GroupMismatch: st.groupMismatch(t.ID), SizeWarning: st.event.TeamSizeWarning(len(t.MemberIDs)), Team: t, UnitName: st.unitName(t.UnitID), MemberNames: []string{}, Entered: st.entered[t.ID] != nil}
 		for _, id := range t.MemberIDs {
 			a := st.athletes[id]
 			v.MemberNames = append(v.MemberNames, a.Name)
@@ -208,13 +209,18 @@ func (s *Service) TeamWarnings(ctx context.Context, eventID string, memberIDs []
 	if warning := st.event.TeamSizeWarning(len(memberIDs)); warning != "" {
 		warnings = append(warnings, warning)
 	}
+	groupMismatch := false
 	mismatch := false
 	for _, id := range memberIDs {
 		a, ok := st.athletes[id]
 		if !ok {
 			return nil, invalid("运动员不属于本赛事")
 		}
+		groupMismatch = groupMismatch || (st.event.GroupID != "" && a.GroupID != "" && st.event.GroupID != a.GroupID)
 		mismatch = mismatch || (a.Gender != "" && st.event.Gender != domain.GenderMixed && a.Gender != st.event.Gender)
+	}
+	if groupMismatch {
+		warnings = append(warnings, "成员组别与项目不符")
 	}
 	if mismatch {
 		warnings = append(warnings, "成员性别与项目不符")

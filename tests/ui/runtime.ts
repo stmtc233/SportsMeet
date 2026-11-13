@@ -135,6 +135,8 @@ export async function installRuntime(page: Page, options: { athleteCount?: numbe
       once: () => () => {},
       call: async (method: string, ...args: any[]) => {
         switch (method) {
+          case "Groups.List": return [];
+          case "Groups.Suggestions": return [];
           case "Settings.Preferences": return { ...prefs };
           case "Settings.SavePreferences": prefs = { ...args[0] }; changed(); return null;
           case "Settings.MCPStatus": return { ...mcp };

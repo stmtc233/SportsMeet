@@ -40,7 +40,7 @@ func Decode(data []byte) (*File, error) {
 	if head.Version < 1 {
 		return nil, Problems{"version 必须为正整数"}
 	}
-	if head.Version < 7 {
+	if head.Version < 8 {
 		var err error
 		if data, err = withoutNewerFields(data, head.Version); err != nil {
 			return nil, fmt.Errorf("不是有效的 JSON:%w", err)
@@ -112,6 +112,18 @@ func withoutNewerFields(data []byte, version int) ([]byte, error) {
 	if err := dec.Decode(&doc); err != nil {
 		return nil, err
 	}
+	if version < 8 {
+		delete(doc, "groups")
+		for _, key := range []string{"units", "athletes", "combineds"} {
+			list, _ := doc[key].([]any)
+			for _, v := range list {
+				if obj, ok := v.(map[string]any); ok {
+					delete(obj, "groupId")
+					delete(obj, "groupIds")
+				}
+			}
+		}
+	}
 	if version < 7 {
 		if meet, ok := doc["meet"].(map[string]any); ok {
 			delete(meet, "teamScoring")
@@ -120,6 +132,9 @@ func withoutNewerFields(data []byte, version int) ([]byte, error) {
 	events, _ := doc["events"].([]any)
 	for _, e := range events {
 		event, _ := e.(map[string]any)
+		if version < 8 {
+			delete(event, "groupId")
+		}
 		rounds, _ := event["rounds"].([]any)
 		for _, r := range rounds {
 			round, ok := r.(map[string]any)
@@ -162,7 +177,7 @@ var (
 // Validate checks spec §6 rules 2–6 (structure, references, uniqueness,
 // result consistency).
 func Validate(f *File) Problems {
-	var p Problems
+	p := resolveFileGroups(f)
 	add := func(format string, a ...any) { p = append(p, fmt.Sprintf(format, a...)) }
 
 	if strings.TrimSpace(f.Meet.Name) == "" {

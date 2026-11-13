@@ -31,6 +31,10 @@
 .filters { display: flex; align-items: flex-end; gap: var(--st-space-12); padding: var(--st-space-12) var(--st-space-page); flex: none; flex-wrap: wrap; }
 .filters__spacer { flex: 1; }
 .table-card { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0 var(--st-space-page) var(--st-space-page); border: 1px solid var(--st-outline); border-radius: var(--st-radius-12); corner-shape: superellipse(1.78); background: var(--st-surface); overflow: hidden; }
+/* A table page without a filter bar keeps the same gap above the table. */
+.table-card--top { margin-top: var(--st-space-12); }
+/* Several tags in one cell, clipped on narrow windows. */
+.cell-tags { display: flex; gap: var(--st-space-4); overflow: hidden; }
 .preview-table { max-height: 320px; overflow: auto; border: 1px solid var(--st-outline); border-radius: var(--st-radius-8); corner-shape: superellipse(1.78); }
 .mapping { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--st-space-8); }
 .mapping .st-field { width: auto; }

@@ -26,6 +26,7 @@ type EventDetail struct {
 
 // EntryView is one entered athlete.
 type EntryView struct {
+	GroupMismatch  bool          `json:"groupMismatch"`
 	AthleteID      string        `json:"athleteId"`
 	Name           string        `json:"name"`
 	Gender         domain.Gender `json:"gender"`
@@ -311,6 +312,7 @@ func (st *eventState) view(day string, zone *time.Location) *EventDetail {
 		if e.TeamID != "" {
 			v.GenderMismatch = mismatch[e.TeamID]
 		}
+		v.GroupMismatch = st.groupMismatch(e.CompetitorID())
 		entries = append(entries, v)
 	}
 	return &EventDetail{Day: day, Event: st.event, Rules: st.event.Rules(), Teams: teams, Entries: entries, Rounds: rounds}
@@ -435,4 +437,19 @@ func rescoreEvent(event domain.Event, advance *domain.Advance, heats []domain.He
 			}
 		}
 	}
+}
+
+func (st *eventState) groupMismatch(id string) bool {
+	if st.event.GroupID == "" {
+		return false
+	}
+	if a, ok := st.athletes[id]; ok {
+		return a.GroupID != "" && a.GroupID != st.event.GroupID
+	}
+	for _, id := range st.teams[id].MemberIDs {
+		if a := st.athletes[id]; a.GroupID != "" && a.GroupID != st.event.GroupID {
+			return true
+		}
+	}
+	return false
 }

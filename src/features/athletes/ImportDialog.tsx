@@ -11,6 +11,7 @@ const columns: StOption<string>[] = [
   { value: "studentNumber", label: "学号" },
   { value: "unit", label: "参赛单位" },
   { value: "grade", label: "年级" },
+  { value: "group", label: "参赛组别" },
   { value: "className", label: "班级" },
   { value: "birthDate", label: "出生日期" },
   { value: "events", label: "报名项目" },

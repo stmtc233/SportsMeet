@@ -74,13 +74,20 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 			Location: meet.Location, Note: meet.Note},
 		Combineds: []interchange.Combined{}, Units: []interchange.Unit{}, Athletes: []interchange.Athlete{}, Events: []interchange.Event{},
 	}
+	groups, err := s.store.ListGroups(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	for _, g := range groups {
+		f.Groups = append(f.Groups, interchange.Group{ID: g.ID, Name: g.Name, Ordinal: g.Ordinal})
+	}
 	combineds, err := s.store.ListCombined(ctx, meetID)
 	if err != nil {
 		return nil, err
 	}
 	for _, p := range combineds {
 		c := p.Combined
-		out := interchange.Combined{ID: c.ID, Name: c.Name, Gender: string(c.Gender), GroupLabel: c.GroupLabel, Note: c.Note, RuleVersion: c.RuleVersion, AthleteIDs: append([]string{}, p.AthleteIDs...), Components: []interchange.CombinedComponent{}}
+		out := interchange.Combined{GroupID: c.GroupID, ID: c.ID, Name: c.Name, Gender: string(c.Gender), GroupLabel: c.GroupLabel, Note: c.Note, RuleVersion: c.RuleVersion, AthleteIDs: append([]string{}, p.AthleteIDs...), Components: []interchange.CombinedComponent{}}
 		for _, part := range p.Components {
 			out.Components = append(out.Components, interchange.CombinedComponent{EventID: part.EventID, Ordinal: part.Ordinal, Rule: part.Rule})
 		}
@@ -108,10 +115,10 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 	unitNames := map[string]string{}
 	for _, u := range units {
 		unitNames[u.ID] = u.Name
-		f.Units = append(f.Units, interchange.Unit{ID: u.ID, Name: u.Name, ShortName: u.ShortName})
+		f.Units = append(f.Units, interchange.Unit{GroupIDs: append([]string{}, u.GroupIDs...), ID: u.ID, Name: u.Name, ShortName: u.ShortName})
 	}
 	for _, a := range athletes {
-		f.Athletes = append(f.Athletes, interchange.Athlete{ID: a.ID, Name: a.Name, Gender: string(a.Gender), Bib: a.Bib,
+		f.Athletes = append(f.Athletes, interchange.Athlete{GroupID: a.GroupID, ID: a.ID, Name: a.Name, Gender: string(a.Gender), Bib: a.Bib,
 			StudentNumber: a.StudentNumber, UnitID: optStr(a.UnitID), Affiliation: unitNames[a.UnitID],
 			ClassName: a.ClassName, Grade: a.Grade, BirthDate: optStr(a.BirthDate), Note: a.Note})
 	}
@@ -128,7 +135,7 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 			return nil, err
 		}
 		ev := interchange.Event{CompetitionConfig: e.CompetitionConfig, CombinedID: e.CombinedID, ID: e.ID, Name: e.Name, Gender: string(e.Gender), Discipline: e.Discipline,
-			GroupLabel: e.GroupLabel, Kind: string(e.Kind), StartMode: string(e.StartMode), DistanceMode: string(e.DistanceMode), RelayLegCount: e.RelayLegCount, Date: optStr(e.Date), Note: e.Note,
+			GroupID: e.GroupID, GroupLabel: e.GroupLabel, Kind: string(e.Kind), StartMode: string(e.StartMode), DistanceMode: string(e.DistanceMode), RelayLegCount: e.RelayLegCount, Date: optStr(e.Date), Note: e.Note,
 			Teams: byTeams[e.ID], Entries: byEvent[e.ID], Rounds: []interchange.Round{}}
 		if e.Kind.Timed() {
 			ev.LaneCount = ptr(e.LaneCount)
@@ -185,6 +192,7 @@ type Tally struct {
 // the import must present the same one, so what is written is what was
 // shown.
 type ImportPreview struct {
+	Groups             Tally          `json:"groups"`
 	Combineds          Tally          `json:"combineds"`
 	MeetName           string         `json:"meetName"`
 	NewMeet            bool           `json:"newMeet"`
@@ -320,6 +328,49 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 		return finish()
 	}
 
+	// Resolve file-local group references before building any dependent records.
+	existingGroups := []domain.CompetitionGroup{}
+	if !p.NewMeet {
+		existingGroups, err = s.store.ListGroups(ctx, meetID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	groupIDs := map[string]string{}
+	groupByName := map[string]string{}
+	for _, g := range existingGroups {
+		groupByName[domain.NormalizeText(g.Name)] = g.ID
+	}
+	ensureGroup := func(name string) string {
+		key := domain.NormalizeText(name)
+		if key == "" {
+			return ""
+		}
+		if id := groupByName[key]; id != "" {
+			return id
+		}
+		id := newID()
+		g := domain.CompetitionGroup{ID: id, MeetID: meetID, Name: strings.TrimSpace(name), Ordinal: nextGroupOrdinal(existingGroups)}
+		existingGroups = append(existingGroups, g)
+		groupByName[key] = id
+		plan.stmts = append(plan.stmts, insertGroup(g))
+		p.Groups.New++
+		return id
+	}
+	fileGroups := append([]interchange.Group{}, f.Groups...)
+	sort.SliceStable(fileGroups, func(i, j int) bool { return fileGroups[i].Ordinal < fileGroups[j].Ordinal })
+	for _, g := range fileGroups {
+		if groupByName[domain.NormalizeText(g.Name)] != "" {
+			p.Groups.Reused++
+		}
+		groupIDs[g.ID] = ensureGroup(g.Name)
+	}
+	for _, e := range f.Events {
+		ensureGroup(e.GroupLabel)
+	}
+	for _, c := range f.Combineds {
+		ensureGroup(c.GroupLabel)
+	}
 	// Units, then athletes; an affiliation without a unit becomes one.
 	unitByName := map[string]string{}
 	for _, u := range ex.Units {
@@ -348,6 +399,31 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 		}
 		units[u.ID] = unitID(u.Name, u.ShortName)
 	}
+	if f.Version >= 8 {
+		for _, u := range f.Units {
+			mapped := []string{}
+			for _, id := range u.GroupIDs {
+				mapped = append(mapped, groupIDs[id])
+			}
+			slices.Sort(mapped)
+			if id, ok := match.Units[u.ID]; ok {
+				for _, old := range ex.Units {
+					if old.ID == id {
+						have := append([]string{}, old.GroupIDs...)
+						slices.Sort(have)
+						if !slices.Equal(have, mapped) {
+							p.Errors = append(p.Errors, "参赛单位组别与文件不符")
+							return finish()
+						}
+					}
+				}
+			} else {
+				for _, id := range mapped {
+					add(`INSERT INTO unit_groups(unit_id,group_id) VALUES (?,?)`, units[u.ID], id)
+				}
+			}
+		}
+	}
 	athletes := map[string]string{}
 	names := map[string]string{}
 	genders := map[string]string{}
@@ -356,11 +432,19 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 		if id, ok := match.Athletes[a.ID]; ok {
 			athletes[a.ID] = id
 			p.Athletes.Reused++
+			if f.Version >= 8 {
+				for _, old := range ex.Athletes {
+					if old.ID == id && old.GroupID != groupIDs[a.GroupID] {
+						p.Errors = append(p.Errors, "运动员组别与文件不符")
+						return finish()
+					}
+				}
+			}
 			continue
 		}
 		n := domain.Athlete{ID: newID(), MeetID: meetID, Name: strings.TrimSpace(a.Name), Gender: domain.Gender(a.Gender),
 			Bib: strings.TrimSpace(a.Bib), StudentNumber: strings.TrimSpace(a.StudentNumber),
-			ClassName: a.ClassName, Grade: a.Grade, Note: a.Note}
+			GroupID: groupIDs[a.GroupID], ClassName: a.ClassName, Grade: a.Grade, Note: a.Note}
 		if a.UnitID != nil {
 			n.UnitID = units[*a.UnitID]
 		} else {
@@ -402,7 +486,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 			id := newID()
 			combinedIDs[c.ID] = id
 			p.Combineds.New++
-			plan.stmts = append(plan.stmts, insertCombined(domain.Combined{ID: id, MeetID: meetID, Name: c.Name, Gender: domain.Gender(c.Gender), GroupLabel: c.GroupLabel, Note: c.Note, RuleVersion: c.RuleVersion}))
+			plan.stmts = append(plan.stmts, insertCombined(domain.Combined{ID: id, MeetID: meetID, Name: c.Name, Gender: domain.Gender(c.Gender), GroupID: groupByName[domain.NormalizeText(c.GroupLabel)], GroupLabel: c.GroupLabel, Note: c.Note, RuleVersion: c.RuleVersion}))
 		}
 	}
 	entries := map[string]bool{}
@@ -454,7 +538,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 			eventID = newID()
 			p.Events.New++
 			n := domain.Event{CompetitionConfig: config.CompetitionConfig, CombinedID: combinedIDs[e.CombinedID], ID: eventID, MeetID: meetID, Name: name, Gender: gender, Discipline: strings.TrimSpace(e.Discipline),
-				GroupLabel: strings.TrimSpace(e.GroupLabel), Kind: kind, LaneCount: config.LaneCount, AttemptCount: config.AttemptCount, Note: e.Note, StartMode: config.StartMode, DistanceMode: config.DistanceMode, RelayLegCount: config.RelayLegCount}
+				GroupID: groupByName[domain.NormalizeText(e.GroupLabel)], GroupLabel: strings.TrimSpace(e.GroupLabel), Kind: kind, LaneCount: config.LaneCount, AttemptCount: config.AttemptCount, Note: e.Note, StartMode: config.StartMode, DistanceMode: config.DistanceMode, RelayLegCount: config.RelayLegCount}
 			if e.Date != nil {
 				n.Date = *e.Date
 			}

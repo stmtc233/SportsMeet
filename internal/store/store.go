@@ -227,6 +227,13 @@ func (s *Store) migrate(ctx context.Context, names []string) error {
 			return err
 		}
 		stmts := splitSQL(string(body))
+		if v == 10 {
+			backfill, err := s.migrateGroups(ctx)
+			if err != nil {
+				return err
+			}
+			stmts = append(stmts, backfill...)
+		}
 		if v == 8 {
 			// SQLite lower/trim does not implement domain's Unicode/whitespace
 			// normalization. Backfill in Go inside this migration's one batch.

@@ -15,6 +15,6 @@ export const CombinedController = {
   applyRules: (request: CombinedRulesRequest, hash: string) => act(() => Combined.applyRules(request, hash, true), "已保存"),
 };
 export function inputFromEvent(e: Event): Required<EventInput> {
-  return { ...blankEvent, name: e.name, gender: e.gender, discipline: e.discipline, groupLabel: e.groupLabel, kind: e.kind, date: e.date, laneCount: e.laneCount, attemptCount: e.attemptCount, note: e.note, startMode: e.startMode, distanceMode: e.distanceMode, relayLegCount: e.relayLegCount, participantMode: e.participantMode ?? "athlete", teamSize: e.teamSize ?? 0, scoreDecimals: e.scoreDecimals ?? 0, rankDirection: e.rankDirection ?? "", attemptMode: e.attemptMode ?? "" };
+  return { ...blankEvent, name: e.name, gender: e.gender, discipline: e.discipline, groupId: e.groupId ?? "", groupLabel: e.groupLabel, kind: e.kind, date: e.date, laneCount: e.laneCount, attemptCount: e.attemptCount, note: e.note, startMode: e.startMode, distanceMode: e.distanceMode, relayLegCount: e.relayLegCount, participantMode: e.participantMode ?? "athlete", teamSize: e.teamSize ?? 0, scoreDecimals: e.scoreDecimals ?? 0, rankDirection: e.rankDirection ?? "", attemptMode: e.attemptMode ?? "" };
 }
 export const emptyRule = (): PointRuleInput => ({ table: "", invalidPolicies: { DNS: "zero", DNF: "zero", DQ: "zero", NM: "zero" } });

@@ -1,20 +1,21 @@
-import { TeamScoringPage } from "./features/team-scoring/TeamScoringPage";
-import { CombinedList } from "./features/combined/CombinedList";
-import { CombinedWorkspace } from "./features/combined/CombinedWorkspace";
 import { useEffect } from "react";
-import { usePreferences } from "./features/settings/controller";
 import { ErrorBoundary } from "./app/ErrorBoundary";
 import { NavProvider, useNav, type MeetTab } from "./app/nav";
-import { IconAthletes, IconBack, IconEvent, IconExport, IconMeet, IconPrint, IconSettings, IconTime, IconUnit, StListItem, StToastHost, iconStroke } from "./design";
-import { SettingsPage } from "./features/settings/SettingsPage";
+import { IconAthletes, IconBack, IconEvent, IconExport, IconGroup, IconMeet, IconPrint, IconSettings, IconTime, IconUnit, StListItem, StToastHost, iconStroke } from "./design";
 import { AthletesPage } from "./features/athletes/AthletesPage";
+import { CombinedList } from "./features/combined/CombinedList";
+import { CombinedWorkspace } from "./features/combined/CombinedWorkspace";
 import { EventWorkspace } from "./features/event/EventWorkspace";
 import { EventsPage } from "./features/events/EventsPage";
 import { ExchangePage } from "./features/exchange/ExchangePage";
+import { GroupsPage } from "./features/groups/GroupsPage";
 import { MeetsPage } from "./features/meets/MeetsPage";
 import { useMeet } from "./features/meets/data";
 import { ReportsPage } from "./features/reports/ReportsPage";
 import { SchedulePage } from "./features/schedule/SchedulePage";
+import { SettingsPage } from "./features/settings/SettingsPage";
+import { usePreferences } from "./features/settings/controller";
+import { TeamScoringPage } from "./features/team-scoring/TeamScoringPage";
 import { UnitsPage } from "./features/units/UnitsPage";
 
 const tabs: { tab: MeetTab; label: string; icon: typeof IconEvent }[] = [
@@ -22,6 +23,7 @@ const tabs: { tab: MeetTab; label: string; icon: typeof IconEvent }[] = [
   { tab: "schedule", label: "日程", icon: IconTime },
   { tab: "athletes", label: "运动员", icon: IconAthletes },
   { tab: "units", label: "参赛单位", icon: IconUnit },
+  { tab: "groups", label: "组别", icon: IconGroup },
   { tab: "team-scoring", label: "团体总分", icon: IconMeet },
   { tab: "reports", label: "打印", icon: IconPrint },
   { tab: "exchange", label: "导入导出", icon: IconExport },
@@ -48,6 +50,7 @@ function Shell() {
         {route.page === "combineds" && <CombinedList meetId={meetId} />}
         {route.page === "combined" && <CombinedWorkspace key={route.combinedId} meetId={meetId} combinedId={route.combinedId} />}
         {route.page === "event" && <EventWorkspace key={route.eventId} meetId={meetId} eventId={route.eventId} tab={route.tab} />}
+        {route.page === "meet" && route.tab === "groups" && <GroupsPage meetId={meetId} />}
         {route.page === "meet" && route.tab === "events" && <EventsPage meetId={meetId} />}
         {route.page === "meet" && route.tab === "schedule" && <SchedulePage meetId={meetId} />}
         {route.page === "meet" && route.tab === "athletes" && <AthletesPage meetId={meetId} />}

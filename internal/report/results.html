@@ -11,6 +11,16 @@
   <p>{{.Title}}</p>
   <p>{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
 </header>
+{{if .GroupBooks}}{{range .GroupBooks}}
+<section class="report-group">
+<h2 class="report-group__title">{{.GroupName}}</h2>
+{{template "resultsBody" .}}
+</section>{{end}}{{else}}{{template "resultsBody" .}}{{end}}
+{{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
+</body>
+</html>
+
+{{define "resultsBody"}}
 {{template "teamScores" .TeamScores}}
 {{if not .TeamOnly}}
 {{range .Events}}{{$position := .PositionLabel}}{{$attempt := .AttemptLabel}}{{$relay := .Relay}}{{$roster := .RosterLabel}}
@@ -60,6 +70,5 @@
 {{end}}
 </section>{{end}}
 {{end}}
-{{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
-</body>
-</html>
+
+{{end}}

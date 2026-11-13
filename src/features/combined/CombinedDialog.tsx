@@ -1,31 +1,32 @@
 import { useState } from "react";
 import { StButton, StDialog, StNotice, StSection, StSegmented, StSelect, StTextField } from "../../design";
 import type { CombinedComponentInput, CombinedDetail, EventInput } from "../../mygo";
+import { GroupSelect } from "../groups/GroupFields";
 import { useEventPresets } from "../events/controller";
 import { blankEvent, EventMeasurementFields } from "../events/EventMeasurementFields";
 import { CombinedController, emptyRule, inputFromEvent } from "./controller";
 import { PointRuleEditor } from "./PointRuleEditor";
 
 const emptyPart = (): CombinedComponentInput => ({ event: { ...blankEvent }, rule: emptyRule() });
-export function CombinedDialog({ meetId, detail, onClose }: { meetId: string; detail?: CombinedDetail; onClose: () => void }) {
+export function CombinedDialog({ meetId, detail, initialGroupId = "", onClose }: { meetId: string; detail?: CombinedDetail; initialGroupId?: string; onClose: () => void }) {
   const { data: presets } = useEventPresets();
   const [name, setName] = useState(detail?.combined.name ?? "");
   const [gender, setGender] = useState<string>(detail?.combined.gender ?? "男");
-  const [groupLabel, setGroupLabel] = useState(detail?.combined.groupLabel ?? "");
+  const [groupId, setGroupId] = useState(detail?.combined.groupId ?? initialGroupId);
   const [parts, setParts] = useState<CombinedComponentInput[]>(() => detail ? detail.components.map((c) => ({ eventId: c.event.id, event: inputFromEvent(c.event), rule: c.input })) : [emptyPart(), emptyPart()]);
   const [busy, setBusy] = useState(false);
   const locked = detail?.hasPlacements ?? false;
   const set = (index: number, patch: Partial<CombinedComponentInput>) => setParts((old) => old.map((p, i) => i === index ? { ...p, ...patch } : p));
   const save = async () => {
     setBusy(true);
-    const result = await CombinedController.save(meetId, detail?.combined.id ?? "", { name, gender, groupLabel, note: detail?.combined.note ?? "", components: parts });
+    const result = await CombinedController.save(meetId, detail?.combined.id ?? "", { name, gender, groupId, groupLabel: "", note: detail?.combined.note ?? "", components: parts });
     setBusy(false); if (result) onClose();
   };
   return <StDialog open title={detail ? "编辑全能" : "添加全能"} size="large" onClose={() => !busy && onClose()} onSubmit={save}
     actions={<><StButton disabled={busy} onClick={onClose}>取消</StButton><StButton variant="primary" loading={busy} type="submit">保存</StButton></>}>
     <div className="form-grid" inert={busy}>
       <StTextField label="全能名称" value={name} onChange={setName} autoFocus />
-      <StTextField label="组别" value={groupLabel} onChange={setGroupLabel} disabled={locked} />
+      <GroupSelect meetId={meetId} value={groupId} onChange={setGroupId} />
       <StSegmented label="性别" value={gender} onChange={setGender} options={[{ value: "男", label: "男", disabled: locked }, { value: "女", label: "女", disabled: locked }, { value: "混合", label: "混合", disabled: locked }]} />
     </div>
     {detail && <StNotice>计分表请在「计分规则」中修改</StNotice>}

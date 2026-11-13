@@ -45,6 +45,11 @@ func startedRollback() []sqlite.Statement {
 
 func identityRollback() []sqlite.Statement {
 	return []sqlite.Statement{
+		Stmt("DELETE FROM schema_migrations WHERE version = 10"),
+		Stmt("DROP TABLE unit_groups"),
+		Stmt("DROP INDEX idx_events_group"), Stmt("DROP INDEX idx_combined_group"), Stmt("DROP INDEX idx_athletes_group"),
+		Stmt("ALTER TABLE events DROP COLUMN group_id"), Stmt("ALTER TABLE combined_events DROP COLUMN group_id"), Stmt("ALTER TABLE athletes DROP COLUMN group_id"),
+		Stmt("DROP TABLE meet_groups"),
 		Stmt("DELETE FROM schema_migrations WHERE version = 9"),
 		Stmt("DROP TABLE meet_team_scoring"),
 		Stmt("DELETE FROM schema_migrations WHERE version = 8"),

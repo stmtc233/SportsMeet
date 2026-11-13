@@ -106,11 +106,18 @@ func strip(t *testing.T, f *interchange.File) string {
 	}
 	f.ExportedAt = ""
 	id(&f.Meet.ID)
+	for i := range f.Groups {
+		id(&f.Groups[i].ID)
+	}
 	for i := range f.Units {
 		id(&f.Units[i].ID)
+		for j := range f.Units[i].GroupIDs {
+			id(&f.Units[i].GroupIDs[j])
+		}
 	}
 	for i := range f.Athletes {
 		id(&f.Athletes[i].ID)
+		id(&f.Athletes[i].GroupID)
 		if f.Athletes[i].UnitID != nil {
 			id(f.Athletes[i].UnitID)
 		}
@@ -118,6 +125,7 @@ func strip(t *testing.T, f *interchange.File) string {
 	for i := range f.Events {
 		e := &f.Events[i]
 		id(&e.ID)
+		id(&e.GroupID)
 		for j := range e.Entries {
 			id(&e.Entries[j].AthleteID)
 		}

@@ -46,7 +46,7 @@ export function EntriesTab({ detail, meetId }: { detail: EventDetail; meetId: st
           empty={<StEmpty action={<StButton variant="primary" disabled={Boolean(detail.event.combinedId)} onClick={() => setAdding(true)}>{detail.rules.team ? "管理队伍" : "从赛事添加"}</StButton>}>还没有报名</StEmpty>}
           columns={[
             ...(!relay ? [{ key: "bib", title: "号码", width: "88px", render: (e: EntryView) => e.bib }] : []),
-            { key: "name", title: relay ? "队伍" : "姓名", width: "minmax(120px, 1.2fr)", render: (e) => <span className="cell-strong">{e.name} {relay && e.genderMismatch && <StTag tone="warning">性别不符</StTag>}</span> },
+            { key: "name", title: relay ? "队伍" : "姓名", width: "minmax(120px, 1.2fr)", render: (e) => <span className="cell-strong">{e.name} {e.groupMismatch && <StTag tone="warning">跨组报名</StTag>} {relay && e.genderMismatch && <StTag tone="warning">性别不符</StTag>}</span> },
             { key: "gender", title: relay ? (detail.event.kind === "relay" ? "棒次" : "成员") : "性别", width: relay ? "minmax(160px, 2fr)" : "96px", render: (e) => relay ? detail.teams.find((t) => t.id === e.teamId)?.memberNames.join(detail.event.kind === "relay" ? " → " : "、") : (e.genderMismatch ? <StTag tone="warning">{e.gender}</StTag> : e.gender) },
             { key: "unit", title: "参赛单位", width: "minmax(120px, 1.5fr)", render: (e) => e.unitName },
             { key: "seed", title: "报名成绩", width: "124px", align: "end", render: (e) => <SeedCell eventId={eventId} event={detail.event} entry={e} /> },

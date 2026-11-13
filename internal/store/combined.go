@@ -15,7 +15,7 @@ type CombinedData struct {
 
 // ListCombined reads all parents, component rules and entries in three queries.
 func (s *Store) ListCombined(ctx context.Context, meetID string) ([]CombinedData, error) {
-	rr, err := s.Query(ctx, `SELECT id,meet_id,name,gender,group_label,note,rule_version FROM combined_events WHERE meet_id=? ORDER BY rowid`, meetID)
+	rr, err := s.Query(ctx, `SELECT id,meet_id,name,gender,COALESCE((SELECT name FROM meet_groups WHERE id=combined_events.group_id),''),note,rule_version,group_id FROM combined_events WHERE meet_id=? ORDER BY rowid`, meetID)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (s *Store) ListCombined(ctx context.Context, meetID string) ([]CombinedData
 	out := make([]CombinedData, 0, len(rr.Values))
 	for _, r := range rr.Values {
 		id := str(r[0])
-		out = append(out, CombinedData{Combined: domain.Combined{ID: id, MeetID: str(r[1]), Name: str(r[2]), Gender: domain.Gender(str(r[3])), GroupLabel: str(r[4]), Note: str(r[5]), RuleVersion: int(i64(r[6]))}, Components: components[id], AthleteIDs: athletes[id]})
+		out = append(out, CombinedData{Combined: domain.Combined{ID: id, MeetID: str(r[1]), Name: str(r[2]), Gender: domain.Gender(str(r[3])), GroupLabel: str(r[4]), Note: str(r[5]), RuleVersion: int(i64(r[6])), GroupID: str(r[7])}, Components: components[id], AthleteIDs: athletes[id]})
 	}
 	return out, nil
 }

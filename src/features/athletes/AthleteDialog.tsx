@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { StButton, StDialog, StSegmented, StSelect, StTextField } from "../../design";
 import type { Athlete, AthleteInput, Unit } from "../../mygo";
+import { GroupSelect } from "../groups/GroupFields";
 import { AthletesController } from "./controller";
 
-const blank: Required<AthleteInput> = { name: "", gender: "", bib: "", studentNumber: "", unitId: "", className: "", grade: "", birthDate: "", note: "" };
+const blank: Required<AthleteInput> = { name: "", gender: "", bib: "", studentNumber: "", groupId: "", unitId: "", className: "", grade: "", birthDate: "", note: "" };
 
 /** Creates an athlete (athlete undefined) or edits one. */
 export function AthleteDialog({ meetId, open, athlete, units, onClose }: { meetId: string; open: boolean; athlete?: Athlete; units: Unit[]; onClose: () => void }) {
@@ -11,7 +12,7 @@ export function AthleteDialog({ meetId, open, athlete, units, onClose }: { meetI
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!open) return;
-    setForm(athlete ? { name: athlete.name, gender: athlete.gender, bib: athlete.bib, studentNumber: athlete.studentNumber, unitId: athlete.unitId, className: athlete.className, grade: athlete.grade, birthDate: athlete.birthDate, note: athlete.note } : blank);
+    setForm(athlete ? { name: athlete.name, gender: athlete.gender, bib: athlete.bib, studentNumber: athlete.studentNumber, groupId: athlete.groupId ?? "", unitId: athlete.unitId, className: athlete.className, grade: athlete.grade, birthDate: athlete.birthDate, note: athlete.note } : blank);
   }, [open, athlete]);
   const set = (patch: Partial<Required<AthleteInput>>) => setForm((f) => ({ ...f, ...patch }));
   const save = async (another: boolean) => {
@@ -19,7 +20,7 @@ export function AthleteDialog({ meetId, open, athlete, units, onClose }: { meetI
     const ok = await AthletesController.save(meetId, athlete?.id ?? "", form);
     setBusy(false);
     if (!ok) return;
-    if (another) setForm((f) => ({ ...blank, gender: f.gender, unitId: f.unitId, className: f.className, grade: f.grade }));
+    if (another) setForm((f) => ({ ...blank, gender: f.gender, unitId: f.unitId, className: f.className, grade: f.grade, groupId: f.groupId }));
     else onClose();
   };
   return (
@@ -38,9 +39,10 @@ export function AthleteDialog({ meetId, open, athlete, units, onClose }: { meetI
         <StTextField label="号码" value={form.bib} onChange={(bib) => set({ bib })} />
         <StTextField label="学号" value={form.studentNumber} onChange={(studentNumber) => set({ studentNumber })} />
         <div className="span">
-          <StSelect label="参赛单位" width="fill" value={form.unitId} onChange={(unitId) => set({ unitId })} placeholder="无"
+          <StSelect label="参赛单位" width="fill" value={form.unitId} onChange={(unitId) => { const unit = units.find((u) => u.id === unitId); set({ unitId, ...(!form.groupId && unit?.groupIds?.length === 1 ? { groupId: unit.groupIds[0]! } : {}) }); }} placeholder="无"
             options={[{ value: "", label: "无" }, ...units.map((u) => ({ value: u.id, label: u.name }))]} />
         </div>
+        <GroupSelect meetId={meetId} value={form.groupId} onChange={(groupId) => set({ groupId })} />
         <StTextField label="年级" value={form.grade} onChange={(grade) => set({ grade })} />
         <StTextField label="班级" value={form.className} onChange={(className) => set({ className })} />
       </div>

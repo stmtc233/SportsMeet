@@ -36,6 +36,7 @@ type EventInput struct {
 	Name            string       `json:"name,omitempty"` // "" = composed from the fields below
 	Gender          string       `json:"gender"`
 	Discipline      string       `json:"discipline"`
+	GroupID         string       `json:"groupId,omitempty"`
 	GroupLabel      string       `json:"groupLabel,omitempty"`
 	Kind            string       `json:"kind"`
 	Date            string       `json:"date,omitempty"`
@@ -124,6 +125,7 @@ func (in EventInput) event() (domain.Event, error) {
 		CompetitionConfig: domain.CompetitionConfig{ParticipantMode: in.ParticipantMode, TeamSize: in.TeamSize, ScoreDecimals: in.ScoreDecimals, RankDirection: in.RankDirection, AttemptMode: in.AttemptMode},
 		Name:              strings.TrimSpace(in.Name),
 		Discipline:        strings.TrimSpace(in.Discipline),
+		GroupID:           in.GroupID,
 		GroupLabel:        strings.TrimSpace(in.GroupLabel),
 		Kind:              domain.EventKind(in.Kind),
 		Date:              strings.TrimSpace(in.Date),
@@ -212,9 +214,9 @@ func insertRound(r domain.Round) sqlite.Statement {
 
 func insertEvent(e domain.Event, now int64) sqlite.Statement {
 	return store.Stmt(`INSERT INTO events(id, meet_id, name, gender, discipline, group_label, kind, date,
-		lane_count, attempt_count, note, start_mode, distance_mode, relay_leg_count, config_json, combined_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		lane_count, attempt_count, note, start_mode, distance_mode, relay_leg_count, config_json, combined_id, created_at, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		e.ID, e.MeetID, e.Name, string(e.Gender), e.Discipline, e.GroupLabel, string(e.Kind), e.Date,
-		e.LaneCount, e.AttemptCount, e.Note, string(e.StartMode), string(e.DistanceMode), e.RelayLegCount, store.EventConfigJSON(e), nullable(e.CombinedID), now)
+		e.LaneCount, e.AttemptCount, e.Note, string(e.StartMode), string(e.DistanceMode), e.RelayLegCount, store.EventConfigJSON(e), nullable(e.CombinedID), now, nullable(e.GroupID))
 }
 
 // SaveEvent creates an event (id "") or updates one. A new event gets its
@@ -235,6 +237,14 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 	if _, err := s.GetMeet(ctx, meetID); err != nil {
 		return nil, err
 	}
+	groupID, groupLabel, groupStmts, err := s.resolveGroup(ctx, meetID, in.GroupID, in.GroupLabel)
+	if err != nil {
+		return nil, err
+	}
+	e.GroupID, e.GroupLabel = groupID, groupLabel
+	if strings.TrimSpace(in.Name) == "" {
+		e.Name = domain.ComposeEventName(e.Gender, e.Discipline, e.GroupLabel)
+	}
 	events, err := s.store.ListEvents(ctx, store.Scope{MeetID: meetID})
 	if err != nil {
 		return nil, err
@@ -254,7 +264,7 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 		}
 	}
 	audit := store.Audit{Source: src, Action: "event.updated", MeetID: meetID, EventID: id, Message: e.Name}
-	var stmts []sqlite.Statement
+	stmts := groupStmts
 
 	if id == "" {
 		e.ID = newID()
@@ -342,8 +352,8 @@ func (s *Service) SaveEvent(ctx context.Context, src store.Source, meetID, id st
 			return nil, invalid("已有成绩，不能改起跑方式")
 		}
 		stmts = append(stmts, store.Stmt(`UPDATE events SET name = ?, gender = ?, discipline = ?, group_label = ?,
-			kind = ?, date = ?, lane_count = ?, attempt_count = ?, note = ?, start_mode = ?, distance_mode = ?, relay_leg_count = ?, config_json = ? WHERE id = ?`,
-			e.Name, string(e.Gender), e.Discipline, e.GroupLabel, string(e.Kind), e.Date, e.LaneCount, e.AttemptCount, e.Note, string(e.StartMode), string(e.DistanceMode), e.RelayLegCount, store.EventConfigJSON(e), id))
+			kind = ?, date = ?, lane_count = ?, attempt_count = ?, note = ?, start_mode = ?, distance_mode = ?, relay_leg_count = ?, config_json = ?, group_id = ? WHERE id = ?`,
+			e.Name, string(e.Gender), e.Discipline, e.GroupLabel, string(e.Kind), e.Date, e.LaneCount, e.AttemptCount, e.Note, string(e.StartMode), string(e.DistanceMode), e.RelayLegCount, store.EventConfigJSON(e), nullable(e.GroupID), id))
 		// Rounds match by stage and are numbered in stage order, the final last.
 		want := map[domain.Stage]bool{}
 		for i, r := range before {

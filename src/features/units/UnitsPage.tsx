@@ -1,47 +1,47 @@
 import { useEffect, useState } from "react";
-import { IconAdd, IconDelete, IconEdit, StButton, StCard, StDialog, StEmpty, StIconButton, StListItem, StPage, StTextField, StToolbar, iconStroke } from "../../design";
-import { act } from "../../lib/action";
-import { useData } from "../../lib/useData";
-import { Units, type Unit, type UnitInput } from "../../mygo";
+import { IconAdd, IconDelete, StButton, StDialog, StEmpty, StIconButton, StPage, StTable, StTag, StTextField, StToolbar, iconStroke } from "../../design";
+import type { Unit, UnitInput } from "../../mygo";
+import { GroupsController, useGroups } from "../groups/controller";
+import { GroupChecks, GroupMenu } from "../groups/GroupFields";
 import { DeleteDialog } from "../meets/DeleteDialog";
-
-export function useUnits(meetId: string) {
-  return useData(() => Units.list(meetId), [meetId], (c) => c.meetId === meetId && (c.kind === "units" || c.kind === "athletes" || c.kind === "meets"), `units:${meetId}`);
-}
-
-export const UnitsController = {
-  save: (meetId: string, id: string, input: UnitInput) => act(() => Units.save(meetId, id, input), "已保存"),
-  remove: (meetId: string, id: string) => act(() => Units.delete(meetId, id), "已删除"),
-};
+import { UnitsController, useUnits } from "./controller";
 
 export function UnitsPage({ meetId }: { meetId: string }) {
   const { data: units } = useUnits(meetId);
+  const { data: groups } = useGroups(meetId);
+  const [selected, setSelected] = useState(new Set<string>());
   const [editing, setEditing] = useState<{ unit?: Unit } | null>(null);
   const [deleting, setDeleting] = useState<Unit | null>(null);
+  const picked = (units ?? []).filter((u) => selected.has(u.id));
+  const groupNames = (u: Unit) => (groups ?? []).filter((g) => u.groupIds?.includes(g.id));
+
   return (
-    <StPage scrollKey={`units:${meetId}`}
+    <StPage flush
       toolbar={
         <StToolbar title="参赛单位" subtitle={units ? `${units.length} 个` : ""}>
+          <GroupMenu meetId={meetId} count={picked.length}
+            onPick={(id) => GroupsController.assign(meetId, picked.map((u) => ({ kind: "unit", id: u.id, groupIds: id ? [id] : [] })))} />
           <StButton variant="primary" icon={<IconAdd size={16} strokeWidth={iconStroke} />} onClick={() => setEditing({})}>添加单位</StButton>
         </StToolbar>
       }>
-      <div className="narrow">
-        <StCard padded={false}>
-          {units?.length === 0 && <StEmpty>还没有参赛单位</StEmpty>}
-          {(units ?? []).map((u) => (
-            <StListItem key={u.id} title={u.name} subtitle={u.shortName}
-              trailing={
-                <>
-                  <StIconButton label="编辑" onClick={() => setEditing({ unit: u })}>
-                    <IconEdit size={16} strokeWidth={iconStroke} />
-                  </StIconButton>
-                  <StIconButton label="删除" onClick={() => setDeleting(u)}>
-                    <IconDelete size={16} strokeWidth={iconStroke} />
-                  </StIconButton>
-                </>
-              } />
-          ))}
-        </StCard>
+      <div className="table-card table-card--top">
+        <StTable<Unit> fill rows={units ?? []} loading={!units} scrollKey={`units:${meetId}`} rowKey={(u) => u.id} selected={selected} onSelect={setSelected}
+          onRowClick={(u) => setEditing({ unit: u })}
+          empty={<StEmpty action={<StButton variant="primary" onClick={() => setEditing({})}>添加单位</StButton>}>还没有参赛单位</StEmpty>}
+          columns={[
+            { key: "name", title: "名称", width: "minmax(160px, 2fr)", render: (u) => <span className="cell-strong">{u.name}</span> },
+            { key: "short", title: "简称", width: "minmax(96px, 1fr)", render: (u) => u.shortName },
+            { key: "groups", title: "组别", width: "minmax(120px, 1.5fr)", render: (u) => (
+              <span className="cell-tags">{groupNames(u).map((g) => <StTag key={g.id}>{g.name}</StTag>)}</span>
+            ) },
+            { key: "delete", title: "", width: "48px", align: "end", render: (u) => (
+              <span onClick={(e) => e.stopPropagation()}>
+                <StIconButton size="small" label="删除" onClick={() => setDeleting(u)}>
+                  <IconDelete size={16} strokeWidth={iconStroke} />
+                </StIconButton>
+              </span>
+            ) },
+          ]} />
       </div>
       <UnitDialog meetId={meetId} open={editing !== null} unit={editing?.unit} onClose={() => setEditing(null)} />
       <DeleteDialog open={deleting !== null} title={`删除「${deleting?.name ?? ""}」？`} onClose={() => setDeleting(null)} onDelete={() => UnitsController.remove(meetId, deleting!.id)}>
@@ -52,10 +52,10 @@ export function UnitsPage({ meetId }: { meetId: string }) {
 }
 
 function UnitDialog({ meetId, open, unit, onClose }: { meetId: string; open: boolean; unit?: Unit; onClose: () => void }) {
-  const [form, setForm] = useState<Required<UnitInput>>({ name: "", shortName: "" });
+  const [form, setForm] = useState<Required<UnitInput>>({ name: "", shortName: "", groupIds: [] });
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (open) setForm({ name: unit?.name ?? "", shortName: unit?.shortName ?? "" });
+    if (open) setForm({ name: unit?.name ?? "", shortName: unit?.shortName ?? "", groupIds: unit?.groupIds ?? [] });
   }, [open, unit]);
   const save = async () => {
     setBusy(true);
@@ -73,6 +73,7 @@ function UnitDialog({ meetId, open, unit, onClose }: { meetId: string; open: boo
       }>
       <StTextField label="名称" value={form.name} onChange={(name) => setForm((f) => ({ ...f, name }))} width="fill" autoFocus />
       <StTextField label="简称" hint="用于秩序册" value={form.shortName} onChange={(shortName) => setForm((f) => ({ ...f, shortName }))} width="fill" />
+      <GroupChecks meetId={meetId} value={form.groupIds} onChange={(groupIds) => setForm((f) => ({ ...f, groupIds }))} />
     </StDialog>
   );
 }

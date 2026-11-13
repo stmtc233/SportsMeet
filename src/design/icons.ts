@@ -14,6 +14,7 @@ export {
   FileInput as IconImport,
   Flag as IconEvent,
   Info as IconInfo,
+  Layers as IconGroup,
   LayoutGrid as IconArrange,
   Lock as IconLock,
   LockOpen as IconUnlock,

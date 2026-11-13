@@ -11,6 +11,12 @@ import (
 // write action is added here together with its write (docs/agents/domain.md
 // 「操作日志」); TestAuditActionTexts checks that none is missing.
 var auditActions = map[string]string{
+	"group.created":        "新建组别",
+	"group.updated":        "修改组别",
+	"group.deleted":        "删除组别",
+	"group.reordered":      "调整组别顺序",
+	"group.projects":       "调整项目组别",
+	"group.assignments":    "调整参赛组别",
 	"meet.created":         "新建赛事",
 	"meet.updated":         "修改赛事",
 	"meet.deleted":         "删除赛事",

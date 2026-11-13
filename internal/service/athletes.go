@@ -11,6 +11,7 @@ import (
 
 // AthleteInput creates or updates an athlete.
 type AthleteInput struct {
+	GroupID       string `json:"groupId,omitempty"`
 	Name          string `json:"name"`
 	Gender        string `json:"gender,omitempty"`
 	Bib           string `json:"bib,omitempty"`
@@ -68,6 +69,7 @@ func (s *Service) ListAthletes(ctx context.Context, meetID string) ([]AthleteRow
 
 func (in AthleteInput) athlete() (domain.Athlete, error) {
 	a := domain.Athlete{
+		GroupID:       in.GroupID,
 		Name:          strings.TrimSpace(in.Name),
 		Bib:           strings.TrimSpace(in.Bib),
 		StudentNumber: strings.TrimSpace(in.StudentNumber),
@@ -110,16 +112,16 @@ func identityClash(a domain.Athlete, others []domain.Athlete) error {
 
 func insertAthlete(a domain.Athlete, now int64) sqlite.Statement {
 	return store.Stmt(`INSERT INTO athletes(id, meet_id, name, gender, bib, student_number, unit_id, class_name,
-		grade, birth_date, note, created_at, bib_key, student_number_key, name_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		grade, birth_date, note, created_at, bib_key, student_number_key, name_key, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		a.ID, a.MeetID, a.Name, string(a.Gender), a.Bib, a.StudentNumber, nullable(a.UnitID), a.ClassName,
-		a.Grade, a.BirthDate, a.Note, now, domain.NormalizeText(a.Bib), domain.NormalizeText(a.StudentNumber), domain.NormalizeText(a.Name))
+		a.Grade, a.BirthDate, a.Note, now, domain.NormalizeText(a.Bib), domain.NormalizeText(a.StudentNumber), domain.NormalizeText(a.Name), nullable(a.GroupID))
 }
 
 func updateAthlete(a domain.Athlete) sqlite.Statement {
 	return store.Stmt(`UPDATE athletes SET name = ?, gender = ?, bib = ?, student_number = ?, unit_id = ?,
-		class_name = ?, grade = ?, birth_date = ?, note = ?, bib_key=?, student_number_key=?, name_key=? WHERE id = ?`,
+		class_name = ?, grade = ?, birth_date = ?, note = ?, bib_key=?, student_number_key=?, name_key=?, group_id=? WHERE id = ?`,
 		a.Name, string(a.Gender), a.Bib, a.StudentNumber, nullable(a.UnitID), a.ClassName, a.Grade, a.BirthDate, a.Note,
-		domain.NormalizeText(a.Bib), domain.NormalizeText(a.StudentNumber), domain.NormalizeText(a.Name), a.ID)
+		domain.NormalizeText(a.Bib), domain.NormalizeText(a.StudentNumber), domain.NormalizeText(a.Name), nullable(a.GroupID), a.ID)
 }
 
 // SaveAthlete creates an athlete (id "") or updates one.
@@ -158,6 +160,22 @@ func (s *Service) SaveAthlete(ctx context.Context, src store.Source, meetID, id 
 		}
 		if !ok {
 			return nil, invalid("参赛单位不存在或已删除")
+		}
+	}
+	if a.GroupID == "" && id == "" {
+		units, err := s.store.ListUnits(ctx, meetID)
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range units {
+			if u.ID == a.UnitID && len(u.GroupIDs) == 1 {
+				a.GroupID = u.GroupIDs[0]
+			}
+		}
+	}
+	if a.GroupID != "" {
+		if err := s.validateGroupIDs(ctx, meetID, []string{a.GroupID}); err != nil {
+			return nil, err
 		}
 	}
 	if err := identityClash(a, others); err != nil {

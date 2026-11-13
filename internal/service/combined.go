@@ -23,6 +23,7 @@ type CombinedComponentInput struct {
 	Rule    PointRuleInput `json:"rule"`
 }
 type CombinedInput struct {
+	GroupID    string                   `json:"groupId,omitempty"`
 	Name       string                   `json:"name"`
 	Gender     string                   `json:"gender"`
 	GroupLabel string                   `json:"groupLabel,omitempty"`
@@ -37,6 +38,7 @@ type CombinedComponentView struct {
 }
 type CombinedRow struct {
 	GenderMismatch bool `json:"genderMismatch"`
+	GroupMismatch  bool `json:"groupMismatch"`
 	scoring.CombinedStanding
 	Name     string `json:"name"`
 	Bib      string `json:"bib"`
@@ -186,7 +188,7 @@ func (st *combinedMeetState) detail(p store.CombinedData, rules map[string]domai
 	}
 	for _, r := range rows {
 		a := athletes[r.AthleteID]
-		d.Rows = append(d.Rows, CombinedRow{CombinedStanding: r, GenderMismatch: a.Gender != "" && p.Combined.Gender != domain.GenderMixed && a.Gender != p.Combined.Gender, Name: a.Name, Bib: a.Bib, UnitName: st.units[a.UnitID]})
+		d.Rows = append(d.Rows, CombinedRow{GroupMismatch: p.Combined.GroupID != "" && a.GroupID != "" && p.Combined.GroupID != a.GroupID, CombinedStanding: r, GenderMismatch: a.Gender != "" && p.Combined.Gender != domain.GenderMixed && a.Gender != p.Combined.Gender, Name: a.Name, Bib: a.Bib, UnitName: st.units[a.UnitID]})
 	}
 	return d, nil
 }
@@ -225,7 +227,7 @@ func pointRuleInput(e domain.Event, r domain.PointRule) PointRuleInput {
 }
 func jsonValue(v any) string { b, _ := json.Marshal(v); return string(b) }
 func insertCombined(c domain.Combined) sqlite.Statement {
-	return store.Stmt(`INSERT INTO combined_events(id,meet_id,name,gender,group_label,note,rule_version) VALUES (?,?,?,?,?,?,?)`, c.ID, c.MeetID, c.Name, string(c.Gender), c.GroupLabel, c.Note, c.RuleVersion)
+	return store.Stmt(`INSERT INTO combined_events(id,meet_id,name,gender,group_label,note,rule_version,group_id) VALUES (?,?,?,?,?,?,?,?)`, c.ID, c.MeetID, c.Name, string(c.Gender), c.GroupLabel, c.Note, c.RuleVersion, nullable(c.GroupID))
 }
 func insertCombinedComponent(c domain.CombinedComponent) sqlite.Statement {
 	return store.Stmt(`INSERT INTO combined_components(combined_id,event_id,ordinal,rule_json) VALUES (?,?,?,?)`, c.CombinedID, c.EventID, c.Ordinal, jsonValue(c.Rule))
@@ -248,6 +250,11 @@ func (s *Service) SaveCombined(ctx context.Context, src store.Source, meetID, id
 	if len(in.Components) < 2 {
 		return nil, invalid("全能至少需要两个分项")
 	}
+	groupID, groupLabel, groupStmts, err := s.resolveGroup(ctx, meetID, in.GroupID, in.GroupLabel)
+	if err != nil {
+		return nil, err
+	}
+	c.GroupID, c.GroupLabel = groupID, groupLabel
 	st, err := s.loadCombinedMeet(ctx, meetID)
 	if err != nil {
 		return nil, err
@@ -273,7 +280,7 @@ func (s *Service) SaveCombined(ctx context.Context, src store.Source, meetID, id
 		c.RuleVersion = old.Combined.RuleVersion
 	}
 	for i, input := range in.Components {
-		input.Event.Gender, input.Event.GroupLabel = string(gender), c.GroupLabel
+		input.Event.Gender, input.Event.GroupLabel, input.Event.GroupID = string(gender), c.GroupLabel, c.GroupID
 		if len(input.Event.Rounds) > 0 {
 			return nil, invalid("全能分项须直接决赛")
 		}
@@ -301,7 +308,7 @@ func (s *Service) SaveCombined(ctx context.Context, src store.Source, meetID, id
 		events = append(events, e)
 		components = append(components, domain.CombinedComponent{CombinedID: c.ID, EventID: e.ID, Ordinal: i + 1, Rule: rule})
 	}
-	var stmts []sqlite.Statement
+	stmts := groupStmts
 	action := "combined.created"
 	roster := []string{}
 	if old != nil {
@@ -316,7 +323,8 @@ func (s *Service) SaveCombined(ctx context.Context, src store.Source, meetID, id
 			for i, part := range components {
 				was := st.events[old.Components[i].EventID]
 				e := events[i]
-				was.Name = e.Name
+				// The group only changes references and display names, never the arrangement.
+				was.Name, was.GroupID, was.GroupLabel = e.Name, e.GroupID, e.GroupLabel
 				if !reflect.DeepEqual(was, e) {
 					same = false
 				}
@@ -329,16 +337,16 @@ func (s *Service) SaveCombined(ctx context.Context, src store.Source, meetID, id
 			return nil, invalid("已有编排，不能修改全能分项")
 		}
 		if same {
-			stmts = append(stmts, store.Stmt(`UPDATE combined_events SET name=?,gender=?,group_label=?,note=? WHERE id=?`, c.Name, string(c.Gender), c.GroupLabel, c.Note, c.ID))
+			stmts = append(stmts, store.Stmt(`UPDATE combined_events SET name=?,gender=?,group_label=?,note=?,group_id=? WHERE id=?`, c.Name, string(c.Gender), c.GroupLabel, c.Note, nullable(c.GroupID), c.ID))
 			for _, e := range events {
-				stmts = append(stmts, store.Stmt(`UPDATE events SET name=? WHERE id=?`, e.Name, e.ID))
+				stmts = append(stmts, store.Stmt(`UPDATE events SET name=?,group_id=?,group_label=? WHERE id=?`, e.Name, nullable(e.GroupID), e.GroupLabel, e.ID))
 			}
 			err = s.write(ctx, store.Audit{Source: src, Action: action, MeetID: meetID, Message: c.Name, Detail: in}, Change{Kind: "combined", MeetID: meetID}, stmts...)
 			return &c, err
 		}
 		c.RuleVersion++
 		// Empty component events can be rebuilt while preserving the shared roster.
-		stmts = append(stmts, store.Stmt(`DELETE FROM events WHERE combined_id=?`, c.ID), store.Stmt(`UPDATE combined_events SET name=?,gender=?,group_label=?,note=?,rule_version=? WHERE id=?`, c.Name, string(c.Gender), c.GroupLabel, c.Note, c.RuleVersion, c.ID))
+		stmts = append(stmts, store.Stmt(`DELETE FROM events WHERE combined_id=?`, c.ID), store.Stmt(`UPDATE combined_events SET name=?,gender=?,group_label=?,note=?,rule_version=?,group_id=? WHERE id=?`, c.Name, string(c.Gender), c.GroupLabel, c.Note, c.RuleVersion, nullable(c.GroupID), c.ID))
 	} else {
 		stmts = append(stmts, insertCombined(c))
 	}

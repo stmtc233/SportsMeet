@@ -2,6 +2,8 @@ package bind
 
 import (
 	"context"
+
+	"github.com/stmtc233/sportsmeet/internal/domain"
 	"github.com/stmtc233/sportsmeet/internal/service"
 )
 
@@ -10,13 +12,12 @@ type TeamScoring struct{ *Core }
 func (t TeamScoring) Get(ctx context.Context, filter service.TeamScoreFilter) (*service.TeamScoreDetail, error) {
 	return t.Svc.GetTeamScores(ctx, filter)
 }
-func (t TeamScoring) Preview(ctx context.Context, meetID string, in service.TeamScoringInput) (*service.TeamScoringPreview, error) {
-	rules, err := service.ParseTeamScoringInput(in)
-	if err != nil {
-		return nil, err
-	}
-	return t.Svc.PreviewTeamScoring(ctx, service.TeamScoringRequest{MeetID: meetID, Rules: rules})
+
+func (t TeamScoring) Boards(ctx context.Context, filter service.TeamScoreFilter) ([]service.TeamScoreBoard, error) {
+	return t.Svc.GetTeamScoreBoards(ctx, filter)
 }
-func (t TeamScoring) Apply(ctx context.Context, req service.TeamScoringRequest, hash string, confirmed bool) (*service.TeamScoringPreview, error) {
-	return t.Svc.ApplyTeamScoring(ctx, ui, req, hash, confirmed)
+
+// Save parses the rules as typed and saves them right away.
+func (t TeamScoring) Save(ctx context.Context, meetID string, in service.TeamScoringInput) (*domain.TeamScoringRules, error) {
+	return t.Svc.SaveTeamScoring(ctx, ui, meetID, in)
 }

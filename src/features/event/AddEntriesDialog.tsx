@@ -4,7 +4,7 @@ import type { AthleteRow, EventDetail } from "../../mygo";
 import { useAthletes } from "../athletes/controller";
 import { EventsController } from "../events/controller";
 import { AddTeamsDialog } from "./AddTeamsDialog";
-import { useUnits } from "../units/UnitsPage";
+import { useUnits } from "../units/controller";
 
 /** Picks athletes of the meet to enter into the event, several at once. */
 type Props = { open: boolean; detail: EventDetail; meetId: string; onClose: () => void };
@@ -16,6 +16,7 @@ function AddAthletesDialog({ open, detail, meetId, onClose }: Props) {
   const { data: units } = useUnits(meetId);
   const [query, setQuery] = useState("");
   const [unit, setUnit] = useState("");
+  const [sameGroup, setSameGroup] = useState(true);
   const [sameGender, setSameGender] = useState(true);
   const [selected, setSelected] = useState(new Set<string>());
   const [busy, setBusy] = useState(false);
@@ -30,9 +31,10 @@ function AddAthletesDialog({ open, detail, meetId, onClose }: Props) {
     const entered = new Set(detail.entries.map((e) => e.athleteId));
     const q = query.trim().toLowerCase();
     return (athletes ?? []).filter((r) => !entered.has(r.athlete.id) && (unit === "" || r.athlete.unitId === unit)
+      && (!sameGroup || !detail.event.groupId || r.athlete.groupId === detail.event.groupId)
       && (!sameGender || gender === "混合" || r.athlete.gender === gender)
       && (q === "" || [r.athlete.name, r.athlete.bib, r.athlete.studentNumber].some((v) => v.toLowerCase().includes(q))));
-  }, [athletes, detail.entries, query, unit, sameGender, gender]);
+  }, [athletes, detail.entries, query, unit, sameGender, gender, sameGroup, detail.event.groupId]);
   const add = async () => {
     setBusy(true);
     const ok = await EventsController.addEntries(detail.event.id, [...selected].map((athleteId) => ({ athleteId, seed: "" })));
@@ -52,6 +54,7 @@ function AddAthletesDialog({ open, detail, meetId, onClose }: Props) {
       <StRow>
         <StSearchField value={query} onChange={setQuery} placeholder="搜索姓名、号码" />
         <StSelect value={unit} onChange={setUnit} placeholder="全部单位" options={[{ value: "", label: "全部单位" }, ...(units ?? []).map((u) => ({ value: u.id, label: u.name }))]} />
+        {detail.event.groupId && <StCheckbox checked={sameGroup} onChange={setSameGroup} label="只看同组别" />}
         {gender !== "混合" && <StCheckbox checked={sameGender} onChange={setSameGender} label={`只看${gender}生`} />}
       </StRow>
       <div className="preview-table">

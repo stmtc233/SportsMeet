@@ -20,6 +20,7 @@ export interface AppInfo {
 
 /** Athlete belongs to a meet and is shared by its events. */
 export interface Athlete {
+  groupId: string;
   id: string;
   meetId: string;
   name: string;
@@ -54,6 +55,7 @@ export interface AthleteImportPreview {
 
 /** AthleteInput creates or updates an athlete. */
 export interface AthleteInput {
+  groupId?: string;
   name: string;
   gender?: string;
   bib?: string;
@@ -167,7 +169,7 @@ export interface BoardSave {
 
 /** Change tells listeners which data moved, so pages reload only that. */
 export interface Change {
-  /** meets | units | athletes | events | entries | heats | results | combined | team_scoring */
+  /** meets | units | athletes | events | entries | heats | results | combined | team_scoring | groups */
   kind: string;
   meetId: string;
   eventId: string;
@@ -213,6 +215,7 @@ export interface CheckInTargets {
 
 /** Combined owns independently arranged component events and one shared roster. */
 export interface Combined {
+  groupId: string;
   id: string;
   meetId: string;
   name: string;
@@ -257,6 +260,7 @@ export interface CombinedDetail {
 }
 
 export interface CombinedInput {
+  groupId?: string;
   name: string;
   gender: string;
   groupLabel?: string;
@@ -266,6 +270,7 @@ export interface CombinedInput {
 
 export interface CombinedRow {
   genderMismatch: boolean;
+  groupMismatch: boolean;
   athleteId: string;
   cells: CombinedCell[];
   total: number;
@@ -300,6 +305,17 @@ export interface CombinedRulesPreview {
 export interface CombinedRulesRequest {
   combinedId: string;
   rules: CombinedRuleChange[];
+}
+
+/**
+ * CompetitionGroup is a meet's independently ranked category, such as 初一.
+ * A heat remains a 组; a CompetitionGroup is always called 组别.
+ */
+export interface CompetitionGroup {
+  id: string;
+  meetId: string;
+  name: string;
+  ordinal: number;
 }
 
 /** ConflictView is one athlete in two heats too close together. */
@@ -348,6 +364,7 @@ export interface EntryInput {
 
 /** EntryView is one entered athlete. */
 export interface EntryView {
+  groupMismatch: boolean;
   athleteId: string;
   name: string;
   gender: Gender;
@@ -367,6 +384,7 @@ export interface EntryView {
 
 /** Event is one single item: gender + discipline + optional group. */
 export interface Event {
+  groupId: string;
   participantMode?: string;
   teamSize?: number;
   scoreDecimals?: number;
@@ -424,6 +442,7 @@ export interface EventInput {
   name?: string;
   gender: string;
   discipline: string;
+  groupId?: string;
   groupLabel?: string;
   kind: string;
   date?: string;
@@ -485,6 +504,55 @@ export interface EventRules {
 
 /** Gender of an athlete ("" = unknown) or of an event (男 / 女 / 混合). */
 export type Gender = "男" | "女" | "混合" | "";
+
+export interface GroupAssignment {
+  /** unit | athlete */
+  kind: string;
+  id: string;
+  groupIds: string[];
+}
+
+export interface GroupAssignmentsRequest {
+  meetId: string;
+  assignments: GroupAssignment[];
+}
+
+export interface GroupChangeRequest {
+  meetId: string;
+  groupId: string;
+  eventIds: string[];
+  combinedIds: string[];
+}
+
+export interface GroupInput {
+  name: string;
+}
+
+export interface GroupReportRequest {
+  kind: string;
+  meetId: string;
+  /** empty = all; "" selects ungrouped */
+  groupIds: string[];
+  eventIds: string[];
+}
+
+export interface GroupSuggestion {
+  kind: string;
+  id: string;
+  name: string;
+  candidates: string[];
+  reason: string;
+}
+
+export interface GroupView {
+  id: string;
+  meetId: string;
+  name: string;
+  ordinal: number;
+  events: number;
+  units: number;
+  athletes: number;
+}
 
 /** HeatConflict is a conflict as one of its heats shows it. */
 export interface HeatConflict {
@@ -685,6 +753,7 @@ export interface HeightRowPreview {
  * shown.
  */
 export interface ImportPreview {
+  groups: Tally;
   combineds: Tally;
   meetName: string;
   newMeet: boolean;
@@ -867,6 +936,7 @@ export interface Preferences {
 }
 
 export interface ReportTarget {
+  groupId: string;
   id: string;
   name: string;
 }
@@ -1154,6 +1224,12 @@ export interface TeamInput {
   memberIds: string[];
 }
 
+export interface TeamScoreBoard {
+  groupId: string;
+  groupName: string;
+  detail: TeamScoreDetail | null;
+}
+
 export interface TeamScoreDetail {
   rows: UnitStanding[];
   sources: TeamScoreSource[];
@@ -1165,9 +1241,11 @@ export interface TeamScoreDetail {
   rules: TeamScoringRules;
   groups: string[];
   targets: TeamScoreTarget[];
+  warnings: string[];
 }
 
 export interface TeamScoreFilter {
+  groupId?: string;
   meetId: string;
   gender?: string;
   groupLabel?: string;
@@ -1216,6 +1294,7 @@ export interface TeamScoreSource {
 }
 
 export interface TeamScoreTarget {
+  groupId: string;
   eventId: string;
   combinedId: string;
   name: string;
@@ -1233,18 +1312,6 @@ export interface TeamScoringInput {
   overrides: TeamScoreOverrideInput[];
 }
 
-export interface TeamScoringPreview {
-  previewHash: string;
-  changed: boolean;
-  before: TeamScoreDetail | null;
-  after: TeamScoreDetail | null;
-}
-
-export interface TeamScoringRequest {
-  meetId: string;
-  rules: TeamScoringRules;
-}
-
 /**
  * TeamScoringRules belongs to a meet. Multipliers of zero exclude a target.
  * Component events never have their own rule: their combined is the target.
@@ -1259,6 +1326,7 @@ export interface TeamScoringRules {
 }
 
 export interface TeamView {
+  groupMismatch: boolean;
   sizeWarning: string;
   id: string;
   eventId: string;
@@ -1363,6 +1431,7 @@ export interface TimetableRound {
 
 /** Unit is one 参赛单位. */
 export interface Unit {
+  groupIds: string[];
   id: string;
   meetId: string;
   name: string;
@@ -1371,6 +1440,7 @@ export interface Unit {
 
 /** UnitInput creates or updates a 参赛单位. */
 export interface UnitInput {
+  groupIds?: string[];
   name: string;
   shortName?: string;
 }
@@ -1540,14 +1610,41 @@ export const Combined = {
 } as const;
 
 export const TeamScoring = {
-  apply(req: TeamScoringRequest, hash: string, confirmed: boolean): Promise<TeamScoringPreview | null> {
-    return call("TeamScoring.Apply", req, hash, confirmed);
+  boards(filter: TeamScoreFilter): Promise<TeamScoreBoard[]> {
+    return call("TeamScoring.Boards", filter);
   },
   get(filter: TeamScoreFilter): Promise<TeamScoreDetail | null> {
     return call("TeamScoring.Get", filter);
   },
-  preview(meetID: string, in_: TeamScoringInput): Promise<TeamScoringPreview | null> {
-    return call("TeamScoring.Preview", meetID, in_);
+  /** Save parses the rules as typed and saves them right away. */
+  save(meetID: string, in_: TeamScoringInput): Promise<TeamScoringRules | null> {
+    return call("TeamScoring.Save", meetID, in_);
+  },
+} as const;
+
+export const Groups = {
+  /** Assign saves unit and athlete groups right away. */
+  assign(req: GroupAssignmentsRequest): Promise<void> {
+    return call("Groups.Assign", req);
+  },
+  /** Change moves events and combined events to a group right away. */
+  change(req: GroupChangeRequest): Promise<void> {
+    return call("Groups.Change", req);
+  },
+  delete(meetID: string, id: string): Promise<void> {
+    return call("Groups.Delete", meetID, id);
+  },
+  list(meetID: string): Promise<GroupView[]> {
+    return call("Groups.List", meetID);
+  },
+  reorder(meetID: string, ids: string[]): Promise<void> {
+    return call("Groups.Reorder", meetID, ids);
+  },
+  save(meetID: string, id: string, in_: GroupInput): Promise<CompetitionGroup | null> {
+    return call("Groups.Save", meetID, id, in_);
+  },
+  suggestions(meetID: string): Promise<GroupSuggestion[]> {
+    return call("Groups.Suggestions", meetID);
   },
 } as const;
 
@@ -1652,6 +1749,9 @@ export const Reports = {
   printCheckIn(req: CheckInRequest): Promise<void> {
     return call("Reports.PrintCheckIn", req);
   },
+  printGrouped(req: GroupReportRequest): Promise<void> {
+    return call("Reports.PrintGrouped", req);
+  },
   /** PrintRecordSheet opens the 成绩记录表 in a window of its own and shows the print dialog. */
   printRecordSheet(req: CheckInRequest): Promise<void> {
     return call("Reports.PrintRecordSheet", req);
@@ -1663,6 +1763,9 @@ export const Reports = {
   /** RenderCheckIn returns the 检录单 as an HTML document, for the preview. */
   renderCheckIn(req: CheckInRequest): Promise<string> {
     return call("Reports.RenderCheckIn", req);
+  },
+  renderGrouped(req: GroupReportRequest): Promise<string> {
+    return call("Reports.RenderGrouped", req);
   },
   /** RenderRecordSheet returns the 成绩记录表 as an HTML document, for the preview. */
   renderRecordSheet(req: CheckInRequest): Promise<string> {

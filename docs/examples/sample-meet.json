@@ -1,6 +1,6 @@
 {
   "format": "sportsmeet-interchange",
-  "version": 7,
+  "version": 8,
   "exportedAt": "2026-11-12T18:05:31+08:00",
   "generator": {
     "name": "SportsMeet",
@@ -43,12 +43,18 @@
     {
       "id": "u1",
       "name": "初二(1)班",
-      "shortName": "初二1"
+      "shortName": "初二1",
+      "groupIds": [
+        "g1"
+      ]
     },
     {
       "id": "u2",
       "name": "初二(2)班",
-      "shortName": "初二2"
+      "shortName": "初二2",
+      "groupIds": [
+        "g1"
+      ]
     }
   ],
   "athletes": [
@@ -61,7 +67,8 @@
       "unitId": "u1",
       "affiliation": "初二(1)班",
       "className": "初二(1)班",
-      "grade": "初二"
+      "grade": "初二",
+      "groupId": "g1"
     },
     {
       "id": "a2",
@@ -72,7 +79,8 @@
       "unitId": "u1",
       "affiliation": "初二(1)班",
       "className": "初二(1)班",
-      "grade": "初二"
+      "grade": "初二",
+      "groupId": "g1"
     },
     {
       "id": "a3",
@@ -83,7 +91,8 @@
       "unitId": "u2",
       "affiliation": "初二(2)班",
       "className": "初二(2)班",
-      "grade": "初二"
+      "grade": "初二",
+      "groupId": "g1"
     },
     {
       "id": "a4",
@@ -94,7 +103,8 @@
       "unitId": "u2",
       "affiliation": "初二(2)班",
       "className": "初二(2)班",
-      "grade": "初二"
+      "grade": "初二",
+      "groupId": "g1"
     },
     {
       "id": "a5",
@@ -105,7 +115,8 @@
       "unitId": "u1",
       "affiliation": "初二(1)班",
       "className": "初二(1)班",
-      "grade": "初二"
+      "grade": "初二",
+      "groupId": "g1"
     }
   ],
   "events": [
@@ -178,7 +189,8 @@
           ]
         }
       ],
-      "startMode": "lanes"
+      "startMode": "lanes",
+      "groupId": "g2"
     },
     {
       "id": "e2",
@@ -258,7 +270,8 @@
           ]
         }
       ],
-      "distanceMode": "jump"
+      "distanceMode": "jump",
+      "groupId": "g2"
     },
     {
       "id": "e3",
@@ -347,7 +360,8 @@
             }
           ]
         }
-      ]
+      ],
+      "groupId": "g2"
     },
     {
       "id": "e1500",
@@ -453,7 +467,8 @@
           ]
         }
       ],
-      "distanceMode": "throw"
+      "distanceMode": "throw",
+      "groupId": "g2"
     },
     {
       "id": "emixedrelay",
@@ -521,7 +536,8 @@
         }
       ],
       "startMode": "lanes",
-      "laneCount": 8
+      "laneCount": 8,
+      "groupId": "g1"
     },
     {
       "id": "combinedpart1",
@@ -561,7 +577,8 @@
         }
       ],
       "distanceMode": "jump",
-      "attemptCount": 3
+      "attemptCount": 3,
+      "groupId": "g1"
     },
     {
       "id": "erope",
@@ -750,7 +767,20 @@
             }
           }
         }
-      ]
+      ],
+      "groupId": "g1"
+    }
+  ],
+  "groups": [
+    {
+      "id": "g1",
+      "name": "全能组",
+      "ordinal": 1
+    },
+    {
+      "id": "g2",
+      "name": "初中组",
+      "ordinal": 2
     }
   ]
 }

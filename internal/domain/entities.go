@@ -13,14 +13,16 @@ type Meet struct {
 
 // Unit is one 参赛单位.
 type Unit struct {
-	ID        string `json:"id"`
-	MeetID    string `json:"meetId"`
-	Name      string `json:"name"`
-	ShortName string `json:"shortName"`
+	GroupIDs  []string `json:"groupIds"`
+	ID        string   `json:"id"`
+	MeetID    string   `json:"meetId"`
+	Name      string   `json:"name"`
+	ShortName string   `json:"shortName"`
 }
 
 // Athlete belongs to a meet and is shared by its events.
 type Athlete struct {
+	GroupID       string `json:"groupId"`
 	ID            string `json:"id"`
 	MeetID        string `json:"meetId"`
 	Name          string `json:"name"`
@@ -36,6 +38,7 @@ type Athlete struct {
 
 // Event is one single item: gender + discipline + optional group.
 type Event struct {
+	GroupID string `json:"groupId"`
 	CompetitionConfig
 	CombinedID    string       `json:"combinedId,omitempty"`
 	ID            string       `json:"id"`

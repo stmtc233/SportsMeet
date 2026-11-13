@@ -18,7 +18,7 @@ import (
 
 // Change tells listeners which data moved, so pages reload only that.
 type Change struct {
-	Kind    string `json:"kind"` // meets | units | athletes | events | entries | heats | results | combined | team_scoring
+	Kind    string `json:"kind"` // meets | units | athletes | events | entries | heats | results | combined | team_scoring | groups
 	MeetID  string `json:"meetId"`
 	EventID string `json:"eventId"`
 }

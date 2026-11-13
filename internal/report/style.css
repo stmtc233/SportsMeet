@@ -81,3 +81,6 @@ th { background: #f0f0f0; font-weight: 600; }
 .pv-pages { width: 210mm; transform-origin: 0 0; display: flex; flex-direction: column; gap: 16px; }
 .pv-page { width: 210mm; height: 297mm; padding: 15mm; background: #fff; color: #111; overflow: hidden; contain: strict; box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
 .pv-body { height: 100%; overflow: hidden; }
+
+.report-group + .report-group { break-before: page; page-break-before: always; }
+.report-group__title { margin: 0 0 16px; font-size: 18px; break-after: avoid; page-break-after: avoid; }

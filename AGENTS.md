@@ -24,7 +24,8 @@ SportsMeet 是一款开源的**单机离线**田径与校园运动会编排软�
 | **赛事** | `meet` | 一次运动会 |
 | **参赛单位** | `unit` | 学校 / 班级 / 代表队,运动员的所属 |
 | **运动员** | `athlete` | 属于赛事,各项目共用 |
-| **项目** | `event` | 一个单项 = 性别(男 / 女 / 混合)+ 项目名(`discipline`)+ 可选组别(`groupLabel`) |
+| **组别** | `CompetitionGroup` / `groupId` | 赛事内统一管理的参赛分类，常用于年级；单位可多组，运动员默认一组 |
+| **项目** | `event` | 一个单项 = 性别(男 / 女 / 混合)+ 项目名(`discipline`)+ 可选组别引用(`groupId`) |
 | **项目类型** | `EventKind` | `track` 径赛计时 / `relay` 接力 / `distance` 远度 / `height` 高度 / `count` 计次 / `score` 计分 |
 | **队伍** | `team` | 属于一个队伍项目；接力队成员按棒次（`leg`）顺序排列 |
 | **全能** | `combined` | 统一报名、汇总多个个人分项积分的比赛 |
@@ -64,7 +65,8 @@ SportsMeet/
 │   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配;encode.go 逐记录输出 JSON,复用 scoring 校验逐次汇总
 │   ├── report/              ← 秩序册(含代表队名单、竞赛日程表)/ 成绩册(含团体总分表)/ 检录单 / 成绩记录表(HTML 模板);号码布待实现
 │   ├── service/             ← 唯一写入口:写锁、校验、操作日志(写入与只读查询)、变更通知;含项目预设、全能与计分规则、表格导入、编排保存、批量 / 多轮次连排时间、竞赛日程与冲突、成绩与实际开赛时间、检录单、成绩记录表、导入导出
-│   │   └── team_scoring*.go ← 团体总分查询、规则预览确认与界面数字输入解析
+│   │   ├── group*.go        ← 组别目录、归属建议与调整、分组团体榜与打印
+│   │   └── team_scoring*.go ← 团体总分查询、规则保存（MCP 另有预览确认）与界面数字输入解析
 │   ├── mcp/                 ← MCP 服务与监听生命周期(仅 127.0.0.1,默认关)
 │   ├── layers/              ← 分层测试:各包允许的依赖、纯计算包不碰 mygo、bind / mcp 不越过 service
 │   └── bind/                ← 给前端的 mygo 服务 + `dataChanged` 事件(薄层,只转调 service,另加文件对话框与打印窗口)
@@ -73,7 +75,7 @@ SportsMeet/
 │   ├── mygo.ts              ← `mygo generate` 生成物,勿手改
 │   ├── app/                 ← nav.tsx(页面路由状态、离开前确认)、ErrorBoundary.tsx(页面渲染出错时的退路)、app.css(外壳与页面布局,只用 token)
 │   ├── design/              ← tokens.css、components.css、`St*` 组件、icons.ts;经 index.ts 统一导出
-│   ├── features/            ← meets/ units/ athletes/ events/ event/(项目工作区:报名、队伍、组时间显示)combined/(全能)arrange/ schedule/(竞赛日程)results/ reports/ team-scoring/(团体总分) exchange/ settings/ about/
+│   ├── features/            ← meets/ groups/(赛事组别) units/ athletes/ events/ event/(项目工作区:报名、队伍、组时间显示)combined/(全能)arrange/ schedule/(竞赛日程)results/ reports/ team-scoring/(团体总分) exchange/ settings/ about/
 │   └── lib/                 ← coalesce.ts(事件刷新合并)、useData.ts(读取与按键缓存)、viewState.ts(滚动位置与切换状态记忆)、action.ts、errors.ts、labels.ts、wallTime.ts(日期 / 时刻输入拆合)
 ├── .agents/skills/          ← mygo 自带的 agent 技能
 ├── tests/ui/                ← Playwright 页面冒烟测试(模拟 mygo 桥接)
@@ -88,7 +90,7 @@ SportsMeet/
 ├── docs/
 │   ├── brand-guidelines.md             ←「跑道 S」品牌设计规范与资源索引
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
-│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json · interchange-v6.schema.json · interchange-v7.schema.json
+│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json · interchange-v6.schema.json · interchange-v7.schema.json · interchange-v8.schema.json
 │   ├── examples/sample-meet.json
 │   ├── performance.md · performance-results.json · performance-optimized-results.json ← 优化与压测对比
 │   └── agents/                        ← 专题细则(§5)
@@ -148,6 +150,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 | `internal/domain/`、`internal/service/`、`internal/scoring/`、报名 / 组 / 成绩 / 排名 / 晋级 / 删除 / 操作日志 | [domain.md](docs/agents/domain.md) |
 | `internal/arrange/`、`src/features/arrange/` | [arrange.md](docs/agents/arrange.md) + [domain.md](docs/agents/domain.md) |
 | 全能、分项、计分表、`src/features/combined/`、`internal/service/combined*.go` | [combined.md](docs/agents/combined.md) + [domain.md](docs/agents/domain.md) |
+| 赛事组别、归属、按年级分榜、`internal/service/group*.go`、`src/features/groups/` | [groups.md](docs/agents/groups.md) + [domain.md](docs/agents/domain.md) |
 | 团体总分、按单位计分、`src/features/team-scoring/`、`internal/service/team_scoring*.go` | [team-scoring.md](docs/agents/team-scoring.md) + [domain.md](docs/agents/domain.md) |
 | `internal/mcp/` | [mcp.md](docs/agents/mcp.md) |
 | `internal/interchange/`、导入导出 | [interchange-format.md](docs/interchange-format.md) + [mcp.md](docs/agents/mcp.md)「导入」 |
@@ -198,14 +201,15 @@ bun run test:ui                      # 先 bunx playwright install chromium
 - 全能拥有独立分项并统一报名,积分与总排名由原始成绩和保存的计分表计算,规则修改须预览确认(→ [combined.md](docs/agents/combined.md))。
 - 时间分日期、计划时间(本地到分钟、无时区,用户要求)、记录时间(毫秒,按本机时区显示)三种,校验、运算与显示只在 `domain` 的时间规则(→ domain.md「时间」)。
 - 项目列表按显示日子(最早计划时间的日子,没有时间才用项目日期)→ 最早计划时间 → 创建顺序排列,全能分项保持原顺序;导出保持创建顺序。
-- 团体总分按已完成的决赛总排名或全能总排名计分、按参赛单位汇总，接力按队计一次、分项不重复计分，总分相同直接并列（用户要求）；规则修改须预览确认（→ [team-scoring.md](docs/agents/team-scoring.md)）。
+- 组别在赛事内统一管理，项目与全能按 `groupId` 引用；界面改组别、删除组别直接生效，只改引用与显示名称，报名、编排与成绩不变（→ [groups.md](docs/agents/groups.md)）。
+- 团体总分按已完成的决赛总排名或全能总排名计分、按组别内的参赛单位分别汇总，接力按队计一次、分项不重复计分，总分相同直接并列（用户要求）；界面保存规则直接生效，MCP 须预览确认（→ [team-scoring.md](docs/agents/team-scoring.md)）。
 - 每个写操作写操作日志(来源 `ui` / `mcp` / `system`),日志失败不影响业务;设置页只读查看,分页读取。
 
 ### 5.3 MCP → [mcp.md](docs/agents/mcp.md)
 
 - 默认关闭,只监听 `127.0.0.1`,独立令牌,拒绝非本机 `Origin`。
 - MCP 可以写成绩(用户要求):空位直接写,覆盖已有成绩须预览确认;名次由 `scoring` 重算,不能直接指定。
-- 批量改动与删除走「预览指纹 + `confirmed=true`」,提交时持 service 写锁重算比对，再事务写入;有成绩的数据 MCP 不能删。
+- 批量改动与删除走「预览指纹 + `confirmed=true`」,提交时持 service 写锁重算比对，再事务写入;有成绩的数据 MCP 不能删。界面不走这套确认,只对删除弹确认框。
 - 日程与冲突只读查询(`get_schedule`、`list_conflicts`);多轮次连排扩展 `preview_schedule` / `schedule_heats` 的 `rounds`,原单轮次参数照常可用;`set_heat_time` 带组指纹逐组改时间,不动位置与成绩。
 - 不内置云模型。
 
@@ -226,7 +230,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 ### 5.6 未实现与后续计划
 
-当前已实现:基础数据(赛事、参赛单位、运动员含表格导入、项目含 35 个预设与自定义配置、报名)、编排(预赛 / 次赛 / 半决赛 / 决赛、自动编排、手动调整、草稿保存、批量排时间与多轮次连排)、竞赛日程页与运动员时间冲突提示、秩序册代表队名单与竞赛日程表、统一的时间规则(项目按时间排序、组与成绩修改时间显示、报表打印时间)、计时 / 田赛 / 计次 / 计分成绩录入与排名晋级、普通队伍项目、全能分项与积分总排名、团体总分与规则预览确认及打印、秩序册、成绩册、检录单与成绩记录表打印、组的实际开赛时间、交换格式导入导出、设置(通用 / 编排 / 打印 / MCP / 操作日志 / 关于)、新版本检测与更新、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
+当前已实现:基础数据(赛事、参赛单位、运动员含表格导入、项目含 35 个预设与自定义配置、报名)、编排(预赛 / 次赛 / 半决赛 / 决赛、自动编排、手动调整、草稿保存、批量排时间与多轮次连排)、竞赛日程页与运动员时间冲突提示、秩序册代表队名单与竞赛日程表、统一的时间规则(项目按时间排序、组与成绩修改时间显示、报表打印时间)、计时 / 田赛 / 计次 / 计分成绩录入与排名晋级、普通队伍项目、全能分项与积分总排名、赛事统一组别与批量归属整理、按组别分榜的团体总分与规则预览确认及打印、秩序册、成绩册、检录单与成绩记录表打印、组的实际开赛时间、交换格式导入导出、设置(通用 / 编排 / 打印 / MCP / 操作日志 / 关于)、新版本检测与更新、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
 
 排序依据:先让学校能装上、能办完一场校运会,再补规则细节与打磨。
 
@@ -252,9 +256,6 @@ bun run test:ui                      # 先 bunx playwright install chromium
 10. 奖状打印;打印样式预设。
 11. 编排页:组卡片标题拖动排序;窄窗口下名单收为侧面板。
 12. Linux 的运行、文件对话框、打印与打包。
-
-**已知与细则不完全一致**
-- `scripts/design-system-baseline.txt` 里标 `bindings` 的文件直接调用 Go 绑定,没有收进 `controller`;改到这些文件时顺手收进去并从基线删掉(→ [frontend.md](docs/agents/frontend.md)「代码结构」)。
 
 ---
 

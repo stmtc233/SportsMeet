@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,45 +24,28 @@ const (
 // limits it to some events (in the list's order, domain.ScheduleOrder);
 // empty means all.
 func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventIDs []string) (string, error) {
+	if kind == ReportResults || kind == ReportTeamScores {
+		return s.RenderGroupedReport(ctx, GroupReportRequest{Kind: kind, MeetID: meetID, EventIDs: eventIDs})
+	}
+	if kind != ReportStartList {
+		return "", invalid("报表类型不正确")
+	}
 	prefs, err := s.Preferences(ctx)
 	if err != nil {
 		return "", err
 	}
-	if kind == ReportTeamScores {
-		meet, err := s.GetMeet(ctx, meetID)
-		if err != nil {
-			return "", err
-		}
-		table, err := s.teamScoreTable(ctx, meetID, eventIDs)
-		if err != nil {
-			return "", err
-		}
-		return report.TeamScores(report.Book{Meet: meet.Name, Dates: domain.DateRangeText(meet.StartDate, meet.EndDate), Location: meet.Location, PrintedAt: domain.RecordedText(s.store.Now(), s.zone), TeamScores: table})
-	}
-	book, err := s.reportBook(ctx, meetID, eventIDs, kind == ReportResults && prefs.PrintResultsTime, kind == ReportResults)
+	book, err := s.reportBook(ctx, meetID, eventIDs, false, false)
 	if err != nil {
 		return "", err
 	}
-	if kind == ReportResults && prefs.PrintTeamScores {
-		book.TeamScores, err = s.teamScoreTable(ctx, meetID, eventIDs)
-		if err != nil {
-			return "", err
-		}
-	}
 	book.NewPage = prefs.PrintNewPage
-	if kind != ReportStartList || !prefs.PrintSchedule {
+	if !prefs.PrintSchedule {
 		book.Schedule = nil
 	}
-	if kind != ReportStartList || !prefs.PrintRoster {
+	if !prefs.PrintRoster {
 		book.Rosters = nil
 	}
-	switch kind {
-	case ReportStartList:
-		return report.StartList(*book)
-	case ReportResults:
-		return report.Results(*book)
-	}
-	return "", invalid("报表类型不正确")
+	return report.StartList(*book)
 }
 
 // reportBook gathers the printed content; resultsTime adds each heat's
@@ -446,8 +428,9 @@ func teamMemberLabel(e domain.Event, index int, name string) string {
 }
 
 type ReportTarget struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	GroupID string `json:"groupId"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
 }
 
 func (s *Service) ReportTargets(ctx context.Context, meetID string) ([]ReportTarget, error) {
@@ -474,52 +457,11 @@ func (s *Service) ReportTargets(ctx context.Context, meetID string) ([]ReportTar
 	out := []ReportTarget{}
 	for _, e := range domain.ScheduleOrder(events, rounds, meet.StartDate) {
 		if e.CombinedID == "" {
-			out = append(out, ReportTarget{ID: e.ID, Name: e.Name})
+			out = append(out, ReportTarget{GroupID: e.GroupID, ID: e.ID, Name: e.Name})
 		}
 	}
 	for _, p := range parents {
-		out = append(out, ReportTarget{ID: p.Combined.ID, Name: p.Combined.Name})
+		out = append(out, ReportTarget{GroupID: p.Combined.GroupID, ID: p.Combined.ID, Name: p.Combined.Name})
 	}
 	return out, nil
-}
-
-func (s *Service) teamScoreTable(ctx context.Context, meetID string, ids []string) (*report.TeamScoreTable, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	// Report selections may contain owned component IDs; only their parent counts.
-	st, err := s.loadTeamScoreState(ctx, meetID)
-	if err != nil {
-		return nil, err
-	}
-	targets := []string{}
-	for _, t := range st.targets {
-		if len(ids) == 0 || slices.Contains(ids, t.id()) {
-			targets = append(targets, t.id())
-		}
-	}
-	// An explicit selection without a scoring target must not expand to the full meet.
-	if !st.rules.Enabled || (len(ids) > 0 && len(targets) == 0) {
-		return nil, nil
-	}
-	d, err := st.detail(TeamScoreFilter{MeetID: meetID, TargetIDs: targets}, st.rules)
-	if err != nil {
-		return nil, err
-	}
-	table := &report.TeamScoreTable{State: d.State, Counted: d.Counted, Total: d.Total, Scope: "全部项目", Rows: []report.TeamScoreRow{}}
-	if len(ids) > 0 {
-		table.Scope = "所选项目"
-		for _, t := range d.Sources {
-			if t.Multiplier > 0 {
-				table.Targets = append(table.Targets, t.Name)
-			}
-		}
-	}
-	for _, r := range d.Rows {
-		row := report.TeamScoreRow{Unit: r.UnitName, Male: r.Male.Text, Female: r.Female.Text, Mixed: r.Mixed.Text, Total: r.Total.Text}
-		if r.Rank != nil {
-			row.Rank = strconv.Itoa(*r.Rank)
-		}
-		table.Rows = append(table.Rows, row)
-	}
-	return table, nil
 }

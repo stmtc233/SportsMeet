@@ -7,11 +7,12 @@ import "github.com/stmtc233/sportsmeet/internal/domain"
 // Format and Version identify the file (spec §2).
 const (
 	Format  = "sportsmeet-interchange"
-	Version = 7
+	Version = 8
 )
 
 // File is one meet's full snapshot.
 type File struct {
+	Groups     []Group    `json:"groups,omitempty"`
 	Combineds  []Combined `json:"combineds,omitempty"`
 	Format     string     `json:"format"`
 	Version    int        `json:"version"`
@@ -39,12 +40,14 @@ type Meet struct {
 }
 
 type Unit struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	ShortName string `json:"shortName,omitempty"`
+	GroupIDs  []string `json:"groupIds,omitempty"`
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	ShortName string   `json:"shortName,omitempty"`
 }
 
 type Athlete struct {
+	GroupID       string  `json:"groupId,omitempty"`
 	ID            string  `json:"id"`
 	Name          string  `json:"name"`
 	Gender        string  `json:"gender,omitempty"`
@@ -59,6 +62,7 @@ type Athlete struct {
 }
 
 type Event struct {
+	GroupID string `json:"groupId,omitempty"`
 	domain.CompetitionConfig
 	CombinedID    string  `json:"combinedId,omitempty"`
 	StartMode     string  `json:"startMode,omitempty"`
@@ -150,6 +154,7 @@ type Bar struct {
 
 // Combined references the owned component events in events[].
 type Combined struct {
+	GroupID     string              `json:"groupId,omitempty"`
 	ID          string              `json:"id"`
 	Name        string              `json:"name"`
 	Gender      string              `json:"gender"`
@@ -163,4 +168,10 @@ type CombinedComponent struct {
 	EventID string           `json:"eventId"`
 	Ordinal int              `json:"ordinal"`
 	Rule    domain.PointRule `json:"rule"`
+}
+
+type Group struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Ordinal int    `json:"ordinal"`
 }

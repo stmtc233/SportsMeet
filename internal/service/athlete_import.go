@@ -20,6 +20,7 @@ const (
 	ColUnit          = "unit"
 	ColClassName     = "className"
 	ColGrade         = "grade"
+	ColGroup         = "group"
 	ColBirthDate     = "birthDate"
 	ColNote          = "note"
 	ColEvents        = "events" // event names, separated by 、 , ; or /
@@ -33,6 +34,7 @@ var headerColumns = map[string]string{
 	"单位": ColUnit, "参赛单位": ColUnit, "代表队": ColUnit, "学校": ColUnit, "学院": ColUnit, "队伍": ColUnit, "unit": ColUnit,
 	"班级": ColClassName, "班": ColClassName, "class": ColClassName,
 	"年级": ColGrade, "grade": ColGrade,
+	"参赛组别": ColGroup, "组别": ColGroup, "group": ColGroup,
 	"出生日期": ColBirthDate, "生日": ColBirthDate,
 	"备注": ColNote, "note": ColNote,
 	"项目": ColEvents, "报名项目": ColEvents, "参赛项目": ColEvents,
@@ -166,6 +168,14 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 		return nil, err
 	}
 
+	groups, err := s.store.ListGroups(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	groupByName := map[string]string{}
+	for _, g := range groups {
+		groupByName[domain.NormalizeText(g.Name)] = g.ID
+	}
 	byNumber, byBib, byName := map[string]*domain.Athlete{}, map[string]*domain.Athlete{}, map[string]bool{}
 	for i := range athletes {
 		a := &athletes[i]
@@ -178,10 +188,17 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 		byName[domain.NormalizeText(a.Name)] = true
 	}
 	unitIDs := map[string]string{}
+	unitGroups := map[string][]string{}
+	ambiguousUnits := map[string]bool{}
 	for _, u := range units {
+		unitGroups[u.ID] = u.GroupIDs
 		unitIDs[domain.NormalizeText(u.Name)] = u.ID
 		if u.ShortName != "" {
-			unitIDs[domain.NormalizeText(u.ShortName)] = u.ID
+			key := domain.NormalizeText(u.ShortName)
+			if prev := unitIDs[key]; prev != "" && prev != u.ID {
+				ambiguousUnits[key] = true
+			}
+			unitIDs[key] = u.ID
 		}
 	}
 	entered := map[string]bool{}
@@ -251,13 +268,43 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 			continue
 		}
 
+		if name := cell(ColGroup); name != "" {
+			a.GroupID = groupByName[domain.NormalizeText(name)]
+			if a.GroupID == "" {
+				fail("组别「%s」不存在", name)
+				continue
+			}
+		} else if existing != nil {
+			a.GroupID = existing.GroupID
+		}
+		unitKey := domain.NormalizeText(cell(ColUnit))
+		if ambiguousUnits[unitKey] {
+			exact := ""
+			for _, u := range units {
+				if domain.NormalizeText(u.Name) == unitKey {
+					exact = u.ID
+				}
+			}
+			if exact == "" {
+				fail("单位简称重复，请填写全称")
+				continue
+			}
+			unitIDs[unitKey] = exact
+		}
+		unitID := unitIDs[unitKey]
+		if unitID == "" && existing != nil {
+			unitID = existing.UnitID
+		}
+		if a.GroupID == "" && len(unitGroups[unitID]) == 1 {
+			a.GroupID = unitGroups[unitID][0]
+		}
 		var eventIDs []string
 		bad := ""
 		for _, token := range strings.Split(eventSeparators.Replace(cell(ColEvents)), "\n") {
 			if token = strings.TrimSpace(token); token == "" {
 				continue
 			}
-			id := matchEvent(events, token, a.Gender)
+			id := matchEvent(events, token, a.Gender, a.GroupID)
 			if id == "" {
 				bad = token
 				break
@@ -291,7 +338,7 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 			merged.Name = a.Name
 			for _, f := range []struct{ dst, src *string }{
 				{&merged.Bib, &a.Bib}, {&merged.StudentNumber, &a.StudentNumber}, {&merged.UnitID, &a.UnitID},
-				{&merged.ClassName, &a.ClassName}, {&merged.Grade, &a.Grade}, {&merged.BirthDate, &a.BirthDate}, {&merged.Note, &a.Note},
+				{&merged.GroupID, &a.GroupID}, {&merged.ClassName, &a.ClassName}, {&merged.Grade, &a.Grade}, {&merged.BirthDate, &a.BirthDate}, {&merged.Note, &a.Note},
 			} {
 				if *f.src != "" {
 					*f.dst = *f.src
@@ -320,6 +367,16 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 				stmts = append(stmts, store.Stmt(`INSERT INTO entries(event_id, athlete_id) VALUES (?, ?)`, eventID, a.ID))
 			}
 		}
+		for _, id := range eventIDs {
+			for _, e := range events {
+				if e.ID == id && e.GroupID != "" && a.GroupID != "" && e.GroupID != a.GroupID {
+					out.Message = "跨组报名"
+				}
+			}
+		}
+		if a.GroupID == "" && len(groups) > 0 && out.Message == "" {
+			out.Message = "未指定参赛组别"
+		}
 		p.Rows = append(p.Rows, out)
 	}
 	plan.stmts = append(unitStmts, stmts...)
@@ -329,22 +386,38 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 // matchEvent finds the event a cell names: its full name, or its
 // discipline among the events of the athlete's gender (and mixed ones)
 // when that is unambiguous. Relays take teams, not athletes.
-func matchEvent(events []domain.Event, token string, gender domain.Gender) string {
+func matchEvent(events []domain.Event, token string, gender domain.Gender, groupID ...string) string {
 	name, disc := domain.NormalizeText(token), domain.DisciplineKey(token)
-	found := ""
+	exact, candidates := []domain.Event{}, []domain.Event{}
 	for _, e := range events {
 		if e.IsTeam() || e.CombinedID != "" {
 			continue
 		}
 		if domain.NormalizeText(e.Name) == name {
-			return e.ID
+			exact = append(exact, e)
 		}
-		if domain.DisciplineKey(e.Discipline) == disc && (e.Gender == gender || e.Gender == domain.GenderMixed) {
-			if found != "" {
-				return "" // several groups of this discipline: the name must say which
-			}
-			found = e.ID
+		if domain.DisciplineKey(e.Discipline) == disc {
+			candidates = append(candidates, e)
 		}
+	}
+	if len(exact) == 1 {
+		return exact[0].ID
+	}
+	if len(exact) > 1 {
+		candidates = exact
+	}
+	found := ""
+	for _, e := range candidates {
+		if e.Gender != gender && e.Gender != domain.GenderMixed {
+			continue
+		}
+		if len(groupID) > 0 && groupID[0] != "" && e.GroupID != groupID[0] {
+			continue
+		}
+		if found != "" {
+			return ""
+		}
+		found = e.ID
 	}
 	return found
 }

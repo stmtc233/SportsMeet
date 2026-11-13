@@ -11,6 +11,10 @@ import (
 func (s *Service) planMutation(ctx context.Context, in Mutation, before any) (any, bool, error) {
 	const src = store.SourceMCP
 	switch in.Action {
+	case "delete_group":
+		return in.ID, false, s.DeleteGroup(ctx, src, in.MeetID, in.ID)
+	case "reorder_groups":
+		return in.IDs, false, s.ReorderGroups(ctx, src, in.MeetID, in.IDs)
 	case "save_combined":
 		c, err := s.SaveCombined(ctx, src, in.MeetID, in.CombinedID, in.Combined)
 		return c, false, err

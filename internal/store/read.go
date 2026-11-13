@@ -44,13 +44,13 @@ func (s *Store) GetMeet(ctx context.Context, id string) (*domain.Meet, error) {
 
 // ListUnits returns a meet's units by name.
 func (s *Store) ListUnits(ctx context.Context, meetID string) ([]domain.Unit, error) {
-	rows, err := s.Query(ctx, `SELECT id, meet_id, name, short_name FROM units WHERE meet_id = ? ORDER BY name`, meetID)
+	rows, err := s.Query(ctx, `SELECT id, meet_id, name, short_name, COALESCE((SELECT json_group_array(group_id) FROM unit_groups WHERE unit_id=units.id),'[]') FROM units WHERE meet_id = ? ORDER BY name`, meetID)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]domain.Unit, 0, len(rows.Values))
 	for _, r := range rows.Values {
-		out = append(out, domain.Unit{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), ShortName: str(r[3])})
+		out = append(out, domain.Unit{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), ShortName: str(r[3]), GroupIDs: stringIDs(r[4])})
 	}
 	return out, nil
 }
@@ -72,7 +72,7 @@ func (s *Store) ListParticipants(ctx context.Context, sc Scope) ([]domain.Athlet
 
 func (s *Store) readAthletes(ctx context.Context, where string, args ...any) ([]domain.Athlete, error) {
 	rows, err := s.Query(ctx, `SELECT id, meet_id, name, gender, bib, student_number, unit_id, class_name,
-		grade, birth_date, note FROM athletes WHERE `+where+` ORDER BY created_at, rowid`, args...)
+		grade, birth_date, note, group_id FROM athletes WHERE `+where+` ORDER BY created_at, rowid`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (s *Store) readAthletes(ctx context.Context, where string, args ...any) ([]
 	for _, r := range rows.Values {
 		out = append(out, domain.Athlete{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), Gender: domain.Gender(str(r[3])),
 			Bib: str(r[4]), StudentNumber: str(r[5]), UnitID: str(r[6]), ClassName: str(r[7]), Grade: str(r[8]),
-			BirthDate: str(r[9]), Note: str(r[10])})
+			BirthDate: str(r[9]), Note: str(r[10]), GroupID: str(r[11])})
 	}
 	return out, nil
 }
@@ -93,8 +93,8 @@ func (s *Store) ListEvents(ctx context.Context, sc Scope) ([]domain.Event, error
 	} else if sc.EventIDs != nil {
 		cond, arg = sc.events("id")
 	}
-	rows, err := s.Query(ctx, `SELECT id, meet_id, name, gender, discipline, group_label, kind, date, lane_count,
-		attempt_count, note, start_mode, distance_mode, relay_leg_count, config_json, combined_id FROM events WHERE `+cond+` ORDER BY created_at, rowid`, arg)
+	rows, err := s.Query(ctx, `SELECT id, meet_id, name, gender, discipline, COALESCE((SELECT name FROM meet_groups WHERE id=events.group_id),''), kind, date, lane_count,
+		attempt_count, note, start_mode, distance_mode, relay_leg_count, config_json, combined_id, group_id FROM events WHERE `+cond+` ORDER BY created_at, rowid`, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (s *Store) ListEvents(ctx context.Context, sc Scope) ([]domain.Event, error
 	for _, r := range rows.Values {
 		e := domain.Event{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), Gender: domain.Gender(str(r[3])),
 			Discipline: str(r[4]), GroupLabel: str(r[5]), Kind: domain.EventKind(str(r[6])), Date: str(r[7]),
-			LaneCount: int(i64(r[8])), AttemptCount: int(i64(r[9])), Note: str(r[10]), StartMode: domain.StartMode(str(r[11])), DistanceMode: domain.DistanceMode(str(r[12])), RelayLegCount: int(i64(r[13])), CombinedID: str(r[15])}
+			LaneCount: int(i64(r[8])), AttemptCount: int(i64(r[9])), Note: str(r[10]), StartMode: domain.StartMode(str(r[11])), DistanceMode: domain.DistanceMode(str(r[12])), RelayLegCount: int(i64(r[13])), CombinedID: str(r[15]), GroupID: str(r[16])}
 		if err := json.Unmarshal([]byte(str(r[14])), &e.CompetitionConfig); err != nil {
 			return nil, err
 		}
@@ -336,4 +336,10 @@ func (s *Store) GetSetting(ctx context.Context, key string) (string, error) {
 func EventConfigJSON(e domain.Event) string {
 	b, _ := json.Marshal(e.CompetitionConfig)
 	return string(b)
+}
+
+func stringIDs(v any) []string {
+	ids := []string{}
+	_ = json.Unmarshal([]byte(str(v)), &ids)
+	return ids
 }

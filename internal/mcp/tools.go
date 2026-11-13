@@ -98,12 +98,18 @@ func NewServer(svc *service.Service) *sdk.Server {
 		MeetID   string   `json:"meetId"`
 		Kind     string   `json:"kind"`
 		EventIDs []string `json:"eventIds,omitempty"`
+		GroupIDs []string `json:"groupIds,omitempty"`
 	}) (any, error) {
+		if in.Kind == service.ReportResults || in.Kind == service.ReportTeamScores {
+			html, err := svc.RenderGroupedReport(ctx, service.GroupReportRequest{Kind: in.Kind, MeetID: in.MeetID, GroupIDs: in.GroupIDs, EventIDs: in.EventIDs})
+			return map[string]string{"html": html}, err
+		}
 		html, err := svc.RenderReport(ctx, in.Kind, in.MeetID, in.EventIDs)
 		return map[string]string{"html": html}, err
 	})
 	registerCombined(s, svc)
 	registerTeamScoring(s, svc)
+	registerGroups(s, svc)
 	registerMutations(s, svc)
 	return s
 }

@@ -77,7 +77,7 @@
 | 工具 | 用途 |
 |---|---|
 | `get_team_scores` | 团体规则、按项目性别／组别／项目集合筛选的单位排名、得分明细与计分进度；同分直接并列 |
-| `preview_team_scoring` → `apply_team_scoring` | 修改赛事团体计分规则，预览原、新总分与名次，确认后提交 |
+| `preview_team_scoring` → `apply_team_scoring` | 修改赛事团体计分规则，预览原、新总分与名次，确认后提交（界面直接保存） |
 | `list_meets` / `get_meet` | 赛事列表 / 详情 |
 | `list_event_presets` | 读取常用项目初始 `input`，可调整后交给 `save_event` |
 | `list_units` / `list_athletes` / `list_events` | 按赛事读取基础数据与进度;项目按日期与计划时间排序,见 [domain.md](domain.md)「时间」 |
@@ -152,3 +152,11 @@
 - `get_team_scores` 接受 `{meetId, gender?, groupLabel?, targetIds?}`；`groupLabel` 省略为全部、空字符串为无组别；`targetIds` 为普通项目或全能 ID。查询结果包含规则、排名、单位明细、无单位明细与计分进度，`ScoreValue.exact` 为精确分数，`text` 为显示值。
 - `preview_team_scoring` 与 `apply_team_scoring` 接受 `request: {meetId, rules: {enabled, places, tiePolicy, relayMultiplier, overrides}}`，确认提交携带 `previewHash` 与 `confirmed=true`。规则、完成口径、指纹范围、导入兼容与同分并列要求见 [team-scoring.md](team-scoring.md)。
 - `render_report` 的 `kind=team_scores` 返回团体总分表 HTML，`eventIds` 沿用普通项目与全能的选择；不调用系统打印窗口。
+
+## 赛事组别
+
+- `list_groups` / `save_group` 管理赛事目录与改名；`suggest_groups` 只读归属建议。单位输入支持 `groupIds`，运动员、项目与全能输入支持 `groupId`，所有校验共用 service，完整归属规则见 [groups.md](groups.md)。
+- `preview_group_change → apply_group_change` 接受 `request={meetId,groupId,eventIds,combinedIds}`，确认调整已有项目或全能；`preview_group_assignments → apply_group_assignments` 接受 `request={meetId,assignments:[{kind,id,groupIds}]}`，`kind` 为 `unit` 或 `athlete`。提交须 `previewHash` 与 `confirmed=true`，预览内容变化返回 `E_STALE`。界面不经预览直接调整。
+- `preview_delete_group → delete_group` 与 `preview_reorder_groups → reorder_groups` 使用通用预览；删除组别时引用它的项目、全能、单位与运动员改为未分组，改后项目身份重复时预览 `errors` 列出原因，不能提交。排序 `ids` 必须完整包含赛事全部组别。
+- `get_team_score_boards` 返回各组独立排名，`groupId` 省略表示全部组别分别出榜，空字符串表示未分组；`get_team_scores` 的全赛事汇总接口保留兼容调用。
+- `render_report` 的成绩册与团体表支持 `groupIds`，省略或空数组为全部，数组中的空字符串选择未分组；`eventIds` 限定所选项目，按组分别汇总并另起页。

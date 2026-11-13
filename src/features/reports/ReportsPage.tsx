@@ -1,6 +1,8 @@
 import { useRef, useState, type ReactNode } from "react";
 import { IconPrint, StButton, StCheckbox, StEmpty, StNotice, StPage, StSegmented, StSelect, StToolbar, iconStroke } from "../../design";
 import { useScrollMemory, useViewState } from "../../lib/viewState";
+import { useGroups } from "../groups/controller";
+import { GroupFilter, inGroup, useGroupFilter } from "../groups/GroupFields";
 import type { Zoom } from "./paginate";
 import { ReportPreview } from "./ReportPreview";
 import { checkInRows, checkInSelection } from "./checkin";
@@ -25,14 +27,19 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   const { data: events, error: eventsError } = useReportTargets(meetId);
   // What was unticked stays unticked while the app runs, per meet.
   const [skipped, setSkipped] = useViewState(`reports:skipped:${meetId}`, () => new Set<string>());
-  const all = events ?? [];
+  const { data: groups } = useGroups(meetId);
+  // 成绩册 and 团体总分 print group by group; one group can be picked.
+  const grouped = (kind === "results" || kind === "team_scores") && !!groups?.length;
+  const [group, setGroup] = useGroupFilter(meetId, "reports");
+  const groupIds = grouped && group !== "all" ? [group] : [];
+  const all = (events ?? []).filter((e) => !grouped || inGroup(group, e.groupId));
   const chosen = all.filter((r) => !skipped.has(r.id)).map((r) => r.id);
   // Every event ticked prints them all (ids empty), also when what was unticked has since been deleted.
   const ids = chosen.length === all.length ? [] : chosen;
   const { data: teamScores, error: teamError } = useReportTeamScores(meetId, kind === "team_scores");
   const teamUnavailable = kind === "team_scores" && !teamScores?.rules.enabled;
   const sheet = kind === "checkin" || kind === "record" ? kind : null;
-  const { data: bookHTML, error: bookError } = useReportHTML(sheet ? "startlist" : kind, meetId, ids, all.length, chosen.length, !sheet && !teamUnavailable);
+  const { data: bookHTML, error: bookError } = useReportHTML(sheet ? "startlist" : kind, meetId, ids, all.length, chosen.length, !sheet && !teamUnavailable, groupIds);
   // 检录单 and 成绩记录表: by round, optionally one day.
   const { data: targets, error: targetsError } = useCheckInTargets(meetId);
   const [chosenDay, setDay] = useViewState(`reports:day:${meetId}`, "");
@@ -52,7 +59,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   const none = teamUnavailable ? (teamScores ? "尚未启用团体计分" : "") : (sheet ? targets : events) === undefined ? "" : listed > 0 ? (sheet ? "未选择轮次" : "未选择项目") : !sheet ? "还没有项目" : day ? "当天没有组" : "还没有组";
   const print = async () => {
     setBusy(true);
-    await (sheet ? ReportsController.printSheet(sheet, req) : ReportsController.print(kind, meetId, ids));
+    await (sheet ? ReportsController.printSheet(sheet, req) : ReportsController.print(kind, meetId, ids, groupIds));
     setBusy(false);
   };
   return (
@@ -72,7 +79,8 @@ export function ReportsPage({ meetId }: { meetId: string }) {
                 options={[{ value: "", label: "全部日期" }, ...(targets?.days ?? []).map((d) => ({ value: d, label: d }))]} />
             } />
         ) : (
-          <ChoiceList title="项目" scrollKey={`reports:events:${meetId}`} items={all.map((e) => ({ id: e.id, label: e.name }))} skipped={skipped} onChange={setSkipped} />
+          <ChoiceList title="项目" scrollKey={`reports:events:${meetId}`} items={all.map((e) => ({ id: e.id, label: e.name }))} skipped={skipped} onChange={setSkipped}
+            filter={grouped ? <GroupFilter meetId={meetId} value={group} onChange={setGroup} /> : undefined} />
         )}
         <div className="report-main">
           {error ? <div className="report-note"><StNotice tone="danger">{error}</StNotice></div> : count === 0 ? (none && <StEmpty>{none}</StEmpty>) : (

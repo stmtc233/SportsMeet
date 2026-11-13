@@ -12,6 +12,8 @@ import (
 
 // Book is one meet's printable content.
 type Book struct {
+	GroupName  string
+	GroupBooks []Book
 	NewPage    bool   // Start each event on a new printed page.
 	Title      string // 秩序册 / 成绩册
 	Meet       string

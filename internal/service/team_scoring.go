@@ -15,12 +15,14 @@ import (
 )
 
 type TeamScoreFilter struct {
+	GroupID    *string  `json:"groupId,omitempty"`
 	MeetID     string   `json:"meetId"`
 	Gender     string   `json:"gender,omitempty"`
 	GroupLabel *string  `json:"groupLabel,omitempty"`
 	TargetIDs  []string `json:"targetIds,omitempty"`
 }
 type TeamScoreTarget struct {
+	GroupID    string        `json:"groupId"`
 	EventID    string        `json:"eventId"`
 	CombinedID string        `json:"combinedId"`
 	Name       string        `json:"name"`
@@ -38,19 +40,22 @@ func (t TeamScoreTarget) id() string {
 
 type TeamScoreDetail struct {
 	scoring.TeamScores
-	Rules   domain.TeamScoringRules `json:"rules"`
-	Groups  []string                `json:"groups"`
-	Targets []TeamScoreTarget       `json:"targets"`
+	Rules    domain.TeamScoringRules `json:"rules"`
+	Groups   []string                `json:"groups"`
+	Targets  []TeamScoreTarget       `json:"targets"`
+	Warnings []string                `json:"warnings"`
 }
 type TeamScoringRequest struct {
 	MeetID string                  `json:"meetId"`
 	Rules  domain.TeamScoringRules `json:"rules"`
 }
 type TeamScoringPreview struct {
-	PreviewHash string           `json:"previewHash"`
-	Changed     bool             `json:"changed"`
-	Before      *TeamScoreDetail `json:"before"`
-	After       *TeamScoreDetail `json:"after"`
+	PreviewHash  string           `json:"previewHash"`
+	Changed      bool             `json:"changed"`
+	Before       *TeamScoreDetail `json:"before"`
+	After        *TeamScoreDetail `json:"after"`
+	BeforeBoards []TeamScoreBoard `json:"beforeBoards"`
+	AfterBoards  []TeamScoreBoard `json:"afterBoards"`
 }
 
 type teamScoreState struct {
@@ -60,6 +65,8 @@ type teamScoreState struct {
 	teams    []domain.Team
 	rules    domain.TeamScoringRules
 	targets  []TeamScoreTarget
+	groups   []domain.CompetitionGroup
+	entries  []domain.Entry
 }
 
 func (s *Service) loadTeamScoreState(ctx context.Context, meetID string) (*teamScoreState, error) {
@@ -80,6 +87,12 @@ func (s *Service) loadTeamScoreState(ctx context.Context, meetID string) (*teamS
 	if st.rules, err = s.store.TeamScoringRules(ctx, meetID); err != nil {
 		return nil, err
 	}
+	if st.groups, err = s.store.ListGroups(ctx, meetID); err != nil {
+		return nil, err
+	}
+	if st.entries, err = s.store.ListEntries(ctx, store.Scope{MeetID: meetID}); err != nil {
+		return nil, err
+	}
 	// ListEvents keeps creation order for schedule tie breakers.
 	events, err := s.store.ListEvents(ctx, store.Scope{MeetID: meetID})
 	if err != nil {
@@ -87,12 +100,12 @@ func (s *Service) loadTeamScoreState(ctx context.Context, meetID string) (*teamS
 	}
 	for _, e := range domain.ScheduleOrder(events, st.combined.rounds, m.StartDate) {
 		if e.CombinedID == "" {
-			st.targets = append(st.targets, TeamScoreTarget{EventID: e.ID, Name: e.Name, Gender: e.Gender, GroupLabel: e.GroupLabel, Relay: e.Kind == domain.KindRelay})
+			st.targets = append(st.targets, TeamScoreTarget{GroupID: e.GroupID, EventID: e.ID, Name: e.Name, Gender: e.Gender, GroupLabel: e.GroupLabel, Relay: e.Kind == domain.KindRelay})
 		}
 	}
 	for _, p := range st.combined.parents {
 		c := p.Combined
-		st.targets = append(st.targets, TeamScoreTarget{CombinedID: c.ID, Name: c.Name, Gender: c.Gender, GroupLabel: c.GroupLabel})
+		st.targets = append(st.targets, TeamScoreTarget{GroupID: c.GroupID, CombinedID: c.ID, Name: c.Name, Gender: c.Gender, GroupLabel: c.GroupLabel})
 	}
 	// Deleted targets have no effect and are omitted from reads/exports.
 	live := []domain.TeamScoreOverride{}
@@ -144,14 +157,24 @@ func (st *teamScoreState) normalizeRules(r domain.TeamScoringRules) (domain.Team
 	return r, nil
 }
 
-func (st *teamScoreState) detail(filter TeamScoreFilter, rules domain.TeamScoringRules) (*TeamScoreDetail, error) {
+func (st *teamScoreState) validateFilter(filter TeamScoreFilter) error {
 	if filter.Gender != "" && filter.Gender != "男" && filter.Gender != "女" && filter.Gender != "混合" {
-		return nil, invalid("请选择性别")
+		return invalid("请选择性别")
 	}
 	for _, id := range filter.TargetIDs {
 		if id == "" || !slices.ContainsFunc(st.targets, func(t TeamScoreTarget) bool { return t.id() == id }) {
-			return nil, invalid("计分项目不存在或已删除")
+			return invalid("计分项目不存在或已删除")
 		}
+	}
+	if filter.GroupID != nil && *filter.GroupID != "" && !slices.ContainsFunc(st.groups, func(g domain.CompetitionGroup) bool { return g.ID == *filter.GroupID }) {
+		return invalid("组别不属于本赛事")
+	}
+	return nil
+}
+
+func (st *teamScoreState) detail(filter TeamScoreFilter, rules domain.TeamScoringRules) (*TeamScoreDetail, error) {
+	if err := st.validateFilter(filter); err != nil {
+		return nil, err
 	}
 	athletes := map[string]domain.Athlete{}
 	for _, a := range st.combined.athletes {
@@ -166,6 +189,9 @@ func (st *teamScoreState) detail(filter TeamScoreFilter, rules domain.TeamScorin
 	for _, t := range st.targets {
 		if !slices.Contains(groups, t.GroupLabel) {
 			groups = append(groups, t.GroupLabel)
+		}
+		if filter.GroupID != nil && t.GroupID != *filter.GroupID {
+			continue
 		}
 		if filter.Gender != "" && filter.Gender != string(t.Gender) {
 			continue
@@ -220,12 +246,64 @@ func (st *teamScoreState) detail(filter TeamScoreFilter, rules domain.TeamScorin
 		sources = append(sources, src)
 	}
 	sort.Strings(groups)
-	return &TeamScoreDetail{TeamScores: scoring.TeamRank(rules, st.units, sources), Rules: rules, Groups: groups, Targets: st.targets}, nil
+	units := st.units
+	warnings := []string{}
+	if filter.GroupID != nil {
+		allowed := map[string]bool{}
+		for _, u := range st.units {
+			if slices.Contains(u.GroupIDs, *filter.GroupID) || *filter.GroupID == "" && len(u.GroupIDs) == 0 {
+				allowed[u.ID] = true
+			}
+		}
+		selectedEvents := map[string]bool{}
+		for _, src := range sources {
+			if src.EventID != "" {
+				selectedEvents[src.EventID] = true
+			}
+			if src.CombinedID != "" {
+				for _, p := range st.combined.parents {
+					if p.Combined.ID == src.CombinedID {
+						for _, c := range p.Components {
+							selectedEvents[c.EventID] = true
+						}
+					}
+				}
+			}
+		}
+		for _, en := range st.entries {
+			if !selectedEvents[en.EventID] {
+				continue
+			}
+			uid := athletes[en.AthleteID].UnitID
+			if en.TeamID != "" {
+				uid = teams[en.TeamID].UnitID
+			}
+			if uid != "" {
+				if !allowed[uid] {
+					warnings = append(warnings, "存在跨组参赛单位")
+				}
+				allowed[uid] = true
+			}
+		}
+		for _, src := range sources {
+			for _, c := range src.Competitors {
+				if c.UnitID != "" {
+					allowed[c.UnitID] = true
+				}
+			}
+		}
+		units = []domain.Unit{}
+		for _, u := range st.units {
+			if allowed[u.ID] {
+				units = append(units, u)
+			}
+		}
+	}
+	warnings = slices.Compact(warnings)
+	return &TeamScoreDetail{TeamScores: scoring.TeamRank(rules, units, sources), Rules: rules, Groups: groups, Targets: st.targets, Warnings: warnings}, nil
 }
 
 func (s *Service) GetTeamScores(ctx context.Context, filter TeamScoreFilter) (*TeamScoreDetail, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	st, err := s.loadTeamScoreState(ctx, filter.MeetID)
 	if err != nil {
 		return nil, err
@@ -261,12 +339,22 @@ func (s *Service) prepareTeamScoring(ctx context.Context, req TeamScoringRequest
 		Athletes []domain.Athlete
 		Units    []domain.Unit
 		Teams    []domain.Team
-	}{req, st.meet, st.rules, st.combined.parents, st.combined.events, st.combined.rounds, st.combined.athletes, st.units, st.teams})
+		Groups   []domain.CompetitionGroup
+		Entries  []domain.Entry
+	}{req, st.meet, st.rules, st.combined.parents, st.combined.events, st.combined.rounds, st.combined.athletes, st.units, st.teams, st.groups, st.entries})
 	if err != nil {
 		return nil, err
 	}
 	hash := sha256.Sum256(raw)
-	return &TeamScoringPreview{PreviewHash: hex.EncodeToString(hash[:]), Changed: !reflect.DeepEqual(st.rules, req.Rules), Before: before, After: after}, nil
+	beforeBoards, err := st.boards(filter, st.rules)
+	if err != nil {
+		return nil, err
+	}
+	afterBoards, err := st.boards(filter, req.Rules)
+	if err != nil {
+		return nil, err
+	}
+	return &TeamScoringPreview{PreviewHash: hex.EncodeToString(hash[:]), Changed: !reflect.DeepEqual(st.rules, req.Rules), Before: before, After: after, BeforeBoards: beforeBoards, AfterBoards: afterBoards}, nil
 }
 
 func (s *Service) PreviewTeamScoring(ctx context.Context, req TeamScoringRequest) (*TeamScoringPreview, error) {
@@ -293,4 +381,27 @@ func (s *Service) ApplyTeamScoring(ctx context.Context, src store.Source, req Te
 	}
 	err = s.write(ctx, store.Audit{Source: src, Action: "team_scoring.rules", MeetID: req.MeetID, Message: "团体总分", Detail: p}, Change{Kind: "team_scoring", MeetID: req.MeetID}, store.Stmt(`INSERT INTO meet_team_scoring(meet_id,rules_json) VALUES (?,?) ON CONFLICT(meet_id) DO UPDATE SET rules_json=excluded.rules_json`, req.MeetID, jsonValue(p.After.Rules)))
 	return p, err
+}
+
+// SaveTeamScoring parses the rules as typed in the UI and saves them right away;
+// the team score page shows the recalculated standings.
+func (s *Service) SaveTeamScoring(ctx context.Context, src store.Source, meetID string, in TeamScoringInput) (*domain.TeamScoringRules, error) {
+	rules, err := ParseTeamScoringInput(in)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	st, err := s.loadTeamScoreState(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	if rules, err = st.normalizeRules(rules); err != nil {
+		return nil, err
+	}
+	if reflect.DeepEqual(st.rules, rules) {
+		return &rules, nil
+	}
+	err = s.write(ctx, store.Audit{Source: src, Action: "team_scoring.rules", MeetID: meetID, Message: "团体总分", Detail: rules}, Change{Kind: "team_scoring", MeetID: meetID}, store.Stmt(`INSERT INTO meet_team_scoring(meet_id,rules_json) VALUES (?,?) ON CONFLICT(meet_id) DO UPDATE SET rules_json=excluded.rules_json`, meetID, jsonValue(rules)))
+	return &rules, err
 }
