@@ -24,10 +24,10 @@ type Preferences struct {
 	// CheckInLeadMinutes is how long before a heat's planned start its
 	// athletes check in, 0–240; 0 prints no check-in time.
 	CheckInLeadMinutes int `json:"checkInLeadMinutes"`
-	// PrintCheckInNewPage starts each heat's check-in sheet on a new page.
-	PrintCheckInNewPage bool `json:"printCheckInNewPage"`
-	// PrintRecordNewPage starts each heat's record sheet on a new page.
-	PrintRecordNewPage bool `json:"printRecordNewPage"`
+	// PrintCheckInBreak and PrintRecordBreak are where the 检录单 and the
+	// 成绩记录表 start a new page (SheetBreak*).
+	PrintCheckInBreak string `json:"printCheckInBreak"`
+	PrintRecordBreak  string `json:"printRecordBreak"`
 	// PrintResultsTime prints each heat's results time in the 成绩册.
 	PrintResultsTime bool `json:"printResultsTime"`
 }
@@ -39,15 +39,43 @@ type MCPConfig struct {
 }
 
 func (s *Service) Preferences(ctx context.Context) (Preferences, error) {
-	p := Preferences{Theme: "system", SeparateUnits: true, Balance: true, PrintSchedule: true, CheckInLeadMinutes: domain.DefaultCheckInLeadMinutes, PrintRecordNewPage: true}
+	p := Preferences{Theme: "system", SeparateUnits: true, Balance: true, PrintSchedule: true, CheckInLeadMinutes: domain.DefaultCheckInLeadMinutes, PrintCheckInBreak: SheetBreakRound, PrintRecordBreak: SheetBreakRound}
 	raw, err := s.store.GetSetting(ctx, "preferences")
 	if err != nil {
 		return p, err
 	}
 	if raw != "" {
 		err = json.Unmarshal([]byte(raw), &p)
+		// Settings saved with the 检录单's「每组另起一页」switch on keep a page per heat.
+		var old struct {
+			Break   *string `json:"printCheckInBreak"`
+			NewPage bool    `json:"printCheckInNewPage"`
+		}
+		if json.Unmarshal([]byte(raw), &old) == nil && old.Break == nil && old.NewPage {
+			p.PrintCheckInBreak = SheetBreakHeat
+		}
 	}
 	return p, err
+}
+
+// Where a per-heat sheet starts a new page.
+const (
+	SheetBreakNone  = "none"  // only when a page is full
+	SheetBreakRound = "round" // each round: its heats share pages
+	SheetBreakHeat  = "heat"  // each heat
+)
+
+func validSheetBreak(v string) bool {
+	return v == SheetBreakNone || v == SheetBreakRound || v == SheetBreakHeat
+}
+
+// sheetBreaks marks where the sheets of list start a new page.
+func sheetBreaks(list []sheetHeat, mode string) []bool {
+	out := make([]bool, len(list))
+	for i := 1; i < len(list); i++ {
+		out[i] = mode == SheetBreakHeat || mode == SheetBreakRound && list[i].round.ID != list[i-1].round.ID
+	}
+	return out
 }
 
 func (s *Service) SavePreferences(ctx context.Context, p Preferences) error {
@@ -56,6 +84,9 @@ func (s *Service) SavePreferences(ctx context.Context, p Preferences) error {
 	}
 	if p.MinRestMinutes < 0 || p.MinRestMinutes > domain.MaxDurationMinutes {
 		return invalid("最短休息时间须为 0–%d 分钟", domain.MaxDurationMinutes)
+	}
+	if !validSheetBreak(p.PrintCheckInBreak) || !validSheetBreak(p.PrintRecordBreak) {
+		return invalid("请选择分页方式")
 	}
 	if !domain.ValidCheckInLead(p.CheckInLeadMinutes) {
 		return invalid("检录提前时间须为 0–%d 分钟", domain.MaxCheckInLeadMinutes)

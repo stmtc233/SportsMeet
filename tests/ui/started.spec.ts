@@ -149,17 +149,23 @@ for (const width of [1280, 800]) {
       await noOverflow(page);
       if (width === 800) await page.getByRole("button", { name: "设置分类", exact: true }).click();
       await nav.getByRole("button", { name: "打印", exact: true }).click();
-      // 每组另起一页: 检录单 first (off), then 成绩记录表 (on).
-      const pages = page.getByRole("switch", { name: /每组另起一页/ });
-      for (const [item, before] of [[page.getByRole("switch", { name: /成绩时间/ }), "false"], [pages.nth(0), "false"], [pages.nth(1), "true"]] as const) {
-        await expect(item).toHaveAttribute("aria-checked", before);
-        await item.click();
-        await expect(item).toHaveAttribute("aria-checked", before === "true" ? "false" : "true");
+      const time = page.getByRole("switch", { name: /成绩时间/ });
+      await expect(time).toHaveAttribute("aria-checked", "false");
+      await time.click();
+      await expect(time).toHaveAttribute("aria-checked", "true");
+      // 分页: 检录单 first, then 成绩记录表; both by round.
+      const breaks = page.getByRole("button", { name: "分页", exact: true });
+      await expect(breaks).toHaveCount(2);
+      for (const [i, choice] of [[0, "每组一页"], [1, "不分页"]] as const) {
+        await expect(breaks.nth(i)).toContainText("每个轮次一页");
+        await breaks.nth(i).click();
+        await page.getByRole("menuitemradio", { name: choice, exact: true }).click();
+        await expect(breaks.nth(i)).toContainText(choice);
       }
       expect(await page.evaluate(async () => {
         const p = await (globalThis as any).mygo.call("Settings.Preferences");
-        return [p.checkInLeadMinutes, p.printResultsTime, p.printCheckInNewPage, p.printRecordNewPage];
-      })).toEqual([0, true, true, false]);
+        return [p.checkInLeadMinutes, p.printResultsTime, p.printCheckInBreak, p.printRecordBreak];
+      })).toEqual([0, true, "heat", "none"]);
       await noOverflow(page);
       expect(errors).toEqual([]);
     });

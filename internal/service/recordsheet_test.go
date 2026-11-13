@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -21,7 +22,7 @@ func recordSheetOf(t *testing.T, f *fixture, in EventInput) string {
 	f.event = e.ID
 	f.addHeat(0, f.athletes[0], f.athletes[1])
 	html := renderRecord(t, f, CheckInRequest{RoundIDs: []string{f.detail().Rounds[0].ID}})
-	if strings.Count(html, `class="sheet record"`) != 1 || strings.Count(html, `class="line"`) != 2 {
+	if strings.Count(html, `<section class="sheet record`) != 1 || strings.Count(html, `class="line"`) != 2 {
 		t.Fatalf("%s: sheets or lines:\n%s", in.Discipline, html)
 	}
 	return html
@@ -87,12 +88,12 @@ func TestRecordSheetColumns(t *testing.T) {
 func TestRecordSheetSelectionAndPages(t *testing.T) {
 	f := checkInFixture(t)
 	html := renderRecord(t, f, CheckInRequest{})
-	if strings.Count(html, `class="sheet record"`) != 4 || !strings.Contains(html, "break-before: page") {
-		t.Fatalf("every heat on its own page by default:\n%s", html)
+	if strings.Count(html, `<section class="sheet record`) != 4 || strings.Contains(html, `record break"`) {
+		t.Fatalf("one round's heats share pages by default:\n%s", html)
 	}
 	order(t, html, "第1组", "2026-11-12 09:30", "第2组", "第3组", "第4组")
 	html = renderRecord(t, f, CheckInRequest{Day: "2026-11-12"})
-	if strings.Count(html, `class="sheet record"`) != 2 {
+	if strings.Count(html, `<section class="sheet record`) != 2 {
 		t.Fatalf("day filter:\n%s", html)
 	}
 	order(t, html, "第3组", "第1组")
@@ -109,15 +110,48 @@ func TestRecordSheetSelectionAndPages(t *testing.T) {
 		t.Fatal("an entered mark is printed")
 	}
 
+	// A page per round by default: a second event starts one, its heats do not.
+	first := f.event
+	e, err := f.svc.SaveEvent(f.ctx, ui, f.meet, "", EventInput{Gender: "男", Discipline: "跳远", Kind: "distance"})
+	must(t, err)
+	f.event = e.ID
+	f.addHeat(0, f.athletes[0])
+	f.addHeat(0, f.athletes[1])
+	f.event = first
+	breaks := func() int { return strings.Count(renderRecord(t, f, CheckInRequest{}), `record break"`) }
+	if n := breaks(); n != 1 {
+		t.Fatalf("%d page breaks by round", n)
+	}
 	prefs, err := f.svc.Preferences(f.ctx)
 	must(t, err)
-	if !prefs.PrintRecordNewPage {
+	if prefs.PrintRecordBreak != SheetBreakRound {
 		t.Fatalf("defaults = %+v", prefs)
 	}
-	prefs.PrintRecordNewPage = false
-	must(t, f.svc.SavePreferences(f.ctx, prefs))
-	if strings.Contains(renderRecord(t, f, CheckInRequest{}), "break-before") {
-		t.Fatal("page breaks with the setting off")
+	for mode, want := range map[string]int{SheetBreakHeat: 5, SheetBreakNone: 0} {
+		prefs.PrintRecordBreak = mode
+		must(t, f.svc.SavePreferences(f.ctx, prefs))
+		if n := breaks(); n != want {
+			t.Fatalf("%s: %d page breaks, want %d", mode, n, want)
+		}
+	}
+	prefs.PrintRecordBreak = "page"
+	wantInvalid(t, f.svc.SavePreferences(f.ctx, prefs), "分页方式")
+}
+
+// Settings saved with the 检录单's switch keep what it said.
+func TestSheetBreakFromSavedSwitch(t *testing.T) {
+	f := newFixture(t, 1, track())
+	for raw, want := range map[string]string{
+		`{"theme":"system","printCheckInNewPage":true}`:                            SheetBreakHeat,
+		`{"theme":"system","printCheckInNewPage":false}`:                           SheetBreakRound,
+		`{"theme":"system","printCheckInNewPage":true,"printCheckInBreak":"none"}`: SheetBreakNone,
+	} {
+		must(t, f.svc.saveSetting(f.ctx, "preferences", json.RawMessage(raw), "settings.preferences"))
+		p, err := f.svc.Preferences(f.ctx)
+		must(t, err)
+		if p.PrintCheckInBreak != want || p.PrintRecordBreak != SheetBreakRound {
+			t.Fatalf("%s: %+v", raw, p)
+		}
 	}
 }
 

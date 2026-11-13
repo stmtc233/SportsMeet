@@ -29,10 +29,11 @@ func (s *Service) RenderRecordSheet(ctx context.Context, req CheckInRequest) (st
 	if err != nil {
 		return "", err
 	}
-	book := report.RecordBook{NewPage: prefs.PrintRecordNewPage, Meet: d.meet.Name, PrintedAt: domain.RecordedText(s.store.Now(), s.zone)}
-	for _, t := range list {
+	book := report.RecordBook{Meet: d.meet.Name, PrintedAt: domain.RecordedText(s.store.Now(), s.zone)}
+	breaks := sheetBreaks(list, prefs.PrintRecordBreak)
+	for i, t := range list {
 		e := t.event
-		sheet := report.RecordSheet{Event: e.Name, Round: t.round.Label(), Heat: domain.HeatLabel(t.heat.Ordinal, t.heat.Name),
+		sheet := report.RecordSheet{Break: breaks[i], Event: e.Name, Round: t.round.Label(), Heat: domain.HeatLabel(t.heat.Ordinal, t.heat.Name),
 			Time: domain.ScheduledText(t.at, ""), PositionLabel: e.Rules().PositionLabel, Team: e.IsTeam(), RosterLabel: rosterLabel(e),
 			Lines: d.sheetLines(e, t.heat)}
 		recordColumns(e, &sheet)

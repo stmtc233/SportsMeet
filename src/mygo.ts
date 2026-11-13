@@ -804,10 +804,12 @@ export interface Preferences {
    * athletes check in, 0–240; 0 prints no check-in time.
    */
   checkInLeadMinutes: number;
-  /** PrintCheckInNewPage starts each heat's check-in sheet on a new page. */
-  printCheckInNewPage: boolean;
-  /** PrintRecordNewPage starts each heat's record sheet on a new page. */
-  printRecordNewPage: boolean;
+  /**
+   * PrintCheckInBreak and PrintRecordBreak are where the 检录单 and the
+   * 成绩记录表 start a new page (SheetBreak*).
+   */
+  printCheckInBreak: string;
+  printRecordBreak: string;
   /** PrintResultsTime prints each heat's results time in the 成绩册. */
   printResultsTime: boolean;
 }

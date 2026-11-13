@@ -199,7 +199,8 @@ func rosterLabel(e domain.Event) string {
 }
 
 // RenderCheckIn returns the 检录单 as a printable HTML document: one sheet per
-// heat, in the event list's order, or with a day by planned time. The
+// heat, in the event list's order, or with a day by planned time; the
+// settings say where a new page starts (sheetBreaks). The
 // check-in time is the heat's effective planned time minus the settings'
 // lead (domain.CheckInAt); a heat without a time prints it blank.
 func (s *Service) RenderCheckIn(ctx context.Context, req CheckInRequest) (string, error) {
@@ -215,10 +216,11 @@ func (s *Service) RenderCheckIn(ctx context.Context, req CheckInRequest) (string
 	if err != nil {
 		return "", err
 	}
-	book := report.CheckInBook{NewPage: prefs.PrintCheckInNewPage, Meet: d.meet.Name, PrintedAt: domain.RecordedText(s.store.Now(), s.zone), ShowCheckIn: prefs.CheckInLeadMinutes > 0}
-	for _, t := range list {
+	book := report.CheckInBook{Meet: d.meet.Name, PrintedAt: domain.RecordedText(s.store.Now(), s.zone), ShowCheckIn: prefs.CheckInLeadMinutes > 0}
+	breaks := sheetBreaks(list, prefs.PrintCheckInBreak)
+	for i, t := range list {
 		e := t.event
-		book.Sheets = append(book.Sheets, report.CheckInSheet{Event: e.Name, Round: t.round.Label(), Heat: domain.HeatLabel(t.heat.Ordinal, t.heat.Name),
+		book.Sheets = append(book.Sheets, report.CheckInSheet{Break: breaks[i], Event: e.Name, Round: t.round.Label(), Heat: domain.HeatLabel(t.heat.Ordinal, t.heat.Name),
 			Time: domain.ScheduledText(t.at, ""), CheckIn: domain.ScheduledText(domain.CheckInAt(t.at, prefs.CheckInLeadMinutes), domain.ScheduledDay(t.at)),
 			PositionLabel: e.Rules().PositionLabel, Team: e.IsTeam(), RosterLabel: rosterLabel(e), Lines: d.sheetLines(e, t.heat)})
 	}

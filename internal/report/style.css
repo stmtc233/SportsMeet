@@ -44,6 +44,8 @@ th { background: #f0f0f0; font-weight: 600; }
 
 /* 检录单 */
 .sheet { margin-bottom: 24px; break-inside: avoid; page-break-inside: avoid; }
+/* Not limited to print: the preview reads it to lay out its pages. */
+.sheet.break { break-before: page; page-break-before: always; }
 .sheet-meet { margin: 0 0 2px; color: #444; }
 .sheet > h2 { font-size: 15px; margin: 0 0 6px; padding-bottom: 4px; border-bottom: 1.5px solid #111; }
 .sheet-times { width: auto; margin-bottom: 6px; }

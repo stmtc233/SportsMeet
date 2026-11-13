@@ -8,6 +8,9 @@ const rests = [0, 5, 10, 15, 20, 30, 45, 60];
 /** The check-in lead choices; 0 prints no check-in time. */
 const leads = [0, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240];
 
+/** Where the 检录单 and the 成绩记录表 start a new page. */
+const sheetBreaks = [{ value: "none", label: "不分页" }, { value: "round", label: "每个轮次一页" }, { value: "heat", label: "每组一页" }];
+
 export function PreferencesPanel({ section }: { section: "general" | "arrange" | "print" }) {
   const { data, error } = usePreferences();
   const [busy, setBusy] = useState(false);
@@ -49,11 +52,11 @@ export function PreferencesPanel({ section }: { section: "general" | "arrange" |
       <StSection title="成绩册" padded={false}>
         <StSwitchItem title="成绩时间" subtitle="每组成绩后印最后修改时间" checked={data.printResultsTime} disabled={busy} onChange={(printResultsTime) => void save({ printResultsTime })} />
       </StSection>
-      <StSection title="检录单" padded={false}>
-        <StSwitchItem title="每组另起一页" checked={data.printCheckInNewPage} disabled={busy} onChange={(printCheckInNewPage) => void save({ printCheckInNewPage })} />
+      <StSection title="检录单">
+        <StSelect label="分页" value={data.printCheckInBreak} disabled={busy} onChange={(printCheckInBreak) => void save({ printCheckInBreak })} options={sheetBreaks} />
       </StSection>
-      <StSection title="成绩记录表" padded={false}>
-        <StSwitchItem title="每组另起一页" checked={data.printRecordNewPage} disabled={busy} onChange={(printRecordNewPage) => void save({ printRecordNewPage })} />
+      <StSection title="成绩记录表">
+        <StSelect label="分页" value={data.printRecordBreak} disabled={busy} onChange={(printRecordBreak) => void save({ printRecordBreak })} options={sheetBreaks} />
       </StSection>
       <StSection title="分页" padded={false}>
         <StSwitchItem title="每个项目另起一页" checked={data.printNewPage} disabled={busy} onChange={(printNewPage) => void save({ printNewPage })} />

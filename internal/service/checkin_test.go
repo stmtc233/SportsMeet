@@ -57,19 +57,20 @@ func TestCheckInTargets(t *testing.T) {
 func TestCheckInSheets(t *testing.T) {
 	f := checkInFixture(t)
 	html := renderCheckIn(t, f, CheckInRequest{})
-	if n := strings.Count(html, `class="sheet"`); n != 4 {
+	if n := strings.Count(html, `<section class="sheet`); n != 4 {
 		t.Fatalf("%d sheets", n)
 	}
 	// List order, the default lead of 20 minutes, a blank time for 第4组.
 	order(t, html, "秋季运动会 · 检录单", "第1组", "2026-11-12 09:30", "09:10", "到", "缺", "001", "选手01", "一班", "裁判签名",
 		"第2组", "2026-11-13 08:00", "07:40", "第3组", "07:50", "第4组", "选手04")
-	if strings.Count(html, "检录时间") != 4 || strings.Contains(html, "break-before") {
+	// One round: its heats share pages.
+	if strings.Count(html, "检录时间") != 4 || strings.Contains(html, `class="sheet break"`) {
 		t.Fatalf("check-in times or page breaks:\n%s", html)
 	}
 
 	// A day: only its heats, by time.
 	html = renderCheckIn(t, f, CheckInRequest{Day: "2026-11-12"})
-	if strings.Count(html, `class="sheet"`) != 2 || strings.Contains(html, "第2组") || strings.Contains(html, "第4组") {
+	if strings.Count(html, `<section class="sheet`) != 2 || strings.Contains(html, "第2组") || strings.Contains(html, "第4组") {
 		t.Fatalf("day filter:\n%s", html)
 	}
 	order(t, html, "第3组", "第1组")
@@ -80,24 +81,24 @@ func TestCheckInSheets(t *testing.T) {
 
 	// Rounds: only those asked for.
 	html = renderCheckIn(t, f, CheckInRequest{RoundIDs: []string{"other"}})
-	if strings.Contains(html, `class="sheet"`) {
+	if strings.Contains(html, `<section class="sheet`) {
 		t.Fatal("printed a round that was not asked for")
 	}
 	html = renderCheckIn(t, f, CheckInRequest{RoundIDs: []string{f.detail().Rounds[0].ID}})
-	if strings.Count(html, `class="sheet"`) != 4 {
+	if strings.Count(html, `<section class="sheet`) != 4 {
 		t.Fatal("the asked round is missing")
 	}
 
 	// Lead 0 prints no check-in time; a new page per sheet.
 	prefs, err := f.svc.Preferences(f.ctx)
 	must(t, err)
-	if prefs.CheckInLeadMinutes != domain.DefaultCheckInLeadMinutes || prefs.PrintCheckInNewPage || prefs.PrintResultsTime {
+	if prefs.CheckInLeadMinutes != domain.DefaultCheckInLeadMinutes || prefs.PrintCheckInBreak != SheetBreakRound || prefs.PrintResultsTime {
 		t.Fatalf("defaults = %+v", prefs)
 	}
-	prefs.CheckInLeadMinutes, prefs.PrintCheckInNewPage = 0, true
+	prefs.CheckInLeadMinutes, prefs.PrintCheckInBreak = 0, SheetBreakHeat
 	must(t, f.svc.SavePreferences(f.ctx, prefs))
 	html = renderCheckIn(t, f, CheckInRequest{})
-	if strings.Contains(html, "检录时间") || !strings.Contains(html, "break-before: page") {
+	if strings.Contains(html, "检录时间") || strings.Count(html, `class="sheet break"`) != 3 {
 		t.Fatalf("lead 0 with new pages:\n%s", html)
 	}
 	prefs.CheckInLeadMinutes = 45

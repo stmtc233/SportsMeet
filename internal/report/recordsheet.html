@@ -8,7 +8,7 @@
 <body>
 {{$meet := .Meet}}{{$title := .Title}}
 {{range .Sheets}}{{$cols := .Columns}}{{$wind := .AttemptWind}}{{$rows := .LineRows}}
-<section class="sheet record">
+<section class="sheet record{{if .Break}} break{{end}}">
   <p class="sheet-meet">{{$meet}} · {{$title}}</p>
   <h2>{{.Event}} {{.Round}} {{.Heat}}</h2>
   <table class="sheet-times">

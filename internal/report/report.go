@@ -138,13 +138,8 @@ func Results(b Book) (string, error) {
 	return render(resultsTmpl, b)
 }
 
-// sheetPageBreak starts each per-heat sheet on a new page. Like the books'
-// break it is not limited to print: the preview reads it to lay out its pages.
-const sheetPageBreak = "\n.sheet ~ .sheet { break-before: page; page-break-before: always; }"
-
 // CheckInBook is the 检录单: one sheet per heat.
 type CheckInBook struct {
-	NewPage   bool // Start each sheet on a new printed page.
 	Title     string
 	Meet      string
 	PrintedAt string
@@ -155,6 +150,7 @@ type CheckInBook struct {
 
 // CheckInSheet is one heat to check in.
 type CheckInSheet struct {
+	Break         bool // Start on a new page (.sheet.break in style.css).
 	Event         string
 	Round         string
 	Heat          string
@@ -169,15 +165,11 @@ type CheckInSheet struct {
 // CheckIn renders the 检录单.
 func CheckIn(b CheckInBook) (string, error) {
 	b.Title = "检录单"
-	css := style
-	if b.NewPage {
-		css += sheetPageBreak
-	}
 	var buf bytes.Buffer
 	if err := checkInTmpl.Execute(&buf, struct {
 		CheckInBook
 		Style template.CSS
-	}{b, template.CSS(css)}); err != nil {
+	}{b, template.CSS(style)}); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
@@ -185,7 +177,6 @@ func CheckIn(b CheckInBook) (string, error) {
 
 // RecordBook is the 成绩记录表: one blank sheet per heat, filled in by hand.
 type RecordBook struct {
-	NewPage   bool // Start each sheet on a new printed page.
 	Title     string
 	Meet      string
 	PrintedAt string
@@ -195,6 +186,7 @@ type RecordBook struct {
 // RecordSheet is one heat to judge. After the competitor it has Columns to
 // fill in, then the mark and the rank.
 type RecordSheet struct {
+	Break         bool // Start on a new page (.sheet.break in style.css).
 	Event         string
 	Round         string
 	Heat          string
@@ -232,15 +224,11 @@ func (s RecordSheet) LineRows() int {
 // RecordSheets renders the 成绩记录表.
 func RecordSheets(b RecordBook) (string, error) {
 	b.Title = "成绩记录表"
-	css := style
-	if b.NewPage {
-		css += sheetPageBreak
-	}
 	var buf bytes.Buffer
 	if err := recordSheetTmpl.Execute(&buf, struct {
 		RecordBook
 		Style template.CSS
-	}{b, template.CSS(css)}); err != nil {
+	}{b, template.CSS(style)}); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
