@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,9 @@ func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventID
 	book.NewPage = prefs.PrintNewPage
 	if kind != ReportStartList || !prefs.PrintSchedule {
 		book.Schedule = nil
+	}
+	if kind != ReportStartList || !prefs.PrintRoster {
+		book.Rosters = nil
 	}
 	switch kind {
 	case ReportStartList:
@@ -114,6 +118,29 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 	}
 	book := &report.Book{Meet: meet.Name, Dates: domain.DateRangeText(meet.StartDate, meet.EndDate), Location: meet.Location,
 		PrintedAt: domain.RecordedText(s.store.Now(), s.zone)}
+	var listed map[string]bool // nil = every athlete of the meet
+	if len(only) > 0 {
+		listed = map[string]bool{}
+		for _, e := range entries {
+			if !only[e.EventID] {
+				continue
+			}
+			if e.TeamID == "" {
+				listed[e.AthleteID] = true
+			}
+			for _, id := range st.teams[e.TeamID].MemberIDs {
+				listed[id] = true
+			}
+		}
+		for _, p := range parents {
+			if only[p.Combined.ID] {
+				for _, id := range p.AthleteIDs {
+					listed[id] = true
+				}
+			}
+		}
+	}
+	book.Rosters = rosterBook(units, athletes, listed)
 	book.Schedule = scheduleBook(newMeetPlan(*meet, events, rounds, teams, athletes, entries, 0).timetable(only))
 	for _, e := range domain.ScheduleOrder(events, rounds, meet.StartDate) {
 		if len(only) > 0 && !only[e.ID] {
@@ -280,6 +307,77 @@ func scheduleBook(t *Timetable) []report.ScheduleDay {
 		out = append(out, report.ScheduleDay{Day: d.Day, Rows: rows(d.Rounds)})
 	}
 	return out
+}
+
+// rosterBook is the 代表队名单: each unit's athletes by gender and bib, the
+// units in the list's order and the athletes with no unit last. listed
+// limits it to some athletes; nil lists them all. Units with nobody to
+// list are left out.
+func rosterBook(units []domain.Unit, athletes []domain.Athlete, listed map[string]bool) []report.UnitRoster {
+	byUnit := map[string][]domain.Athlete{}
+	for _, a := range athletes {
+		if listed == nil || listed[a.ID] {
+			byUnit[a.UnitID] = append(byUnit[a.UnitID], a)
+		}
+	}
+	genders := []struct {
+		gender domain.Gender
+		label  string
+	}{{domain.GenderMale, "男子"}, {domain.GenderFemale, "女子"}, {domain.GenderUnknown, "其他"}}
+	var out []report.UnitRoster
+	add := func(name string, list []domain.Athlete) {
+		if len(list) == 0 {
+			return
+		}
+		sort.SliceStable(list, func(i, j int) bool { return bibLess(list[i].Bib, list[j].Bib) })
+		u := report.UnitRoster{Name: name, Count: len(list)}
+		for _, g := range genders {
+			group := report.RosterGroup{Label: g.label}
+			for _, a := range list {
+				known := a.Gender == domain.GenderMale || a.Gender == domain.GenderFemale
+				if a.Gender == g.gender || !known && g.gender == domain.GenderUnknown {
+					group.Athletes = append(group.Athletes, report.Line{Bib: a.Bib, Name: a.Name})
+				}
+			}
+			if len(group.Athletes) > 0 {
+				u.Groups = append(u.Groups, group)
+			}
+		}
+		// One group of unknown gender needs no heading.
+		if len(u.Groups) == 1 && u.Groups[0].Label == "其他" {
+			u.Groups[0].Label = ""
+		}
+		out = append(out, u)
+	}
+	for _, u := range units {
+		add(u.Name, byUnit[u.ID])
+		delete(byUnit, u.ID)
+	}
+	var rest []domain.Athlete
+	for _, a := range athletes { // athletes' own order, not the map's
+		if _, ok := byUnit[a.UnitID]; ok && (listed == nil || listed[a.ID]) {
+			rest = append(rest, a)
+		}
+	}
+	add("无参赛单位", rest)
+	return out
+}
+
+// bibLess orders bibs for printing: numbers by value before other text,
+// athletes with no bib last.
+func bibLess(a, b string) bool {
+	if a == "" || b == "" {
+		return a != "" && b == ""
+	}
+	x, errX := strconv.Atoi(a)
+	y, errY := strconv.Atoi(b)
+	switch {
+	case errX == nil && errY == nil:
+		return x < y
+	case errX == nil || errY == nil:
+		return errX == nil
+	}
+	return a < b
 }
 
 func advanceText(a domain.Advance) string {

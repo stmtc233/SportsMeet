@@ -23,7 +23,7 @@ export const zoomScale = (zoom: Zoom, paneWidth: number, pageWidth: number) => (
 // (rows, headings, paragraphs) moves as a whole.
 const splittable = new Set(["SECTION", "DIV", "TABLE", "TBODY", "MAIN", "ARTICLE"]);
 // Kept on one page while they fit one (break-inside: avoid in the report's CSS).
-const keep = ".heat, .sheet, .line";
+const keep = ".heat, .sheet, .line, .unit";
 // What introduces the content after it: never the reason to start a new
 // sheet, and taken along instead of being left at the bottom of one.
 const heading = new Set(["H1", "H2", "H3", "H4", "P", "THEAD"]);

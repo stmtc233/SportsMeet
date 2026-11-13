@@ -11,6 +11,25 @@
   <p>{{.Title}}</p>
   <p>{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
 </header>
+{{if .Rosters}}
+<section class="rosters">
+  <h2>代表队名单</h2>
+  {{range .Rosters}}
+  <div class="unit">
+    <h3>{{.Name}}<small>{{.Count}} 人</small></h3>
+    {{range .Groups}}
+    {{if .Label}}<h4>{{.Label}}</h4>{{end}}
+    <table class="names">
+      <tbody>
+        {{range .Rows}}<tr>{{range .}}<td>{{if .Name}}<span class="bib">{{.Bib}}</span>{{.Name}}{{end}}</td>{{end}}</tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{end}}
+  </div>
+  {{end}}
+</section>
+{{end}}
 {{if .Schedule}}
 <section class="schedule">
   <h2>竞赛日程表</h2>

@@ -18,6 +18,8 @@ type Preferences struct {
 	PrintNewPage  bool   `json:"printNewPage"`
 	// PrintSchedule puts the competition schedule at the start of the 秩序册.
 	PrintSchedule bool `json:"printSchedule"`
+	// PrintRoster puts the units' athletes at the start of the 秩序册.
+	PrintRoster bool `json:"printRoster"`
 	// MinRestMinutes is the shortest rest an athlete needs between two
 	// heats; 0 checks overlaps only (docs/agents/arrange.md「冲突检查」).
 	MinRestMinutes int `json:"minRestMinutes"`
@@ -39,7 +41,7 @@ type MCPConfig struct {
 }
 
 func (s *Service) Preferences(ctx context.Context) (Preferences, error) {
-	p := Preferences{Theme: "system", SeparateUnits: true, Balance: true, PrintSchedule: true, CheckInLeadMinutes: domain.DefaultCheckInLeadMinutes, PrintCheckInBreak: SheetBreakRound, PrintRecordBreak: SheetBreakRound}
+	p := Preferences{Theme: "system", SeparateUnits: true, Balance: true, PrintSchedule: true, PrintRoster: true, CheckInLeadMinutes: domain.DefaultCheckInLeadMinutes, PrintCheckInBreak: SheetBreakRound, PrintRecordBreak: SheetBreakRound}
 	raw, err := s.store.GetSetting(ctx, "preferences")
 	if err != nil {
 		return p, err

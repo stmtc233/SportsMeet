@@ -18,9 +18,38 @@ type Book struct {
 	Dates     string // 2026-11-12 or 2026-11-12 – 2026-11-13
 	Location  string
 	PrintedAt string        // 2026-11-12 09:31, local time
+	Rosters   []UnitRoster  // 代表队名单, start lists only; empty = not printed
 	Schedule  []ScheduleDay // 竞赛日程表, start lists only; empty = not printed
 	Events    []Event
 	Combineds []Combined
+}
+
+// UnitRoster is one unit of the 代表队名单.
+type UnitRoster struct {
+	Name   string
+	Count  int // athletes in Groups
+	Groups []RosterGroup
+}
+
+// RosterGroup is a unit's athletes of one gender, in the printed order.
+type RosterGroup struct {
+	Label    string // 男子 / 女子 / 其他; "" = no heading
+	Athletes []Line // Bib and Name
+}
+
+// rosterColumns is how many athletes a row of the 代表队名单 holds.
+const rosterColumns = 4
+
+// Rows lays the athletes out in full rows; the last one is padded with
+// empty lines so every row has the same cells.
+func (g RosterGroup) Rows() [][]Line {
+	var out [][]Line
+	for start := 0; start < len(g.Athletes); start += rosterColumns {
+		row := make([]Line, rosterColumns)
+		copy(row, g.Athletes[start:min(start+rosterColumns, len(g.Athletes))])
+		out = append(out, row)
+	}
+	return out
 }
 
 // ScheduleDay is one day of the 竞赛日程表.
@@ -117,7 +146,7 @@ type page struct {
 func render(t *template.Template, b Book) (string, error) {
 	css := style
 	if b.NewPage {
-		css += "\n.event ~ .event, .schedule + .event { break-before: page; page-break-before: always; }"
+		css += "\n.event ~ .event, .rosters + .event, .schedule + .event { break-before: page; page-break-before: always; }"
 	}
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, page{Book: b, Style: template.CSS(css)}); err != nil {

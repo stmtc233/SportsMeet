@@ -797,6 +797,8 @@ export interface Preferences {
   printNewPage: boolean;
   /** PrintSchedule puts the competition schedule at the start of the 秩序册. */
   printSchedule: boolean;
+  /** PrintRoster puts the units' athletes at the start of the 秩序册. */
+  printRoster: boolean;
   /**
    * MinRestMinutes is the shortest rest an athlete needs between two
    * heats; 0 checks overlaps only (docs/agents/arrange.md「冲突检查」).

@@ -47,6 +47,7 @@ export function PreferencesPanel({ section }: { section: "general" | "arrange" |
   return (
     <>
       <StSection title="秩序册" padded={false}>
+        <StSwitchItem title="代表队名单" subtitle="印在项目之前" checked={data.printRoster} disabled={busy} onChange={(printRoster) => void save({ printRoster })} />
         <StSwitchItem title="竞赛日程表" subtitle="印在项目之前" checked={data.printSchedule} disabled={busy} onChange={(printSchedule) => void save({ printSchedule })} />
       </StSection>
       <StSection title="成绩册" padded={false}>

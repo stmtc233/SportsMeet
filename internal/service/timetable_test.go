@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stmtc233/sportsmeet/internal/domain"
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
@@ -194,6 +195,80 @@ func TestTimetableReportSection(t *testing.T) {
 	must(t, err)
 	if strings.Contains(html, "竞赛日程表") {
 		t.Fatal("schedule printed while switched off")
+	}
+}
+
+func TestStartListRoster(t *testing.T) {
+	tf := newTimetableFixture(t)
+	// A woman with no unit and no bib, entered nowhere.
+	_, err := tf.svc.SaveAthlete(tf.ctx, ui, tf.meet, "", AthleteInput{Name: "散客", Gender: "女"})
+	must(t, err)
+	html, err := tf.svc.RenderReport(tf.ctx, ReportStartList, tf.meet, nil)
+	must(t, err)
+	for _, want := range []string{"代表队名单", `<small>2 人</small>`, `<span class="bib">001</span>选手01`, "无参赛单位", `<span class="bib"></span>散客`} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("roster lacks %q", want)
+		}
+	}
+	if strings.Index(html, "代表队名单") > strings.Index(html, "竞赛日程表") && strings.Contains(html, "竞赛日程表") {
+		t.Fatal("roster printed after the schedule")
+	}
+	// The relay's team has one member: only that athlete's unit is listed.
+	only, err := tf.svc.RenderReport(tf.ctx, ReportStartList, tf.meet, []string{tf.relay})
+	must(t, err)
+	if !strings.Contains(only, `<small>1 人</small>`) || strings.Contains(only, `<span class="bib">002</span>`) || strings.Contains(only, "无参赛单位") {
+		t.Fatal("roster ignores the selection")
+	}
+	results, err := tf.svc.RenderReport(tf.ctx, ReportResults, tf.meet, nil)
+	must(t, err)
+	if strings.Contains(results, "代表队名单") {
+		t.Fatal("results print the roster")
+	}
+	prefs, err := tf.svc.Preferences(tf.ctx)
+	must(t, err)
+	if !prefs.PrintRoster {
+		t.Fatal("roster is off by default")
+	}
+	prefs.PrintRoster = false
+	must(t, tf.svc.SavePreferences(tf.ctx, prefs))
+	html, err = tf.svc.RenderReport(tf.ctx, ReportStartList, tf.meet, nil)
+	must(t, err)
+	if strings.Contains(html, "代表队名单") {
+		t.Fatal("roster printed while switched off")
+	}
+}
+
+func TestRosterBook(t *testing.T) {
+	units := []domain.Unit{{ID: "u1", Name: "一班"}, {ID: "u2", Name: "二班"}, {ID: "u3", Name: "三班"}}
+	athletes := []domain.Athlete{
+		{ID: "a", Name: "甲", Gender: domain.GenderFemale, Bib: "12", UnitID: "u1"},
+		{ID: "b", Name: "乙", Gender: domain.GenderMale, Bib: "101", UnitID: "u1"},
+		{ID: "c", Name: "丙", Gender: domain.GenderMale, Bib: "9", UnitID: "u1"},
+		{ID: "d", Name: "丁", Gender: domain.GenderMale, Bib: "", UnitID: "u1"},
+		{ID: "e", Name: "戊", Gender: domain.GenderMale, Bib: "A1", UnitID: "u1"},
+		{ID: "f", Name: "己", UnitID: "u2"},
+		{ID: "g", Name: "庚", Gender: domain.GenderMale, UnitID: "gone"},
+	}
+	got := rosterBook(units, athletes, nil)
+	if len(got) != 3 || got[0].Name != "一班" || got[0].Count != 5 || got[2].Name != "无参赛单位" {
+		t.Fatalf("units: %+v", got)
+	}
+	men := got[0].Groups[0]
+	names := ""
+	for _, a := range men.Athletes {
+		names += a.Name
+	}
+	if men.Label != "男子" || names != "丙乙戊丁" || got[0].Groups[1].Label != "女子" {
+		t.Fatalf("groups: %+v", got[0].Groups)
+	}
+	if rows := men.Rows(); len(rows) != 1 || len(rows[0]) != 4 {
+		t.Fatalf("rows: %+v", rows)
+	}
+	if g := got[1].Groups; len(g) != 1 || g[0].Label != "" {
+		t.Fatalf("unknown gender: %+v", g)
+	}
+	if got := rosterBook(units, athletes, map[string]bool{"a": true}); len(got) != 1 || got[0].Count != 1 {
+		t.Fatalf("listed: %+v", got)
 	}
 }
 
