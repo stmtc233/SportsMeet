@@ -21,6 +21,9 @@ export function HeightResults({ detail, heat, entries, onDirty }: HeatResultsPro
   const [selected, setSelected] = useState<{ position: number; height: string }>();
   const [typing, setTyping] = useState<string>();
   const [busy, setBusy] = useState(false);
+  // A save pressed before the preview of the current draft arrives waits for
+  // it (true = finish the heat), since the button follows the held preview.
+  const [queuedSave, setQueuedSave] = useState<boolean>();
   const [adding, setAdding] = useState(false);
   const [editStart, setEditStart] = useState(false);
   const [remove, setRemove] = useState<string>();
@@ -39,8 +42,11 @@ export function HeightResults({ detail, heat, entries, onDirty }: HeatResultsPro
   const heights = useMemo(() => heightColumns(heat, rows, extra, removed), [heat, rows, extra, removed]);
   const inputs = useMemo(() => heightInputs(heat, rows, heights), [heat, rows, heights]);
   const state = useHeightPreview(inputs);
-  const preview = state?.preview;
-  const rowPreviews = new Map(preview?.rows.map((row) => [row.position, row]));
+  // `preview` matches the draft and drives writes; `view` is what the grid
+  // shows, holding the last preview while the next one is computed.
+  const preview = state.preview;
+  const view = preview ?? state.shown;
+  const rowPreviews = new Map(view?.rows.map((row) => [row.position, row]));
   const next = preview?.next ?? undefined;
   const changed = heat.slots.some((slot) => !sameRow(rows[slot.position], initial[slot.position]));
   const dirty = changed || extra.length > 0 || removed.length > 0 || height.trim() !== "";
@@ -50,7 +56,7 @@ export function HeightResults({ detail, heat, entries, onDirty }: HeatResultsPro
   const activeRow = active ? rowPreviews.get(active.position) : undefined;
   const activeCell = activeRow?.cells.find((cell) => cell.height === active?.height);
   const activeName = activeSlot ? entries.get(activeSlot.competitorId)?.name : "";
-  const suggestion = preview?.nextHeight ?? "";
+  const suggestion = view?.nextHeight ?? "";
 
   useEffect(() => {
     const from = base.current;
@@ -71,15 +77,18 @@ export function HeightResults({ detail, heat, entries, onDirty }: HeatResultsPro
   const cellInput = (position: number, h: string) => grid.current?.querySelector<HTMLInputElement>(`input[name="h${h}:${position}"]`);
   const setTrials = (position: number, h: string, trials: string) => setRows((old) => ({ ...old, [position]: { ...old[position]!, bars: { ...old[position]!.bars, [h]: trials } } }));
   const record = (symbol: string) => {
+    if (busy) return;
     if (!preview || follow.current) { queue.current.push(symbol); return; }
-    if (!active || !activeCell) return;
-    const allowed = symbol === "O" ? activeCell.canSuccess : symbol === "X" ? activeCell.canFailure : activeCell.canPass;
+    const cell = active && preview.rows.find((row) => row.position === active.position)?.cells.find((c) => c.height === active.height);
+    if (!active || !cell) return;
+    const allowed = symbol === "O" ? cell.canSuccess : symbol === "X" ? cell.canFailure : cell.canPass;
     if (!allowed) return;
-    setTrials(active.position, active.height, activeCell.trials + symbol);
+    setTrials(active.position, active.height, cell.trials + symbol);
   };
   const undo = () => {
-    if (!active) return;
-    const trials = activeCell?.trials || (rows[active.position]?.bars[active.height] ?? "").trim();
+    if (!active || busy) return;
+    const cell = preview?.rows.find((row) => row.position === active.position)?.cells.find((c) => c.height === active.height);
+    const trials = cell?.trials || (rows[active.position]?.bars[active.height] ?? "").trim();
     setTrials(active.position, active.height, trials.slice(0, -1));
     cellInput(active.position, active.height)?.focus();
   };
@@ -120,7 +129,11 @@ export function HeightResults({ detail, heat, entries, onDirty }: HeatResultsPro
   };
 
   const addHeight = async () => {
-    const value = height.trim() || suggestion;
+    // The placeholder may still come from the previous preview; it only goes
+    // stale right after adding a height, which then is already a column.
+    const typed = height.trim();
+    if (!typed && heights.includes(suggestion)) return;
+    const value = typed || suggestion;
     if (adding || busy || !value) return;
     setAdding(true);
     const tidy = await ResultsController.height(value);
@@ -158,10 +171,12 @@ export function HeightResults({ detail, heat, entries, onDirty }: HeatResultsPro
   };
   const discard = () => {
     setRows(initial); setExtra([]); setRemoved([]); setHeight(""); setHeightError(""); setSelected(undefined); setTyping(undefined);
-    follow.current = false; queue.current = [];
+    follow.current = false; queue.current = []; setQueuedSave(undefined);
   };
   const save = async (finished = false) => {
-    if (!preview?.valid || busy) return;
+    if (busy) return;
+    if (!preview) { if (!state.error) setQueuedSave(finished); return; }
+    if (!preview.valid) return;
     const sent = rows;
     const loaded = base.current;
     const all = heightInputs(heat, rows, heights, finished);
@@ -175,6 +190,11 @@ export function HeightResults({ detail, heat, entries, onDirty }: HeatResultsPro
     if (base.current === loaded) accepted.current = sent;
     else setRows((old) => mergeRows(base.current, base.current, old, sent));
   };
+  useEffect(() => {
+    if (queuedSave === undefined || (!preview && !state.error)) return;
+    setQueuedSave(undefined);
+    if (preview?.valid) void save(queuedSave);
+  });
   const setStatus = (position: number, status: string) => setRows((old) => ({ ...old, [position]: { ...old[position]!, status } }));
   // repeat(0, …) is invalid and would void the whole template.
   const style = { "--result-cols": ["40px 152px", heights.length ? `repeat(${heights.length}, 72px)` : "", "128px 72px 48px 32px"].filter(Boolean).join(" ") } as CSSProperties;
@@ -226,20 +246,20 @@ export function HeightResults({ detail, heat, entries, onDirty }: HeatResultsPro
               const cell = result?.cells.find((c) => c.height === h);
               const key = `${h}:${slot.position}`;
               return <span key={h} className="height-cell" role="cell" data-state={cell?.state}>
-                <StTrialsField name={`h${key}`} aria-label={`${h} m试跳`} value={row.bars[h] ?? ""} readOnly={typing !== key} disabled={busy || status !== ""} invalid={!!cell?.error} aria-describedby={cell?.error ? errorId : undefined}
+                <StTrialsField name={`h${key}`} aria-label={`${h} m试跳`} value={row.bars[h] ?? ""} readOnly={busy || typing !== key} disabled={status !== ""} invalid={!!cell?.error} aria-describedby={cell?.error ? errorId : undefined}
                   onFocus={() => setSelected({ position: slot.position, height: h })} onBlur={() => setTyping((old) => old === key ? undefined : old)}
                   onDoubleClick={(event) => { setTyping(key); event.currentTarget.select(); }}
                   onChange={(value) => setTrials(slot.position, h, value)} onKeyDown={(event) => keyDown(event, key)} />
               </span>;
             })}
             <span className="height-actions" role="cell">{active?.position === slot.position && <>
-              <StIconButton size="small" variant="tonal" label="成功 O" disabled={busy || !activeCell?.canSuccess} onMouseDown={keep} onClick={() => record("O")}>O</StIconButton>
-              <StIconButton size="small" variant="tonal" label="失败 X" disabled={busy || !activeCell?.canFailure} onMouseDown={keep} onClick={() => record("X")}>X</StIconButton>
-              <StIconButton size="small" variant="tonal" label="免跳 -" disabled={busy || !activeCell?.canPass} onMouseDown={keep} onClick={() => record("-")}>-</StIconButton>
-              <StIconButton size="small" label="撤销一次" disabled={busy || !row.bars[active.height]} onMouseDown={keep} onClick={undo}><IconUndo size={16} strokeWidth={iconStroke} /></StIconButton>
+              <StIconButton size="small" variant="tonal" label="成功 O" disabled={!activeCell?.canSuccess} onMouseDown={keep} onClick={() => record("O")}>O</StIconButton>
+              <StIconButton size="small" variant="tonal" label="失败 X" disabled={!activeCell?.canFailure} onMouseDown={keep} onClick={() => record("X")}>X</StIconButton>
+              <StIconButton size="small" variant="tonal" label="免跳 -" disabled={!activeCell?.canPass} onMouseDown={keep} onClick={() => record("-")}>-</StIconButton>
+              <StIconButton size="small" label="撤销一次" disabled={!row.bars[active.height]} onMouseDown={keep} onClick={undo}><IconUndo size={16} strokeWidth={iconStroke} /></StIconButton>
             </>}</span>
-            <span className="result-mark height-end height-end--mark" role="cell">{preview ? result?.markText || "—" : "…"}</span>
-            <span className="rank height-end height-end--rank" role="cell">{preview ? result?.rank ?? "" : ""}</span>
+            <span className="result-mark height-end height-end--mark" role="cell">{view ? result?.markText || "—" : "…"}</span>
+            <span className="rank height-end height-end--rank" role="cell">{view ? result?.rank ?? "" : ""}</span>
             <span className="height-end height-end--menu" role="cell">
               <StMenu trigger={(p) => <StIconButton size="small" label="状态" disabled={busy} {...p}><IconMore size={16} strokeWidth={iconStroke} /></StIconButton>}
                 items={[
@@ -255,11 +275,11 @@ export function HeightResults({ detail, heat, entries, onDirty }: HeatResultsPro
     <div className="height-footer">
       <StMuted>{state?.error || (heat.resultsUpdatedText ? `修改于 ${heat.resultsUpdatedText}` : "")}</StMuted>
       {state.error && <StButton size="small" onClick={state.retry}>重新校验</StButton>}
-      <div className="height-footer__buttons"><StButton disabled={!dirty || busy} onClick={discard}>放弃</StButton><StButton disabled={!preview?.canFinish || completed && !changed || busy} onClick={() => setFinish(true)}>结束录入</StButton><StButton variant="primary" disabled={!changed || !preview?.valid || adding} loading={busy} onClick={() => save()}>保存</StButton></div>
+      <div className="height-footer__buttons"><StButton disabled={!dirty || busy} onClick={discard}>放弃</StButton><StButton disabled={!view?.canFinish || completed && !changed || busy} onClick={() => setFinish(true)}>结束录入</StButton><StButton variant="primary" disabled={!changed || !view?.valid || adding} loading={busy || queuedSave === false} onClick={() => save()}>保存</StButton></div>
     </div>
     <StDialog open={remove !== undefined} title="移除高度？" size="small" onClose={() => setRemove(undefined)} actions={<><StButton onClick={() => setRemove(undefined)}>取消</StButton><StButton variant="danger" onClick={() => removeHeight(remove!)}>移除</StButton></>}>将移除 {remove} m 的全部试跳记录，保存后生效。</StDialog>
     <StDialog open={renaming !== undefined} title="修改高度" size="small" onClose={() => { if (!adding) setRenaming(undefined); }} onSubmit={renameHeight} actions={<><StButton disabled={adding} onClick={() => setRenaming(undefined)}>取消</StButton><StButton variant="primary" type="submit" disabled={!replacement.trim()} loading={adding}>确定</StButton></>}><StTextField label="高度" suffix="m" value={replacement} error={renameError} disabled={adding} onChange={(value) => { setReplacement(value); setRenameError(""); }} /><StMuted>该列试跳记录一并保留。</StMuted></StDialog>
-    <StDialog open={finish} title="结束这一组录入？" size="small" onClose={() => { if (!busy) setFinish(false); }} actions={<><StButton disabled={busy} onClick={() => setFinish(false)}>取消</StButton><StButton variant="primary" loading={busy} disabled={!preview?.canFinish} onClick={() => save(true)}>结束录入</StButton></>}>将保存当前记录并确认本组成绩。全部组结束后计算晋级。</StDialog>
+    <StDialog open={finish} title="结束这一组录入？" size="small" onClose={() => { if (!busy) setFinish(false); }} actions={<><StButton disabled={busy} onClick={() => setFinish(false)}>取消</StButton><StButton variant="primary" loading={busy || queuedSave === true} disabled={!view?.canFinish} onClick={() => save(true)}>结束录入</StButton></>}>将保存当前记录并确认本组成绩。全部组结束后计算晋级。</StDialog>
     {editStart && <StartedDialog heat={heat} day={detail.day} onClose={() => setEditStart(false)} />}
   </StSection>;
 }

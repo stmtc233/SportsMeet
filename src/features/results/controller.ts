@@ -12,16 +12,20 @@ export const ResultsController = {
 /** Superseded previews cannot replace the view of the current draft. */
 export function useHeightPreview(inputs: ResultInput[]) {
   const [state, setState] = useState<{ inputs: ResultInput[]; preview?: HeightPreview; error?: string }>();
+  const [shown, setShown] = useState<HeightPreview>();
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     let current = true;
     const timer = setTimeout(() => {
       Results.previewHeight(inputs).then(
-        (preview) => { if (current) setState({ inputs, preview }); },
+        (preview) => { if (current) { setState({ inputs, preview }); setShown(preview); } },
         () => { if (current) setState({ inputs, error: "无法校验，请重试" }); },
       );
     }, 80);
     return () => { current = false; clearTimeout(timer); };
   }, [inputs, retry]);
-  return { ...(state?.inputs === inputs ? state : undefined), retry: () => { setState(undefined); setRetry((old) => old + 1); } };
+  // `preview` matches the current draft and gates every write; `shown` keeps
+  // the last answer on screen while the next one is computed, so marks, ranks
+  // and cell states do not blank out on each keystroke.
+  return { ...(state?.inputs === inputs ? state : undefined), shown, retry: () => { setState(undefined); setRetry((old) => old + 1); } };
 }
