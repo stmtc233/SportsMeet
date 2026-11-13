@@ -85,7 +85,7 @@
 - 秩序册、成绩册、检录单、成绩记录表由 Go `internal/report/` 生成完整 HTML 文档(号码布待实现)。「打印」页在 `iframe` 里预览(见下条);点「打印」由 Go 另开一个窗口载入该 HTML 并调出系统打印对话框(可另存为 PDF)。不在主窗口里打印:主窗口的页面是应用界面,打出来会带上侧栏。
 - **预览按纸张分页**:`reports/ReportPreview.tsx` 把 Go 的 HTML 载入 `sandbox="allow-same-origin"` 的 `iframe`(不放行脚本,只让页面能读写它的文档),载入后由 `reports/paginate.ts` 把内容搬到 A4 纸面上,预览上方显示页数与「比例」(`StSelect`:适合宽度 / 50%–150%,默认适合宽度,随窗口宽度重算)。Go 的报表是一份连续的文档,只有 WebView 打印时才分页,直接显示看不出每页印什么。
   - 分页规则:放不下的容器(`section` / `div` / `table` / `tbody`)在下一页接着排,表格重复表头;`.heat` / `.sheet` / `.line` / `.unit` 能放进一页就不拆;标题与表头不单独留在页尾,也不算作页面内容;强制换页读元素的 `break-before` 计算值,所以 Go 把「另起一页」写成不限打印媒体的规则。纸面尺寸与边距(`.pv-*`)写在 `internal/report/style.css` 里 `@page` 旁边,改纸张时两处一起改。
-  - 预览的分页接近打印结果,不保证逐行一致:实际分页由 WebView 的打印排版决定。分页在主线程一次算完,上百页的报表会有可感知的停顿。
+  - 预览的分页接近打印结果,不保证逐行一致:实际分页由 WebView 的打印排版决定。分页在已连接的报表子树中一次测量位置，按测量结果批量放入表格行与组，再用实际溢出校验；大型嵌套容器直接拆开，避免反复排版整个子树。约 8ms 工作预算后在批次间让出主线程，单次浏览器布局仍可能超过预算；报表切换与离开页面会取消在途分页，过期结果不更新页数。
   - 没有可预览的内容时不显示空白的预览,用 `StEmpty` 说明原因(还没有项目 / 还没有组 / 当天没有组 / 未选择项目 / 未选择轮次),此时「打印」置灰;读取失败显示错误。新报表载入期间保留上一份预览。
   - 每份报表用一个新的 `iframe`(以 HTML 为 `key`),不改已有 `iframe` 的 `srcdoc`;纸面四周的底色由页面按预览区的背景色写进 `iframe` 文档(主题变化时重写),不靠透明:报表文档是浅色方案,深色主题下透明的 `iframe` 会被 WebView 涂成白底。不改 `srcdoc` 是因为WKWebView 在同一个 `iframe` 的 `srcdoc` 短时间内连改两次时会丢掉第二次,预览停在空白。
 - 检录单(`Reports.checkInTargets` / `renderCheckIn` / `printCheckIn`,service `RenderCheckIn`):「打印」页分段控件的第三项。侧栏上方「日期」(`StSelect`:全部日期 + 有计划组的日子)筛选,下方按轮次勾选(项目只有一个轮次时只写项目名);选了日期只列当天有组的轮次。全部勾选时请求不带轮次(等于全部),否则带勾选的轮次;选择逻辑是 `reports/checkin.ts` 的纯函数(有单测)。
@@ -101,3 +101,4 @@
 
 - 纯函数单测(`bun test`,文件名 `*.test.ts`,不进 `tsc` 检查范围)与 Go 单测为主。
 - `bun run test:ui` 使用 Playwright,覆盖宽屏 1280、窄屏 800 与浅色 / 深色,检查核心页面不出现整页横向溢出、设置输入与焦点保留、离开确认、保存与错误反馈。浏览器测试模拟 mygo 桥接,业务持久化与 HTTP MCP 使用 Go 的真实 SQLite 测试;两者不能替代 WebView 原生行为实测(见 [verification.md](../verification.md))。
+- `tests/ui/performance.spec.ts` 通过 `SPORTSMEET_PERF=1` 按需测量大名单与真实秩序册分页，默认跳过；数据规模、桥接口径、已复现的问题与复跑命令见 [performance.md](../performance.md)。

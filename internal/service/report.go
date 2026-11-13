@@ -27,7 +27,7 @@ func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventID
 	if err != nil {
 		return "", err
 	}
-	book, err := s.reportBook(ctx, meetID, eventIDs, kind == ReportResults && prefs.PrintResultsTime)
+	book, err := s.reportBook(ctx, meetID, eventIDs, kind == ReportResults && prefs.PrintResultsTime, kind == ReportResults)
 	if err != nil {
 		return "", err
 	}
@@ -49,21 +49,49 @@ func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventID
 
 // reportBook gathers the printed content; resultsTime adds each heat's
 // results time (成绩册, when the settings ask for it).
-func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []string, resultsTime bool) (*report.Book, error) {
+func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []string, resultsTime, withResults bool) (*report.Book, error) {
 	meet, err := s.GetMeet(ctx, meetID)
 	if err != nil {
 		return nil, err
+	}
+	parents, err := s.store.ListCombined(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	only := map[string]bool{}
+	for _, id := range eventIDs {
+		only[id] = true
+	}
+	for _, p := range parents {
+		if only[p.Combined.ID] {
+			for _, c := range p.Components {
+				only[c.EventID] = true
+			}
+		}
 	}
 	sc := store.Scope{MeetID: meetID}
 	events, err := s.store.ListEvents(ctx, sc)
 	if err != nil {
 		return nil, err
 	}
+	if len(only) > 0 {
+		sc.EventIDs = []string{}
+		for _, e := range events {
+			if only[e.ID] {
+				sc.EventIDs = append(sc.EventIDs, e.ID)
+			}
+		}
+	}
 	entries, err := s.store.ListEntries(ctx, sc)
 	if err != nil {
 		return nil, err
 	}
-	athletes, err := s.store.ListAthletes(ctx, meetID)
+	var athletes []domain.Athlete
+	if sc.EventIDs != nil {
+		athletes, err = s.store.ListParticipants(ctx, sc)
+	} else {
+		athletes, err = s.store.ListAthletes(ctx, meetID)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +99,12 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 	if err != nil {
 		return nil, err
 	}
-	rounds, err := s.store.LoadRounds(ctx, sc)
+	var rounds map[string][]domain.Round
+	if withResults {
+		rounds, err = s.store.LoadRounds(ctx, sc)
+	} else {
+		rounds, err = s.store.LoadPlanRounds(ctx, sc)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -93,28 +126,12 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 	for _, e := range entries {
 		seeds[e.EventID+"|"+e.CompetitorID()] = e.SeedMark
 	}
-	only := map[string]bool{}
-	for _, id := range eventIDs {
-		only[id] = true
-	}
-
-	parents, err := s.store.ListCombined(ctx, meetID)
-	if err != nil {
-		return nil, err
-	}
 	combinedState := &combinedMeetState{parents: parents, events: map[string]domain.Event{}, rounds: rounds, athletes: athletes, units: map[string]string{}}
 	for _, e := range events {
 		combinedState.events[e.ID] = e
 	}
 	for _, u := range units {
 		combinedState.units[u.ID] = u.Name
-	}
-	for _, p := range parents {
-		if only[p.Combined.ID] {
-			for _, c := range p.Components {
-				only[c.EventID] = true
-			}
-		}
 	}
 	book := &report.Book{Meet: meet.Name, Dates: domain.DateRangeText(meet.StartDate, meet.EndDate), Location: meet.Location,
 		PrintedAt: domain.RecordedText(s.store.Now(), s.zone)}
@@ -180,7 +197,7 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 			if seed := seeds[e.ID+"|"+a.ID]; seed != nil {
 				l.Seed = scoring.FormatEventMark(e, *seed)
 			}
-			if r := sl.Result; r != nil {
+			if r := sl.Result; r != nil && withResults {
 				l.Mark, l.Qualify = r.Status.Label(), r.Qualify
 				for _, a := range r.Attempts {
 					l.Attempts = append(l.Attempts, scoring.FormatEventAttempt(e, a))
@@ -215,17 +232,19 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 				}
 				rr.Heats = append(rr.Heats, heat)
 			}
-			list, _ := standingsEvent(e, r)
-			for _, row := range list {
-				l := bySlot[row.CompetitorID]
-				l.Rank = ""
-				if row.Rank != nil {
-					l.Rank = strconv.Itoa(*row.Rank)
+			if withResults {
+				list, _ := standingsEvent(e, r)
+				for _, row := range list {
+					l := bySlot[row.CompetitorID]
+					l.Rank = ""
+					if row.Rank != nil {
+						l.Rank = strconv.Itoa(*row.Rank)
+					}
+					if len(r.Heats) < 2 {
+						l.Heat = ""
+					}
+					rr.Standings = append(rr.Standings, l)
 				}
-				if len(r.Heats) < 2 {
-					l.Heat = ""
-				}
-				rr.Standings = append(rr.Standings, l)
 			}
 			ev.Rounds = append(ev.Rounds, rr)
 		}
@@ -235,11 +254,20 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 		if len(only) > 0 && !only[parent.Combined.ID] {
 			continue
 		}
+		c := report.Combined{Name: parent.Combined.Name, State: "暂列排名", Tables: []report.CombinedTable{}, Roster: []report.Line{}}
+		for _, id := range parent.AthleteIDs {
+			a := st.athletes[id]
+			c.Roster = append(c.Roster, report.Line{Name: a.Name, Bib: a.Bib, Unit: st.unitName(a.UnitID)})
+		}
+		if !withResults {
+			book.Combineds = append(book.Combineds, c)
+			continue
+		}
 		d, err := combinedState.detail(parent, nil)
 		if err != nil {
 			return nil, err
 		}
-		c := report.Combined{Name: parent.Combined.Name, State: "暂列排名", Tables: []report.CombinedTable{}, Roster: []report.Line{}}
+
 		if d.Complete {
 			c.State = "正式排名"
 		}
@@ -248,10 +276,7 @@ func (s *Service) reportBook(ctx context.Context, meetID string, eventIDs []stri
 		for _, part := range d.Components {
 			headers = append(headers, part.Event.Discipline+" / 积分")
 		}
-		for _, id := range parent.AthleteIDs {
-			a := st.athletes[id]
-			c.Roster = append(c.Roster, report.Line{Name: a.Name, Bib: a.Bib, Unit: st.unitName(a.UnitID)})
-		}
+
 		for _, row := range d.Rows {
 			r := report.CombinedRow{Name: row.Name, Bib: row.Bib, Unit: row.UnitName, Total: strconv.FormatInt(row.Total, 10), Cells: []string{}}
 			if row.Rank != nil {
@@ -419,9 +444,13 @@ func (s *Service) ReportTargets(ctx context.Context, meetID string) ([]ReportTar
 	if err != nil {
 		return nil, err
 	}
-	rounds, err := s.store.LoadRounds(ctx, store.Scope{MeetID: meetID})
+	overviews, err := s.store.EventOverviews(ctx, meetID)
 	if err != nil {
 		return nil, err
+	}
+	rounds := make(map[string][]domain.Round, len(overviews))
+	for id, overview := range overviews {
+		rounds[id] = overview.TimingRounds
 	}
 	out := []ReportTarget{}
 	for _, e := range domain.ScheduleOrder(events, rounds, meet.StartDate) {

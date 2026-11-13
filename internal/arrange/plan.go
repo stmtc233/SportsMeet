@@ -113,43 +113,7 @@ func Plan(opts Options, entrants []Entrant) ([]PlannedHeat, error) {
 		}
 	}
 
-	heats := make([][]Entrant, h)
-	units := make([]map[string]int, h)
-	for i := range units {
-		units[i] = map[string]int{}
-	}
-	used := make([]bool, h) // heats that already got one of this row
-	forward := true
-	for _, e := range list {
-		pick := -1
-		for range 2 {
-			for k := range h {
-				i := k
-				if !forward {
-					i = h - 1 - k
-				}
-				if used[i] || len(heats[i]) >= size[i] {
-					continue
-				}
-				if pick < 0 || (opts.SeparateUnits && e.Unit != "" && units[i][e.Unit] < units[pick][e.Unit]) {
-					pick = i
-				}
-				if !opts.SeparateUnits || e.Unit == "" {
-					break
-				}
-			}
-			if pick >= 0 {
-				break
-			}
-			clear(used) // row done: start the next one from the other end
-			forward = !forward
-		}
-		heats[pick] = append(heats[pick], e)
-		used[pick] = true
-		if e.Unit != "" {
-			units[pick][e.Unit]++
-		}
-	}
+	heats := deal(list, size, opts.SeparateUnits)
 
 	out := make([]PlannedHeat, h)
 	for i, members := range heats {

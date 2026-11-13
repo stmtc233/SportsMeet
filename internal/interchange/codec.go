@@ -137,18 +137,6 @@ func withoutNewerFields(data []byte, version int) ([]byte, error) {
 	return json.Marshal(doc)
 }
 
-// Encode writes f as indented JSON with a trailing newline.
-func Encode(f *File) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(f); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
 var (
 	trialsRe = regexp.MustCompile(`^[OX-]{1,3}$`)
 )

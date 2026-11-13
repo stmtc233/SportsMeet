@@ -202,7 +202,7 @@ func TestCombinedReportSplitsWideComponents(t *testing.T) {
 	c, err := f.svc.SaveCombined(f.ctx, ui, f.meet, "", in)
 	must(t, err)
 	must(t, f.svc.SetCombinedEntries(f.ctx, ui, c.ID, f.athletes))
-	book, err := f.svc.reportBook(f.ctx, f.meet, []string{c.ID}, false)
+	book, err := f.svc.reportBook(f.ctx, f.meet, []string{c.ID}, false, true)
 	must(t, err)
 	tables := book.Combineds[0].Tables
 	if len(tables) != 2 || len(tables[0].Headers) != 4 || len(tables[1].Headers) != 1 || len(tables[1].Rows[0].Cells) != 1 {

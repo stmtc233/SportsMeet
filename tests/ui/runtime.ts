@@ -2,14 +2,14 @@ import type { Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount"; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false };
     let mcp = { enabled: false, running: false, port: 18765, address: "http://127.0.0.1:18765/mcp", error: "" };
     const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12" };
     const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0, participantMode: "athlete", teamSize: 0, scoreDecimals: 0, rankDirection: "", attemptMode: "" };
-    const athletes = Array.from({ length: 24 }, (_, i) => ({ id: `a${i}`, meetId: "meet", name: `运动员${i + 1}`, gender: "男", bib: String(100 + i), studentNumber: "", unitId: "unit", className: "一班", grade: "", birthDate: "", note: "", createdAt: 1 }));
+    const athletes = Array.from({ length: options.athleteCount ?? 24 }, (_, i) => ({ id: `a${i}`, meetId: "meet", name: `运动员${i + 1}`, gender: "男", bib: String(100 + i), studentNumber: "", unitId: "unit", className: "一班", grade: "", birthDate: "", note: "", createdAt: 1 }));
     const entries = athletes.map((a) => ({ athleteId: a.id, competitorId: a.id, name: a.name, gender: "男", bib: a.bib, unitId: "unit", unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" }));
     const rules = { timed: true, usesLanes: true, positionLabel: "道次", attemptLabel: "", startLabel: "分道", defaultPerHeat: 8, team: false, multipleAttempts: false, markLabel: "成绩", unit: "" };
     // What Go returns with a heat's times (service.HeatTimes): the own time, else the round's start.

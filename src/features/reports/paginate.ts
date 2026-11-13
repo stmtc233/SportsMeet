@@ -34,7 +34,8 @@ const heading = new Set(["H1", "H2", "H3", "H4", "P", "THEAD"]);
  * tables with their header repeated; a heading is not left alone at the
  * bottom of a sheet. Forced breaks are read from the computed break-before.
  */
-export function paginate(doc: Document): number {
+export async function paginate(doc: Document, signal?: AbortSignal): Promise<number> {
+  if (signal?.aborted) return 0;
   const nodes = [...doc.body.childNodes];
   // The sheets' look (.pv-*) is in internal/report/style.css, beside @page.
   doc.documentElement.classList.add("pv");
@@ -43,7 +44,6 @@ export function paginate(doc: Document): number {
   const pages = doc.createElement("div");
   pages.className = "pv-pages";
   view.append(pages);
-  doc.body.replaceChildren(view);
 
   let sheet!: HTMLElement;
   let placed = 0; // nodes on the current sheet, headings aside
@@ -51,6 +51,33 @@ export function paginate(doc: Document): number {
   const stack: Element[] = []; // open containers on the current sheet, outermost first
   const top = () => stack[stack.length - 1] ?? sheet;
   const over = () => sheet.scrollHeight > sheet.clientHeight + 1;
+  const breaks = new WeakMap<Element, boolean>();
+  const boxes = new WeakMap<Node, { top: number; bottom: number }>();
+  const element = (node: Node) => node.nodeType === Node.ELEMENT_NODE ? node as HTMLElement : null;
+  const layoutScale = () => pages.getBoundingClientRect().width / pages.offsetWidth || 1;
+  const bounds = (el: Element, scale: number) => {
+    const box = el.getBoundingClientRect();
+    return { top: box.top / scale, bottom: box.bottom / scale };
+  };
+  const forced = (node: Node) => {
+    const el = element(node);
+    if (!el) return false;
+    if (!breaks.has(el)) {
+      const cs = doc.defaultView!.getComputedStyle(el);
+      breaks.set(el, cs.breakBefore === "page" || cs.getPropertyValue("page-break-before") === "always");
+    }
+    return breaks.get(el)!;
+  };
+  const done = (node: Node) => { if (!heading.has(element(node)?.tagName ?? "")) placed++; };
+  const measure = (root: Element) => {
+    const scale = layoutScale();
+    // One connected read pass. Oversized nested containers can then be split
+    // directly, without laying out the same complete subtree at every level.
+    for (const el of [root, ...root.querySelectorAll("section, div, table, tbody, main, article, tr, h1, h2, h3, h4, p, thead")]) {
+      if (!boxes.has(el)) boxes.set(el, bounds(el, scale));
+      forced(el);
+    }
+  };
 
   const open = () => {
     const before = [...stack];
@@ -81,42 +108,118 @@ export function paginate(doc: Document): number {
     }
   };
 
-  const place = (node: Node) => {
-    if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) return;
-    if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.TEXT_NODE) return;
-    const el = node instanceof (doc.defaultView as typeof globalThis).Element ? (node as HTMLElement) : null;
-    if (el && (el.tagName === "STYLE" || el.tagName === "SCRIPT")) return;
-    top().append(node);
-    if (el && placed > 0) {
-      const cs = doc.defaultView!.getComputedStyle(el);
-      if (cs.breakBefore === "page" || cs.getPropertyValue("page-break-before") === "always") {
-        el.remove();
-        open();
-        top().append(el);
+  // Descendants are measured together while their original container is still
+  // attached. Use those positions to fill a page, then verify the whole batch.
+  // The actual layout remains authoritative for auto-width tables and margins.
+  function* batch(nodes: Node[]): Generator<void> {
+    let i = 0;
+    while (i < nodes.length) {
+      const first = nodes[i++]!;
+      yield* place(first);
+      const measured = boxes.get(first);
+      if (!measured || !first.isConnected) continue; // an oversized block split
+      const scale = layoutScale();
+      const anchor = bounds(element(first)!, scale).top;
+      const bottom = bounds(sheet, scale).top + sheet.clientHeight + 1;
+      let end = i;
+      while (end < nodes.length) {
+        const box = boxes.get(nodes[end]!);
+        if (!box || anchor + box.bottom - measured.top > bottom) break;
+        end++;
+      }
+      if (end === i) continue;
+      const fragment = doc.createDocumentFragment();
+      for (let k = i; k < end; k++) fragment.append(nodes[k]!);
+      top().append(fragment);
+      while (end > i && over()) { end--; nodes[end]!.parentNode?.removeChild(nodes[end]!); }
+      for (let k = i; k < end; k++) done(nodes[k]!);
+      i = end;
+      yield;
+    }
+  }
+  function* children(nodes: Node[]): Generator<void> {
+    let pending: Node[] = [];
+    for (const node of nodes) {
+      if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) continue;
+      if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.TEXT_NODE) continue;
+      if (element(node)?.matches("style, script")) continue;
+      const el = element(node);
+      // Only batch sibling rows/atomic blocks. Appending many whole event
+      // trees only to split them repeatedly makes layout more expensive.
+      const groupable = el && (el.tagName === "TR" || el.matches(keep));
+      if (forced(node) || !groupable) {
+        if (pending.length) { yield* batch(pending); pending = []; }
+        yield* place(node);
+      } else {
+        pending.push(node);
       }
     }
-    const done = () => {
-      if (!el || !heading.has(el.tagName)) placed++;
-    };
-    if (!over()) return done();
-    const atomic = !el || !splittable.has(el.tagName) || el.children.length === 0;
-    if (placed > 0 && (atomic || el!.matches(keep))) {
-      node.parentNode?.removeChild(node);
+    if (pending.length) yield* batch(pending);
+  }
+  function* place(node: Node): Generator<void> {
+    if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) return;
+    if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.TEXT_NODE) return;
+    const el = element(node);
+    if (el && (el.tagName === "STYLE" || el.tagName === "SCRIPT")) return;
+    const pageBreak = forced(node);
+    if (pageBreak && placed > 0) {
       open();
-      top().append(node);
-      if (!over()) return done();
     }
-    if (atomic) return done(); // taller than a sheet: cut off
+    const atomic = !el || !splittable.has(el.tagName) || el.children.length === 0;
+    const box = boxes.get(node);
+    const oversized = !atomic && box && box.bottom - box.top > sheet.clientHeight + 1;
+    if (oversized) {
+      if (placed > 0 && el!.matches(keep)) open();
+    } else {
+      top().append(node);
+      if (!over()) { done(node); yield; return; }
+      if (placed > 0 && (atomic || el!.matches(keep))) {
+        node.parentNode?.removeChild(node);
+        open();
+        top().append(node);
+        if (!over()) { done(node); yield; return; }
+      }
+      if (atomic) { done(node); yield; return; } // taller than a sheet: cut off
+      measure(el!);
+    }
     const kids = [...el!.childNodes];
+    // Read while the original descendants are still connected; computed
+    // styles on detached nodes do not include the report's CSS rules.
+    const scale = layoutScale();
+    for (const kid of kids) {
+      if (kid.isConnected) {
+        forced(kid);
+        const el = element(kid);
+        if (el && !boxes.has(kid)) boxes.set(kid, bounds(el, scale));
+      }
+    }
     const shell = el!.cloneNode(false) as Element;
-    el!.replaceWith(shell);
+    if (oversized) { el!.remove(); top().append(shell); } else { el!.replaceWith(shell); }
     stack.push(shell);
-    for (const k of kids) place(k);
+    yield* children(kids);
     stack.pop();
-  };
+  }
 
+  for (const node of nodes) forced(node);
+  doc.body.replaceChildren(view);
   open();
-  for (const n of nodes) place(n);
+  function* roots() { for (const node of nodes) yield* place(node); }
+  const work = roots();
+  let deadline = performance.now() + 8;
+  for (const _ of work) {
+    if (signal?.aborted) return 0;
+    if (performance.now() >= deadline) {
+      // MessageChannel avoids the nested setTimeout minimum delay while
+      // allowing input and rendering between chunks in Chrome and WebKit.
+      await new Promise<void>((resolve) => {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = () => { channel.port1.close(); channel.port2.close(); resolve(); };
+        channel.port2.postMessage(null);
+      });
+      if (signal?.aborted) return 0;
+      deadline = performance.now() + 8;
+    }
+  }
   return count;
 }
 

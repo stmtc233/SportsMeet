@@ -167,6 +167,19 @@ func (s *Service) planSchedule(ctx context.Context, in ScheduleRequest) (*Schedu
 	if err != nil {
 		return nil, nil, err
 	}
+	// Confirmation fingerprints include complete results of all target events.
+	// Other events only contribute time/position data to conflict warnings.
+	eventIDs := make([]string, 0, len(targets))
+	for _, target := range targets {
+		eventIDs = append(eventIDs, target.EventID)
+	}
+	complete, err := s.store.LoadRounds(ctx, store.Scope{EventIDs: eventIDs})
+	if err != nil {
+		return nil, nil, err
+	}
+	for id, rounds := range complete {
+		plan.rounds[id] = rounds
+	}
 	type target struct {
 		event domain.Event
 		round domain.Round

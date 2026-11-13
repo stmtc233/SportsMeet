@@ -59,7 +59,7 @@ func (s *Service) loadCheckIn(ctx context.Context, meetID string) (*checkInData,
 	if err != nil {
 		return nil, err
 	}
-	rounds, err := s.store.LoadRounds(ctx, sc)
+	rounds, err := s.store.LoadPlanRounds(ctx, sc)
 	if err != nil {
 		return nil, err
 	}

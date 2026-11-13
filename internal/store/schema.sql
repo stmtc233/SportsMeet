@@ -32,9 +32,15 @@ CREATE TABLE athletes (
     grade TEXT NOT NULL DEFAULT '',
     birth_date TEXT NOT NULL DEFAULT '',
     note TEXT NOT NULL DEFAULT '',
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    bib_key TEXT NOT NULL DEFAULT '',
+    student_number_key TEXT NOT NULL DEFAULT '',
+    name_key TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX idx_athletes_meet ON athletes(meet_id);
+CREATE INDEX idx_athletes_bib_key ON athletes(meet_id, bib_key);
+CREATE INDEX idx_athletes_student_key ON athletes(meet_id, student_number_key);
+CREATE INDEX idx_athletes_name_key ON athletes(meet_id, name_key);
 
 -- 项目:一个单项
 CREATE TABLE events (
@@ -88,6 +94,7 @@ CREATE UNIQUE INDEX idx_entries_athlete ON entries(event_id, athlete_id) WHERE a
 CREATE UNIQUE INDEX idx_entries_team ON entries(event_id, team_id) WHERE team_id IS NOT NULL;
 CREATE INDEX idx_entries_athlete_any ON entries(athlete_id);
 CREATE INDEX idx_entries_team_any ON entries(team_id);
+CREATE INDEX idx_entries_event ON entries(event_id);
 
 -- 轮次
 CREATE TABLE rounds (

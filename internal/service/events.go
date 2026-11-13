@@ -72,13 +72,13 @@ func (s *Service) ListEvents(ctx context.Context, meetID string) ([]EventRow, er
 	if err != nil {
 		return nil, err
 	}
-	entries, err := s.store.ListEntries(ctx, sc)
+	overviews, err := s.store.EventOverviews(ctx, meetID)
 	if err != nil {
 		return nil, err
 	}
-	rounds, err := s.store.LoadRounds(ctx, sc)
-	if err != nil {
-		return nil, err
+	rounds := make(map[string][]domain.Round, len(overviews))
+	for id, overview := range overviews {
+		rounds[id] = overview.TimingRounds
 	}
 	meet, err := s.store.GetMeet(ctx, meetID)
 	if err != nil {
@@ -88,10 +88,6 @@ func (s *Service) ListEvents(ctx context.Context, meetID string) ([]EventRow, er
 	if meet != nil {
 		start = meet.StartDate
 	}
-	entered := map[string]int{}
-	for _, e := range entries {
-		entered[e.EventID]++
-	}
 	events = domain.ScheduleOrder(events, rounds, start)
 	dated := false // some event is on another day than the meet's first
 	for _, e := range events {
@@ -99,7 +95,7 @@ func (s *Service) ListEvents(ctx context.Context, meetID string) ([]EventRow, er
 	}
 	out := make([]EventRow, len(events))
 	for i, e := range events {
-		row := EventRow{Event: e, Entries: entered[e.ID], Rounds: []RoundInput{}, FormatText: formatText(rounds[e.ID]),
+		row := EventRow{Event: e, Entries: overviews[e.ID].Entries, Rounds: []RoundInput{}, FormatText: formatText(rounds[e.ID]),
 			AutoName: e.Name == domain.ComposeEventName(e.Gender, e.Discipline, e.GroupLabel)}
 		if first := domain.EarliestScheduled(rounds[e.ID]); first != "" && dated {
 			row.TimeText = domain.ScheduledText(first, "")
@@ -116,12 +112,8 @@ func (s *Service) ListEvents(ctx context.Context, meetID string) ([]EventRow, er
 				}
 				row.Rounds = append(row.Rounds, in)
 			}
-			row.Heats += len(r.Heats)
-			for _, h := range r.Heats {
-				row.Placed += len(h.Slots)
-				row.Results += h.Facts().Results
-			}
 		}
+		row.Heats, row.Placed, row.Results = overviews[e.ID].Heats, overviews[e.ID].Placed, overviews[e.ID].Results
 		out[i] = row
 	}
 	return out, nil

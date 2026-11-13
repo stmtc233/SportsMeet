@@ -58,7 +58,7 @@ func (s *Service) loadMeetPlan(ctx context.Context, meetID string) (*meetPlan, e
 	if err != nil {
 		return nil, err
 	}
-	rounds, err := s.store.LoadRounds(ctx, sc)
+	rounds, err := s.store.LoadPlanRounds(ctx, sc)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (s *Service) loadMeetPlan(ctx context.Context, meetID string) (*meetPlan, e
 	if err != nil {
 		return nil, err
 	}
-	entries, err := s.store.ListEntries(ctx, sc)
+	entered, err := s.store.EntryPeople(ctx, sc)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,9 @@ func (s *Service) loadMeetPlan(ctx context.Context, meetID string) (*meetPlan, e
 	if err != nil {
 		return nil, err
 	}
-	return newMeetPlan(*meet, events, rounds, teams, athletes, entries, prefs.MinRestMinutes), nil
+	plan := newMeetPlan(*meet, events, rounds, teams, athletes, nil, prefs.MinRestMinutes)
+	plan.entered = entered
+	return plan, nil
 }
 
 // meetOfEvent is the meet an event belongs to.

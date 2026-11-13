@@ -165,12 +165,20 @@ type eventState struct {
 	event    domain.Event
 	entries  []domain.Entry
 	entered  map[string]*domain.Entry
-	athletes map[string]domain.Athlete // the whole meet's
+	athletes map[string]domain.Athlete // all meet athletes for roster edits, otherwise participants
 	units    map[string]domain.Unit
 	rounds   []domain.Round
 }
 
 func (s *Service) loadEvent(ctx context.Context, eventID string) (*eventState, error) {
+	return s.loadEventRoster(ctx, eventID, true)
+}
+
+func (s *Service) loadEventParticipants(ctx context.Context, eventID string) (*eventState, error) {
+	return s.loadEventRoster(ctx, eventID, false)
+}
+
+func (s *Service) loadEventRoster(ctx context.Context, eventID string, allAthletes bool) (*eventState, error) {
 	sc := store.Scope{EventID: eventID}
 	events, err := s.store.ListEvents(ctx, sc)
 	if err != nil {
@@ -187,7 +195,12 @@ func (s *Service) loadEvent(ctx context.Context, eventID string) (*eventState, e
 	for i := range st.entries {
 		st.entered[st.entries[i].CompetitorID()] = &st.entries[i]
 	}
-	athletes, err := s.store.ListAthletes(ctx, st.event.MeetID)
+	var athletes []domain.Athlete
+	if allAthletes {
+		athletes, err = s.store.ListAthletes(ctx, st.event.MeetID)
+	} else {
+		athletes, err = s.store.ListParticipants(ctx, sc)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +249,7 @@ func (st *eventState) unitName(unitID string) string {
 
 // GetEvent returns an event's detail.
 func (s *Service) GetEvent(ctx context.Context, eventID string) (*EventDetail, error) {
-	st, err := s.loadEvent(ctx, eventID)
+	st, err := s.loadEventParticipants(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}

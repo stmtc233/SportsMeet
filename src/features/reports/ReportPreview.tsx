@@ -12,6 +12,8 @@ export function ReportPreview({ html, zoom, onPages }: { html: string | undefine
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
   const shown = useRef("");
+  const pagination = useRef<AbortController | null>(null);
+  useEffect(() => () => pagination.current?.abort(), [html]);
   if (html) shown.current = html;
   const scale = useCallback(() => {
     const doc = frame.current?.contentDocument;
@@ -39,11 +41,17 @@ export function ReportPreview({ html, zoom, onPages }: { html: string | undefine
       system.removeEventListener("change", scale);
     };
   }, [scale]);
-  const laidOut = () => {
+  const laidOut = async () => {
     const doc = frame.current?.contentDocument;
     if (!doc?.body || doc.querySelector(".pv-view")) return;
-    onPages(paginate(doc));
-    scale();
+    pagination.current?.abort();
+    const run = new AbortController();
+    pagination.current = run;
+    const pages = await paginate(doc, run.signal);
+    if (!run.signal.aborted && frame.current?.contentDocument === doc) {
+      onPages(pages);
+      scale();
+    }
   };
   return (
     <div ref={box} className="report-frame">

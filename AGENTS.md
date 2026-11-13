@@ -55,10 +55,12 @@ SportsMeet/
 │   ├── domain/              ← 实体、枚举、项目配置与全能规则、时间规则与项目排序(纯数据 + 校验,无 IO)
 │   ├── store/               ← SQLite 访问(mygo sqlite 插件,库文件 sportsmeet.db 在 mygo.PathUserData,迁移前的副本在同目录 backups/)
 │   │   ├── migrations/      ← NNNN_名称.sql,嵌入二进制,启动时按序执行
-│   │   └── schema.sql       ← 当前完整结构快照
-│   ├── arrange/             ← 自动编排(分组、排道)、组序号、组指纹、晋级判定、运动员时间冲突检查;纯函数
+│   │   ├── schema.sql       ← 当前完整结构快照
+│   │   ├── read.go          ← 完整 / 日程轻量读取、项目范围与参与者查询
+│   │   └── overview.go      ← 项目计数、报名人数与运动员索引查询
+│   ├── arrange/             ← 自动编排(deal.go 快速选组、排道)、组序号、组指纹、晋级判定、运动员时间冲突检查;纯函数
 │   ├── scoring/             ← 成绩解析与格式化、逐次汇总、排名、全能积分与总排名
-│   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配;复用 scoring 校验逐次汇总
+│   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配;encode.go 逐记录输出 JSON,复用 scoring 校验逐次汇总
 │   ├── report/              ← 秩序册(含代表队名单、竞赛日程表)/ 成绩册 / 检录单 / 成绩记录表(HTML 模板);号码布待实现
 │   ├── service/             ← 唯一写入口:写锁、校验、操作日志(写入与只读查询)、变更通知;含项目预设、全能与计分规则、表格导入、编排保存、批量 / 多轮次连排时间、竞赛日程与冲突、成绩与实际开赛时间、检录单、成绩记录表、导入导出
 │   ├── mcp/                 ← MCP 服务与监听生命周期(仅 127.0.0.1,默认关)
@@ -86,6 +88,7 @@ SportsMeet/
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
 │   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json
 │   ├── examples/sample-meet.json
+│   ├── performance.md · performance-results.json · performance-optimized-results.json ← 优化与压测对比
 │   └── agents/                        ← 专题细则(§5)
 └── testdata/interchange/              ← 编解码黄金文件
 ```
@@ -201,10 +204,10 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 ### 5.4 数据与交换格式 → [storage.md](docs/agents/storage.md) · [interchange-format.md](docs/interchange-format.md)
 
-- 单一写连接 + 只读连接;service 持写锁完成「读 → 校验 → 一批写入」,不在 service 之外写库;列表查询次数不随组数增长。
+- 单一写连接 + 固定 4 个只读连接;service 持写锁完成「读 → 校验 → 一批写入」,不在 service 之外写库;列表查询次数不随组数增长。
 - 迁移只追加,已发布的迁移文件不再修改;同步 `schema.sql`。
 - 已有数据的数据库在迁移前先复制到 `backups/`,复制失败就不迁移。
-- 外键所在的列都建索引;号码布 / 学号的唯一性只由 service 校验,不建唯一索引。
+- 外键所在的列都建完整索引；运动员的规范化检索键按 `domain.NormalizeText` 维护，号码布 / 学号的唯一性只由 service 校验，不建唯一索引。
 - 交换格式改字段即 bump `version`;读取方能读所有已发布版本,写出总是最新版本。
 
 ### 5.5 文案与提交 → [copywriting.md](docs/agents/copywriting.md)

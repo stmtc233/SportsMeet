@@ -1,5 +1,5 @@
 // Package store owns the SQLite file (docs/agents/storage.md): one write
-// connection, one read-only connection, and numbered migrations.
+// connection, a bounded read-only pool, and numbered migrations.
 package store
 
 import (
@@ -12,9 +12,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo/plugins/sqlite"
+	"github.com/stmtc233/sportsmeet/internal/domain"
 )
 
 // FileName is the database file inside the data directory.
@@ -34,9 +36,13 @@ var migrationFS embed.FS
 // layer serializes them, so reads it makes before a Write see the data the
 // Write will change (mygo's Transaction takes a batch, not a callback).
 type Store struct {
-	write *sqlite.DB
-	read  *sqlite.DB
-	Now   func() int64 // ms; tests replace it
+	write     *sqlite.DB
+	readers   []*sqlite.DB
+	available chan *sqlite.DB
+	closed    chan struct{}
+	closeOnce sync.Once
+	closeErr  error
+	Now       func() int64 // ms; tests replace it
 }
 
 // Open opens (creating if needed) the database in dir and migrates it.
@@ -82,25 +88,31 @@ func Open(ctx context.Context, dir string) (*Store, error) {
 		w.Close()
 		return nil, fmt.Errorf("迁移数据库失败:%w", err)
 	}
-	r, err := sqlite.Open(ctx, path, sqlite.OpenOptions{ReadOnly: true})
-	if err != nil {
-		w.Close()
-		return nil, err
+	// A bounded pool prevents a list query from holding every validation read
+	// behind it. Writes remain serialized by service and one write connection.
+	s.available, s.closed = make(chan *sqlite.DB, 4), make(chan struct{})
+	for range cap(s.available) {
+		r, err := sqlite.Open(ctx, path, sqlite.OpenOptions{ReadOnly: true})
+		if err != nil {
+			s.Close()
+			return nil, err
+		}
+		s.readers = append(s.readers, r)
+		s.available <- r
 	}
-	s.read = r
 	return s, nil
 }
 
-// Close closes both connections.
+// Close interrupts active queries and releases every connection exactly once.
 func (s *Store) Close() error {
-	var err error
-	if s.read != nil {
-		err = s.read.Close()
-	}
-	if e := s.write.Close(); e != nil {
-		err = e
-	}
-	return err
+	s.closeOnce.Do(func() {
+		close(s.closed)
+		for _, r := range s.readers {
+			s.closeErr = errors.Join(s.closeErr, r.Close())
+		}
+		s.closeErr = errors.Join(s.closeErr, s.write.Close())
+	})
+	return s.closeErr
 }
 
 // Write runs statements atomically on the write connection.
@@ -109,9 +121,17 @@ func (s *Store) Write(ctx context.Context, stmts ...sqlite.Statement) error {
 	return err
 }
 
-// Query reads on the read-only connection.
+// Query leases a read-only connection. Waiting callers can cancel or close.
 func (s *Store) Query(ctx context.Context, sql string, args ...any) (sqlite.Rows, error) {
-	return s.read.Query(ctx, sql, args...)
+	select {
+	case <-ctx.Done():
+		return sqlite.Rows{}, ctx.Err()
+	case <-s.closed:
+		return sqlite.Rows{}, sqlite.ErrClosed
+	case r := <-s.available:
+		defer func() { s.available <- r }()
+		return r.Query(ctx, sql, args...)
+	}
 }
 
 // Stmt is shorthand for a statement.
@@ -207,6 +227,18 @@ func (s *Store) migrate(ctx context.Context, names []string) error {
 			return err
 		}
 		stmts := splitSQL(string(body))
+		if v == 8 {
+			// SQLite lower/trim does not implement domain's Unicode/whitespace
+			// normalization. Backfill in Go inside this migration's one batch.
+			rows, err := s.write.Query(ctx, `SELECT id, bib, student_number, name FROM athletes`)
+			if err != nil {
+				return err
+			}
+			for _, r := range rows.Values {
+				stmts = append(stmts, Stmt(`UPDATE athletes SET bib_key=?, student_number_key=?, name_key=? WHERE id=?`,
+					domain.NormalizeText(str(r[1])), domain.NormalizeText(str(r[2])), domain.NormalizeText(str(r[3])), str(r[0])))
+			}
+		}
 		stmts = append(stmts, Stmt("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)", v, s.Now()))
 		if _, err := s.write.Transaction(ctx, stmts); err != nil {
 			return fmt.Errorf("%s:%w", name, err)

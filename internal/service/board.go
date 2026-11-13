@@ -33,7 +33,7 @@ type PlanRequest struct {
 // PlanHeats computes new heats for the athletes of a round not yet
 // placed. It writes nothing.
 func (s *Service) PlanHeats(ctx context.Context, req PlanRequest) ([]arrange.PlannedHeat, error) {
-	st, err := s.loadEvent(ctx, req.EventID)
+	st, err := s.loadEventParticipants(ctx, req.EventID)
 	if err != nil {
 		return nil, err
 	}

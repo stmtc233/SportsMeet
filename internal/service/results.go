@@ -223,7 +223,7 @@ func (s *Service) SaveResults(ctx context.Context, src store.Source, heatID stri
 	if len(rows.Values) == 0 {
 		return ErrStale
 	}
-	st, err := s.loadEvent(ctx, rows.Values[0][0].(string))
+	st, err := s.loadEventParticipants(ctx, rows.Values[0][0].(string))
 	if err != nil {
 		return err
 	}

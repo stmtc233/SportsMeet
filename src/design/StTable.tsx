@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { StCheckbox } from "./StFields";
 
 export interface StColumn<T> {
@@ -35,14 +35,24 @@ const overscan = 12;
 export function StTable<T>({ columns, rows, rowKey, onRowClick, selected, onSelect, empty, fill, dense }: StTableProps<T>) {
   const scroller = useRef<HTMLDivElement>(null);
   const [top, setTop] = useState(0);
+  const [view, setView] = useState(800);
   const h = dense ? rowHeight.dense : rowHeight.normal;
   const selectable = selected !== undefined && onSelect !== undefined;
   const template = [selectable ? "40px" : "", ...columns.map((c) => c.width ?? "1fr")].filter(Boolean).join(" ");
 
   const virtual = fill && rows.length > 200;
-  const view = scroller.current?.clientHeight ?? 800;
-  const first = virtual ? Math.max(0, Math.floor(top / h) - overscan) : 0;
-  const last = virtual ? Math.min(rows.length, Math.ceil((top + view) / h) + overscan) : rows.length;
+  const offset = Math.min(top, Math.max(0, rows.length * h - view));
+  const first = virtual ? Math.max(0, Math.floor(offset / h) - overscan) : 0;
+  const last = virtual ? Math.min(rows.length, Math.ceil((offset + view) / h) + overscan) : rows.length;
+  useLayoutEffect(() => {
+    const el = scroller.current!;
+    const measure = () => setView(el.clientHeight);
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
+  useLayoutEffect(() => { setTop(scroller.current?.scrollTop ?? 0); }, [rows.length, h, virtual]);
 
   const all = selectable && rows.length > 0 && rows.every((r) => selected.has(rowKey(r)));
   const some = selectable && rows.some((r) => selected.has(rowKey(r)));
@@ -68,7 +78,7 @@ export function StTable<T>({ columns, rows, rowKey, onRowClick, selected, onSele
         ))}
       </div>
       {rows.length === 0 && empty}
-      {virtual && first > 0 && <div style={{ height: first * h }} />}
+      {virtual && first > 0 && <div style={{ height: first * h, flexShrink: 0 }} />}
       {rows.slice(first, last).map((row, i) => {
         const key = rowKey(row);
         const on = selectable && selected.has(key);
@@ -88,7 +98,7 @@ export function StTable<T>({ columns, rows, rowKey, onRowClick, selected, onSele
           </div>
         );
       })}
-      {virtual && last < rows.length && <div style={{ height: (rows.length - last) * h }} />}
+      {virtual && last < rows.length && <div style={{ height: (rows.length - last) * h, flexShrink: 0 }} />}
     </div>
   );
 }

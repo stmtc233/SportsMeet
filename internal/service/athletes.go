@@ -110,15 +110,16 @@ func identityClash(a domain.Athlete, others []domain.Athlete) error {
 
 func insertAthlete(a domain.Athlete, now int64) sqlite.Statement {
 	return store.Stmt(`INSERT INTO athletes(id, meet_id, name, gender, bib, student_number, unit_id, class_name,
-		grade, birth_date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		grade, birth_date, note, created_at, bib_key, student_number_key, name_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		a.ID, a.MeetID, a.Name, string(a.Gender), a.Bib, a.StudentNumber, nullable(a.UnitID), a.ClassName,
-		a.Grade, a.BirthDate, a.Note, now)
+		a.Grade, a.BirthDate, a.Note, now, domain.NormalizeText(a.Bib), domain.NormalizeText(a.StudentNumber), domain.NormalizeText(a.Name))
 }
 
 func updateAthlete(a domain.Athlete) sqlite.Statement {
 	return store.Stmt(`UPDATE athletes SET name = ?, gender = ?, bib = ?, student_number = ?, unit_id = ?,
-		class_name = ?, grade = ?, birth_date = ?, note = ? WHERE id = ?`,
-		a.Name, string(a.Gender), a.Bib, a.StudentNumber, nullable(a.UnitID), a.ClassName, a.Grade, a.BirthDate, a.Note, a.ID)
+		class_name = ?, grade = ?, birth_date = ?, note = ?, bib_key=?, student_number_key=?, name_key=? WHERE id = ?`,
+		a.Name, string(a.Gender), a.Bib, a.StudentNumber, nullable(a.UnitID), a.ClassName, a.Grade, a.BirthDate, a.Note,
+		domain.NormalizeText(a.Bib), domain.NormalizeText(a.StudentNumber), domain.NormalizeText(a.Name), a.ID)
 }
 
 // SaveAthlete creates an athlete (id "") or updates one.
@@ -133,12 +134,18 @@ func (s *Service) SaveAthlete(ctx context.Context, src store.Source, meetID, id 
 	if _, err := s.GetMeet(ctx, meetID); err != nil {
 		return nil, err
 	}
-	others, err := s.store.ListAthletes(ctx, meetID)
+	others, err := s.store.AthleteIdentityMatches(ctx, a)
 	if err != nil {
 		return nil, err
 	}
-	if id != "" && !containsAthlete(others, id) {
-		return nil, invalid("运动员不存在或已删除")
+	if id != "" {
+		exists, err := s.store.AthleteExists(ctx, meetID, id)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			return nil, invalid("运动员不存在或已删除")
+		}
 	}
 	if a.UnitID != "" {
 		units, err := s.store.ListUnits(ctx, meetID)
@@ -167,15 +174,6 @@ func (s *Service) SaveAthlete(ctx context.Context, src store.Source, meetID, id 
 		return nil, err
 	}
 	return &a, nil
-}
-
-func containsAthlete(list []domain.Athlete, id string) bool {
-	for _, a := range list {
-		if a.ID == id {
-			return true
-		}
-	}
-	return false
 }
 
 // DeleteAthletes removes athletes and their entries. Anyone placed in a
@@ -264,16 +262,13 @@ func (s *Service) SaveAthleteWithWarnings(ctx context.Context, src store.Source,
 	if err != nil {
 		return nil, err
 	}
-	others, err := s.store.ListAthletes(ctx, meetID)
+	duplicate, err := s.store.AthleteNameExists(ctx, meetID, athlete.ID, athlete.Name)
 	if err != nil {
 		return nil, err
 	}
 	out := &AthleteSave{Athlete: athlete, Warnings: []string{}}
-	for _, other := range others {
-		if other.ID != athlete.ID && domain.NormalizeText(other.Name) == domain.NormalizeText(athlete.Name) {
-			out.Warnings = append(out.Warnings, "赛事中有同名运动员")
-			break
-		}
+	if duplicate {
+		out.Warnings = append(out.Warnings, "赛事中有同名运动员")
 	}
 	if err := s.write(ctx, pending.audit, pending.change, pending.stmts...); err != nil {
 		return nil, err

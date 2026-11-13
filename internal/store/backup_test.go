@@ -40,7 +40,16 @@ func unapplyStarted(t *testing.T, dir string) {
 }
 
 func startedRollback() []sqlite.Statement {
-	return []sqlite.Statement{Stmt("DELETE FROM schema_migrations WHERE version = 7"), Stmt("ALTER TABLE heats DROP COLUMN started_at")}
+	return append(identityRollback(), Stmt("DELETE FROM schema_migrations WHERE version = 7"), Stmt("ALTER TABLE heats DROP COLUMN started_at"))
+}
+
+func identityRollback() []sqlite.Statement {
+	return []sqlite.Statement{
+		Stmt("DELETE FROM schema_migrations WHERE version = 8"),
+		Stmt("DROP INDEX idx_athletes_bib_key"), Stmt("DROP INDEX idx_athletes_student_key"), Stmt("DROP INDEX idx_athletes_name_key"),
+		Stmt("DROP INDEX idx_entries_event"),
+		Stmt("ALTER TABLE athletes DROP COLUMN bib_key"), Stmt("ALTER TABLE athletes DROP COLUMN student_number_key"), Stmt("ALTER TABLE athletes DROP COLUMN name_key"),
+	}
 }
 
 func rollback(t *testing.T, dir string, stmts []sqlite.Statement) {
