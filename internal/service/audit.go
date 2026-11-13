@@ -43,6 +43,7 @@ var auditActions = map[string]string{
 	"combined.updated":     "修改全能",
 	"combined.deleted":     "删除全能",
 	"combined.entries":     "全能报名",
+	"team_scoring.rules":   "修改团体计分规则",
 	"combined.rules":       "修改计分规则",
 }
 

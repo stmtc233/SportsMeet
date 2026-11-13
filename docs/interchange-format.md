@@ -1,8 +1,8 @@
-# 交换格式规范 v6
+# 交换格式规范 v7
 
 SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的完整快照**:参赛单位、运动员、项目、报名、轮次、组、成绩。
 
-- 机器可读定义：[v6](schema/interchange-v6.schema.json)；兼容读取 [v5](schema/interchange-v5.schema.json)、[v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
+- 机器可读定义：[v7](schema/interchange-v7.schema.json)；兼容读取 [v6](schema/interchange-v6.schema.json)、[v5](schema/interchange-v5.schema.json)、[v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
 - 示例:[examples/sample-meet.json](examples/sample-meet.json)
 
 ## 1. 文件
@@ -20,12 +20,12 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ## 2. 版本
 
 ```json
-{ "format": "sportsmeet-interchange", "version": 6 }
+{ "format": "sportsmeet-interchange", "version": 7 }
 ```
 
 - `format` 固定,不符即拒绝读取。
 - `version` 为正整数。增删字段、改字段含义、改单位、改枚举取值均须 +1。
-- 写出方总是写 v6；读取方支持 v1、v2、v3、v4、v5、v6。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
+- 写出方总是写 v7；读取方支持 v1、v2、v3、v4、v5、v6、v7。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；v1–v6 不解释赛事的团体计分规则 `meet.teamScoring`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
 - 读取方必须能读所有已发布版本;遇到比自己新的版本直接拒绝,并提示升级软件(不尝试猜测读取)。
 
 ## 3. 基本约定
@@ -67,7 +67,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ```jsonc
 {
   "format": "sportsmeet-interchange",
-  "version": 6,
+  "version": 7,
   "exportedAt": "2026-11-12T18:05:31+08:00",
   "generator": { "name": "SportsMeet", "version": "0.1.0" },
   "meet": { ... },
@@ -99,6 +99,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `endDate` | 日期 | | 省略 = 与 `startDate` 同一天 |
 | `location` | string | | |
 | `note` | string | | |
+| `teamScoring` | object \| null | | 团体计分规则，省略／null 按未启用的默认规则，见 §5.12 |
 
 ### 5.2 参赛单位 `units[]`
 
@@ -261,6 +262,20 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 
 未录入成绩不算零分；总分与总排名由分项原始成绩和计分表计算，不另存可编辑的累计值。完整规则见 [全能细则](agents/combined.md)。
 
+### 5.12 团体计分规则 `meet.teamScoring`
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|:---:|---|
+| `enabled` | boolean | ✓ | 是否启用团体计分 |
+| `places` | integer[] | ✓ | 从第一名起的分值，至少一项，非负且非递增；名额外为 0 |
+| `tiePolicy` | string | ✓ | `average` 并列占用名次分值均分 / `same` 各得该名次分值 |
+| `relayMultiplier` | integer | ✓ | 接力默认倍数，非负，0 不计分 |
+| `overrides` | object[] | ✓ | 普通项目或全能的例外倍数，可为空 |
+
+例外为 `{eventId, multiplier}` 或 `{combinedId, multiplier}`，目标字段二选一，引用本文件内普通项目或全能，不能引用全能分项；同一目标不能重复。分值和倍数均为 0–9007199254740991 的整数。省略整个规则时使用未启用、前八名 9／7／6／5／4／3／2／1、并列均分、接力两倍、其余一倍、无例外。
+
+文件保存规则与原始成绩，不保存派生的单位总分与排名。导入新赛事映射例外中的项目／全能 ID；v1–v6 的新赛事默认未启用，导入已有赛事保留目标规则。完整计分、并列、全能和单位归属规则见 [团体总分细则](agents/team-scoring.md)。
+
 ## 6. 校验
 
 读取方导入前必须检查,任一失败即整份拒绝,并列出全部错误(不只第一条):
@@ -296,3 +311,5 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 同名项目的配置冲突：v2／v3 导入复用项目时，起跑方式、跳跃 / 投掷、建议棒数，以及计时项目道数、远度尝试次数须与目标一致（缺省值先按 §5.4 解释），不一致则整份拒绝，避免把顺序当道次或隐藏逐次成绩。v1 文件复用目标项目时保留目标配置。导入新赛事时使用文件配置与兼容默认值。v2／v3 的分道位置不得超过道数；v1 位置按文件保留。
 
 v3 同赛事导入复用项目时，规范化后的参赛方式、建议人数、小数位、排名方向与汇总方式须相同；复用全能时分项及计分表须一致。计分表冲突整份拒绝，修改规则须走重算预览确认，避免文件导入绕过规则版本与操作记录。
+
+v7 同赛事导入时，按匹配后的普通项目／全能 ID 规范化团体计分规则；文件规则须与目标规则一致，否则整份拒绝。省略 `meet.teamScoring` 按未启用的默认规则参与比较；规则变更须经团体计分预览确认。

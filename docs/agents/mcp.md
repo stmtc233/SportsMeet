@@ -76,6 +76,8 @@
 
 | 工具 | 用途 |
 |---|---|
+| `get_team_scores` | 团体规则、按项目性别／组别／项目集合筛选的单位排名、得分明细与计分进度；同分直接并列 |
+| `preview_team_scoring` → `apply_team_scoring` | 修改赛事团体计分规则，预览原、新总分与名次，确认后提交 |
 | `list_meets` / `get_meet` | 赛事列表 / 详情 |
 | `list_event_presets` | 读取常用项目初始 `input`，可调整后交给 `save_event` |
 | `list_units` / `list_athletes` / `list_events` | 按赛事读取基础数据与进度;项目按日期与计划时间排序,见 [domain.md](domain.md)「时间」 |
@@ -85,7 +87,7 @@
 | `save_team` | 创建 / 更新一个队伍及完整成员名单;规则见 [domain.md](domain.md)「队伍与接力」 |
 | `set_seed` | 更新一个报名成绩;个人传 `athleteId`,接力传 `teamId` |
 | `parse_table` | CSV / TSV 解析与列映射;导入只传数据行 |
-| `export_meet` / `render_report` | 完整交换格式对象 / 秩序册或成绩册 HTML |
+| `export_meet` / `render_report` | 完整交换格式对象 / 秩序册、成绩册或团体总分表 HTML |
 | `preview_entries` → `add_entries` | 批量报名;每项二选一 `athleteId` / `teamId` |
 | `preview_remove_entries` → `remove_entries` | 取消报名;个人传 `athleteIds`,接力传 `teamIds` |
 | `preview_delete_team` → `delete_team` | 传 `eventId` 与 `id`,删除未排进组的队伍及其报名 |
@@ -144,3 +146,9 @@
 - `list_combined / get_combined / parse_point_rule` 查询；`preview_save_combined → save_combined` 保存全能及独立分项；`preview_combined_entries → set_combined_entries` 保存完整名单；`preview_delete_combined → delete_combined` 删除无成绩全能。批量操作沿用赛事快照指纹。
 - `preview_combined_rules → apply_combined_rules` 接受 `request: {combinedId, rules: [{eventId, rule: {table, invalidPolicies}}]}`，必须给出所有分项；预览包含每人原、新逐项积分、总分、名次和资格，确认时携带 `previewHash`、`confirmed=true`。原始成绩不被规则修改覆盖，数据变化须重新预览。
 - 全能分项不能经 `save_event / add_entries / remove_entries / delete_event` 绕过归属与统一报名；成绩仍用普通成绩工具，覆盖保护不变。完整规则见 [combined.md](combined.md)。
+
+## 团体总分
+
+- `get_team_scores` 接受 `{meetId, gender?, groupLabel?, targetIds?}`；`groupLabel` 省略为全部、空字符串为无组别；`targetIds` 为普通项目或全能 ID。查询结果包含规则、排名、单位明细、无单位明细与计分进度，`ScoreValue.exact` 为精确分数，`text` 为显示值。
+- `preview_team_scoring` 与 `apply_team_scoring` 接受 `request: {meetId, rules: {enabled, places, tiePolicy, relayMultiplier, overrides}}`，确认提交携带 `previewHash` 与 `confirmed=true`。规则、完成口径、指纹范围、导入兼容与同分并列要求见 [team-scoring.md](team-scoring.md)。
+- `render_report` 的 `kind=team_scores` 返回团体总分表 HTML，`eventIds` 沿用普通项目与全能的选择；不调用系统打印窗口。

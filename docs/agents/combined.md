@@ -30,6 +30,8 @@
 - 合格者按总分降序排列，同分并列同名次，下一名顺延；失去资格者保留逐项结果与累计积分，不列名次。积分求和检查整数溢出。
 - 「项目 → 全能」进入列表和工作区，提供分项、报名、总成绩与计分规则；分项工作区返回所属全能。打印选择全能时包含全部分项和统一名单／总成绩，不需要逐个勾选分项。总成绩每张表最多四个分项，分表保留姓名、总分与名次，适应 A4 纸宽。
 
+- 全能只按完成后的总排名贡献一次团体得分，分项不重复计分，详见 [team-scoring.md](team-scoring.md)。
+
 ## MCP 与交换格式
 
 - `list_combined / get_combined / parse_point_rule` 查询；`preview_save_combined → save_combined` 创建或编辑；`preview_combined_entries → set_combined_entries` 统一报名；`preview_delete_combined → delete_combined` 删除；规则修改使用独立的预览确认工具。

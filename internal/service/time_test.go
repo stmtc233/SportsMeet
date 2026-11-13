@@ -112,7 +112,7 @@ func TestAuditLog(t *testing.T) {
 func TestAuditActionTexts(t *testing.T) {
 	files, err := filepath.Glob("*.go")
 	must(t, err)
-	action := regexp.MustCompile(`"((?:meet|unit|athlete|event|team|entry|board|heats|heat|round|results|settings|combined)\.[a-z]+)"`)
+	action := regexp.MustCompile(`"((?:meet|unit|athlete|event|team|entry|board|heats|heat|round|results|settings|combined|team_scoring)\.[a-z]+)"`)
 	seen := 0
 	for _, path := range files {
 		if strings.HasSuffix(path, "_test.go") || path == "audit.go" {

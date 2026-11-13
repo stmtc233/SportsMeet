@@ -94,7 +94,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	}) (any, error) {
 		return service.ParseTable(in.Text)
 	})
-	addTool(s, "render_report", "生成秩序册或成绩册 HTML。kind 为 startlist 或 results；eventIds 留空选全部。不操作系统打印窗口。", true, func(ctx context.Context, in struct {
+	addTool(s, "render_report", "生成秩序册、成绩册或团体总分 HTML。kind 为 startlist、results 或 team_scores；eventIds 留空选全部。不操作系统打印窗口。", true, func(ctx context.Context, in struct {
 		MeetID   string   `json:"meetId"`
 		Kind     string   `json:"kind"`
 		EventIDs []string `json:"eventIds,omitempty"`
@@ -103,6 +103,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 		return map[string]string{"html": html}, err
 	})
 	registerCombined(s, svc)
+	registerTeamScoring(s, svc)
 	registerMutations(s, svc)
 	return s
 }

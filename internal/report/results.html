@@ -11,6 +11,8 @@
   <p>{{.Title}}</p>
   <p>{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
 </header>
+{{template "teamScores" .TeamScores}}
+{{if not .TeamOnly}}
 {{range .Events}}{{$position := .PositionLabel}}{{$attempt := .AttemptLabel}}{{$relay := .Relay}}{{$roster := .RosterLabel}}
 <section class="event">
   <h2>{{.Name}}{{if .Date}}<small>{{.Date}}</small>{{end}}</h2>
@@ -57,6 +59,7 @@
 <tbody>{{range .Rows}}<tr><td class="num">{{.Rank}}</td><td>{{.Name}}</td><td>{{.Unit}}</td>{{range .Cells}}<td>{{.}}</td>{{end}}<td class="num">{{.Total}}</td></tr>{{end}}</tbody></table>
 {{end}}
 </section>{{end}}
+{{end}}
 {{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
 </body>
 </html>

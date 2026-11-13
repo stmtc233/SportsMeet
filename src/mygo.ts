@@ -167,7 +167,7 @@ export interface BoardSave {
 
 /** Change tells listeners which data moved, so pages reload only that. */
 export interface Change {
-  /** meets | units | athletes | events | entries | heats | results */
+  /** meets | units | athletes | events | entries | heats | results | combined | team_scoring */
   kind: string;
   meetId: string;
   eventId: string;
@@ -863,6 +863,7 @@ export interface Preferences {
   printRecordBreak: string;
   /** PrintResultsTime prints each heat's results time in the 成绩册. */
   printResultsTime: boolean;
+  printTeamScores: boolean;
 }
 
 export interface ReportTarget {
@@ -1065,6 +1066,15 @@ export interface ScheduleSkip {
   reason: string;
 }
 
+/**
+ * ScoreValue carries the exact rational for machine consumers and a lossless
+ * display: terminating decimals, or a fraction when the decimal repeats.
+ */
+export interface ScoreValue {
+  exact: string;
+  text: string;
+}
+
 /** SlotSave places an athlete or relay team; ID is the UI's opaque competitor ID. */
 export interface SlotSave {
   position: number;
@@ -1142,6 +1152,110 @@ export interface TeamInput {
   name: string;
   unitId?: string;
   memberIds: string[];
+}
+
+export interface TeamScoreDetail {
+  rows: UnitStanding[];
+  sources: TeamScoreSource[];
+  unassigned: TeamScoreLine[];
+  counted: number;
+  total: number;
+  complete: boolean;
+  state: string;
+  rules: TeamScoringRules;
+  groups: string[];
+  targets: TeamScoreTarget[];
+}
+
+export interface TeamScoreFilter {
+  meetId: string;
+  gender?: string;
+  groupLabel?: string;
+  targetIds?: string[];
+}
+
+export interface TeamScoreLine {
+  competitorId: string;
+  athleteId: string;
+  teamId: string;
+  unitId: string;
+  name: string;
+  markText: string;
+  rank: number | null;
+  eventId: string;
+  combinedId: string;
+  eventName: string;
+  gender: Gender;
+  groupLabel: string;
+  base: ScoreValue;
+  multiplier: number;
+  score: ScoreValue;
+}
+
+export interface TeamScoreOverride {
+  eventId?: string;
+  combinedId?: string;
+  multiplier: number;
+}
+
+export interface TeamScoreOverrideInput {
+  eventId: string;
+  combinedId: string;
+  multiplier: string;
+}
+
+export interface TeamScoreSource {
+  eventId: string;
+  combinedId: string;
+  name: string;
+  gender: Gender;
+  groupLabel: string;
+  complete: boolean;
+  multiplier: number;
+  state: string;
+}
+
+export interface TeamScoreTarget {
+  eventId: string;
+  combinedId: string;
+  name: string;
+  gender: Gender;
+  groupLabel: string;
+  relay: boolean;
+}
+
+/** TeamScoringInput keeps editable numeric text intact until Go validates it. */
+export interface TeamScoringInput {
+  enabled: boolean;
+  places: string;
+  tiePolicy: string;
+  relayMultiplier: string;
+  overrides: TeamScoreOverrideInput[];
+}
+
+export interface TeamScoringPreview {
+  previewHash: string;
+  changed: boolean;
+  before: TeamScoreDetail | null;
+  after: TeamScoreDetail | null;
+}
+
+export interface TeamScoringRequest {
+  meetId: string;
+  rules: TeamScoringRules;
+}
+
+/**
+ * TeamScoringRules belongs to a meet. Multipliers of zero exclude a target.
+ * Component events never have their own rule: their combined is the target.
+ */
+export interface TeamScoringRules {
+  enabled: boolean;
+  places: number[];
+  /** average | same */
+  tiePolicy: string;
+  relayMultiplier: number;
+  overrides: TeamScoreOverride[];
 }
 
 export interface TeamView {
@@ -1259,6 +1373,17 @@ export interface Unit {
 export interface UnitInput {
   name: string;
   shortName?: string;
+}
+
+export interface UnitStanding {
+  unitId: string;
+  unitName: string;
+  rank: number | null;
+  male: ScoreValue;
+  female: ScoreValue;
+  mixed: ScoreValue;
+  total: ScoreValue;
+  lines: TeamScoreLine[];
 }
 
 // ---- Services ----
@@ -1411,6 +1536,18 @@ export const Combined = {
   },
   save(meetID: string, id: string, in_: CombinedInput): Promise<Combined | null> {
     return call("Combined.Save", meetID, id, in_);
+  },
+} as const;
+
+export const TeamScoring = {
+  apply(req: TeamScoringRequest, hash: string, confirmed: boolean): Promise<TeamScoringPreview | null> {
+    return call("TeamScoring.Apply", req, hash, confirmed);
+  },
+  get(filter: TeamScoreFilter): Promise<TeamScoreDetail | null> {
+    return call("TeamScoring.Get", filter);
+  },
+  preview(meetID: string, in_: TeamScoringInput): Promise<TeamScoringPreview | null> {
+    return call("TeamScoring.Preview", meetID, in_);
   },
 } as const;
 

@@ -78,6 +78,7 @@ export function PreferencesPanel({ section }: { section: "general" | "arrange" |
         <StSwitchItem title="竞赛日程表" subtitle="印在项目之前" checked={data.printSchedule} onChange={(printSchedule) => save({ printSchedule })} />
       </StSection>
       <StSection title="成绩册" padded={false}>
+        <StSwitchItem title="团体总分表" subtitle="印在项目之前" checked={data.printTeamScores} onChange={(printTeamScores) => save({ printTeamScores })} />
         <StSwitchItem title="成绩时间" subtitle="每组成绩后印最后修改时间" checked={data.printResultsTime} onChange={(printResultsTime) => save({ printResultsTime })} />
       </StSection>
       <StSection title="检录单">

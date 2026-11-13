@@ -131,3 +131,7 @@
 - 新增写操作必须同时登记它的日志动作名。现有:`meet.created / updated / deleted / imported`、`unit.created / updated / deleted`、`athlete.created / updated / deleted / imported`、`event.created / updated / deleted`、`team.created / updated / deleted`、`entry.added / removed / seed`、`board.saved / reset`、`heats.scheduled`、`round.scheduled`、`heat.started`、`results.saved`、`settings.preferences / mcp`、`combined.created / updated / deleted / entries / rules`。
 - 成绩日志同时保留输入位置的原成绩与新成绩完整记录,包括逐次记录与备注;只修改备注同样可追查。设置日志不含令牌。
 - 日志只读:`ListAudit` 按时刻倒序(同一时刻按写入顺序)分页读取,可按赛事与来源筛选;每页最多 200 条,以上一页最后一行的时刻与 id 继续,固定两次查询(日志与赛事名称),不随条数增长。动作与来源的中文显示文本由 `service/audit.go` 映射,新增动作同时登记显示文本,单测检查没有遗漏。赛事删除后其日志保留,赛事名称为空。
+
+## 团体总分
+
+- 按已完成的决赛总排名或全能总排名换算得分并汇总到参赛单位；分项不单独计分、队伍计一次、单位同分并列（用户要求），完整规则见 [team-scoring.md](team-scoring.md)。

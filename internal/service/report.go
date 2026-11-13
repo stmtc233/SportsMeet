@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,8 +16,9 @@ import (
 
 // Report kinds.
 const (
-	ReportStartList = "startlist" // 秩序册
-	ReportResults   = "results"   // 成绩册
+	ReportStartList  = "startlist"   // 秩序册
+	ReportTeamScores = "team_scores" // 团体总分表
+	ReportResults    = "results"     // 成绩册
 )
 
 // RenderReport returns a printable HTML document for the meet. eventIDs
@@ -27,9 +29,26 @@ func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventID
 	if err != nil {
 		return "", err
 	}
+	if kind == ReportTeamScores {
+		meet, err := s.GetMeet(ctx, meetID)
+		if err != nil {
+			return "", err
+		}
+		table, err := s.teamScoreTable(ctx, meetID, eventIDs)
+		if err != nil {
+			return "", err
+		}
+		return report.TeamScores(report.Book{Meet: meet.Name, Dates: domain.DateRangeText(meet.StartDate, meet.EndDate), Location: meet.Location, PrintedAt: domain.RecordedText(s.store.Now(), s.zone), TeamScores: table})
+	}
 	book, err := s.reportBook(ctx, meetID, eventIDs, kind == ReportResults && prefs.PrintResultsTime, kind == ReportResults)
 	if err != nil {
 		return "", err
+	}
+	if kind == ReportResults && prefs.PrintTeamScores {
+		book.TeamScores, err = s.teamScoreTable(ctx, meetID, eventIDs)
+		if err != nil {
+			return "", err
+		}
 	}
 	book.NewPage = prefs.PrintNewPage
 	if kind != ReportStartList || !prefs.PrintSchedule {
@@ -462,4 +481,45 @@ func (s *Service) ReportTargets(ctx context.Context, meetID string) ([]ReportTar
 		out = append(out, ReportTarget{ID: p.Combined.ID, Name: p.Combined.Name})
 	}
 	return out, nil
+}
+
+func (s *Service) teamScoreTable(ctx context.Context, meetID string, ids []string) (*report.TeamScoreTable, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Report selections may contain owned component IDs; only their parent counts.
+	st, err := s.loadTeamScoreState(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	targets := []string{}
+	for _, t := range st.targets {
+		if len(ids) == 0 || slices.Contains(ids, t.id()) {
+			targets = append(targets, t.id())
+		}
+	}
+	// An explicit selection without a scoring target must not expand to the full meet.
+	if !st.rules.Enabled || (len(ids) > 0 && len(targets) == 0) {
+		return nil, nil
+	}
+	d, err := st.detail(TeamScoreFilter{MeetID: meetID, TargetIDs: targets}, st.rules)
+	if err != nil {
+		return nil, err
+	}
+	table := &report.TeamScoreTable{State: d.State, Counted: d.Counted, Total: d.Total, Scope: "全部项目", Rows: []report.TeamScoreRow{}}
+	if len(ids) > 0 {
+		table.Scope = "所选项目"
+		for _, t := range d.Sources {
+			if t.Multiplier > 0 {
+				table.Targets = append(table.Targets, t.Name)
+			}
+		}
+	}
+	for _, r := range d.Rows {
+		row := report.TeamScoreRow{Unit: r.UnitName, Male: r.Male.Text, Female: r.Female.Text, Mixed: r.Mixed.Text, Total: r.Total.Text}
+		if r.Rank != nil {
+			row.Rank = strconv.Itoa(*r.Rank)
+		}
+		table.Rows = append(table.Rows, row)
+	}
+	return table, nil
 }

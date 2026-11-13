@@ -86,6 +86,25 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 		}
 		f.Combineds = append(f.Combineds, out)
 	}
+	rules, err := s.store.TeamScoringRules(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	liveRules := []domain.TeamScoreOverride{}
+	for _, o := range rules.Overrides {
+		for _, e := range events {
+			if o.EventID != "" && o.EventID == e.ID && e.CombinedID == "" {
+				liveRules = append(liveRules, o)
+			}
+		}
+		for _, c := range combineds {
+			if o.CombinedID != "" && o.CombinedID == c.Combined.ID {
+				liveRules = append(liveRules, o)
+			}
+		}
+	}
+	rules.Overrides = liveRules
+	f.Meet.TeamScoring = &rules
 	unitNames := map[string]string{}
 	for _, u := range units {
 		unitNames[u.ID] = u.Name
@@ -676,6 +695,45 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 				plan.stmts = append(plan.stmts, store.Stmt(`INSERT INTO combined_entries(combined_id,athlete_id) VALUES (?,?)`, id, athletes[a]))
 				have[athletes[a]] = true
 			}
+		}
+	}
+
+	if f.Version >= 7 {
+		incoming := domain.DefaultTeamScoringRules()
+		if f.Meet.TeamScoring != nil {
+			incoming = *f.Meet.TeamScoring
+		}
+		incoming.Overrides = append([]domain.TeamScoreOverride{}, incoming.Overrides...)
+		for i := range incoming.Overrides {
+			o := &incoming.Overrides[i]
+			o.EventID, o.CombinedID = eventIDs[o.EventID], combinedIDs[o.CombinedID]
+		}
+		// Canonical defaults/order make equivalent rule sets compare equally.
+		targets := []TeamScoreTarget{}
+		for _, e := range f.Events {
+			if e.CombinedID == "" {
+				targets = append(targets, TeamScoreTarget{EventID: eventIDs[e.ID], Relay: e.Kind == "relay"})
+			}
+		}
+		for _, c := range f.Combineds {
+			targets = append(targets, TeamScoreTarget{CombinedID: combinedIDs[c.ID]})
+		}
+		incoming, err = (&teamScoreState{targets: targets}).normalizeRules(incoming)
+		if err != nil {
+			p.Errors = append(p.Errors, err.Error())
+			return finish()
+		}
+		if !p.NewMeet {
+			current, loadErr := s.loadTeamScoreState(ctx, meetID)
+			if loadErr != nil {
+				return nil, loadErr
+			}
+			if !reflect.DeepEqual(current.rules, incoming) {
+				p.Errors = append(p.Errors, "团体计分规则与文件不符")
+				return finish()
+			}
+		} else {
+			add(`INSERT INTO meet_team_scoring(meet_id,rules_json) VALUES (?,?)`, meetID, jsonValue(incoming))
 		}
 	}
 	return finish()

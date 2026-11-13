@@ -211,3 +211,6 @@
 @media (max-width: 900px) {
   .conflicts__row { grid-template-columns: 1fr; }
 }
+
+/* Keep wide score details inside the table. */
+.team-score-table { min-width: 0; overflow-x: auto; }

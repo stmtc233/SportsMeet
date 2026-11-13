@@ -12,16 +12,18 @@ import (
 
 // Book is one meet's printable content.
 type Book struct {
-	NewPage   bool   // Start each event on a new printed page.
-	Title     string // 秩序册 / 成绩册
-	Meet      string
-	Dates     string // 2026-11-12 or 2026-11-12 – 2026-11-13
-	Location  string
-	PrintedAt string        // 2026-11-12 09:31, local time
-	Rosters   []UnitRoster  // 代表队名单, start lists only; empty = not printed
-	Schedule  []ScheduleDay // 竞赛日程表, start lists only; empty = not printed
-	Events    []Event
-	Combineds []Combined
+	NewPage    bool   // Start each event on a new printed page.
+	Title      string // 秩序册 / 成绩册
+	Meet       string
+	Dates      string // 2026-11-12 or 2026-11-12 – 2026-11-13
+	Location   string
+	PrintedAt  string        // 2026-11-12 09:31, local time
+	Rosters    []UnitRoster  // 代表队名单, start lists only; empty = not printed
+	Schedule   []ScheduleDay // 竞赛日程表, start lists only; empty = not printed
+	Events     []Event
+	Combineds  []Combined
+	TeamScores *TeamScoreTable
+	TeamOnly   bool
 }
 
 // UnitRoster is one unit of the 代表队名单.
@@ -122,6 +124,9 @@ var style string
 //go:embed startlist.html
 var startListHTML string
 
+//go:embed team_scores.html
+var teamScoresHTML string
+
 //go:embed results.html
 var resultsHTML string
 
@@ -134,7 +139,7 @@ var recordSheetHTML string
 var (
 	recordSheetTmpl = template.Must(template.New("recordsheet").Parse(recordSheetHTML))
 	startListTmpl   = template.Must(template.New("startlist").Parse(startListHTML))
-	resultsTmpl     = template.Must(template.New("results").Parse(resultsHTML))
+	resultsTmpl     = template.Must(template.New("results").Parse(resultsHTML + teamScoresHTML))
 	checkInTmpl     = template.Must(template.New("checkin").Parse(checkInHTML))
 )
 
@@ -281,4 +286,20 @@ type CombinedRow struct {
 	Rank  string
 	Total string
 	Cells []string
+}
+
+type TeamScoreTable struct {
+	State   string
+	Scope   string
+	Counted int
+	Total   int
+	Targets []string
+	Rows    []TeamScoreRow
+}
+type TeamScoreRow struct{ Rank, Unit, Male, Female, Mixed, Total string }
+
+func TeamScores(b Book) (string, error) {
+	b.Title = "团体总分表"
+	b.TeamOnly = true
+	return render(resultsTmpl, b)
 }

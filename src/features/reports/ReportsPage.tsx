@@ -4,10 +4,10 @@ import { useScrollMemory, useViewState } from "../../lib/viewState";
 import type { Zoom } from "./paginate";
 import { ReportPreview } from "./ReportPreview";
 import { checkInRows, checkInSelection } from "./checkin";
-import { ReportsController, useCheckInTargets, useReportHTML, useReportTargets, useSheetHTML } from "./controller";
+import { ReportsController, useCheckInTargets, useReportHTML, useReportTargets, useReportTeamScores, useSheetHTML } from "./controller";
 
-type Kind = "startlist" | "results" | "checkin" | "record";
-const kinds: Kind[] = ["startlist", "results", "checkin", "record"];
+type Kind = "startlist" | "results" | "checkin" | "record" | "team_scores";
+const kinds: Kind[] = ["startlist", "results", "checkin", "record", "team_scores"];
 
 const zooms: { value: Zoom; label: string }[] = [
   { value: "fit", label: "适合宽度" }, { value: "0.5", label: "50%" }, { value: "0.75", label: "75%" }, { value: "1", label: "100%" }, { value: "1.5", label: "150%" },
@@ -29,8 +29,10 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   const chosen = all.filter((r) => !skipped.has(r.id)).map((r) => r.id);
   // Every event ticked prints them all (ids empty), also when what was unticked has since been deleted.
   const ids = chosen.length === all.length ? [] : chosen;
+  const { data: teamScores, error: teamError } = useReportTeamScores(meetId, kind === "team_scores");
+  const teamUnavailable = kind === "team_scores" && !teamScores?.rules.enabled;
   const sheet = kind === "checkin" || kind === "record" ? kind : null;
-  const { data: bookHTML, error: bookError } = useReportHTML(sheet ? "startlist" : kind, meetId, ids, all.length, chosen.length, !sheet);
+  const { data: bookHTML, error: bookError } = useReportHTML(sheet ? "startlist" : kind, meetId, ids, all.length, chosen.length, !sheet && !teamUnavailable);
   // 检录单 and 成绩记录表: by round, optionally one day.
   const { data: targets, error: targetsError } = useCheckInTargets(meetId);
   const [chosenDay, setDay] = useViewState(`reports:day:${meetId}`, "");
@@ -43,11 +45,11 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   const { data: sheetHTML, error: sheetError } = useSheetHTML(sheet ?? "checkin", req, sheet ? rounds.chosen.length : 0);
 
   const html = sheet ? sheetHTML : bookHTML;
-  const count = sheet ? rounds.chosen.length : chosen.length;
-  const error = sheet ? targetsError || sheetError : eventsError || bookError;
+  const count = teamUnavailable ? 0 : sheet ? rounds.chosen.length : chosen.length;
+  const error = kind === "team_scores" && teamError ? teamError : sheet ? targetsError || sheetError : eventsError || bookError;
   // Why there is nothing to preview; "" while the choices are still loading.
   const listed = sheet ? rows.length : all.length;
-  const none = (sheet ? targets : events) === undefined ? "" : listed > 0 ? (sheet ? "未选择轮次" : "未选择项目") : !sheet ? "还没有项目" : day ? "当天没有组" : "还没有组";
+  const none = teamUnavailable ? (teamScores ? "尚未启用团体计分" : "") : (sheet ? targets : events) === undefined ? "" : listed > 0 ? (sheet ? "未选择轮次" : "未选择项目") : !sheet ? "还没有项目" : day ? "当天没有组" : "还没有组";
   const print = async () => {
     setBusy(true);
     await (sheet ? ReportsController.printSheet(sheet, req) : ReportsController.print(kind, meetId, ids));
@@ -58,7 +60,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
       toolbar={
         <StToolbar title="打印">
           <StSegmented value={kind} onChange={setKind}
-            options={[{ value: "startlist", label: "秩序册" }, { value: "results", label: "成绩册" }, { value: "checkin", label: "检录单" }, { value: "record", label: "成绩记录表" }]} />
+            options={[{ value: "startlist", label: "秩序册" }, { value: "results", label: "成绩册" }, { value: "checkin", label: "检录单" }, { value: "record", label: "成绩记录表" }, { value: "team_scores", label: "团体总分" }]} />
           <StButton variant="primary" icon={<IconPrint size={16} strokeWidth={iconStroke} />} disabled={count === 0} loading={busy} onClick={print}>打印</StButton>
         </StToolbar>
       }>

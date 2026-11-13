@@ -1,4 +1,4 @@
-import { Reports, type CheckInRequest } from "../../mygo";
+import { Reports, TeamScoring, type CheckInRequest } from "../../mygo";
 import { useData } from "../../lib/useData";
 import { act } from "../../lib/action";
 
@@ -17,3 +17,5 @@ export const ReportsController = {
   print: (kind: string, meetId: string, ids: string[]) => act(() => Reports.print(kind, meetId, ids)),
   printSheet: (kind: SheetKind, req: CheckInRequest) => act(() => (kind === "record" ? Reports.printRecordSheet(req) : Reports.printCheckIn(req))),
 };
+
+export const useReportTeamScores = (meetId: string, enabled: boolean) => useData(() => enabled ? TeamScoring.get({ meetId }) : Promise.resolve(null), [meetId, enabled], (c) => enabled && c.meetId === meetId);

@@ -1,0 +1,9 @@
+{{define "teamScores"}}{{if .}}
+<section class="event team-scores">
+<h2>团体总分表<small>{{.State}}</small></h2>
+<p>{{.Scope}} · 已计分 {{.Counted}} / {{.Total}} 项</p>
+<table><thead><tr><th class="num">名次</th><th>参赛单位</th><th class="mark">男子得分</th><th class="mark">女子得分</th><th class="mark">混合得分</th><th class="mark">总分</th></tr></thead>
+<tbody>{{range .Rows}}<tr><td class="num">{{.Rank}}</td><td>{{.Unit}}</td><td class="mark">{{.Male}}</td><td class="mark">{{.Female}}</td><td class="mark">{{.Mixed}}</td><td class="mark">{{.Total}}</td></tr>{{end}}</tbody></table>
+{{if .Targets}}<p>统计项目：{{range $i,$t := .Targets}}{{if $i}}、{{end}}{{$t}}{{end}}</p>{{end}}
+</section>
+{{end}}{{end}}

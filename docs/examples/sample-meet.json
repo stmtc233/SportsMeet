@@ -1,6 +1,6 @@
 {
   "format": "sportsmeet-interchange",
-  "version": 6,
+  "version": 7,
   "exportedAt": "2026-11-12T18:05:31+08:00",
   "generator": {
     "name": "SportsMeet",
@@ -12,7 +12,32 @@
     "startDate": "2026-11-12",
     "endDate": "2026-11-13",
     "location": "第一中学田径场",
-    "note": ""
+    "note": "",
+    "teamScoring": {
+      "enabled": true,
+      "places": [
+        9,
+        7,
+        6,
+        5,
+        4,
+        3,
+        2,
+        1
+      ],
+      "tiePolicy": "average",
+      "relayMultiplier": 2,
+      "overrides": [
+        {
+          "eventId": "e1",
+          "multiplier": 2
+        },
+        {
+          "combinedId": "cschool",
+          "multiplier": 2
+        }
+      ]
+    }
   },
   "units": [
     {

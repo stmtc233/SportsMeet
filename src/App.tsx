@@ -1,10 +1,11 @@
+import { TeamScoringPage } from "./features/team-scoring/TeamScoringPage";
 import { CombinedList } from "./features/combined/CombinedList";
 import { CombinedWorkspace } from "./features/combined/CombinedWorkspace";
 import { useEffect } from "react";
 import { usePreferences } from "./features/settings/controller";
 import { ErrorBoundary } from "./app/ErrorBoundary";
 import { NavProvider, useNav, type MeetTab } from "./app/nav";
-import { IconAthletes, IconBack, IconEvent, IconExport, IconPrint, IconSettings, IconTime, IconUnit, StListItem, StToastHost, iconStroke } from "./design";
+import { IconAthletes, IconBack, IconEvent, IconExport, IconMeet, IconPrint, IconSettings, IconTime, IconUnit, StListItem, StToastHost, iconStroke } from "./design";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { AthletesPage } from "./features/athletes/AthletesPage";
 import { EventWorkspace } from "./features/event/EventWorkspace";
@@ -21,6 +22,7 @@ const tabs: { tab: MeetTab; label: string; icon: typeof IconEvent }[] = [
   { tab: "schedule", label: "日程", icon: IconTime },
   { tab: "athletes", label: "运动员", icon: IconAthletes },
   { tab: "units", label: "参赛单位", icon: IconUnit },
+  { tab: "team-scoring", label: "团体总分", icon: IconMeet },
   { tab: "reports", label: "打印", icon: IconPrint },
   { tab: "exchange", label: "导入导出", icon: IconExport },
 ];
@@ -50,6 +52,7 @@ function Shell() {
         {route.page === "meet" && route.tab === "schedule" && <SchedulePage meetId={meetId} />}
         {route.page === "meet" && route.tab === "athletes" && <AthletesPage meetId={meetId} />}
         {route.page === "meet" && route.tab === "units" && <UnitsPage meetId={meetId} />}
+        {route.page === "meet" && route.tab === "team-scoring" && <TeamScoringPage meetId={meetId} />}
         {route.page === "meet" && route.tab === "reports" && <ReportsPage meetId={meetId} />}
         {route.page === "meet" && route.tab === "exchange" && <ExchangePage meetId={meetId} />}
       </main>

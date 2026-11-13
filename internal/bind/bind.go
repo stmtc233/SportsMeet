@@ -302,6 +302,9 @@ func (r Reports) Print(ctx context.Context, kind, meetID string, eventIDs []stri
 	if kind == service.ReportResults {
 		title = "成绩册"
 	}
+	if kind == service.ReportTeamScores {
+		title = "团体总分表"
+	}
 	printWindow(title, html)
 	return nil
 }

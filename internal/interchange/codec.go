@@ -40,7 +40,7 @@ func Decode(data []byte) (*File, error) {
 	if head.Version < 1 {
 		return nil, Problems{"version 必须为正整数"}
 	}
-	if head.Version < 6 {
+	if head.Version < 7 {
 		var err error
 		if data, err = withoutNewerFields(data, head.Version); err != nil {
 			return nil, fmt.Errorf("不是有效的 JSON:%w", err)
@@ -93,7 +93,11 @@ func Decode(data []byte) (*File, error) {
 	if decodeErr != nil {
 		return nil, fmt.Errorf("字段类型不正确:%w", decodeErr)
 	}
-	if p := Validate(&f); len(p) > 0 {
+	p := Validate(&f)
+	if head.Version >= 7 && f.Meet.TeamScoring != nil {
+		p = append(p, validateTeamScoringShape(data)...)
+	}
+	if len(p) > 0 {
 		return nil, p
 	}
 	return &f, nil
@@ -107,6 +111,11 @@ func withoutNewerFields(data []byte, version int) ([]byte, error) {
 	var doc map[string]any
 	if err := dec.Decode(&doc); err != nil {
 		return nil, err
+	}
+	if version < 7 {
+		if meet, ok := doc["meet"].(map[string]any); ok {
+			delete(meet, "teamScoring")
+		}
 	}
 	events, _ := doc["events"].([]any)
 	for _, e := range events {
@@ -244,6 +253,7 @@ func Validate(f *File) Problems {
 		p = append(p, validateEvent(at, kind, &e, athletes, units, f.Version >= 2)...)
 	}
 	p = append(p, validateCombineds(f, athletes)...)
+	p = append(p, validateTeamScoring(f)...)
 	return p
 }
 

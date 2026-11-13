@@ -55,6 +55,9 @@ SPORTSMEET_BROWSER_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google C
 - 第三阶段页面验证覆盖 1280 / 800 × 浅色 / 深色的全能创建、计分表预览、统一报名、分项编排录入、总成绩与规则重算；计次零值／多次成绩、计分精度、普通队伍计次覆盖两种宽度。桥接桩验证交互，业务数值由独立的真实 Go 测试验证。
 - 本机 macOS arm64 可生成 `build/darwin-arm64/SportsMeet.app`,该打包验证跳过磁盘映像、公证与安装包。
 
+- 团体总分的纯计分与真实 SQLite 测试覆盖决赛跨组名次、其他轮次不计分、未录完与清空成绩撤回计分、高度过程／确认、接力与普通队伍整队计分、全能总排名计一次且分项不重复、单位归属修改、无单位占名次、并列均分与同名次分值、跨计分名额、精确分数相加、同总分直接并列、按性别／组别／项目重新汇总、规则预览确认及成绩变化使指纹过期、v1–v6 导入规则保留与已删除目标例外清理、日志与事件、v7 导入新赛事的 ID 映射和同赛事规则冲突、成绩册附表开关与所选项目范围。官方 SDK 经真实 HTTP 验证规则读取、预览确认、界面写入使 MCP 确认过期及团体总分表 HTML。
+- 团体总分页面测试覆盖 1280 / 800 × 浅色／深色的并列排名、性别／组别筛选与切页恢复、单位得分明细与项目入口、规则预览保存、外部变更使预览失效、失败保留输入、未启用时禁用打印、单独打印预览与所选项目请求；业务数值由真实 Go 测试验证。实际 Go 生成的团体总分表已在浏览器打印样式下检查，无横向溢出；原生 WebView 与实际纸张上的团体总分表仍需人工验证。
+
 ## 性能压测
 
 按需运行的压测与完整对比见 [performance.md](performance.md)，基线见 [performance-results.json](performance-results.json)，优化测量见 [performance-optimized-results.json](performance-optimized-results.json)。默认的 `bun run check` 与页面测试不执行压测。
@@ -62,7 +65,7 @@ SPORTSMEET_BROWSER_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google C
 - `internal/service/performance_test.go`：真实 mygo SQLite、临时数据库，service 入口生成与写入样本；覆盖 1,000 / 3,000 / 10,000 名运动员、400–5,000 组的串行延迟、分配量与 4 / 16 客户端混合读写；结束后检查计数、数据库与外键完整性。
 - `internal/arrange/performance_test.go`：纯自动编排算法，比较 1,000 / 10,000 / 50,000 人单项目与同单位分散开关。
 - `tests/ui/performance.spec.ts`：1280 / 800 宽、1,000–50,000 人名单末尾可达、搜索与占位高度，以及 Go 真实生成秩序册的分页耗时、长任务、数据行 / 组完整、无空白页 / 溢出页。13 项通过。
-- 普通页面测试 74 项通过；`virtual-table.spec.ts` 覆盖长名单滚动、底部筛选、跨虚拟化阈值、恢复完整列表与窗口高度变化；`report-pagination.spec.ts` 覆盖长表重复表头、整组不拆、强制换页、内容不丢失与分页中切换报表 / 离开页面。
+- 普通页面测试 83 项通过；`virtual-table.spec.ts` 覆盖长名单滚动、底部筛选、跨虚拟化阈值、恢复完整列表与窗口高度变化；`report-pagination.spec.ts` 覆盖长表重复表头、整组不拆、强制换页、内容不丢失与分页中切换报表 / 离开页面。
 - 索引迁移覆盖规范化键的 Unicode / 空白规则、源字段保留、非唯一索引与迁移前备份；完整索引查询计划检查覆盖项目报名查询。只读连接池覆盖取消、关闭唤醒、只读限制与重复关闭；`go test -race ./internal/store ./internal/service ./internal/mcp` 通过。
 - 逐记录交换文件编码与标准编码器逐字节比对，覆盖空 / nil 集合、可选全能、嵌套轮次与组、引号、反斜线、换行和 HTML 字符，保持声明格式的字段顺序与省略规则。
 - 性能采样只对应本机 macOS / Chrome；不代表 Windows、原生 WebView、MCP HTTP、真实打印机或长期内存泄漏验证。
