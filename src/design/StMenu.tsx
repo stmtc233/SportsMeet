@@ -161,3 +161,43 @@ export function StSelect<T extends string>({ label, value, options, onChange, pl
     </div>
   );
 }
+
+/**
+ * A dropdown of several choices; the menu stays open while ticking. Nothing
+ * ticked means every choice (shown as allLabel), and so does ticking them all.
+ */
+export function StMultiSelect<T extends string>({ value, options, onChange, allLabel, width = "auto", disabled, "aria-label": ariaLabel }: {
+  value: T[];
+  options: StOption<T>[];
+  onChange: (v: T[]) => void;
+  allLabel: string;
+  "aria-label"?: string;
+  width?: "auto" | "narrow" | "fill";
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const picked = options.filter((o) => value.includes(o.value));
+  const toggle = (v: T) => {
+    const next = value.includes(v) ? value.filter((x) => x !== v) : [...value, v];
+    onChange(next.length === options.length ? [] : next);
+  };
+  const item = (key: string, label: ReactNode, checked: boolean, onClick: () => void, separated = false) => (
+    <button key={key} type="button" role="menuitemcheckbox" aria-checked={checked} className="st-menu-item" data-separated={separated || undefined} onClick={onClick}>
+      <span className="st-menu-item__check">{checked && <IconCheck size={16} strokeWidth={iconStroke} />}</span>
+      {label}
+    </button>
+  );
+  return (
+    <div className={`st-field st-field--${width}`}>
+      <button ref={setAnchor} type="button" aria-label={ariaLabel} className="st-select st-select--medium" aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={() => setOpen((v) => !v)}>
+        <span className="st-select__value">{picked.length ? picked.map((o) => o.label).join("、") : allLabel}</span>
+        <IconChevronDown size={16} strokeWidth={iconStroke} />
+      </button>
+      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} matchWidth>
+        {item("", allLabel, picked.length === 0, () => onChange([]))}
+        {options.map((o, i) => item(o.value || "-", o.label, value.includes(o.value), () => toggle(o.value), i === 0))}
+      </Popover>
+    </div>
+  );
+}

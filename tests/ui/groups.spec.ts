@@ -88,7 +88,14 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `test-results/groups-boards-${width}-${colorScheme}.png`, animations: "disabled" });
     await page.getByRole("button", { name: "打印", exact: true }).click(); await page.getByRole("radio", { name: "成绩册", exact: true }).click();
-    await page.getByLabel("组别", { exact: true }).click(); await page.getByRole("menuitemradio", { name: "初一", exact: true }).click();
+    const printGroups = page.getByLabel("组别", { exact: true });
+    // Ticking keeps the menu open; ticking every group means all again.
+    await printGroups.click(); await page.getByRole("menuitemcheckbox", { name: "初一", exact: true }).click();
+    await page.getByRole("menuitemcheckbox", { name: "初二", exact: true }).click();
+    await expect(printGroups).toHaveText("全部组别");
+    await page.getByRole("menuitemcheckbox", { name: "初一", exact: true }).click();
+    await page.keyboard.press("Escape");
+    await expect(printGroups).toHaveText("初一");
     await expect(page.getByRole("checkbox", { name: "男子100m 初二", exact: true })).toHaveCount(0);
     await expect(page.frameLocator('iframe[title="预览"]').getByRole("heading", { name: "分组成绩册" })).toBeVisible();
     await page.locator(".st-toolbar").getByRole("button", { name: "打印", exact: true }).click();

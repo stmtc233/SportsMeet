@@ -44,7 +44,7 @@
 | `StTrialsField` | 高度试跳文本格，使用文字键盘、数字右对齐；页面可传 `readOnly` 拦截按键做单键录入；`invalid` 只标红框不写文字，错误由页面在行下方显示并经 `aria-describedby` 关联；接收整组 Go 预览返回的错误，解析与动作规则见 [domain.md](domain.md)「成绩」 |
 | `StDateField` / `StTimeField` | 本地日期 / 24 小时制时分,分开选择,支持 `disabled`;改日期保留时分,改时分保留日期 |
 | `StSegmented` | 2–5 个互斥选项、页内 Tab;选中底色是一块滑动的底板,量好位置后才开始带过渡,控件不可见(隐藏的面板)时由选中按钮自己画底色 |
-| `StSelect` / `StMenu` | 下拉选择 / 操作菜单,见下文；`StSelect` 可传 `aria-label` 为表内无独立可见标签的选择框命名 |
+| `StSelect` / `StMultiSelect` / `StMenu` | 下拉单选 / 下拉多选 / 操作菜单,见下文；`StSelect` 可传 `aria-label` 为表内无独立可见标签的选择框命名。`StMultiSelect` 勾选时菜单不关闭,不勾或全勾都表示「全部」,显示 `allLabel` |
 | `StDialog` | 所有对话框(内部用原生 `<dialog>` 模态);页面不直接写 `<dialog>` 或自绘外壳;组件用 `aria-labelledby` 关联标题,供读屏与自动测试识别。对话框里的下拉菜单挂在对话框内,否则会被模态层盖住 |
 | `StTable` | 数据表格:表头吸顶、列宽可配置、数字列右对齐、行可选中;填满容器且超过 200 行时按固定行高只渲染可见行，上下占位禁止 flex 收缩；筛选时钳制渲染范围并同步真实滚动位置，观察容器高度变化。`empty` 传文字时按 `StEmpty` 排版;数据未到时传 `loading`,不显示空列表占位;`fill` 时传 `scrollKey` 记住滚动位置 |
 | `StPage` / `StToolbar` | 页面骨架与顶部工具栏;非 `flush` 页面传 `scrollKey` 记住正文滚动位置 |

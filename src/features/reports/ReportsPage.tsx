@@ -1,8 +1,8 @@
 import { useRef, useState, type ReactNode } from "react";
-import { IconPrint, StButton, StCheckbox, StEmpty, StNotice, StPage, StSegmented, StSelect, StToolbar, iconStroke } from "../../design";
+import { IconPrint, StButton, StCheckbox, StEmpty, StMultiSelect, StNotice, StPage, StSegmented, StSelect, StToolbar, iconStroke } from "../../design";
 import { useScrollMemory, useViewState } from "../../lib/viewState";
 import { useGroups } from "../groups/controller";
-import { GroupFilter, inGroup, useGroupFilter } from "../groups/GroupFields";
+import { ungrouped } from "../groups/GroupFields";
 import type { Zoom } from "./paginate";
 import { ReportPreview } from "./ReportPreview";
 import { checkInRows, checkInSelection } from "./checkin";
@@ -28,11 +28,13 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   // What was unticked stays unticked while the app runs, per meet.
   const [skipped, setSkipped] = useViewState(`reports:skipped:${meetId}`, () => new Set<string>());
   const { data: groups } = useGroups(meetId);
-  // 成绩册 and 团体总分 print group by group; one group can be picked.
+  // 成绩册 and 团体总分 print group by group, each from a new page; none picked prints all.
   const grouped = (kind === "results" || kind === "team_scores") && !!groups?.length;
-  const [group, setGroup] = useGroupFilter(meetId, "reports");
-  const groupIds = grouped && group !== "all" ? [group] : [];
-  const all = (events ?? []).filter((e) => !grouped || inGroup(group, e.groupId));
+  const groupChoices = [...(groups ?? []).map((g) => ({ value: g.id, label: g.name })), ...((events ?? []).some((e) => !e.groupId) ? [{ value: "", label: ungrouped }] : [])];
+  const [pickedGroups, setPickedGroups] = useViewState<string[]>(`reports:groups:${meetId}`, []);
+  // A group deleted meanwhile drops out of the selection.
+  const groupIds = grouped ? pickedGroups.filter((id) => groupChoices.some((c) => c.value === id)) : [];
+  const all = (events ?? []).filter((e) => !groupIds.length || groupIds.includes(e.groupId ?? ""));
   const chosen = all.filter((r) => !skipped.has(r.id)).map((r) => r.id);
   // Every event ticked prints them all (ids empty), also when what was unticked has since been deleted.
   const ids = chosen.length === all.length ? [] : chosen;
@@ -80,7 +82,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
             } />
         ) : (
           <ChoiceList title="项目" scrollKey={`reports:events:${meetId}`} items={all.map((e) => ({ id: e.id, label: e.name }))} skipped={skipped} onChange={setSkipped}
-            filter={grouped ? <GroupFilter meetId={meetId} value={group} onChange={setGroup} /> : undefined} />
+            filter={grouped ? <StMultiSelect aria-label="组别" width="fill" allLabel="全部组别" value={groupIds} options={groupChoices} onChange={setPickedGroups} /> : undefined} />
         )}
         <div className="report-main">
           {error ? <div className="report-note"><StNotice tone="danger">{error}</StNotice></div> : count === 0 ? (none && <StEmpty>{none}</StEmpty>) : (
