@@ -10,6 +10,8 @@ export default defineConfig({
   devCommand: "bun run dev:web",
   buildCommand: "bun run build:web",
   frontendDist: "dist",
+  // resources/brand holds design sources; the app only needs icon.png.
+  resourcesExclude: ["brand"],
   bindings: "src/mygo.ts",
   out: "build",
 });

@@ -1,0 +1,106 @@
+name: release
+
+# Publishing a GitHub release builds the packages for the three systems and
+# attaches them to that release. The tag must be "v" + the version in
+# mygo.config.ts. Run it by hand with a tag to rebuild an existing release.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 已有 release 的标签,如 v0.1.0
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+  GH_TOKEN: ${{ github.token }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Disk images and app signing need macOS, the NSIS installer needs
+          # Windows; Linux packages build anywhere.
+          - os: macos-latest
+            platform: darwin/universal
+            dir: darwin-universal
+          - os: windows-latest
+            platform: windows/amd64
+            dir: windows-amd64
+          - os: ubuntu-latest
+            platform: linux/amd64
+            dir: linux-amd64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+
+      - name: Read version
+        run: |
+          version=$(bun -e 'import c from "./mygo.config.ts"; console.log(c.version)')
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::标签 $TAG 与 mygo.config.ts 的版本 $version 不一致"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: bunx mygo build -platform ${{ matrix.platform }} -skip-notarize
+
+      # Installers come from mygo build; the portable package of each system
+      # is the built app in an archive, run from wherever it is unpacked.
+      - name: Collect packages (macOS)
+        if: runner.os == 'macOS'
+        working-directory: build/${{ matrix.dir }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/packages"
+          cp "sportsmeet-$VERSION.dmg" "$RUNNER_TEMP/packages/sportsmeet-$VERSION-macos-universal.dmg"
+          ditto -c -k --sequesterRsrc --keepParent SportsMeet.app \
+            "$RUNNER_TEMP/packages/sportsmeet-$VERSION-macos-universal-portable.zip"
+
+      - name: Collect packages (Windows)
+        if: runner.os == 'Windows'
+        working-directory: build/${{ matrix.dir }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/packages"
+          cp sportsmeet-setup-*.exe "$RUNNER_TEMP/packages/sportsmeet-$VERSION-windows-amd64-setup.exe"
+          mkdir -p "$RUNNER_TEMP/portable"
+          while IFS= read -r item; do
+            [ -n "$item" ] && cp -R "$item" "$RUNNER_TEMP/portable/"
+          done < <(tr -d '\r' < .mygo-files)
+          cd "$RUNNER_TEMP/portable"
+          7z a -tzip "$RUNNER_TEMP/packages/sportsmeet-$VERSION-windows-amd64-portable.zip" .
+
+      - name: Collect packages (Linux)
+        if: runner.os == 'Linux'
+        working-directory: build/${{ matrix.dir }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/packages"
+          cp "sportsmeet_${VERSION}_amd64.deb" "sportsmeet-$VERSION-1.x86_64.rpm" "$RUNNER_TEMP/packages/"
+          cp "sportsmeet-$VERSION-linux-amd64.tar.gz" "$RUNNER_TEMP/packages/sportsmeet-$VERSION-linux-amd64-portable.tar.gz"
+
+      - name: Upload to release
+        working-directory: ${{ runner.temp }}/packages
+        run: |
+          ls -l
+          gh release upload "$TAG" * --clobber --repo "$GITHUB_REPOSITORY"
