@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { StButton, StDateField, StDialog, StSegmented, StSelect, StTextField } from "../../design";
+import { StButton, StDialog, StSegmented, StSelect, StTextField } from "../../design";
 import type { EventInput, EventKind, EventRow, Stage } from "../../mygo";
 import { stageLabels } from "../../lib/labels";
 import { EventsController, useEventPresets } from "./controller";
@@ -69,7 +69,6 @@ export function EventDialog({ meetId, open, row, onClose }: { meetId: string; op
         <StTextField label="组别" placeholder="可不填" value={form.groupLabel} onChange={(groupLabel) => set({ groupLabel })} />
         <div className="span"><StTextField label="显示名称" placeholder={auto} value={form.name} onChange={(name) => set({ name })} width="fill" /></div>
         <EventMeasurementFields form={form} onChange={(patch) => { setPresetId(""); set(patch); }} />
-        <StDateField label="日期" value={form.date} onChange={(date) => set({ date })} />
         <div className="span"><StSelect label="赛制" value={formatKey(form.rounds)} onChange={(key) => set({ rounds: withFormat(form.rounds, key) })} width="fill"
           options={formatOptions(row?.rounds ?? [])} /></div>
         {form.rounds.map((r) => {

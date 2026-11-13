@@ -94,7 +94,7 @@
 - **生效计划时间**(`EffectiveScheduled`):组自己的 `scheduledAt` 是「单独指定」;没填时沿用所在轮次的 `scheduledAt`(`inherited` 为真)。显示、排序、打印都用生效时间;组的 `scheduledAt` 只存单独指定的值,轮次开始时间改了,沿用它的组跟着变,不需要逐组改写。
 - **结束时间**(`HeatEnd` / `ScheduledEnd`):生效计划时间 + 预计用时;任一缺失就没有结束时间。`HeatView.endAt` 返回它。
 - **时间冲突**:同一运动员(队伍展开为队员,含全能分项)的两个组时间重叠,或间隔不足设置里的最短休息时间,列为冲突;没有预计用时的组按时间点计,没有计划时间的组不参与。只提示,不拦截任何保存(用户要求)。完整规则见 [arrange.md](arrange.md)「冲突检查」。
-- **项目的日子**:`EventDay` = 项目日期,未填时为赛事开始日期。项目日期只是默认日期:界面与打印显示的日子用 `PlannedDay`,即该项目最早计划时间(轮次开始时间与组的单独时间里最早的一个)所在的日子,没有任何时间才用 `EventDay`(`EventDetail.day`)。编排、成绩、打印都以它为参照。
+- **项目的日子**:`EventDay` = 项目日期,未填时为赛事开始日期。项目日期只是没有计划时间时的默认日子,界面不提供输入(项目落在哪天由轮次与组的时间决定,两个入口会让用户不知道以哪个为准);它经 MCP `save_event` 与交换格式写入,界面编辑项目时原样保留。界面与打印显示的日子用 `PlannedDay`,即该项目最早计划时间(轮次开始时间与组的单独时间里最早的一个)所在的日子,没有任何时间才用 `EventDay`(`EventDetail.day`)。编排、成绩、打印都以它为参照。
 - **赛事日期外的提示**:轮次或组的计划时间所在日子不在赛事起止日期内(`OutsideMeet`;未填结束日期即只有开始那天)时,保存前提示「时间不在赛事日期内」,批量排时预览提示「N 组不在赛事日期内」;只提示,不拦截保存。判断只在 service(`ScheduleWarning`、`SetRoundStart`、批量排时预览的 `warnings`),界面与 MCP 共用。
 - **显示**:
   - 计划时间与参照日同一天只显示 `HH:mm`,否则显示 `YYYY-MM-DD HH:mm`;没有参照日(批量排时预览)始终带日期。`HeatView` 内嵌的 `HeatTimes` 给出生效时间 `effectiveAt`、是否沿用轮次 `scheduleInherited`、文本 `scheduledText`、`durationText`(`5 分钟`)与 `endAt`;`RoundView.scheduledText` 显示轮次开始时间。编排草稿里改过的组经绑定 `Arrange.heatPlan` 校验并取得同样的文本。
