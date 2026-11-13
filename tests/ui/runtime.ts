@@ -142,6 +142,7 @@ export async function installRuntime(page: Page, options: { schedule?: boolean; 
           }
           case "Settings.CopyToken": case "Settings.CopyConnection": return null;
           case "App.Info": return { version: "0.1.0" };
+          case "App.CheckForUpdates": return null;
           case "Meets.List": return [meet];
           case "Meets.Get": return meet;
           case "Units.List": return [{ id: "unit", meetId: "meet", name: "一班", shortName: "" }];

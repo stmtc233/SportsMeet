@@ -1537,6 +1537,13 @@ export const Marks = {
 
 /** App tells the page about the app itself. */
 export const App = {
+  /**
+   * CheckForUpdates opens the update window, which says whether a newer
+   * version is out.
+   */
+  checkForUpdates(): Promise<void> {
+    return call("App.CheckForUpdates");
+  },
   /** Info returns the app's version. */
   info(): Promise<AppInfo> {
     return call("App.Info");

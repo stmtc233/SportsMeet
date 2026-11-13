@@ -64,43 +64,31 @@ jobs:
           fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
 
-      - name: Build
-        run: bunx mygo build -platform ${{ matrix.platform }} -skip-notarize
+      # mygo build signs the update files with the key and uploads them with
+      # the installers to the release of this version: installed apps read
+      # update-<platform>.json from the latest release.
+      - name: Build and upload
+        env:
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: bunx mygo build -platform ${{ matrix.platform }} -skip-notarize -upload
 
-      # Installers come from mygo build; the portable package of each system
-      # is the built app in an archive, run from wherever it is unpacked.
-      - name: Collect packages (macOS)
+      # The portable package is the built app in an archive, run from wherever
+      # it is unpacked. Linux has it already: the .tar.gz that mygo uploads.
+      - name: Upload the portable package (macOS)
         if: runner.os == 'macOS'
         working-directory: build/${{ matrix.dir }}
         run: |
-          mkdir -p "$RUNNER_TEMP/packages"
-          cp "sportsmeet-$VERSION.dmg" "$RUNNER_TEMP/packages/sportsmeet-$VERSION-macos-universal.dmg"
-          ditto -c -k --sequesterRsrc --keepParent SportsMeet.app \
-            "$RUNNER_TEMP/packages/sportsmeet-$VERSION-macos-universal-portable.zip"
+          zip="$RUNNER_TEMP/sportsmeet-$VERSION-${{ matrix.dir }}-portable.zip"
+          ditto -c -k --sequesterRsrc --keepParent SportsMeet.app "$zip"
+          gh release upload "$TAG" "$zip" --clobber --repo "$GITHUB_REPOSITORY"
 
-      - name: Collect packages (Windows)
+      - name: Upload the portable package (Windows)
         if: runner.os == 'Windows'
         working-directory: build/${{ matrix.dir }}
         run: |
-          mkdir -p "$RUNNER_TEMP/packages"
-          cp sportsmeet-setup-*.exe "$RUNNER_TEMP/packages/sportsmeet-$VERSION-windows-amd64-setup.exe"
-          mkdir -p "$RUNNER_TEMP/portable"
-          while IFS= read -r item; do
-            [ -n "$item" ] && cp -R "$item" "$RUNNER_TEMP/portable/"
-          done < <(tr -d '\r' < .mygo-files)
-          cd "$RUNNER_TEMP/portable"
-          7z a -tzip "$RUNNER_TEMP/packages/sportsmeet-$VERSION-windows-amd64-portable.zip" .
-
-      - name: Collect packages (Linux)
-        if: runner.os == 'Linux'
-        working-directory: build/${{ matrix.dir }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/packages"
-          cp "sportsmeet_${VERSION}_amd64.deb" "sportsmeet-$VERSION-1.x86_64.rpm" "$RUNNER_TEMP/packages/"
-          cp "sportsmeet-$VERSION-linux-amd64.tar.gz" "$RUNNER_TEMP/packages/sportsmeet-$VERSION-linux-amd64-portable.tar.gz"
-
-      - name: Upload to release
-        working-directory: ${{ runner.temp }}/packages
-        run: |
-          ls -l
-          gh release upload "$TAG" * --clobber --repo "$GITHUB_REPOSITORY"
+          zip="$RUNNER_TEMP/sportsmeet-$VERSION-${{ matrix.dir }}-portable.zip"
+          # .mygo-files lists what the app is made of; it ships too, as
+          # updates read it to remove files a new version no longer has.
+          { tr -d '\r' < .mygo-files; echo .mygo-files; } | grep -v '^$' > "$RUNNER_TEMP/portable-files"
+          7z a -tzip "$zip" "@$RUNNER_TEMP/portable-files"
+          gh release upload "$TAG" "$zip" --clobber --repo "$GITHUB_REPOSITORY"

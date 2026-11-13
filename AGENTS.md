@@ -44,9 +44,9 @@ SportsMeet 是一款开源的**单机离线**田径与校园运动会编排软�
 ```
 SportsMeet/
 ├── AGENTS.md / CLAUDE.md / README.md / LICENSE(MIT)
-├── main.go                  ← mygo 入口:窗口、Bind 各服务、MCP 开关;数据打不开时弹窗说明后退出
+├── main.go                  ← mygo 入口:窗口、Bind 各服务、MCP 开关、更新窗口;数据打不开时弹窗说明后退出
 ├── go.mod
-├── mygo.config.ts           ← 应用名、标识、版本(唯一来源,Go 经 `mygo.App.Version()` 读取)、打包;bindings 输出 src/mygo.ts
+├── mygo.config.ts           ← 应用名、标识、版本(唯一来源,Go 经 `mygo.App.Version()` 读取)、打包、更新来源与公钥;bindings 输出 src/mygo.ts
 ├── package.json · vite.config.ts · tsconfig.json · index.html
 ├── resources/
 │   ├── icon.png             ← 1024×1024「跑道 S」应用图标
@@ -78,7 +78,7 @@ SportsMeet/
 ├── scripts/generate-brand.mjs       ← 从品牌母版导出资源,同步应用与官网图标
 ├── website/                 ← 静态官网(index.html + styles.css,无构建);assets/ 里是应用界面截图(浅色 / 深色各一张)与图标
 ├── .github/workflows/check.yml      ← CI:`bun run check`、绑定生成物比对、页面冒烟测试
-├── .github/workflows/release.yml    ← 发布 release 后打三个系统的安装包与便携包,上传到该 release
+├── .github/workflows/release.yml    ← 发布 release 后打三个系统的安装包、便携包与签名的更新文件,上传到该 release
 ├── docs/
 │   ├── brand-guidelines.md             ←「跑道 S」品牌设计规范与资源索引
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
@@ -116,11 +116,19 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 | 系统 | 安装包 | 便携包 |
 |---|---|---|
-| macOS(通用) | `.dmg` | `-portable.zip`(内含 `.app`) |
-| Windows(amd64) | `-setup.exe` | `-portable.zip` |
-| Linux(amd64) | `.deb`、`.rpm` | `-portable.tar.gz` |
+| macOS(通用) | `.dmg` | `-darwin-universal-portable.zip`(内含 `.app`) |
+| Windows(amd64) | `sportsmeet-setup-….exe` | `-windows-amd64-portable.zip` |
+| Linux(amd64) | `.deb`、`.rpm` | `-linux-amd64.tar.gz` |
+
+同一次打包还上传各平台的更新文件:`update-<平台>.json`、`sportsmeet-<版本>-<平台>.tar.gz`、增量包、`install.sh` 与 `SHA256SUMS`。已安装的应用从最新 release 读 `update-<平台>.json`,所以 mygo 生成的文件不改名、不从 release 里删。
+
+测试版的版本写成 `0.1.0-beta.1` 这样并勾选预发布:已安装的应用只更新到正式版,测试版要手动下载。
+
+更新用一对密钥签名:公钥在 `mygo.config.ts` 的 `updates.publicKey`,私钥是仓库的 Actions 密钥 `MYGO_UPDATER_PRIVATE_KEY`。换密钥后已安装的应用收不到更新,私钥要另行备份。
 
 `resources/brand/` 是设计资料,经 `resourcesExclude` 不进安装包。
+
+---
 
 ## 5. 关键不变量与「改动前必读」
 
@@ -144,6 +152,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 - **所有写操作只经 `internal/service`**:前端绑定与 MCP 共用同一组方法和校验,`bind/`、`mcp/` 不直接碰 `store/`;否则会绕过校验,界面也收不到变更事件。
 - **包的依赖方向由 `internal/layers` 的测试把关**:新增包或新增依赖时,在它的分层表里登记并同步 §3。
 - **业务规则只在 Go**:成绩解析与格式化、排名、晋级、项目名称组成、时间的校验与显示都在 Go,前端只调用(→ domain.md)。
+- **新版本检测与安装用 mygo 的更新窗口**:启动后与每天在后台检查 GitHub release,「关于」页可手动检查;这是应用唯一的出网(→ frontend.md「设置页」)。
 - **`src/mygo.ts` 是生成物**,不手改。
 - **前端只有 `src/lib/` 与各 feature 的 `controller` / `data` 文件调用 Go**,其余文件只从 `src/mygo.ts` 引入类型;棘轮把关(→ frontend.md)。
 - **页面只用 `src/design/` 的 `St*` 组件、token 与统一图标**;`scripts/check-design-system.sh` 棘轮把关,基线只减不增(→ design-system.md)。
@@ -202,7 +211,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 ### 5.6 未实现与后续计划
 
-当前已实现:基础数据(赛事、参赛单位、运动员含表格导入、项目含 35 个预设与自定义配置、报名)、编排(预赛 / 次赛 / 半决赛 / 决赛、自动编排、手动调整、草稿保存、批量排时间与多轮次连排)、竞赛日程页与运动员时间冲突提示、秩序册竞赛日程表、统一的时间规则(项目按时间排序、组与成绩修改时间显示、报表打印时间)、计时 / 田赛 / 计次 / 计分成绩录入与排名晋级、普通队伍项目、全能分项与积分总排名、秩序册、成绩册、检录单与成绩记录表打印、组的实际开赛时间、交换格式导入导出、设置(通用 / 编排 / 打印 / MCP / 操作日志 / 关于)、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
+当前已实现:基础数据(赛事、参赛单位、运动员含表格导入、项目含 35 个预设与自定义配置、报名)、编排(预赛 / 次赛 / 半决赛 / 决赛、自动编排、手动调整、草稿保存、批量排时间与多轮次连排)、竞赛日程页与运动员时间冲突提示、秩序册竞赛日程表、统一的时间规则(项目按时间排序、组与成绩修改时间显示、报表打印时间)、计时 / 田赛 / 计次 / 计分成绩录入与排名晋级、普通队伍项目、全能分项与积分总排名、秩序册、成绩册、检录单与成绩记录表打印、组的实际开赛时间、交换格式导入导出、设置(通用 / 编排 / 打印 / MCP / 操作日志 / 关于)、新版本检测与更新、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
 
 排序依据:先让学校能装上、能办完一场校运会,再补规则细节与打磨。
 
@@ -212,7 +221,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 1. Windows 的运行、文件对话框、打印与打包。
 2. 原生 WebView 里走完一场完整赛事:手动拖放、田赛逐次录入的键盘操作、800 宽窗口、实际纸张分页;浏览器 1280 / 800、浅色 / 深色已由自动测试覆盖。
-3. 签名与自动更新配置(`mygo.config.ts` 与 `main.go` 里还没有更新配置;发布的安装包未签名、未公证);发布工作流在 GitHub 上实际跑通一次。
+3. 系统签名(发布的安装包未做 macOS 签名公证与 Windows 签名);发布工作流与应用内更新在 GitHub 上实际跑通一次。
 
 **第二优先:校运会必备**
 

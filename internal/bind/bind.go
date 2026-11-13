@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/updater"
 	"github.com/stmtc233/sportsmeet/internal/arrange"
 	"github.com/stmtc233/sportsmeet/internal/domain"
 	"github.com/stmtc233/sportsmeet/internal/interchange"
@@ -477,3 +478,7 @@ type App struct{}
 
 // Info returns the app's version.
 func (App) Info() AppInfo { return AppInfo{Version: service.Version} }
+
+// CheckForUpdates opens the update window, which says whether a newer
+// version is out.
+func (App) CheckForUpdates() { updater.CheckForUpdates() }

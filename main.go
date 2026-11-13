@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/updater"
 	"github.com/stmtc233/sportsmeet/internal/bind"
 	"github.com/stmtc233/sportsmeet/internal/mcp"
 	"github.com/stmtc233/sportsmeet/internal/service"
@@ -18,6 +19,10 @@ func main() {
 	mygo.Bind(bind.Meets{Core: core}, bind.Units{Core: core}, bind.Athletes{Core: core}, bind.Events{Core: core},
 		bind.Combined{Core: core}, bind.Entries{Core: core}, bind.Arrange{Core: core}, bind.Results{Core: core}, bind.Reports{Core: core},
 		&bind.Exchange{Core: core}, bind.Marks{}, bind.App{}, bind.Settings{Core: core})
+
+	// The update window checks in the background and offers new versions;
+	// the app's interface is Chinese whatever the system language.
+	mygo.Use(updater.New(updater.Options{Language: "zh-Hans"}))
 
 	var st *store.Store
 	mygo.App.WhenReady(func() {

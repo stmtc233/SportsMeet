@@ -42,5 +42,6 @@ export const SettingsController = {
   configure: (enabled: boolean, port: number, rotate = false) => act(() => Settings.configureMCP(enabled, port, rotate), "已保存"),
   reveal: () => act(() => Settings.revealToken()),
   copyToken: () => act(() => Settings.copyToken(), "已复制令牌"),
+  checkForUpdates: () => act(() => App.checkForUpdates()),
   copyConnection: () => act(() => Settings.copyConnection(), "已复制连接信息"),
 };
