@@ -5,7 +5,11 @@ interface Sheet {
   html: string;
   /** Laid out on sheets: shown. Until then it loads under the shown one. */
   ready: boolean;
+  /** Stacking order, fixed when the frame is made: newer frames lie under older ones. */
+  layer: number;
 }
+
+let layers = 0;
 
 /**
  * A report on A4 sheets. The frame runs no scripts (the sandbox only lets
@@ -14,6 +18,11 @@ interface Sheet {
  * srcdoc and stays blank. The next report loads and is paginated in a
  * hidden frame under the one shown, which stays until then; when there is
  * none, the one shown stays too.
+ *
+ * A frame's style never changes once made, only its place in the stack:
+ * WebKit can keep treating a frame made with pointer-events: none (or
+ * hidden) as not scrollable after the style goes, so the wheel scrolls
+ * the window instead. The first report is hidden by a cover instead.
  */
 export function ReportPreview({ html, zoom, onPages }: { html: string | undefined; zoom: Zoom; onPages: (n: number) => void }) {
   const box = useRef<HTMLDivElement>(null);
@@ -28,7 +37,7 @@ export function ReportPreview({ html, zoom, onPages }: { html: string | undefine
       // At most the one shown and the newest one loading.
       const shown = old.filter((s) => s.ready);
       if (shown.some((s) => s.html === html)) return shown;
-      return [...shown, { html, ready: false }];
+      return [...shown, { html, ready: false, layer: --layers }];
     });
   }, [html]);
 
@@ -76,7 +85,7 @@ export function ReportPreview({ html, zoom, onPages }: { html: string | undefine
         onPages(pages);
         setSheets((old) => {
           const at = old.findIndex((s) => s.html === key);
-          return at < 0 ? old : [{ html: key, ready: true }, ...old.slice(at + 1)];
+          return at < 0 ? old : [{ ...old[at]!, ready: true }, ...old.slice(at + 1)];
         });
       }
     }
@@ -84,13 +93,14 @@ export function ReportPreview({ html, zoom, onPages }: { html: string | undefine
   return (
     <div ref={box} className="report-frame">
       {sheets.map((s) => (
-        <iframe key={s.html} title={s.ready ? "预览" : "下一份预览"} aria-hidden={!s.ready || undefined} data-pending={!s.ready || undefined}
+        <iframe key={s.html} title={s.ready ? "预览" : "下一份预览"} aria-hidden={!s.ready || undefined} style={{ zIndex: s.layer }}
           sandbox="allow-same-origin" srcDoc={s.html} onLoad={() => void laidOut(s.html)}
           ref={(el) => {
             if (el) frames.current.set(s.html, el);
             else frames.current.delete(s.html);
           }} />
       ))}
+      {!sheets.some((s) => s.ready) && sheets.length > 0 && <div className="report-frame__cover" />}
     </div>
   );
 }
