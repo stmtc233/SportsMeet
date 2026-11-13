@@ -30,6 +30,10 @@ bun run dev
 
 静态页面在 `website/`,无构建,直接打开 `website/index.html` 即可预览。
 
+## 品牌资源
+
+「跑道 S」标识的[设计规范](docs/brand-guidelines.md)与 SVG、PNG、WebP、JPG、PDF、ICO、ICNS 文件位于 [resources/brand/](resources/brand/)。运行 `bun run brand:generate` 从矢量母版重新导出，并同步应用与官网图标。
+
 ## 验证
 
 ```sh

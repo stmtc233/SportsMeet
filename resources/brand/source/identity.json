@@ -1,0 +1,33 @@
+{
+  "name": "SportsMeet",
+  "concept": "跑道 S",
+  "colors": {
+    "blue": "#1677FF",
+    "ink": "#1D2129",
+    "black": "#000000",
+    "white": "#FFFFFF",
+    "paper": "#F5F6F8",
+    "dark": "#0F1115"
+  },
+  "mark": {
+    "canvas": 512,
+    "radius": 84,
+    "upperCenter": [172, 172],
+    "lowerCenter": [340, 340],
+    "terminalX": [460, 52],
+    "laneOffsets": [-40, 0, 40],
+    "laneWidth": 28,
+    "smallLaneOffsets": [-48, 0, 48],
+    "smallLaneWidth": 24,
+    "smallMaxPixels": 32
+  },
+  "appIcon": {
+    "canvas": 1024,
+    "inset": 100,
+    "cornerRadius": 204,
+    "cornerShape": 1.78,
+    "markScale": 1.3333333333
+  },
+  "pngWidths": [512, 1024, 2048],
+  "iconSizes": [16, 24, 32, 48, 64, 128, 256, 512, 1024]
+}

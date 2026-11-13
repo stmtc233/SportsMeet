@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "mygo dev",
     "build": "mygo build",
+    "brand:generate": "node scripts/generate-brand.mjs",
     "generate": "mygo generate",
     "dev:web": "vite",
     "build:web": "tsc --noEmit && vite build",

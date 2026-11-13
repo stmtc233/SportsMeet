@@ -63,6 +63,8 @@
 
 ## 图标
 
+- 品牌标识为「跑道 S」，几何、色彩、留白与导出规则以 [品牌规范](../brand-guidelines.md) 为准；母版在 `resources/brand/source/`，运行 `bun run brand:generate` 统一导出并同步应用与官网图标。品牌标识独立于功能图标，不用 Lucide 替代，也不单独修改导出的位图。
+
 - 全应用统一用 **Lucide**(ISC 许可,线性描边,`lucide-react`),经 `src/design/icons.ts` 改名为 `Icon*` 统一导出后使用;页面不直接引入其他图标库。
 - 描边统一 `1.75`(24 视口),圆头圆角。
 - Lucide 没有的图标按同一规格(24 网格、约 2 留边、圆头描边)自绘 SVG,放进 `src/design/icons/`。

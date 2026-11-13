@@ -48,7 +48,9 @@ SportsMeet/
 ├── go.mod
 ├── mygo.config.ts           ← 应用名、标识、版本(唯一来源,Go 经 `mygo.App.Version()` 读取)、打包;bindings 输出 src/mygo.ts
 ├── package.json · vite.config.ts · tsconfig.json · index.html
-├── resources/icon.png       ← 1024×1024 应用图标
+├── resources/
+│   ├── icon.png             ← 1024×1024「跑道 S」应用图标
+│   └── brand/               ← 品牌矢量母版、SVG / PNG / WebP / JPG / PDF / ICO / ICNS、视觉规范与交付包
 ├── internal/
 │   ├── domain/              ← 实体、枚举、项目配置与全能规则、时间规则与项目排序(纯数据 + 校验,无 IO)
 │   ├── store/               ← SQLite 访问(mygo sqlite 插件,库文件 sportsmeet.db 在 mygo.PathUserData,迁移前的副本在同目录 backups/)
@@ -73,9 +75,11 @@ SportsMeet/
 ├── tests/ui/                ← Playwright 页面冒烟测试(模拟 mygo 桥接)
 ├── playwright.config.ts      ← 宽窄窗口与浅深色页面验证
 ├── scripts/check-design-system.sh   ← 前端棘轮检查(设计系统 + 绑定引用);基线 design-system-baseline.txt
+├── scripts/generate-brand.mjs       ← 从品牌母版导出资源,同步应用与官网图标
 ├── website/                 ← 静态官网(index.html + styles.css,无构建);assets/ 里是应用界面截图(浅色 / 深色各一张)与图标
 ├── .github/workflows/check.yml      ← CI:`bun run check`、绑定生成物比对、页面冒烟测试
 ├── docs/
+│   ├── brand-guidelines.md             ←「跑道 S」品牌设计规范与资源索引
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
 │   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json
 │   ├── examples/sample-meet.json
@@ -98,6 +102,7 @@ bun install
 bun run dev                          # mygo dev,打开应用窗口并热更新
 bun run build                        # mygo build,产物在 build/<平台>/
 bun run generate                     # 改了 Go 绑定后更新 src/mygo.ts
+bun run brand:generate               # 从矢量母版导出品牌资源与应用 / 官网图标
 bun run check                        # 提交前跑这一条:go vet、Go 单测、类型检查、前端单测、前端棘轮
 bun run test:ui                      # 先 bunx playwright install chromium
 ```
@@ -120,6 +125,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 | `internal/store/`、迁移、查询性能 | [storage.md](docs/agents/storage.md) |
 | `src/` 代码结构、事件刷新、设置页、`internal/report/` 打印 | [frontend.md](docs/agents/frontend.md) |
 | `src/design/`、新增或改写任何页面 UI、`scripts/check-design-system.sh` | [design-system.md](docs/agents/design-system.md) |
+| 品牌标识、应用与官网图标、`resources/brand/` | [brand-guidelines.md](docs/brand-guidelines.md) + [design-system.md](docs/agents/design-system.md) |
 | 新增或修改任何用户可见文案(界面、打印模板、错误提示)、写提交信息 | [copywriting.md](docs/agents/copywriting.md) |
 
 ### 5.1 全局
@@ -132,6 +138,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 - **页面只用 `src/design/` 的 `St*` 组件、token 与统一图标**;`scripts/check-design-system.sh` 棘轮把关,基线只减不增(→ design-system.md)。
 - **数字一律等宽**,界面与打印模板都设 `tabular-nums`(→ design-system.md)。
 - **圆角用 `superellipse(1.78)` 平滑轮廓**,胶囊、圆形与开关显式 `round`(→ design-system.md)。
+- **品牌标识为「跑道 S」**,母版在 `resources/brand/source/`,运行 `bun run brand:generate` 统一导出各格式并同步应用与官网图标(→ [品牌规范](docs/brand-guidelines.md))。
 - **界面文字默认不写**:删掉后用户仍能操作、看懂状态的字就不加(→ copywriting.md)。
 
 ### 5.2 领域与编排 → [domain.md](docs/agents/domain.md) · [arrange.md](docs/agents/arrange.md)
@@ -198,7 +205,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 **第二优先**
 4. 编排页:组卡片标题拖动排序;窄窗口下名单收为侧面板。
 5. 团体总分与积分规则、破纪录标记(交换格式不含,需要时加字段并 bump 版本)。
-6. 发布前:应用图标、签名与自动更新配置、Windows / Linux 打包。
+6. 发布前:签名与自动更新配置、Windows / Linux 打包。
 
 **已知与细则不完全一致**
 - `scripts/design-system-baseline.txt` 里标 `bindings` 的文件直接调用 Go 绑定,没有收进 `controller`;改到这些文件时顺手收进去并从基线删掉(→ [frontend.md](docs/agents/frontend.md)「代码结构」)。
