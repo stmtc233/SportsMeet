@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useNav } from "../../app/nav";
 import { recall, remember, useScrollMemory } from "../../lib/viewState";
-import { IconBack, StIconButton, StListItem, StPage, StToolbar, iconStroke } from "../../design";
+import { IconBack, StIconButton, StListItem, StNavGroup, StPage, StToolbar, iconStroke } from "../../design";
 import { AboutContent } from "../about/AboutContent";
 import { AuditPanel } from "./AuditPanel";
 import { MCPPanel } from "./MCPPanel";
@@ -29,7 +29,9 @@ export function SettingsPage() {
     <StPage flush toolbar={<StToolbar title="设置" leading={<StIconButton label="返回" onClick={back}><IconBack size={18} strokeWidth={iconStroke} /></StIconButton>} />}>
       <div className="settings" data-detail={route.section !== null || undefined}>
         <nav className="settings__nav" aria-label="设置分类">
-          {sections.map((s) => <StListItem key={s.value} title={s.label} selected={s.value === section} onClick={() => go({ ...route, section: s.value })} />)}
+          <StNavGroup>
+            {sections.map((s) => <StListItem key={s.value} title={s.label} selected={s.value === section} onClick={() => go({ ...route, section: s.value })} />)}
+          </StNavGroup>
         </nav>
         <main ref={content} className="settings__content">
           <div className="settings__back"><StIconButton label="设置分类" onClick={() => go({ ...route, section: null })}><IconBack size={18} strokeWidth={iconStroke} /></StIconButton></div>

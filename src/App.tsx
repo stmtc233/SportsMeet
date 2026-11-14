@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { ErrorBoundary } from "./app/ErrorBoundary";
 import { NavProvider, useNav, type MeetTab } from "./app/nav";
-import { IconAthletes, IconBack, IconEvent, IconExport, IconGroup, IconMeet, IconPrint, IconSettings, IconTime, IconUnit, StFieldFeedback, StListItem, StToastHost, iconStroke } from "./design";
+import { IconAthletes, IconBack, IconEvent, IconExport, IconGroup, IconMeet, IconPrint, IconSettings, IconTime, IconUnit, StFieldFeedback, StListItem, StNavGroup, StToastHost, iconStroke } from "./design";
 import { AthletesPage } from "./features/athletes/AthletesPage";
 import { CombinedList } from "./features/combined/CombinedList";
 import { CombinedWorkspace } from "./features/combined/CombinedWorkspace";
@@ -39,9 +39,11 @@ function Shell() {
     <div className="app">
       <nav className="app__side">
         <MeetHeader meetId={meetId} />
-        {tabs.map(({ tab, label, icon: Icon }) => (
-          <StListItem key={tab} title={label} leading={<Icon size={18} strokeWidth={iconStroke} />} selected={tab === current} onClick={() => go({ page: "meet", meetId, tab })} />
-        ))}
+        <StNavGroup>
+          {tabs.map(({ tab, label, icon: Icon }) => (
+            <StListItem key={tab} title={label} leading={<Icon size={18} strokeWidth={iconStroke} />} selected={tab === current} onClick={() => go({ page: "meet", meetId, tab })} />
+          ))}
+        </StNavGroup>
         <div className="app__side-spacer" />
         <StListItem title="设置" leading={<IconSettings size={18} strokeWidth={iconStroke} />} onClick={() => go({ page: "settings", section: null, returnTo: route })} />
         <StListItem title="全部赛事" leading={<IconBack size={18} strokeWidth={iconStroke} />} onClick={() => go({ page: "meets" })} />

@@ -20,6 +20,12 @@ textarea {
 @keyframes st-fade-in { from { opacity: 0; } }
 @keyframes st-rise-in { from { opacity: 0; transform: translateY(4px); } }
 @keyframes st-page-in { from { opacity: 0.4; } }
+/* A save bar coming up from the bottom edge. */
+@keyframes st-bar-in { from { opacity: 0; transform: translateY(8px); } }
+/* A value that just changed (StChanged): a brief accent that settles back. */
+@keyframes st-changed { from { color: var(--st-tone-info-accent); transform: scale(1.15); } }
+/* Something placed by the user (a dropped athlete). */
+@keyframes st-land-in { from { opacity: 0; transform: scale(0.96); } }
 
 /* ---- tones ---- */
 .st-tone-neutral { --tone-accent: var(--st-tone-neutral-accent); --tone-bg: var(--st-tone-neutral-container); --tone-fg: var(--st-tone-neutral-on-container); }
@@ -61,7 +67,28 @@ textarea {
 .st-button--tonal:hover:not(:disabled) { background-image: linear-gradient(var(--st-hover), var(--st-hover)); }
 .st-button:active:not(:disabled) { background-image: linear-gradient(var(--st-pressed), var(--st-pressed)); transform: scale(0.97); }
 .st-button:disabled { opacity: 0.45; cursor: default; }
-.st-button[data-loading] { cursor: progress; }
+.st-button[data-loading] { position: relative; cursor: progress; }
+.st-button[data-loading]:disabled { opacity: 1; }
+/* Busy: after a short wait the label gives way to a spinner. */
+.st-button[data-loading] > :not(.st-button__spinner) { animation: st-fade-out var(--st-motion-fast) linear var(--st-busy-delay) forwards; }
+.st-button__spinner {
+  position: absolute;
+  inset: 0;
+  width: 14px;
+  height: 14px;
+  margin: auto;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  corner-shape: round;
+  opacity: 0;
+  animation: st-fade-show var(--st-motion-medium) linear var(--st-busy-delay) forwards, st-spin calc(var(--st-motion-slow) * 3) linear infinite;
+}
+@keyframes st-fade-out { to { opacity: 0; } }
+@keyframes st-fade-show { to { opacity: 1; } }
+@keyframes st-spin { to { transform: rotate(1turn); } }
+.st-button[data-disclosure] .st-button__icon { transition: transform var(--st-motion-medium) var(--st-ease-out); }
+.st-button[data-disclosure][aria-expanded="true"] .st-button__icon { transform: rotate(90deg); }
 .st-button__icon { display: inline-flex; }
 .st-button__label { display: inline-grid; justify-items: center; }
 .st-button__label > * { grid-area: 1 / 1; }
@@ -177,6 +204,22 @@ textarea {
 .st-list-item--action:is(:disabled, [aria-disabled]) { opacity: 0.45; cursor: default; }
 .st-list-item[aria-current] { background: var(--st-tone-info-container); color: var(--st-tone-info-on-container); }
 .st-list-item__leading { display: inline-flex; color: var(--st-text-muted); }
+.st-nav-group { position: relative; display: flex; flex-direction: column; gap: var(--st-space-2); }
+.st-nav-group > .st-list-item { position: relative; }
+.st-nav-group__thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--thumb-size);
+  transform: translateY(var(--thumb-at));
+  border-radius: var(--st-radius-8);
+  corner-shape: superellipse(1.78);
+  background: var(--st-tone-info-container);
+  pointer-events: none;
+}
+.st-nav-group[data-animate] .st-nav-group__thumb { transition: transform var(--st-motion-medium) var(--st-ease-out), height var(--st-motion-medium) var(--st-ease-out); }
+.st-nav-group[data-thumb] > .st-list-item[aria-current] { background: transparent; }
 .st-list-item[aria-current] .st-list-item__leading { color: inherit; }
 .st-list-item__text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .st-list-item__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -192,7 +235,7 @@ textarea {
 .st-field:has(> .st-segmented) { width: auto; }
 .st-field__label { font-size: var(--st-text-sm); color: var(--st-text-muted); }
 .st-field__hint { font-size: 12px; color: var(--st-text-muted); }
-.st-field__error { font-size: 12px; color: var(--st-tone-danger-accent); }
+.st-field__error { font-size: 12px; color: var(--st-tone-danger-accent); animation: st-rise-in var(--st-motion-medium) var(--st-ease-out) backwards; }
 .st-input {
   display: flex;
   align-items: center;
@@ -290,8 +333,8 @@ textarea {
   top: var(--st-space-2);
   bottom: var(--st-space-2);
   left: 0;
-  width: var(--thumb-w);
-  transform: translateX(var(--thumb-x));
+  width: var(--thumb-size);
+  transform: translateX(var(--thumb-at));
   border-radius: var(--st-radius-6);
   corner-shape: superellipse(1.78);
   background: var(--st-surface);
@@ -432,6 +475,9 @@ textarea {
 }
 .st-toast[data-leaving] { animation: st-pop-out var(--st-motion-fast) var(--st-ease-in) forwards; }
 
+.st-changed { display: inline-block; }
+.st-changed[data-changed] { animation: st-changed calc(var(--st-motion-slow) * 3) var(--st-ease-out); }
+
 /* ---- table ---- */
 .st-table { display: flex; flex-direction: column; min-width: 0; }
 .st-table[data-fill] { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
@@ -459,4 +505,5 @@ textarea {
   .st-switch, .st-switch::after { border: 1px solid ButtonText; }
   .st-segmented button[aria-checked="true"] { outline: 2px solid ButtonText; outline-offset: -2px; }
   .st-table__row[data-selected] { outline: 1px solid Highlight; outline-offset: -1px; }
+  .st-nav-group__thumb { border: 1px solid Highlight; }
 }

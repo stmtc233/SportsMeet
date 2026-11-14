@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Tone } from "./StLayout";
+import { easeOut, motionMs } from "./motion";
 
 interface Toast {
   id: number;
@@ -38,10 +39,27 @@ export function StToastHost() {
     listeners.add(setList);
     return () => void listeners.delete(setList);
   }, []);
+  // Toasts already shown glide up when a new one pushes them, instead of jumping.
+  const box = useRef<HTMLDivElement>(null);
+  const tops = useRef(new Map<string, number>());
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ms = motionMs("medium");
+    const next = new Map<string, number>();
+    for (const t of el.children as HTMLCollectionOf<HTMLElement>) {
+      const id = t.dataset.id!;
+      const top = t.offsetTop;
+      next.set(id, top);
+      const was = tops.current.get(id);
+      if (ms > 0 && was !== undefined && was !== top) t.animate([{ transform: `translateY(${was - top}px)` }, { transform: "none" }], { duration: ms, easing: easeOut(), composite: "add" });
+    }
+    tops.current = next;
+  }, [list]);
   return (
-    <div className="st-toasts" aria-live="polite">
+    <div ref={box} className="st-toasts" aria-live="polite">
       {list.map((t) => (
-        <div key={t.id} className={`st-toast st-tone-${t.tone}`} data-leaving={t.leaving || undefined}>
+        <div key={t.id} data-id={t.id} className={`st-toast st-tone-${t.tone}`} data-leaving={t.leaving || undefined}>
           {t.text}
         </div>
       ))}

@@ -69,7 +69,7 @@ export function ImportMeetDialog({ file, meetId, onClose, onImported }: { file: 
       )}
       {preview && !bad && (
         <>
-          <dl className="facts">
+          <dl className="facts view-enter">
             <dt>赛事</dt>
             <dd>{preview.meetName}{preview.newMeet ? "（新建）" : ""}</dd>
             <dt>参赛单位</dt>

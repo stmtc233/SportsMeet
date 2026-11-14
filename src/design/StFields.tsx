@@ -1,9 +1,10 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type Ref } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import { isCallError } from "mygo-runtime";
 import type { Event, EventKind } from "../mygo";
 import { normalizeMark } from "../lib/marks";
 import { IconCheck, IconSearch, iconStroke } from "./icons";
 import { useFieldFeedback } from "./StFieldFeedback";
+import { useSlideThumb } from "./motion";
 
 interface FieldShellProps {
   label?: ReactNode;
@@ -233,7 +234,7 @@ export interface StOption<T extends string> {
 /** 2–5 exclusive options, or in-page tabs. */
 export function StSegmented<T extends string>({ label, value, options, onChange, size = "medium", "aria-label": ariaLabel }: { label?: ReactNode; value: T; options: StOption<T>[]; onChange: (v: T) => void; size?: "small" | "medium"; "aria-label"?: string }) {
   const id = useId();
-  const thumb = useThumb(value, options.map((o) => o.value).join("\n"));
+  const thumb = useSlideThumb<HTMLDivElement>("x", "aria-checked");
   const tabValue = (options.find((o) => o.value === value && !o.disabled) ?? options.find((o) => !o.disabled))?.value;
   return (
     <FieldShell label={label} id={id} group>
@@ -262,38 +263,4 @@ export function StSegmented<T extends string>({ label, value, options, onChange,
       </div>
     </FieldShell>
   );
-}
-
-// The sliding background under the selected option. It is placed without
-// a transition first, and slides from then on; while the control is not
-// laid out (a hidden panel) the selected button paints its own background.
-function useThumb(value: string, options: string) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState<{ x: number; w: number } | null>(null);
-  const [animate, setAnimate] = useState(false);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const measure = () => {
-      const on = el.querySelector<HTMLElement>('button[aria-checked="true"]');
-      const next = on && on.offsetWidth > 0 ? { x: on.offsetLeft, w: on.offsetWidth } : null;
-      setBox((old) => (old?.x === next?.x && old?.w === next?.w ? old : next));
-    };
-    measure();
-    const watch = new ResizeObserver(measure);
-    watch.observe(el);
-    el.querySelectorAll("button").forEach((b) => watch.observe(b));
-    return () => watch.disconnect();
-  }, [value, options]);
-  const ready = box !== null;
-  useEffect(() => {
-    if (!ready) {
-      setAnimate(false);
-      return;
-    }
-    const frame = requestAnimationFrame(() => setAnimate(true));
-    return () => cancelAnimationFrame(frame);
-  }, [ready]);
-  const style = box ? ({ "--thumb-x": `${box.x}px`, "--thumb-w": `${box.w}px` } as CSSProperties) : undefined;
-  return { ref, style, animate };
 }

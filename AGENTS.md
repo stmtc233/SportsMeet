@@ -74,7 +74,7 @@ SportsMeet/
 │   ├── main.tsx · App.tsx   ← 入口;外壳(侧栏 + 页面切换)
 │   ├── mygo.ts              ← `mygo generate` 生成物,勿手改
 │   ├── app/                 ← nav.tsx(页面路由状态、离开前确认)、ErrorBoundary.tsx(页面渲染出错时的退路)、app.css(外壳与页面布局,只用 token)
-│   ├── design/              ← tokens.css、components.css、`St*` 组件、icons.ts;经 index.ts 统一导出
+│   ├── design/              ← tokens.css、components.css、`St*` 组件、icons.ts、motion.tsx(滑动底板、进入范围、变化强调);经 index.ts 统一导出
 │   ├── features/            ← meets/ groups/(赛事组别) units/ athletes/ events/ event/(项目工作区:报名、队伍、组时间显示)combined/(全能)arrange/ schedule/(竞赛日程)results/ reports/ team-scoring/(团体总分) exchange/ settings/ about/
 │   └── lib/                 ← coalesce.ts(事件刷新合并)、useData.ts(读取与按键缓存)、viewState.ts(滚动位置与切换状态记忆)、action.ts、errors.ts、labels.ts、wallTime.ts(日期 / 时刻输入拆合)
 ├── .agents/skills/          ← mygo 自带的 agent 技能
@@ -173,7 +173,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 - **共享控件支持键盘与读屏**：下拉框与分段控件管理焦点，表格提供原生行操作按钮、具名勾选与完整行号，字段错误关联输入并在提交失败后聚焦，文字和焦点遵守对比度要求（→ design-system.md）。
 - **数字一律等宽**,界面与打印模板都设 `tabular-nums`(→ design-system.md)。
 - **圆角用 `superellipse(1.78)` 平滑轮廓**,胶囊、圆形与开关显式 `round`(→ design-system.md)。
-- **动效只用 `--st-motion-*` token**,不推迟下一次点击;对话框只有进入动画,录入格不加动画,减少动态效果时归零(→ design-system.md「动效」)。
+- **动效只用 `--st-motion-*` token**,只动透明度、位移与颜色(棘轮把关),不推迟下一次点击;悬停立即切换,只有新加入的内容播进入动画;对话框只有进入动画,录入格不加动画,减少动态效果时归零(→ design-system.md「动效」)。
 - **切页不跳动**:读取结果按键缓存、回到页面先显示上次结果;滚动位置与页内选择经 `lib/viewState.ts` 记住;读取中不显示空列表占位(→ frontend.md「视图状态」、design-system.md「交互约定」)。
 - **品牌标识为「跑道 S」**,母版在 `resources/brand/source/`,运行 `bun run brand:generate` 统一导出各格式并同步应用与官网图标(→ [品牌规范](docs/brand-guidelines.md))。
 - **界面文字默认不写**:删掉后用户仍能操作、看懂状态的字就不加(→ copywriting.md)。

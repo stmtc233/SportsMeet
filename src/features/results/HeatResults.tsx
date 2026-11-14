@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { IconTime, StButton, StIconButton, StMarkField, StMuted, StSection, StSelect, StTag, iconStroke } from "../../design";
+import { IconTime, StButton, StIconButton, StMarkField, StMuted, StSection, StSelect, StTag, StChanged, iconStroke } from "../../design";
 import { HeatStarted } from "../event/HeatStarted";
 import { HeatTime } from "../event/HeatTime";
 import { statusLabels } from "../../lib/labels";
@@ -132,9 +132,9 @@ function StandardHeatResults({ detail, heat, entries, onDirty }: HeatResultsProp
                 ))}
                 <StSelect size="small" width="fill" value={row.status} placeholder="正常" onChange={(status) => set(s.position, { status })}
                   options={[{ value: "", label: "正常" }, ...statuses.map((v) => ({ value: v as string, label: statusLabels[v] }))]} />
-                {!direct && <span className="result-mark" role="cell">{s.result?.markText}</span>}
-                <span className="rank" role="cell">{s.result?.rank ?? ""}</span>
-                <span role="cell">{s.result?.qualify && <StTag tone="success">{s.result.qualify}</StTag>}</span>
+                {!direct && <span className="result-mark" role="cell"><StChanged value={s.result?.markText}>{s.result?.markText}</StChanged></span>}
+                <span className="rank" role="cell"><StChanged value={s.result?.rank}>{s.result?.rank ?? ""}</StChanged></span>
+                <span role="cell"><StChanged value={s.result?.qualify}>{s.result?.qualify && <StTag tone="success">{s.result.qualify}</StTag>}</StChanged></span>
               </div>
             );
           })}

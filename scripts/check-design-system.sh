@@ -4,7 +4,8 @@
 #
 # Design system (docs/agents/design-system.md「边界检查」): outside
 # src/design/, no literal colors, no px corner radii, no other icon or
-# component libraries.
+# component libraries, no transitions of layout (width, height, position,
+# margin, padding) or of `all`: they lay the page out again on every frame.
 #
 # Bindings (docs/agents/frontend.md「代码结构」): only src/lib/ and a
 # feature's controller and data files call Go; everything else imports
@@ -29,6 +30,7 @@ check() { # rule, extended regex
 check color '#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\('
 check radius 'border-radius:[^;]*[0-9]px'
 check icons "from ['\"](@mui/icons|react-icons|@heroicons|@tabler/icons|@fortawesome)"
+check motion 'transition(-property)?:[^;]*\b(all|width|height|top|left|right|bottom|inset|margin|padding)\b'
 check components "from ['\"](@mui/|antd|element-plus|vuetify|@chakra-ui|naive-ui)"
 
 # A file calls Go when it imports anything but types from src/mygo.ts.
@@ -58,7 +60,7 @@ fi
 new=$(comm -23 "$found" <(sort -u "$baseline"))
 stale=$(comm -13 "$found" <(sort -u "$baseline"))
 if [[ -n "$new" ]]; then
-  echo "前端边界检查失败,新增违规(color / radius / icons / components:改用 src/design/ 的 token 与组件;bindings:经 controller 或数据钩子调用 Go):"
+  echo "前端边界检查失败,新增违规(color / radius / icons / components:改用 src/design/ 的 token 与组件;motion:只过渡透明度、位移与颜色;bindings:经 controller 或数据钩子调用 Go):"
   echo "$new"
   exit 1
 fi

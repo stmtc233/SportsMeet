@@ -116,7 +116,7 @@ export function ImportDialog({ meetId, open, onClose }: { meetId: string; open: 
                 {preview.newUnits.length > 0 && <StTag>新单位 {preview.newUnits.length}</StTag>}
                 {preview.entries > 0 && <StTag>报名 {preview.entries}</StTag>}
               </StRow>
-              <div className="preview-table">
+              <div className="preview-table view-enter">
                 <StTable<ImportRow> dense rows={preview.rows} rowKey={(r) => String(r.line)}
                   columns={[
                     { key: "line", title: "行", width: "56px", align: "end", render: (r) => r.line },

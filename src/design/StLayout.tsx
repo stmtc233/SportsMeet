@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import { useScrollMemory } from "../lib/viewState";
+import { useSlideThumb } from "./motion";
 
 export type Tone = "neutral" | "info" | "success" | "warning" | "danger";
 
@@ -122,6 +123,17 @@ export function StListItem({ title, subtitle, leading, trailing, onClick, select
         }
       }}>
       {body}
+    </div>
+  );
+}
+
+/** A column of StListItems for navigation; the selected item's background slides to the next one. */
+export function StNavGroup({ children }: { children: ReactNode }) {
+  const thumb = useSlideThumb<HTMLDivElement>("y", "aria-current");
+  return (
+    <div ref={thumb.ref} className="st-nav-group" data-thumb={thumb.style ? true : undefined} data-animate={thumb.animate || undefined}>
+      {thumb.style && <span className="st-nav-group__thumb" style={thumb.style} aria-hidden />}
+      {children}
     </div>
   );
 }

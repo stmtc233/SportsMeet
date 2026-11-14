@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { IconChevronRight, iconStroke } from "./icons";
 
 type Variant = "primary" | "secondary" | "tonal" | "danger" | "ghost";
 type Size = "small" | "medium" | "large";
@@ -10,13 +11,20 @@ interface StButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "c
   icon?: ReactNode;
   /** Every text this button may show; its width is that of the widest. */
   reserveWidthFor?: string[];
+  /** A fold toggle: sets aria-expanded and shows a chevron that turns with it. */
+  expanded?: boolean;
 }
 
 /** Every text button. */
-export function StButton({ variant = "secondary", size = "medium", loading, icon, reserveWidthFor, children, disabled, type = "button", ...rest }: StButtonProps) {
+export function StButton({ variant = "secondary", size = "medium", loading, icon, reserveWidthFor, expanded, children, disabled, type = "button", ...rest }: StButtonProps) {
+  const disclosure = expanded !== undefined;
+  const shown = disclosure ? <IconChevronRight size={size === "small" ? 16 : 18} strokeWidth={iconStroke} /> : icon;
   return (
-    <button {...rest} type={type} disabled={disabled || loading} className={`st-button st-button--${variant} st-button--${size}`} data-loading={loading || undefined}>
-      {icon && <span className="st-button__icon">{icon}</span>}
+    <button {...rest} type={type} disabled={disabled || loading} className={`st-button st-button--${variant} st-button--${size}`} data-loading={loading || undefined}
+      aria-expanded={disclosure ? expanded : rest["aria-expanded"]} data-disclosure={disclosure || undefined}>
+      {/* Shows only when the action takes a while: quick ones do not flash it. */}
+      {loading && <span className="st-button__spinner" aria-hidden />}
+      {shown && <span className="st-button__icon">{shown}</span>}
       <span className="st-button__label">
         <span>{children}</span>
         {reserveWidthFor?.map((text) => (

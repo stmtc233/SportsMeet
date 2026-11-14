@@ -38,6 +38,8 @@
   --st-motion-fast: 100ms;
   --st-motion-medium: 160ms;
   --st-motion-slow: 220ms;
+  /* A busy button shows its spinner only after this: quick actions do not flash it. Not motion, so kept under reduced motion. */
+  --st-busy-delay: 300ms;
 
   --st-bg: #f5f6f8;
   --st-surface: #ffffff;

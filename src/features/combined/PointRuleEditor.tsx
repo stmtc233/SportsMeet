@@ -14,6 +14,6 @@ export function PointRuleEditor({ event, value, onChange }: { event: EventInput;
       onChange={(policy) => onChange({ ...value, invalidPolicies: { ...value.invalidPolicies, [status]: policy } })}
       options={[{ value: "zero", label: "该项零分" }, { value: "exclude", label: "不列总排名" }]} />)}
     <div className="span"><StButton loading={busy} onClick={run}>预览计分表</StButton></div>
-    {preview && <div className="span"><StTable<PointBandView> rows={preview.rows} rowKey={(r) => r.markText} dense columns={[{ key: "mark", title: "成绩标准", render: (r) => r.markText }, { key: "points", title: "积分", align: "end", render: (r) => r.points }]} /></div>}
+    {preview && <div className="span view-enter"><StTable<PointBandView> rows={preview.rows} rowKey={(r) => r.markText} dense columns={[{ key: "mark", title: "成绩标准", render: (r) => r.markText }, { key: "points", title: "积分", align: "end", render: (r) => r.points }]} /></div>}
   </>;
 }

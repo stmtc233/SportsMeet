@@ -12,3 +12,4 @@ export * from "./StLayout";
 export * from "./StMenu";
 export * from "./StTable";
 export * from "./StToast";
+export { StChanged, StEnterScope, useEnter } from "./motion";

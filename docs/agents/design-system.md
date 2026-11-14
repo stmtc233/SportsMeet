@@ -32,7 +32,7 @@
 
 | 组件 | 用途 |
 |---|---|
-| `StButton`(`primary / secondary / tonal / danger / ghost` × `small / medium / large`,可 `loading`) | 所有文字按钮。同一位置会切换文字时(「全选」↔「取消全选」)传 `reserveWidthFor` 列出全部文字,宽度取最宽者,切换时旁边的控件不跳动 |
+| `StButton`(`primary / secondary / tonal / danger / ghost` × `small / medium / large`,可 `loading`) | 所有文字按钮。同一位置会切换文字时(「全选」↔「取消全选」)传 `reserveWidthFor` 列出全部文字,宽度取最宽者,切换时旁边的控件不跳动;`loading` 超过 `--st-busy-delay`(300ms)才把文字换成转圈,快的操作不闪;折叠开关传 `expanded`,自带随之转动的箭头并设 `aria-expanded` |
 | `StLinkButton` | 按钮外观的导航链接，使用带 `href` 的原生 `<a>`，保留链接语义与键盘操作；应用外部链接经 controller 调用 mygo 在系统浏览器打开 |
 | `StIconButton`(`plain / tonal / filled`) | 图标按钮,必须带无障碍标签 |
 | `StConfirmButton` | 危险操作:第一次点击变红色「再按一次确认」,数秒内再点才执行 |
@@ -40,6 +40,8 @@
 | `StRow` / `StStack` / `StEmpty` / `StMuted` | 一行控件(底边对齐)/ 纵向排列 / 空列表占位 / 次要文字 |
 | `StNotice` / `StTag` | 提示条 / 小标签(状态、`Q` / `q` 晋级标记) |
 | `StListItem` / `StSwitchItem` / `StDivider` | 设置式列表行,整行可点;`StListItem` 是 `div[role=button]`,右侧可再放按钮 |
+| `StNavGroup` | 导航用的一列 `StListItem`(应用侧栏、设置分类):选中底色是一块滑动的底板,规则同 `StSegmented` |
+| `StEnterScope` / `useEnter` / `StChanged` | 动效辅助(`motion.tsx`):范围内首次显示时已有的内容不动,之后挂载的才播放进入动画;`StChanged` 在值变化时短暂强调一次,首次显示不播 |
 | `StSwitch` / `StCheckbox` | 开关 / 复选;在列表行里只展示,点击由整行处理；交互复选框支持 `aria-label`，半选同步原生 `indeterminate`，全选时清除半选 |
 | `StTextField` / `StSearchField` / `StTextArea` | 文本输入(多行框用于粘贴表格):标签在框**上方**(不做浮动标签),说明与错误在框下方;`prefix` / `suffix` 插槽放单位(「m」「s」)；说明、错误经 `aria-describedby` 关联，错误状态同步 `aria-invalid`，保留调用方提供的描述 |
 | `StMarkField` | 成绩输入:按项目类型解析(`12.34`、`1:05.67`、`6.52`),失焦时调用 Go `scoring` 校验并整理成显示格式,前端不自己解析;`accept` 放行田赛的 `X` / `-` 等记号 |
@@ -67,10 +69,14 @@
 只为让用户看清「发生了什么」,不为装饰;任何动画都不推迟下一次点击。
 
 - **悬停与按下**:悬停与拖放经过的底色、文字、边框色一律立即切换、不加过渡(按钮、图标按钮、分段控件、下拉框、菜单项、列表项、表格行、成绩录入行、编排卡片与位置):鼠标扫过时渐变的颜色落后于指针，看起来不跟手;按钮按下缩到 0.97(图标按钮 0.94),给出点到了的反馈。输入框聚焦、勾选框、开关、标签换色这类状态变化仍用 token 过渡。
-- **出现**:新出现的内容淡入,卡片、提示条、组卡片、分组名单再加 4px 上移;页面切换只从 0.4 透明度淡入、不位移,内容立刻可点。页内切换的 Tab / 分类内容用 `app.css` 的 `.view-enter`。
+- **出现**:新出现的内容淡入,卡片、提示条、字段错误再加 4px 上移,「放弃 / 保存」栏从底部上移 8px;页面切换只从 0.4 透明度淡入、不位移,内容立刻可点。页内切换的 Tab / 分类内容与对话框里读取完才出现的预览用 `app.css` 的 `.view-enter`。
+- **只动新来的**:编排页的组卡片与运动员、日程的轮次在 `StEnterScope` 里,打开页面时已有的不播动画,之后新加的组、拖放落位的运动员(轻微放大淡入)、展开的日程才播;否则几十张卡片同时动,既费又乱。拖动中的运动员原位变淡。
+- **位置连贯**:选中底色(`StSegmented`、`StNavGroup`)滑到新位置;新提示条把旧的推上去时,旧的平滑上移(Web Animations,时长读 token);折叠开关的箭头转动。
+- **结果变化**:成绩保存后变了的名次、成绩与 `Q` / `q` 由 `StChanged` 用强调色放大一下再恢复(`--st-motion-slow` 的 3 倍),让人看到哪里变了。高度录入每按一次都重算预览,名次不加这种强调,免得边录边闪。
 - **离开**:比进入快(`--st-motion-fast`)。下拉菜单与提示条有离场动画;**对话框只有进入动画,关闭立即消失**:关闭后对话框里的标题与正文多由已清空的状态决定,保留离场会闪出错误文字,且模态对话框淡出期间整页点不动。
 - 不做逐项依次出现的列表动画,不给成绩录入格、高度试跳格加动画(录入时连续按键,动画只会拖慢);虚拟列表的行按滚动挂载,不给行加进入动画。
-- 关键帧 `st-fade-in` / `st-rise-in` / `st-page-in` / `st-pop-in` / `st-pop-out` 在 `components.css`,页面样式直接引用,时长只用 token。
+- 关键帧 `st-fade-in` / `st-rise-in` / `st-page-in` / `st-bar-in` / `st-land-in` / `st-changed` / `st-pop-in` / `st-pop-out` 在 `components.css`,页面样式直接引用,时长只用 token。
+- **只动透明度、位移与颜色**:不过渡宽高、位置、外边距与 `all`,这些每帧都要重新排版,长表格里会卡;页面样式里由边界检查的 `motion` 规则把关。选中底板的宽 / 高过渡只在 `src/design/` 内、只作用于一个元素。
 - 系统开启「减少动态效果」时 token 归零,动画与过渡都瞬间完成,页面不需另写判断。
 
 ## 交互约定
@@ -98,4 +104,4 @@
 
 ## 边界检查
 
-`scripts/check-design-system.sh`(`bun run check` 与 CI 同跑)是**棘轮**:`src/design/` 之外不得引入第三方组件库、其他图标库,不得写字面颜色值(`#xxx`、`rgb(`)与零散像素圆角。这几条规则的基线为空;基线 **只减不增**。同一脚本还检查绑定引用,见 [frontend.md](frontend.md)「代码结构」。
+`scripts/check-design-system.sh`(`bun run check` 与 CI 同跑)是**棘轮**:`src/design/` 之外不得引入第三方组件库、其他图标库,不得写字面颜色值(`#xxx`、`rgb(`)与零散像素圆角。`motion` 规则禁止页面样式过渡布局属性或 `all`(→「动效」)。这几条规则的基线为空;基线 **只减不增**。同一脚本还检查绑定引用,见 [frontend.md](frontend.md)「代码结构」。

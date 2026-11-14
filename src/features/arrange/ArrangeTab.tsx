@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLeaveGuard } from "../../app/nav";
-import { IconAdd, IconAuto, IconMore, IconRedo, IconTime, IconUndo, StButton, StConfirmButton, StDialog, StEmpty, StIconButton, StMenu, StSegmented, StTextField, iconStroke, toast } from "../../design";
+import { IconAdd, IconAuto, IconMore, IconRedo, IconTime, IconUndo, StButton, StConfirmButton, StDialog, StEmpty, StIconButton, StMenu, StEnterScope, StSegmented, StTextField, iconStroke, toast } from "../../design";
 import { errorText, isStale } from "../../lib/errors";
 import { useScrollMemory, useViewState } from "../../lib/viewState";
 import type { EntryView, EventDetail } from "../../mygo";
@@ -163,44 +163,46 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
           <StButton variant="primary" disabled={!dirty} loading={saving} onClick={submit}>保存</StButton>
         )}
       </div>
-      <div className="split">
-        <aside className="split__side">
-          <div className="split__side-head">
-            <span>未分组</span>
-            <span className="chip__meta">{free.length}/{detail.entries.length}</span>
-          </div>
-          <div ref={rosterBox} className="split__side-list drop-roster" data-over={rosterOver || undefined}
-            onDragOver={(e) => { e.preventDefault(); setRosterOver(true); }} onDragLeave={() => setRosterOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setRosterOver(false);
-              const id = e.dataTransfer.getData(dragType);
-              if (id) tryEdit(unplace(draft, round.roundId, id, laned));
-            }}
-            onClick={() => picked && placed.has(picked) && tryEdit(unplace(draft, round.roundId, picked, laned))}>
-            {free.map((e) => (
-              <AthleteChip key={e.competitorId} entry={e} picked={picked === e.competitorId} meta={e.seedText || e.unitName} onPick={() => setPicked(picked === e.competitorId ? "" : e.competitorId)} />
-            ))}
-            {free.length === 0 && <StEmpty>{detail.entries.length === 0 ? "还没有报名" : picked ? "点这里移出" : "都已分组"}</StEmpty>}
-          </div>
-          <div className="split__side-foot">
-            <StButton icon={<IconAdd size={16} strokeWidth={iconStroke} />} disabled={Boolean(event.combinedId)} onClick={() => setAdding(true)}>{detail.rules.team ? "管理队伍" : "从赛事添加"}</StButton>
-          </div>
-        </aside>
-        <div ref={heatsBox} className="split__main" onClick={() => setPicked("")}>
-          {round.heats.length === 0 && <StEmpty action={<StButton variant="primary" onClick={() => setAuto(true)}>自动编排</StButton>}>{draft.reset ? "保存后将删除全部组" : "还没有组"}</StEmpty>}
-          <div className="heats">
-            {round.heats.map((h, i) => (
-              <HeatCard key={h.key} heat={h} index={i} count={round.heats.length} positions={positionsOf(h)} locked={isLocked(draft, h)} conflicts={conflicts.get(h.key)}
-                changed={heatChanged(h, loadedRound?.heats.find((x) => x.key === h.key))} entries={entries} picked={picked}
-                onPick={(id) => setPicked(picked === id ? "" : id)}
-                onPlace={(pos, id) => tryEdit(place(draft, round.roundId, h.key, pos, id, laned))}
-                onMove={(d) => apply(moveHeat(draft, round.roundId, h.key, d))}
-                onEdit={() => setEditing(h)} onDelete={() => tryEdit(deleteHeat(draft, round.roundId, h.key))} onUnlock={() => setUnlocking(h)} />
-            ))}
+      <StEnterScope>
+        <div className="split">
+          <aside className="split__side">
+            <div className="split__side-head">
+              <span>未分组</span>
+              <span className="chip__meta">{free.length}/{detail.entries.length}</span>
+            </div>
+            <div ref={rosterBox} className="split__side-list drop-roster" data-over={rosterOver || undefined}
+              onDragOver={(e) => { e.preventDefault(); setRosterOver(true); }} onDragLeave={() => setRosterOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setRosterOver(false);
+                const id = e.dataTransfer.getData(dragType);
+                if (id) tryEdit(unplace(draft, round.roundId, id, laned));
+              }}
+              onClick={() => picked && placed.has(picked) && tryEdit(unplace(draft, round.roundId, picked, laned))}>
+              {free.map((e) => (
+                <AthleteChip key={e.competitorId} entry={e} picked={picked === e.competitorId} meta={e.seedText || e.unitName} onPick={() => setPicked(picked === e.competitorId ? "" : e.competitorId)} />
+              ))}
+              {free.length === 0 && <StEmpty>{detail.entries.length === 0 ? "还没有报名" : picked ? "点这里移出" : "都已分组"}</StEmpty>}
+            </div>
+            <div className="split__side-foot">
+              <StButton icon={<IconAdd size={16} strokeWidth={iconStroke} />} disabled={Boolean(event.combinedId)} onClick={() => setAdding(true)}>{detail.rules.team ? "管理队伍" : "从赛事添加"}</StButton>
+            </div>
+          </aside>
+          <div ref={heatsBox} className="split__main" onClick={() => setPicked("")}>
+            {round.heats.length === 0 && <StEmpty action={<StButton variant="primary" onClick={() => setAuto(true)}>自动编排</StButton>}>{draft.reset ? "保存后将删除全部组" : "还没有组"}</StEmpty>}
+            <div className="heats">
+              {round.heats.map((h, i) => (
+                <HeatCard key={h.key} heat={h} index={i} count={round.heats.length} positions={positionsOf(h)} locked={isLocked(draft, h)} conflicts={conflicts.get(h.key)}
+                  changed={heatChanged(h, loadedRound?.heats.find((x) => x.key === h.key))} entries={entries} picked={picked}
+                  onPick={(id) => setPicked(picked === id ? "" : id)}
+                  onPlace={(pos, id) => tryEdit(place(draft, round.roundId, h.key, pos, id, laned))}
+                  onMove={(d) => apply(moveHeat(draft, round.roundId, h.key, d))}
+                  onEdit={() => setEditing(h)} onDelete={() => tryEdit(deleteHeat(draft, round.roundId, h.key))} onUnlock={() => setUnlocking(h)} />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </StEnterScope>
       <AutoDialog open={auto} detail={detail} round={roundView} exclude={[...placed.keys()]} onClose={() => setAuto(false)}
         onPlanned={(heats) => (heats.length === 0 ? toast("没有待编排报名", "warning") : apply(appendPlanned(draft, round.roundId, heats)))} />
       {scheduling && <ScheduleDialog day={detail.day} version={detail} onClose={() => setScheduling(false)}

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useNav } from "../../app/nav";
 import { useViewState } from "../../lib/viewState";
-import { IconChevronDown, IconChevronRight, IconEdit, IconTime, StButton, StEmpty, StIconButton, StMuted, StPage, StSection, StTable, StTag, StToolbar, iconStroke } from "../../design";
+import { IconEdit, IconTime, StButton, StEmpty, StEnterScope, StIconButton, StMuted, StPage, StSection, StTable, StTag, StToolbar, iconStroke, useEnter } from "../../design";
 import type { ScheduleHeatRef, Timetable, TimetableHeat, TimetableRound } from "../../mygo";
 import { ConflictList } from "../arrange/ConflictList";
 import { ConflictTag } from "../arrange/HeatCard";
@@ -37,16 +37,18 @@ export function SchedulePage({ meetId }: { meetId: string }) {
           <StButton icon={<IconTime size={16} strokeWidth={iconStroke} />} disabled={!data || empty} onClick={() => setChaining(true)}>连排…</StButton>
         </StToolbar>
       }>
-      <div className="narrow timetable">
-        {empty && <StEmpty>还没有项目</StEmpty>}
-        {data && !empty && data.days.length === 0 && <StEmpty>还没有安排时间</StEmpty>}
-        {data && data.conflicts.length > 0 && <Conflicts meetId={meetId} data={data} />}
-        {data?.days.map((d) => <Day key={d.day} title={d.day} rounds={d.rounds} meetId={meetId} onStart={setStarting} onEdit={edit} />)}
-        {data && data.unscheduled.length > 0 && (
-          <Day title="未安排时间" count={data.unscheduled.length} folded={!unfolded} onFold={() => setUnfolded(!unfolded)}
-            rounds={data.unscheduled} meetId={meetId} onStart={setStarting} onEdit={edit} />
-        )}
-      </div>
+      <StEnterScope>
+        <div className="narrow timetable">
+          {empty && <StEmpty>还没有项目</StEmpty>}
+          {data && !empty && data.days.length === 0 && <StEmpty>还没有安排时间</StEmpty>}
+          {data && data.conflicts.length > 0 && <Conflicts meetId={meetId} data={data} />}
+          {data?.days.map((d) => <Day key={d.day} title={d.day} rounds={d.rounds} meetId={meetId} onStart={setStarting} onEdit={edit} />)}
+          {data && data.unscheduled.length > 0 && (
+            <Day title="未安排时间" count={data.unscheduled.length} folded={!unfolded} onFold={() => setUnfolded(!unfolded)}
+              rounds={data.unscheduled} meetId={meetId} onStart={setStarting} onEdit={edit} />
+          )}
+        </div>
+      </StEnterScope>
       {chaining && data && <ScheduleDialog multi options={scheduleOptions(data)} day={defaultDay} version={data} onClose={() => setChaining(false)} />}
       {starting && (
         <RoundStartDialog eventId={starting.eventId} day={starting.day || defaultDay} onClose={() => setStarting(null)}
@@ -95,13 +97,12 @@ function Day({ title, count, folded = false, onFold, rounds, meetId, onStart, on
         <h2 className="timetable__day-title">{title}</h2>
         {count !== undefined && <StTag>{count}</StTag>}
         {onFold && (
-          <StButton size="small" variant="ghost" aria-expanded={!folded} reserveWidthFor={["展开", "收起"]}
-            icon={folded ? <IconChevronRight size={16} strokeWidth={iconStroke} /> : <IconChevronDown size={16} strokeWidth={iconStroke} />} onClick={onFold}>
+          <StButton size="small" variant="ghost" expanded={!folded} reserveWidthFor={["展开", "收起"]} onClick={onFold}>
             {folded ? "展开" : "收起"}
           </StButton>
         )}
       </div>
-      {!folded && rounds.map((r) => (
+      {!folded && <Rounds>{rounds.map((r) => (
         <StSection key={r.roundId} padded={false}
           title={
             <span className="timetable__round">
@@ -142,7 +143,13 @@ function Day({ title, count, folded = false, onFold, rounds, meetId, onStart, on
             ]} />
           )}
         </StSection>
-      ))}
+      ))}</Rounds>}
     </section>
   );
+}
+
+/** A day's rounds; they rise in when unfolded, not when the page first shows. */
+function Rounds({ children }: { children: ReactNode }) {
+  const enter = useEnter();
+  return <div className="timetable__rounds" data-enter={enter || undefined}>{children}</div>;
 }

@@ -26,7 +26,7 @@ export function CombinedRulesDialog({ detail, onClose }: { detail: CombinedDetai
         <PointRuleEditor event={events[i]!} value={r.rule} onChange={(rule) => setRules((old) => old.map((p, n) => n === i ? { ...p, rule } : p))} />
       </div></StSection>)}
     </div>
-    {preview && <div ref={review}><StSection title="重算预览" padded={false}><StTable<CombinedRow> rows={preview.after} rowKey={(r) => r.athleteId} dense columns={[
+    {preview && <div ref={review} className="view-enter"><StSection title="重算预览" padded={false}><StTable<CombinedRow> rows={preview.after} rowKey={(r) => r.athleteId} dense columns={[
       { key: "name", title: "姓名", render: (r) => r.name },
       { key: "before", title: "原总分", align: "end", render: (r) => preview.before.find((b) => b.athleteId === r.athleteId)?.total ?? "" },
       { key: "after", title: "新总分", align: "end", render: (r) => r.total },
