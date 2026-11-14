@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useLeaveGuard } from "../../app/nav";
-import { StEmpty, StMuted, StSection, StSegmented, StTable, StTag } from "../../design";
+import { StButton, StEmpty, StMuted, StSection, StSegmented, StTable, StTag } from "../../design";
 import { statusLabels } from "../../lib/labels";
 import { useScrollMemory, useViewState } from "../../lib/viewState";
 import type { EntryView, EventDetail, Standing } from "../../mygo";
 import { HeatResults } from "./HeatResults";
+import { TieDialog } from "./TieDialog";
 
 /** Results by round: each heat is typed and saved on its own; the round's ranking follows. */
 export function ResultsTab({ detail }: { detail: EventDetail }) {
@@ -12,6 +13,7 @@ export function ResultsTab({ detail }: { detail: EventDetail }) {
   const [roundId, setRoundId] = useViewState(`event:round:${detail.event.id}`, detail.rounds[0]?.id ?? "");
   const [visited, setVisited] = useState(() => [roundId]);
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
+  const [ruling, setRuling] = useState(false);
   const entries = useMemo(() => new Map<string, EntryView>(detail.entries.map((e) => [e.competitorId, e])), [detail.entries]);
   const onDirty = useCallback((id: string, v: boolean) => setDirty((old) => (Boolean(old[id]) === v ? old : { ...old, [id]: v })), []);
   useLeaveGuard(Object.values(dirty).some(Boolean));
@@ -20,6 +22,7 @@ export function ResultsTab({ detail }: { detail: EventDetail }) {
   useScrollMemory(box, `results:${detail.event.id}:${round?.id}`);
   if (!round) return <StEmpty>没有轮次</StEmpty>;
   const roundDirty = round.heats.some((heat) => dirty[heat.id]);
+  const extra = round.ties.reduce((n, t) => n + t.extra, 0);
   const selectRound = (id: string) => { setVisited((old) => old.includes(id) ? old : [...old, id]); setRoundId(id); };
   return (
     <div className="fill view-enter">
@@ -34,7 +37,11 @@ export function ResultsTab({ detail }: { detail: EventDetail }) {
           {item.heats.map((h) => <HeatResults key={h.id} detail={detail} heat={h} entries={entries} onDirty={onDirty} />)}
         </div>)}
         {round.standings.length > 0 && (
-          <StSection title={`${round.label}${roundDirty ? "已保存排名" : round.complete ? "排名" : "暂定排名"}`} padded={false}>
+          <StSection title={`${round.label}${roundDirty ? "已保存排名" : round.complete ? "排名" : "暂定排名"}`} padded={false}
+            actions={round.ties.length > 0 && <>
+              {extra > 0 && <StTag tone="warning">多 {extra} 人晋级</StTag>}
+              <StButton onClick={() => setRuling(true)}>裁定并列</StButton>
+            </>}>
             <StTable<Standing> dense rows={round.standings} rowKey={(s) => s.competitorId}
               columns={[
                 { key: "rank", title: "名次", width: "64px", align: "end", render: (s) => <span className="cell-strong">{s.rank ?? ""}</span> },
@@ -46,6 +53,7 @@ export function ResultsTab({ detail }: { detail: EventDetail }) {
               ]} />
           </StSection>
         )}
+        {ruling && <TieDialog detail={detail} round={round} entries={entries} onClose={() => setRuling(false)} />}
       </div>
     </div>
   );

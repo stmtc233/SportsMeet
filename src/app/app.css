@@ -154,6 +154,7 @@
 .result-row .st-field { width: 100%; }
 .result-row:not([data-off]) .st-select__value { color: var(--st-text-muted); }
 .result-mark { font-family: var(--st-font-mono); font-weight: 600; text-align: end; }
+.tie-head { display: inline-flex; align-items: center; gap: var(--st-space-8); font-weight: 500; }
 
 /* reports */
 .report-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }

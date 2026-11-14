@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { limits?: boolean; athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { limits?: boolean; athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { updatePrereleases: false, theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false };
@@ -26,7 +26,14 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
       return { startedAt, startedText: startedAt ? shown(startedAt) : "", startDeltaText: d === null ? "" : d === 0 ? "准时" : `${d > 0 ? "晚" : "早"} ${Math.abs(d)} 分钟` };
     };
     const unstarted = started("", "");
-    const detail = { day: "2026-11-12", rules, event, teams: [] as any[], entries, rounds: [{ id: "round", stage: "final", ordinal: 1, name: "", label: "决赛", advance: null, scheduledAt: "", scheduledText: "", complete: false, standings: [], heats: [{ id: "heat", ordinal: 1, name: "", label: "第1组", ...times("", "2026-11-12T09:00", null), ...unstarted, resultsUpdatedText: "", base: "base", keepReason: "", slots: entries.slice(0, 8).map((a, i) => ({ position: i + 1, athleteId: a.athleteId, competitorId: a.competitorId, result: null })) }] }] };
+    const detail = { day: "2026-11-12", rules, event, teams: [] as any[], entries, rounds: [{ id: "round", stage: "final", ordinal: 1, name: "", label: "决赛", advance: null, scheduledAt: "", scheduledText: "", complete: false, standings: [] as any[], ties: [] as any[], heats: [{ id: "heat", ordinal: 1, name: "", label: "第1组", ...times("", "2026-11-12T09:00", null), ...unstarted, resultsUpdatedText: "", base: "base", keepReason: "", slots: entries.slice(0, 8).map((a, i) => ({ position: i + 1, athleteId: a.athleteId, competitorId: a.competitorId, result: null })) }] }] };
+    if (options.ties) {
+      // 预赛: 运动员2 and 运动员4 tie on 12.50 for the one q.
+      const marks = ["12.00", "12.50", "12.10", "12.50"];
+      Object.assign(detail.rounds[0]!, { stage: "heat", label: "预赛", advance: { byPlace: 1, byMark: 1 }, complete: true });
+      detail.rounds[0]!.standings = [0, 2, 1, 3].map((i, n) => ({ rank: n < 2 ? n + 1 : 3, athleteId: `a${i}`, competitorId: `a${i}`, heatLabel: i < 2 ? "第1组" : "第2组", position: i + 1, status: "OK", markText: marks[i], qualify: n < 2 ? "Q" : "q" }));
+      detail.rounds[0]!.ties = [{ place: 3, competitorIds: ["a1", "a3"], ruled: false, extra: 1 }];
+    }
     if (options.limits) {
       detail.entries.splice(2);
       Object.assign(detail.entries[0]!, { overEvents: true });
@@ -298,6 +305,14 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
             (h as any).resultsUpdatedText = "2026-11-12 09:31";
             if (!h.startedAt) Object.assign(h, started(h.effectiveAt, "2026-11-12T09:12"));
             for (const t of detail.teams) t.keepReason = "已有成绩";
+            changed("results", "meet", "event"); return null;
+          }
+          case "Results.RuleTies": {
+            (globalThis as any).__tieCalls = [...((globalThis as any).__tieCalls ?? []), structuredClone(args[0])];
+            const round = detail.rounds.find((r) => r.id === args[0].roundId)!;
+            for (const p of args[0].places) Object.assign(round.standings.find((s: any) => s.competitorId === p.competitorId)!, { rank: p.place, qualify: p.place === 3 ? "q" : "" });
+            round.standings.sort((a: any, b: any) => a.rank - b.rank);
+            round.ties = [{ ...round.ties[0], competitorIds: [...round.ties[0].competitorIds].sort((a: string, b: string) => round.standings.findIndex((s: any) => s.competitorId === a) - round.standings.findIndex((s: any) => s.competitorId === b)), ruled: true, extra: 0 }];
             changed("results", "meet", "event"); return null;
           }
           case "Results.SetStarted": {

@@ -1,11 +1,12 @@
 import { act } from "../../lib/action";
 import { useEffect, useState } from "react";
-import { Marks, Results, type HeatStartInput, type ResultInput, type HeightPreview } from "../../mygo";
+import { Marks, Results, type HeatStartInput, type ResultInput, type HeightPreview, type TieRulingInput } from "../../mygo";
 
 export const ResultsController = {
   save: (heatId: string, inputs: ResultInput[]) => act(() => Results.save(heatId, inputs), "已保存"),
   /** Changes or clears a heat's actual start ("" clears). */
   setStarted: (input: HeatStartInput) => act(() => Results.setStarted(input), input.startedAt ? "已保存" : "已清除"),
+  ruleTies: (input: TieRulingInput) => act(() => Results.ruleTies(input), "已保存"),
   height: (input: string) => act(() => Marks.normalizeHeight(input)),
 };
 

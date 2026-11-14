@@ -981,6 +981,11 @@ export interface ReportTarget {
 export interface Result {
   /** height trials saved before the heat is finished */
   heightPending?: boolean;
+  /**
+   * TieBreak is the referee's ruling among competitors tied on every
+   * rule: lower is ahead, equal stays tied, 0 = none.
+   */
+  tieBreak?: number;
   status: Status;
   mark: number | null;
   rank: number | null;
@@ -1097,6 +1102,7 @@ export interface RoundView {
   scheduledText: string;
   heats: HeatView[];
   standings: Standing[];
+  ties: TieView[];
   /** every placed competitor has a confirmed result */
   complete: boolean;
 }
@@ -1375,6 +1381,39 @@ export interface TeamView {
   placed: boolean;
   keepReason: string;
   genderMismatch: boolean;
+}
+
+/** TiePlace is one competitor's ruled place. */
+export interface TiePlace {
+  competitorId: string;
+  place: number;
+}
+
+/**
+ * TieRulingInput rules ties of one round. Places gives every competitor
+ * of each tie ruled its place from the shared one up; equal places stay
+ * tied, and all of a tie at its shared place clears its ruling.
+ */
+export interface TieRulingInput {
+  roundId: string;
+  places: TiePlace[];
+}
+
+/**
+ * TieView is a tie in a round's order that only a referee can break
+ * (docs/agents/domain.md「并列裁定」).
+ */
+export interface TieView {
+  /** the place they share without a ruling */
+  place: number;
+  /** in ruled order when ruled */
+  competitorIds: string[];
+  ruled: boolean;
+  /**
+   * Extra is how many more advance than the round's rule allows because
+   * of this tie; 0 = it does not touch qualification.
+   */
+  extra: number;
 }
 
 /**
@@ -1765,6 +1804,10 @@ export const Arrange = {
 export const Results = {
   previewHeight(inputs: ResultInput[]): Promise<HeightPreview> {
     return call("Results.PreviewHeight", inputs);
+  },
+  /** RuleTies records a referee's ruling on ties of a round. */
+  ruleTies(in_: TieRulingInput): Promise<void> {
+    return call("Results.RuleTies", in_);
   },
   /** Save records what was typed for slots of a heat. */
   save(heatID: string, inputs: ResultInput[]): Promise<void> {

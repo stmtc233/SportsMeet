@@ -288,6 +288,11 @@ func (r Results) SetStarted(ctx context.Context, in service.HeatStartInput) (*se
 	return r.Svc.SetHeatStarted(ctx, ui, in)
 }
 
+// RuleTies records a referee's ruling on ties of a round.
+func (r Results) RuleTies(ctx context.Context, in service.TieRulingInput) error {
+	return r.Svc.RuleTies(ctx, ui, in)
+}
+
 // Reports renders and prints 秩序册, 成绩册, 检录单 and 成绩记录表.
 type Reports struct{ *Core }
 

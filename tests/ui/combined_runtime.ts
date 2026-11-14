@@ -46,7 +46,7 @@ export async function installCombinedRuntime(page: Page, rejectCreate = false) {
           detail.components = input.components.map((p: any, i: number) => {
             const event = { id: `component${i}`, meetId: "meet", combinedId: "combined", ...p.event, name: `${input.name} · ${p.event.discipline}` };
             const timed = event.kind === "track";
-            children[event.id] = { event, teams: [], entries: [], rules: { timed, team: false, usesLanes: timed, multipleAttempts: event.kind === "distance", positionLabel: timed ? "道次" : "顺序", attemptLabel: "试跳", markLabel: "成绩", defaultPerHeat: timed ? 8 : 12 }, rounds: [{ id: `round${i}`, stage: "final", ordinal: 1, label: "决赛", advance: null, complete: false, standings: [], heats: [] }] };
+            children[event.id] = { event, teams: [], entries: [], rules: { timed, team: false, usesLanes: timed, multipleAttempts: event.kind === "distance", positionLabel: timed ? "道次" : "顺序", attemptLabel: "试跳", markLabel: "成绩", defaultPerHeat: timed ? 8 : 12 }, rounds: [{ id: `round${i}`, stage: "final", ordinal: 1, label: "决赛", advance: null, complete: false, standings: [], ties: [], heats: [] }] };
             return { event, ordinal: i + 1, input: p.rule, rule: parseRule(event, p.rule).rule };
           });
           changed(); return clone(detail.combined);

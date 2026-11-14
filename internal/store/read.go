@@ -126,13 +126,14 @@ func (s *Store) ListEntries(ctx context.Context, sc Scope) ([]domain.Entry, erro
 
 type resultDetail struct {
 	HeightPending bool             `json:"heightPending,omitempty"`
+	TieBreak      int              `json:"tieBreak,omitempty"`
 	Attempts      []domain.Attempt `json:"attempts,omitempty"`
 	Bars          []domain.Bar     `json:"bars,omitempty"`
 }
 
 // ResultDetailJSON encodes the per-attempt and per-height records.
 func ResultDetailJSON(r domain.Result) string {
-	b, err := json.Marshal(resultDetail{Attempts: r.Attempts, Bars: r.Bars, HeightPending: r.HeightPending})
+	b, err := json.Marshal(resultDetail{Attempts: r.Attempts, Bars: r.Bars, HeightPending: r.HeightPending, TieBreak: r.TieBreak})
 	if err != nil {
 		return "{}"
 	}
@@ -198,7 +199,7 @@ func (s *Store) loadRounds(ctx context.Context, sc Scope, details bool) (map[str
 		var d resultDetail
 		if json.Unmarshal([]byte(str(r[7])), &d) == nil {
 			v.Attempts, v.Bars = d.Attempts, d.Bars
-			v.HeightPending = d.HeightPending
+			v.HeightPending, v.TieBreak = d.HeightPending, d.TieBreak
 		}
 		results[slotKey{str(r[0]), int(i64(r[1]))}] = v
 	}

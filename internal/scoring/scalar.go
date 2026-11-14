@@ -91,8 +91,21 @@ func Aggregate(e domain.Event, attempts []domain.Attempt) (int64, bool, error) {
 	return mark, ok, nil
 }
 func RankEvent(e domain.Event, list []Ranked) map[string]int {
+	kind, list := rankInput(e, list)
+	return Rank(kind, list)
+}
+
+// TiesEvent is Ties under the event's own ordering.
+func TiesEvent(e domain.Event, list []Ranked) []Tie {
+	kind, list := rankInput(e, list)
+	return Ties(kind, list)
+}
+
+// rankInput maps a count or score event onto the ordering of Rank: equal
+// final values tie, without the field events' countback.
+func rankInput(e domain.Event, list []Ranked) (domain.EventKind, []Ranked) {
 	if !e.Kind.Scalar() {
-		return Rank(e.Kind, list)
+		return e.Kind, list
 	}
 	copy := append([]Ranked(nil), list...)
 	kind := domain.KindDistance
@@ -103,7 +116,7 @@ func RankEvent(e domain.Event, list []Ranked) map[string]int {
 		copy[i].Attempts = nil
 		copy[i].Bars = nil
 	}
-	return Rank(kind, copy)
+	return kind, copy
 }
 
 // FormatRuleMark retains every stored unit when editing scoring thresholds.

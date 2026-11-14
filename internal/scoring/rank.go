@@ -15,6 +15,9 @@ type Ranked struct {
 	Mark     int64 // only read when Status is OK
 	Attempts []domain.Attempt
 	Bars     []domain.Bar
+	// TieBreak is the referee's ruling among competitors equal on every
+	// rule below: lower is ahead, equal stays tied, 0 = no ruling.
+	TieBreak int
 }
 
 // Rank returns key → place for valid marks. Equal marks share a place and
@@ -27,44 +30,107 @@ type Ranked struct {
 //   - height: by fewer failures at the height last cleared, then by fewer
 //     failures in the whole competition up to and including that height.
 //
-// Competitors still equal after that share the place.
+// Competitors still equal after that share the place, unless every one of
+// them carries a ruling (TieBreak): then they are placed in its order and
+// only equal rulings share a place. A tie with a competitor who has no
+// ruling stays whole, so a ruling never decides who it did not cover.
 func Rank(kind domain.EventKind, list []Ranked) map[string]int {
+	places := make(map[string]int, len(list))
+	start := 0
+	for _, g := range tied(kind, list) {
+		if ruled(g) {
+			sort.SliceStable(g, func(i, j int) bool { return g[i].TieBreak < g[j].TieBreak })
+		}
+		for i, r := range g {
+			switch {
+			case i == 0 || (ruled(g) && r.TieBreak != g[i-1].TieBreak):
+				places[r.Key] = start + i + 1
+			default:
+				places[r.Key] = places[g[i-1].Key]
+			}
+		}
+		start += len(g)
+	}
+	return places
+}
+
+// Tie is two or more valid results equal on every rule of Rank, so only a
+// ruling separates them.
+type Tie struct {
+	Place int      // the place they share without a ruling
+	Keys  []string // in ruled order when Ruled, else in input order
+	Ruled bool     // every one carries a ruling
+}
+
+// Ties lists the ties of Rank, best place first.
+func Ties(kind domain.EventKind, list []Ranked) []Tie {
+	var out []Tie
+	start := 0
+	for _, g := range tied(kind, list) {
+		if len(g) > 1 {
+			t := Tie{Place: start + 1, Ruled: ruled(g)}
+			if t.Ruled {
+				sort.SliceStable(g, func(i, j int) bool { return g[i].TieBreak < g[j].TieBreak })
+			}
+			for _, r := range g {
+				t.Keys = append(t.Keys, r.Key)
+			}
+			out = append(out, t)
+		}
+		start += len(g)
+	}
+	return out
+}
+
+func ruled(g []Ranked) bool {
+	for _, r := range g {
+		if r.TieBreak <= 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// tied orders the valid results best first, in runs equal on every rule
+// but the ruling; each run keeps the input order.
+func tied(kind domain.EventKind, list []Ranked) [][]Ranked {
 	type row struct {
-		key string
+		r   Ranked
 		cmp []int64 // higher is better, compared left to right
 	}
 	rows := make([]row, 0, len(list))
 	for _, r := range list {
 		if r.Status == domain.StatusOK {
-			rows = append(rows, row{r.Key, rankKey(kind, r)})
+			rows = append(rows, row{r, rankKey(kind, r)})
 		}
 	}
-	compare := func(a, b []int64) int {
-		for i := 0; i < len(a) || i < len(b); i++ {
-			switch {
-			case i >= len(a):
-				return -1
-			case i >= len(b):
-				return 1
-			case a[i] != b[i]:
-				if a[i] > b[i] {
-					return 1
-				}
-				return -1
-			}
-		}
-		return 0
-	}
-	sort.SliceStable(rows, func(i, j int) bool { return compare(rows[i].cmp, rows[j].cmp) > 0 })
-	places := make(map[string]int, len(rows))
+	sort.SliceStable(rows, func(i, j int) bool { return compareKeys(rows[i].cmp, rows[j].cmp) > 0 })
+	var out [][]Ranked
 	for i, r := range rows {
-		if i > 0 && compare(rows[i-1].cmp, r.cmp) == 0 {
-			places[r.key] = places[rows[i-1].key]
+		if i > 0 && compareKeys(rows[i-1].cmp, r.cmp) == 0 {
+			out[len(out)-1] = append(out[len(out)-1], r.r)
 			continue
 		}
-		places[r.key] = i + 1
+		out = append(out, []Ranked{r.r})
 	}
-	return places
+	return out
+}
+
+func compareKeys(a, b []int64) int {
+	for i := 0; i < len(a) || i < len(b); i++ {
+		switch {
+		case i >= len(a):
+			return -1
+		case i >= len(b):
+			return 1
+		case a[i] != b[i]:
+			if a[i] > b[i] {
+				return 1
+			}
+			return -1
+		}
+	}
+	return 0
 }
 
 func rankKey(kind domain.EventKind, r Ranked) []int64 {

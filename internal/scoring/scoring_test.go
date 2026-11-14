@@ -170,3 +170,28 @@ func TestFieldRecords(t *testing.T) {
 		t.Fatal("no height cleared but ok")
 	}
 }
+
+func TestRankTieBreak(t *testing.T) {
+	ok := domain.StatusOK
+	list := []Ranked{{Key: "a", Status: ok, Mark: 12000}, {Key: "b", Status: ok, Mark: 12000, TieBreak: 2}, {Key: "c", Status: ok, Mark: 12000, TieBreak: 1}, {Key: "d", Status: ok, Mark: 12500}}
+	// a has no ruling: the three stay tied.
+	if got := Rank(domain.KindTrack, list); got["a"] != 1 || got["b"] != 1 || got["c"] != 1 || got["d"] != 4 {
+		t.Fatalf("partial ruling = %v", got)
+	}
+	ties := Ties(domain.KindTrack, list)
+	if len(ties) != 1 || ties[0].Place != 1 || ties[0].Ruled || len(ties[0].Keys) != 3 {
+		t.Fatalf("ties = %+v", ties)
+	}
+	list[0].TieBreak = 2
+	if got := Rank(domain.KindTrack, list); got["c"] != 1 || got["a"] != 2 || got["b"] != 2 || got["d"] != 4 {
+		t.Fatalf("ruling = %v", got)
+	}
+	if ties := Ties(domain.KindTrack, list); !ties[0].Ruled || ties[0].Keys[0] != "c" {
+		t.Fatalf("ruled ties = %+v", ties)
+	}
+	// A ruling never reorders different marks.
+	list[3].TieBreak = 1
+	if got := Rank(domain.KindTrack, list); got["d"] != 4 {
+		t.Fatalf("ruling across marks = %v", got)
+	}
+}

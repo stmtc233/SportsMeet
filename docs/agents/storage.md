@@ -48,7 +48,7 @@
 
 ## 全能与队伍数据
 
-- 高度的 `heightPending` 与 `attempts / bars` 共用 `results.detail_json`；缺少该字段时按已确认读取，无需结构迁移。读回与写出均保留过程状态，成绩复制、重新排名和编排移动位置时一并保留。
+- 高度的 `heightPending`、并列裁定 `tieBreak` 与 `attempts / bars` 共用 `results.detail_json`；缺少 `heightPending` 时按已确认读取，缺少 `tieBreak` 时为未裁定，无需结构迁移。读回与写出均保留过程状态，成绩复制、重新排名和编排移动位置时一并保留。
 
 - `0003_scalar_events.sql` 的 `events.config_json` 保存参赛方式、建议人数、小数位、汇总方式与排名方向；缺省 JSON 为 `{}`，按领域默认解释。
 - `0004_combined.sql` 的 `combined_events`、`combined_components`、`combined_entries` 保存全能、规则与统一名单；`events.combined_id` 外键级联分项。`Store.ListCombined` 对查询范围固定读取父项、分项和报名三次，不逐个全能查询。

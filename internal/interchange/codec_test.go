@@ -44,7 +44,7 @@ func TestDecodeRejects(t *testing.T) {
 	cases := []struct {
 		name, from, to, want string
 	}{
-		{"newer version", `"version": 1`, `"version": 10`, ""},
+		{"newer version", `"version": 1`, `"version": 11`, ""},
 		{"wrong format", `"sportsmeet-interchange"`, `"other"`, "format"},
 		{"OK without mark", `"status": "OK", "mark": 12650`, `"status": "OK", "mark": null`, "mark 必填"},
 		{"unknown athlete", `"athleteId": "a3", "seedMark": 13100`, `"athleteId": "zz", "seedMark": 13100`, "找不到运动员 zz"},

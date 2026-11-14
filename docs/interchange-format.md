@@ -1,8 +1,8 @@
-# 交换格式规范 v9
+# 交换格式规范 v10
 
 SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的完整快照**:参赛单位、运动员、项目、报名、轮次、组、成绩。
 
-- 机器可读定义：[v9](schema/interchange-v9.schema.json)；兼容读取 [v8](schema/interchange-v8.schema.json)、[v7](schema/interchange-v7.schema.json)、[v6](schema/interchange-v6.schema.json)、[v5](schema/interchange-v5.schema.json)、[v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
+- 机器可读定义：[v10](schema/interchange-v10.schema.json)；兼容读取 [v9](schema/interchange-v9.schema.json)、[v8](schema/interchange-v8.schema.json)、[v7](schema/interchange-v7.schema.json)、[v6](schema/interchange-v6.schema.json)、[v5](schema/interchange-v5.schema.json)、[v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
 - 示例:[examples/sample-meet.json](examples/sample-meet.json)
 
 ## 1. 文件
@@ -20,12 +20,12 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ## 2. 版本
 
 ```json
-{ "format": "sportsmeet-interchange", "version": 9 }
+{ "format": "sportsmeet-interchange", "version": 10 }
 ```
 
 - `format` 固定,不符即拒绝读取。
 - `version` 为正整数。增删字段、改字段含义、改单位、改枚举取值均须 +1。
-- 写出方总是写 v9；读取方支持 v1–v9。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；v1–v6 不解释赛事的团体计分规则 `meet.teamScoring`；v1–v7 不解释赛事组别目录 `groups` 与各实体的 `groupId` / `groupIds`；v1–v8 不解释赛事的报名限制 `meet.entryLimits`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
+- 写出方总是写 v10；读取方支持 v1–v10。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；v1–v6 不解释赛事的团体计分规则 `meet.teamScoring`；v1–v7 不解释赛事组别目录 `groups` 与各实体的 `groupId` / `groupIds`；v1–v8 不解释赛事的报名限制 `meet.entryLimits`；v1–v9 不解释并列裁定 `result.tieBreak`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
 - 读取方必须能读所有已发布版本;遇到比自己新的版本直接拒绝,并提示升级软件(不尝试猜测读取)。
 
 ## 3. 基本约定
@@ -230,6 +230,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `attempts` | Attempt[] | | 远度及多次计次／计分项目的逐次成绩 |
 | `bars` | Bar[] | | 高度项目逐高度记录 |
 | `heightPending` | boolean | | 仅高度项目；`true` 表示过程记录，`false`、`null` 或省略表示已确认 |
+| `tieBreak` | integer | | 并列裁定：同一轮次里按各项规则仍相同的 OK 成绩之间的先后，正整数，小者在前，相同仍并列；省略为未裁定。只有并列的每个人都带它时才生效，见 [领域细则](agents/domain.md)「并列裁定」 |
 | `note` | string | | |
 
 逐次 `attempts[]`(按次序，单位随项目类型):

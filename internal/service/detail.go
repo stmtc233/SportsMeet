@@ -58,6 +58,7 @@ type RoundView struct {
 	ScheduledText string     `json:"scheduledText"`
 	Heats         []HeatView `json:"heats"`
 	Standings     []Standing `json:"standings"`
+	Ties          []TieView  `json:"ties"`
 	Complete      bool       `json:"complete"` // every placed competitor has a confirmed result
 }
 
@@ -300,6 +301,7 @@ func (st *eventState) view(day string, zone *time.Location) *EventDetail {
 			rv.Heats[j] = hv
 		}
 		rv.Standings, rv.Complete = standingsEvent(event, r)
+		rv.Ties = roundTies(event, r)
 		rounds[i] = rv
 	}
 	teams := st.teamViews()
@@ -349,7 +351,7 @@ func resultViewEvent(event domain.Event, r *domain.Result) *ResultView {
 
 // ranked turns a slot's result into scoring input.
 func ranked(key string, r *domain.Result) scoring.Ranked {
-	out := scoring.Ranked{Key: key, Status: r.Status, Attempts: r.Attempts, Bars: r.Bars}
+	out := scoring.Ranked{Key: key, Status: r.Status, Attempts: r.Attempts, Bars: r.Bars, TieBreak: r.TieBreak}
 	if r.Mark != nil {
 		out.Mark = *r.Mark
 	}
@@ -408,6 +410,15 @@ func rescoreEvent(event domain.Event, advance *domain.Advance, heats []domain.He
 	complete := true
 	placed := 0
 	finishers := make([][]arrange.Finisher, len(heats))
+	var all []scoring.Ranked
+	for _, h := range heats {
+		for _, sl := range h.Slots {
+			if sl.Result != nil {
+				all = append(all, ranked(sl.CompetitorID(), sl.Result))
+			}
+		}
+	}
+	order := scoring.RankEvent(event, all)
 	for i, h := range heats {
 		var list []scoring.Ranked
 		for _, sl := range h.Slots {
@@ -430,7 +441,7 @@ func rescoreEvent(event domain.Event, advance *domain.Advance, heats []domain.He
 			r.Rank, r.Qualify = nil, ""
 			f := arrange.Finisher{ID: sl.CompetitorID(), Status: r.Status}
 			if p, ok := places[sl.CompetitorID()]; ok && r.Mark != nil {
-				r.Rank, f.Rank, f.Mark = &p, p, *r.Mark
+				r.Rank, f.Rank, f.Order = &p, p, order[sl.CompetitorID()]
 			}
 			heats[i].Slots[k].Result = &r
 			finishers[i] = append(finishers[i], f)
@@ -439,7 +450,7 @@ func rescoreEvent(event domain.Event, advance *domain.Advance, heats []domain.He
 	if advance == nil || !complete || placed == 0 {
 		return
 	}
-	q := arrange.QualifyEvent(event, finishers, advance.ByPlace, advance.ByMark)
+	q := arrange.Qualify(finishers, advance.ByPlace, advance.ByMark)
 	for i, h := range heats {
 		for k, sl := range h.Slots {
 			if sl.Result != nil {

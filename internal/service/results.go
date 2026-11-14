@@ -265,6 +265,9 @@ func (s *Service) SaveResults(ctx context.Context, src store.Source, heatID stri
 		}
 		if r != nil && slot.Result != nil {
 			r.Wind = slot.Result.Wind
+			if sameStanding(slot.Result, r) {
+				r.TieBreak = slot.Result.TieBreak // a ruling holds while the marks it ruled on stay
+			}
 		}
 		if a, b := resultTextEvent(st.event, slot.Result), resultTextEvent(st.event, r); !reflect.DeepEqual(slot.Result, r) {
 			changes = append(changes, ResultChange{Athlete: st.competitorName(slot.CompetitorID()), Before: a, After: b, BeforeRecord: slot.Result, AfterRecord: r})

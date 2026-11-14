@@ -7,7 +7,7 @@ import "github.com/stmtc233/sportsmeet/internal/domain"
 // Format and Version identify the file (spec §2).
 const (
 	Format  = "sportsmeet-interchange"
-	Version = 9
+	Version = 10
 )
 
 // File is one meet's full snapshot.
@@ -132,15 +132,17 @@ type Slot struct {
 }
 
 type Result struct {
-	HeightPending bool      `json:"heightPending,omitempty"`
-	Status        string    `json:"status"`
-	Mark          *int64    `json:"mark"`
-	Rank          *int      `json:"rank"`
-	Qualify       *string   `json:"qualify,omitempty"`
-	Wind          *int      `json:"wind,omitempty"`
-	Attempts      []Attempt `json:"attempts,omitempty"`
-	Bars          []Bar     `json:"bars,omitempty"`
-	Note          string    `json:"note,omitempty"`
+	HeightPending bool `json:"heightPending,omitempty"`
+	// TieBreak is the referee's ruling among tied competitors (v10).
+	TieBreak int       `json:"tieBreak,omitempty"`
+	Status   string    `json:"status"`
+	Mark     *int64    `json:"mark"`
+	Rank     *int      `json:"rank"`
+	Qualify  *string   `json:"qualify,omitempty"`
+	Wind     *int      `json:"wind,omitempty"`
+	Attempts []Attempt `json:"attempts,omitempty"`
+	Bars     []Bar     `json:"bars,omitempty"`
+	Note     string    `json:"note,omitempty"`
 }
 
 type Attempt struct {

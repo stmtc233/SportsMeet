@@ -226,24 +226,31 @@ func TestFingerprint(t *testing.T) {
 func TestQualify(t *testing.T) {
 	ok := domain.StatusOK
 	heats := [][]Finisher{
-		{{"a", ok, 12000, 1}, {"b", ok, 12300, 2}, {"c", ok, 12400, 3}, {"x", domain.StatusDNF, 0, 0}},
-		{{"d", ok, 12100, 1}, {"e", ok, 12200, 2}, {"f", ok, 12400, 3}, {"g", ok, 12900, 4}},
+		{{"a", ok, 1, 1}, {"b", ok, 4, 2}, {"c", ok, 5, 3}, {"x", domain.StatusDNF, 0, 0}},
+		{{"d", ok, 2, 1}, {"e", ok, 3, 2}, {"f", ok, 5, 3}, {"g", ok, 7, 4}},
 	}
-	got := Qualify(domain.KindTrack, heats, 1, 2)
+	got := Qualify(heats, 1, 2)
 	want := map[string]string{"a": "Q", "d": "Q", "e": "q", "b": "q"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("1 by place + 2 by mark = %v, want %v", got, want)
 	}
 	// c and f tie on the last mark: both advance.
-	got = Qualify(domain.KindTrack, heats, 1, 3)
+	got = Qualify(heats, 1, 3)
 	want = map[string]string{"a": "Q", "d": "Q", "e": "q", "b": "q", "c": "q", "f": "q"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("tie on the last mark = %v, want %v", got, want)
 	}
-	got = Qualify(domain.KindTrack, heats, 2, 0)
+	got = Qualify(heats, 2, 0)
 	want = map[string]string{"a": "Q", "b": "Q", "d": "Q", "e": "Q"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("2 by place only = %v, want %v", got, want)
+	}
+	// A ruling puts f behind c: the extra one stays out.
+	heats[1][2].Order = 6
+	got = Qualify(heats, 1, 3)
+	want = map[string]string{"a": "Q", "d": "Q", "e": "q", "b": "q", "c": "q"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ruled tie on the last mark = %v, want %v", got, want)
 	}
 }
 

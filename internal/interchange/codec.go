@@ -40,7 +40,7 @@ func Decode(data []byte) (*File, error) {
 	if head.Version < 1 {
 		return nil, Problems{"version 必须为正整数"}
 	}
-	if head.Version < 9 {
+	if head.Version < 10 {
 		var err error
 		if data, err = withoutNewerFields(data, head.Version); err != nil {
 			return nil, fmt.Errorf("不是有效的 JSON:%w", err)
@@ -158,13 +158,14 @@ func withoutNewerFields(data []byte, version int) ([]byte, error) {
 					if version < 5 {
 						delete(heat, "startedAt")
 					}
-					if version < 6 {
-						slots, _ := heat["slots"].([]any)
-						for _, s := range slots {
-							if slot, ok := s.(map[string]any); ok {
-								if result, ok := slot["result"].(map[string]any); ok {
+					slots, _ := heat["slots"].([]any)
+					for _, s := range slots {
+						if slot, ok := s.(map[string]any); ok {
+							if result, ok := slot["result"].(map[string]any); ok {
+								if version < 6 {
 									delete(result, "heightPending")
 								}
+								delete(result, "tieBreak") // version < 10
 							}
 						}
 					}
@@ -433,6 +434,9 @@ func validateResult(at string, event domain.Event, r *Result) Problems {
 	var p Problems
 	kind := event.Kind
 	add := func(format string, a ...any) { p = append(p, fmt.Sprintf(format, a...)) }
+	if r.TieBreak < 0 || (r.TieBreak > 0 && r.Status != string(domain.StatusOK)) {
+		add("%s.tieBreak 应为正整数，只用于 OK 成绩", at)
+	}
 	if r.HeightPending && kind != domain.KindHeight {
 		add("%s.heightPending 只用于高度项目", at)
 	}
