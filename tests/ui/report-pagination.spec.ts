@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { installRuntime } from "./runtime";
+import { installRuntime, selectReport } from "./runtime";
 
 const style = readFileSync("internal/report/style.css", "utf8");
 const rows = (n: number, prefix: string) => Array.from({ length: n }, (_, i) => `<tr data-line="${prefix}${i}"><td>${prefix}${i}</td><td>运动员</td></tr>`).join("");
@@ -55,10 +55,10 @@ test("分页过程中切换报表并离开页面", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (err) => errors.push(err.message));
   await installReport(page, document(`<section><h2>长报表</h2>${table(1500, "a")}</section>`));
-  await page.getByRole("radio", { name: "成绩册", exact: true }).click();
+  await selectReport(page, "成绩册");
   await expect(page.frameLocator('iframe[title="预览"]').getByText("成绩册切换完成", { exact: true })).toBeVisible();
   await expect(page.locator(".subbar__count")).toHaveText("1 页");
-  await page.getByRole("radio", { name: "秩序册", exact: true }).click();
+  await selectReport(page, "秩序册");
   await page.getByRole("button", { name: "运动员", exact: true }).click();
   await expect(page.getByRole("heading", { name: "运动员", exact: true })).toBeVisible();
   expect(errors).toEqual([]);

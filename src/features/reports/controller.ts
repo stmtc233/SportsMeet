@@ -3,7 +3,7 @@ import { useData } from "../../lib/useData";
 import { act } from "../../lib/action";
 
 export const useReportTargets = (meetId: string) => useData(() => Reports.targets(meetId), [meetId], (c) => c.meetId === meetId, `reportTargets:${meetId}`);
-/** A 秩序册 or 成绩册; not shown (enabled false) or nothing chosen gives an empty preview. */
+/** Books and 报名表; not shown (enabled false) or nothing chosen gives an empty preview. */
 export const useReportHTML = (kind: string, meetId: string, ids: string[], count: number, chosen: number, enabled: boolean, groupIds: string[] = []) =>
   useData(() => (!enabled || (count > 0 && chosen === 0) ? Promise.resolve("") : groupIds.length ? Reports.renderGrouped({ kind, meetId, eventIds: ids, groupIds }) : Reports.render(kind, meetId, ids)), [kind, meetId, ids.join(), count, chosen, enabled, groupIds.join()], (c) => c.meetId === meetId || c.kind === "settings");
 export const useCheckInTargets = (meetId: string) => useData(() => Reports.checkInTargets(meetId), [meetId], (c) => c.meetId === meetId, `checkInTargets:${meetId}`);

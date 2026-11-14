@@ -293,7 +293,7 @@ func (r Results) RuleTies(ctx context.Context, in service.TieRulingInput) error 
 	return r.Svc.RuleTies(ctx, ui, in)
 }
 
-// Reports renders and prints 秩序册, 成绩册, 检录单 and 成绩记录表.
+// Reports renders and prints books, 报名表, 检录单 and 成绩记录表.
 type Reports struct{ *Core }
 
 func (r Reports) Targets(ctx context.Context, meetID string) ([]service.ReportTarget, error) {

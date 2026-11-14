@@ -16,6 +16,7 @@ import (
 // Report kinds.
 const (
 	ReportStartList  = "startlist"   // 秩序册
+	ReportEntries    = "entries"     // 报名表
 	ReportTeamScores = "team_scores" // 团体总分表
 	ReportResults    = "results"     // 成绩册
 )
@@ -24,6 +25,9 @@ const (
 // limits it to some events (in the list's order, domain.ScheduleOrder);
 // empty means all.
 func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventIDs []string) (string, error) {
+	if kind == ReportEntries {
+		return s.renderEntries(ctx, meetID, eventIDs)
+	}
 	if kind == ReportResults || kind == ReportTeamScores {
 		return s.RenderGroupedReport(ctx, GroupReportRequest{Kind: kind, MeetID: meetID, EventIDs: eventIDs})
 	}

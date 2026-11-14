@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { installRuntime } from "./runtime";
+import { installRuntime, selectReport } from "./runtime";
 
 const style = readFileSync("internal/report/style.css", "utf8");
 
@@ -101,7 +101,7 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     const save = (await calls(page)).findLast((c: any) => c.method === "TeamScoring.Save").args[1];
     expect(save.overrides).toEqual([{ eventId: "event", combinedId: "", multiplier: "2" }]);
     await page.getByRole("button", { name: "打印", exact: true }).click();
-    await page.getByRole("radio", { name: "团体总分", exact: true }).click();
+    await selectReport(page, "团体总分");
     await expect(page.frameLocator('iframe[title="预览"]').getByRole("heading", { name: "团体总分表", exact: true })).toBeVisible();
     await page.getByRole("checkbox", { name: "混合4×100m 初中组", exact: true }).uncheck();
     await page.locator(".st-toolbar").getByRole("button", { name: "打印", exact: true }).click();
@@ -116,7 +116,7 @@ test("一键启用计分，校验错误保留输入", async ({ page }) => {
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
   await page.getByRole("button", { name: "打印", exact: true }).click();
-  await page.getByRole("radio", { name: "团体总分", exact: true }).click();
+  await selectReport(page, "团体总分");
   await expect(page.getByText("尚未启用团体计分", { exact: true })).toBeVisible();
   await expect(page.locator(".st-toolbar").getByRole("button", { name: "打印", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "团体总分", exact: true }).click();

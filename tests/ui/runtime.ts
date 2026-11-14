@@ -389,3 +389,9 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
     };
   }, options);
 }
+
+/** Select a printable report through the shared kind picker. */
+export async function selectReport(page: Page, name: string) {
+  await page.getByRole("button", { name: "报表种类", exact: true }).click();
+  await page.getByRole("option", { name, exact: true }).click();
+}

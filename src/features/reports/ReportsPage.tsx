@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { IconPrint, StButton, StCheckbox, StEmpty, StMultiSelect, StNotice, StPage, StSegmented, StSelect, StToolbar, iconStroke } from "../../design";
+import { IconPrint, StButton, StCheckbox, StEmpty, StMultiSelect, StNotice, StPage, StSelect, StToolbar, iconStroke } from "../../design";
 import { useScrollMemory, useViewState } from "../../lib/viewState";
 import { useGroups } from "../groups/controller";
 import { ungrouped } from "../groups/GroupFields";
@@ -8,14 +8,14 @@ import { ReportPreview, type PrintPages } from "./ReportPreview";
 import { checkInRows, checkInSelection } from "./checkin";
 import { ReportsController, useCheckInTargets, useReportHTML, useReportTargets, useReportTeamScores, useSheetHTML } from "./controller";
 
-type Kind = "startlist" | "results" | "checkin" | "record" | "team_scores";
-const kinds: Kind[] = ["startlist", "results", "checkin", "record", "team_scores"];
+type Kind = "startlist" | "results" | "checkin" | "record" | "team_scores" | "entries";
+const kinds: Kind[] = ["startlist", "results", "checkin", "record", "team_scores", "entries"];
 
 const zooms: { value: Zoom; label: string }[] = [
   { value: "fit", label: "适合宽度" }, { value: "0.5", label: "50%" }, { value: "0.75", label: "75%" }, { value: "1", label: "100%" }, { value: "1.5", label: "150%" },
 ];
 
-/** 秩序册, 成绩册, 检录单 and 成绩记录表: rendered by Go, laid out on A4 sheets here, those sheets printed from a window of their own. */
+/** Reports rendered by Go, laid out on A4 sheets here, then printed from a window of their own. */
 export function ReportsPage({ meetId }: { meetId: string }) {
   const [savedKind, setKind] = useViewState<Kind>("reports:kind", "startlist", true);
   const kind = kinds.includes(savedKind) ? savedKind : "startlist";
@@ -26,7 +26,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   // The report on the sheets shown; printing waits for the newest one.
   const [shown, setShown] = useState<string>();
   const printPages = useRef<PrintPages | null>(null);
-  // 秩序册 and 成绩册: by event.
+  // Books and 报名表: by event.
   const { data: events, error: eventsError } = useReportTargets(meetId);
   // What was unticked stays unticked while the app runs, per meet.
   const [skipped, setSkipped] = useViewState(`reports:skipped:${meetId}`, () => new Set<string>());
@@ -73,8 +73,8 @@ export function ReportsPage({ meetId }: { meetId: string }) {
     <StPage flush
       toolbar={
         <StToolbar title="打印">
-          <StSegmented aria-label="报表种类" value={kind} onChange={setKind}
-            options={[{ value: "startlist", label: "秩序册" }, { value: "results", label: "成绩册" }, { value: "checkin", label: "检录单" }, { value: "record", label: "成绩记录表" }, { value: "team_scores", label: "团体总分" }]} />
+          <StSelect aria-label="报表种类" value={kind} onChange={setKind}
+            options={[{ value: "startlist", label: "秩序册" }, { value: "results", label: "成绩册" }, { value: "entries", label: "报名表" }, { value: "checkin", label: "检录单" }, { value: "record", label: "成绩记录表" }, { value: "team_scores", label: "团体总分" }]} />
           <StButton variant="primary" icon={<IconPrint size={16} strokeWidth={iconStroke} />} disabled={count === 0 || !html || shown !== html} loading={busy} onClick={print}>打印</StButton>
         </StToolbar>
       }>

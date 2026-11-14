@@ -1,5 +1,5 @@
 // Package report renders printable HTML: 秩序册 (start lists), 成绩册
-// (results), 检录单 (check-in sheets) and 成绩记录表 (blank record sheets). The page shows it in a frame and
+// (results), 报名表 (entries), 检录单 (check-in sheets) and 成绩记录表 (blank record sheets). The page shows it in a frame and
 // prints it from the WebView (docs/agents/frontend.md「打印」). Texts follow
 // docs/agents/copywriting.md.
 package report
@@ -15,7 +15,7 @@ type Book struct {
 	GroupName  string
 	GroupBooks []Book
 	NewPage    bool   // Start each event on a new printed page.
-	Title      string // 秩序册 / 成绩册
+	Title      string // 报名表 / 秩序册 / 成绩册 / 团体总分表
 	Meet       string
 	Dates      string // 2026-11-12 or 2026-11-12 – 2026-11-13
 	Location   string
@@ -76,6 +76,8 @@ type ScheduleRow struct {
 
 // Event is one item.
 type Event struct {
+	Entries       []Line // 报名表, independent of arranged positions
+	Count         string // entry count, in 人 or 队
 	Name          string
 	Meta          string // 2026-11-12 周四 · 分道: its day and configuration
 	Team          bool   // Lines are teams: no bib column, members listed
@@ -139,6 +141,9 @@ var partsHTML string
 //go:embed startlist.html
 var startListHTML string
 
+//go:embed entries.html
+var entriesHTML string
+
 //go:embed team_scores.html
 var teamScoresHTML string
 
@@ -154,6 +159,7 @@ var recordSheetHTML string
 var (
 	recordSheetTmpl = template.Must(template.New("recordsheet").Parse(recordSheetHTML))
 	startListTmpl   = template.Must(template.New("startlist").Parse(startListHTML + partsHTML))
+	entriesTmpl     = template.Must(template.New("entries").Parse(entriesHTML + partsHTML))
 	resultsTmpl     = template.Must(template.New("results").Parse(resultsHTML + teamScoresHTML + partsHTML))
 	checkInTmpl     = template.Must(template.New("checkin").Parse(checkInHTML))
 )
@@ -179,6 +185,12 @@ func render(t *template.Template, b Book) (string, error) {
 func StartList(b Book) (string, error) {
 	b.Title = "秩序册"
 	return render(startListTmpl, b)
+}
+
+// Entries renders the 报名表, including entries without arranged positions.
+func Entries(b Book) (string, error) {
+	b.Title = "报名表"
+	return render(entriesTmpl, b)
 }
 
 // Results renders the 成绩册: every round's results and ranking.
@@ -330,7 +342,7 @@ type TeamScoreTable struct {
 	Mixed   bool // some unit has mixed points; otherwise the column is left out
 	// Standalone is the 团体总分表 printed on its own: no heading of its own.
 	Standalone bool
-	Rows    []TeamScoreRow
+	Rows       []TeamScoreRow
 }
 type TeamScoreRow struct{ Rank, Unit, Male, Female, Mixed, Total string }
 

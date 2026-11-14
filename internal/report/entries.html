@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>{{.Meet}} {{.Title}}</title>
+<style>{{.Style}}</style>
+</head>
+<body data-meet="{{.Meet}}" data-title="{{.Title}}">
+<header>
+  <h1>{{.Meet}}</h1>
+  <p class="title">{{.Title}}</p>
+  <p class="meta">{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
+</header>
+{{range .Events}}{{$e := .}}
+<section class="event">
+  <h2>{{.Name}}<small>{{.Count}}</small></h2>
+  {{if .Entries}}
+  <table>
+    <thead><tr><th scope="col" class="num">序号</th>{{if not .Team}}<th scope="col" class="bib">号码</th>{{end}}<th scope="col">{{.NameLabel}}</th><th scope="col" class="org">单位</th>{{if .Seeded}}<th scope="col" class="mark">报名成绩</th>{{end}}</tr></thead>
+    <tbody>
+      {{range .Entries}}<tr><td class="num">{{.Position}}</td>{{if not $e.Team}}<td class="bib">{{.Bib}}</td>{{end}}<td>{{template "competitor" .}}</td><td class="org">{{.Unit}}</td>{{if $e.Seeded}}<td class="mark">{{.Seed}}</td>{{end}}</tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="empty">还没有报名</p>{{end}}
+</section>
+{{else}}<p class="empty">没有项目</p>{{end}}
+{{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
+</body>
+</html>

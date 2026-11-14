@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { installRuntime } from "./runtime";
+import { installRuntime, selectReport } from "./runtime";
 
 test("切换页面后恢复滚动位置与筛选", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 600 });
@@ -51,13 +51,13 @@ test("设置打开上次的分类，打印选择保留", async ({ page }) => {
   await page.getByRole("button", { name: "返回", exact: true }).click();
   await page.getByText("秋季运动会", { exact: true }).click();
   await page.getByRole("button", { name: "打印", exact: true }).click();
-  await page.getByRole("radio", { name: "检录单", exact: true }).click();
+  await selectReport(page, "检录单");
   await page.getByRole("button", { name: "项目", exact: true }).click();
   await page.getByRole("button", { name: "打印", exact: true }).click();
-  await expect(page.getByRole("radio", { name: "检录单", exact: true })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("button", { name: "报表种类", exact: true })).toHaveText("检录单");
   // Kept across a restart.
   await page.reload();
   await page.getByText("秋季运动会", { exact: true }).click();
   await page.getByRole("button", { name: "打印", exact: true }).click();
-  await expect(page.getByRole("radio", { name: "检录单", exact: true })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("button", { name: "报表种类", exact: true })).toHaveText("检录单");
 });

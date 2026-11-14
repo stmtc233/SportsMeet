@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { installRuntime } from "./runtime";
+import { installRuntime, selectReport } from "./runtime";
 
 async function installGroups(page: Page) {
   await installRuntime(page);
@@ -87,7 +87,7 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     await expect(page.getByText("16", { exact: true }).last()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `test-results/groups-boards-${width}-${colorScheme}.png`, animations: "disabled" });
-    await page.getByRole("button", { name: "打印", exact: true }).click(); await page.getByRole("radio", { name: "成绩册", exact: true }).click();
+    await page.getByRole("button", { name: "打印", exact: true }).click(); await selectReport(page, "成绩册");
     const printGroups = page.getByLabel("组别", { exact: true });
     // Ticking keeps the menu open; ticking every group means all again.
     await printGroups.click(); await page.getByRole("menuitemcheckbox", { name: "初一", exact: true }).click();

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { installRuntime } from "./runtime";
+import { installRuntime, selectReport } from "./runtime";
 
 async function noOverflow(page: Page) {
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -82,7 +82,7 @@ for (const width of [1280, 800]) {
       page.on("pageerror", (e) => errors.push(e.message));
       await openMeet(page);
       await page.locator(".app__side").getByRole("button", { name: "打印", exact: true }).click();
-      await page.getByRole("radio", { name: "检录单", exact: true }).click();
+      await selectReport(page, "检录单");
       const frame = page.frameLocator('iframe[title="预览"]');
       await expect(frame.getByText("全部日期 · 全部轮次", { exact: true })).toBeVisible();
       const side = page.locator(".split__side");
@@ -107,7 +107,7 @@ for (const width of [1280, 800]) {
       await expect.poll(() => calls(page, "__prints")).toHaveLength(1);
       expect((await calls(page, "__prints"))[0]).toMatch(/class="pv-page"[\s\S]*全部日期 · round/);
       // 成绩记录表 prints the same choice.
-      await page.getByRole("radio", { name: "成绩记录表", exact: true }).click();
+      await selectReport(page, "成绩记录表");
       await expect(frame.getByRole("heading", { name: "成绩记录表", exact: true })).toBeVisible();
       await expect(frame.getByText("全部日期 · round", { exact: true })).toBeVisible();
       await print.click();
@@ -131,7 +131,7 @@ for (const width of [1280, 800]) {
       await expect(print).toBeDisabled();
       await expect(page.getByText("未选择轮次", { exact: true })).toBeVisible();
       await noOverflow(page);
-      await page.getByRole("radio", { name: "秩序册", exact: true }).click();
+      await selectReport(page, "秩序册");
       await expect(frame.getByText("秩序册", { exact: true })).toBeVisible();
       await side.getByRole("button", { name: "取消全选", exact: true }).click();
       await expect(page.getByText("未选择项目", { exact: true })).toBeVisible();
