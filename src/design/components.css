@@ -513,7 +513,8 @@ textarea {
 .st-table__action { border: 0; padding: 0; background: transparent; text-align: inherit; cursor: pointer; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-table__cell:has(.st-table__action) { overflow: visible; }
 .st-menu-item:focus-visible { outline-offset: -2px; }
-.st-sr-only { position: absolute; clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; white-space: nowrap; }
+/* Anchor hidden announcements so their static position cannot extend a full-height page. */
+.st-sr-only { position: absolute; top: 0; left: 0; clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; white-space: nowrap; }
 
 @media (forced-colors: active) {
   .st-button, .st-icon-button, .st-popover { border: 1px solid ButtonText; }

@@ -3,6 +3,7 @@ import { expectReport, installRuntime } from "./runtime";
 
 async function noOverflow(page: Page) {
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
 }
 
 for (const width of [1280, 800]) {
