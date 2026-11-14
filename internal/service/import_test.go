@@ -19,7 +19,13 @@ func TestParseTable(t *testing.T) {
 	if want := []string{ColName, ColGender, ColStudentNumber, ColClassName, ColEvents}; !reflect.DeepEqual(tab.Mapping, want) {
 		t.Fatalf("mapping = %v", tab.Mapping)
 	}
-	tab, err = ParseTable("王五,1002\n赵六,1003,多一列")
+	// Empty cells copied from a spreadsheet keep their columns.
+	tab, err = ParseTable("姓名\t学号\t参赛单位\t参赛组别\n张三\t\t高一(2)班\t高一\n李四\t\t\t高二\n")
+	must(t, err)
+	if want := [][]string{{"张三", "", "高一(2)班", "高一"}, {"李四", "", "", "高二"}}; !reflect.DeepEqual(tab.Rows[1:], want) {
+		t.Fatalf("empty cells = %q", tab.Rows[1:])
+	}
+	tab, err = ParseTable("王五, 1002\n赵六,1003,多一列")
 	must(t, err)
 	if tab.HasHeader || len(tab.Rows) != 2 || len(tab.Rows[0]) != 3 || tab.Mapping[0] != "" {
 		t.Fatalf("csv without header = %+v", tab)
@@ -49,7 +55,7 @@ func TestImportAthletes(t *testing.T) {
 	for _, r := range p.Rows {
 		msgs = append(msgs, r.Action+":"+r.Message)
 	}
-	want := []string{"create:", "create:", "update:", "error:请填写姓名", "error:号码与第 1 行重复", "error:找不到项目「铅球」", "create:已有同名运动员"}
+	want := []string{"create:", "create:", "update:", "error:请填写姓名", "error:号码与第 1 行重复", "error:本赛事没有项目「铅球」", "create:已有同名运动员"}
 	if !reflect.DeepEqual(msgs, want) {
 		t.Fatalf("rows = %q", msgs)
 	}

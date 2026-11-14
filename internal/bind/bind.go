@@ -108,6 +108,7 @@ func (c Combined) Save(ctx context.Context, meetID, id string, in service.Combin
 func (c Combined) Entries(ctx context.Context, id string, athleteIDs []string) error {
 	return c.Svc.SetCombinedEntries(ctx, ui, id, athleteIDs)
 }
+
 // LimitWarnings says which 报名限制 the full new roster would exceed.
 func (c Combined) LimitWarnings(ctx context.Context, id string, athleteIDs []string) ([]string, error) {
 	return c.Svc.CombinedLimitWarnings(ctx, id, athleteIDs)
@@ -249,6 +250,63 @@ func (e Entries) SetSeed(ctx context.Context, eventID, competitorID, seed string
 // Remove withdraws athletes from an event.
 func (e Entries) Remove(ctx context.Context, eventID string, competitorIDs []string) error {
 	return e.Svc.RemoveEntries(ctx, ui, eventID, competitorIDs)
+}
+
+// Summary counts the athletes, entries and teams of each unit and group.
+func (e Entries) Summary(ctx context.Context, meetID string) (*service.EntrySummary, error) {
+	return e.Svc.EntrySummary(ctx, meetID)
+}
+
+// ExportForms asks for a folder and writes the 报名登记表 into it: one per
+// unit, or with byGroup one per group ("" = the units of no group); all of
+// them when ids is empty. 0 when the user canceled.
+func (e Entries) ExportForms(ctx context.Context, meetID string, ids []string, byGroup bool) (int, error) {
+	files, err := e.Svc.EntryForms(ctx, meetID, ids, byGroup)
+	if err != nil {
+		return 0, err
+	}
+	dirs, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: mygo.CallerWindow(ctx), Directory: true, CreateDirectories: true, ButtonLabel: "导出"})
+	if err != nil || len(dirs) == 0 {
+		return 0, ignoreCancel(err)
+	}
+	for _, f := range files {
+		if err := os.WriteFile(filepath.Join(dirs[0], f.Name), f.Data, 0o644); err != nil {
+			return 0, errors.New("文件无法写入")
+		}
+	}
+	return len(files), nil
+}
+
+// PickForms asks for filled 报名登记表 files and reads them; nil when the
+// user canceled.
+func (Entries) PickForms(ctx context.Context) ([]service.EntryForm, error) {
+	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
+		Parent:   mygo.CallerWindow(ctx),
+		Multiple: true,
+		Filters:  []mygo.FileFilter{{Name: "报名登记表", Extensions: []string{"xlsx"}}},
+	})
+	if err != nil || len(paths) == 0 {
+		return nil, ignoreCancel(err)
+	}
+	forms := make([]service.EntryForm, 0, len(paths))
+	for _, p := range paths {
+		data, err := readFile(p)
+		if err != nil {
+			return nil, err
+		}
+		forms = append(forms, service.ReadEntryForm(filepath.Base(p), data))
+	}
+	return forms, nil
+}
+
+// PreviewForms reports what importing the forms would do.
+func (e Entries) PreviewForms(ctx context.Context, meetID string, forms []service.EntryForm) (*service.EntryFormPreview, error) {
+	return e.Svc.PreviewEntryForms(ctx, meetID, forms)
+}
+
+// ImportForms imports the forms.
+func (e Entries) ImportForms(ctx context.Context, meetID string, forms []service.EntryForm) (*service.EntryFormPreview, error) {
+	return e.Svc.ImportEntryForms(ctx, ui, meetID, forms)
 }
 
 // Arrange plans and saves heats.

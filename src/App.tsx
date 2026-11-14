@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { ErrorBoundary } from "./app/ErrorBoundary";
 import { NavProvider, useNav, type MeetTab } from "./app/nav";
-import { IconAthletes, IconBack, IconEdit, IconEvent, IconExport, IconGroup, IconMeet, IconPrint, IconSettings, IconTime, IconUnit, StFieldFeedback, StListItem, StNavGroup, StToastHost, iconStroke } from "./design";
+import { IconAthletes, IconBack, IconEdit, IconEntries, IconEvent, IconExport, IconGroup, IconMeet, IconPrint, IconSettings, IconTime, IconUnit, StFieldFeedback, StListItem, StNavGroup, StToastHost, iconStroke } from "./design";
 import { AthletesPage } from "./features/athletes/AthletesPage";
 import { CombinedList } from "./features/combined/CombinedList";
 import { CombinedWorkspace } from "./features/combined/CombinedWorkspace";
+import { EntriesPage } from "./features/entries/EntriesPage";
 import { EventWorkspace } from "./features/event/EventWorkspace";
 import { EventsPage } from "./features/events/EventsPage";
 import { ExchangePage } from "./features/exchange/ExchangePage";
@@ -21,6 +22,7 @@ import { UnitsPage } from "./features/units/UnitsPage";
 
 const tabs: { tab: MeetTab; label: string; icon: typeof IconEvent }[] = [
   { tab: "events", label: "项目", icon: IconEvent },
+  { tab: "entries", label: "报名", icon: IconEntries },
   { tab: "schedule", label: "日程", icon: IconTime },
   { tab: "athletes", label: "运动员", icon: IconAthletes },
   { tab: "units", label: "参赛单位", icon: IconUnit },
@@ -56,6 +58,7 @@ function Shell() {
         {route.page === "event" && <EventWorkspace key={route.eventId} meetId={meetId} eventId={route.eventId} tab={route.tab} />}
         {route.page === "meet" && route.tab === "groups" && <GroupsPage meetId={meetId} />}
         {route.page === "meet" && route.tab === "events" && <EventsPage meetId={meetId} />}
+        {route.page === "meet" && route.tab === "entries" && <EntriesPage meetId={meetId} />}
         {route.page === "meet" && route.tab === "schedule" && <SchedulePage meetId={meetId} />}
         {route.page === "meet" && route.tab === "athletes" && <AthletesPage meetId={meetId} />}
         {route.page === "meet" && route.tab === "units" && <UnitsPage meetId={meetId} />}

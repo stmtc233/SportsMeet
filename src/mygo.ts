@@ -54,6 +54,10 @@ export interface AthleteImportPreview {
   newUnits: string[];
   /** new entries */
   entries: number;
+  /** new teams, each entered */
+  teams: number;
+  /** TeamRows are the rows of an entry form's team sheet. */
+  teamRows?: ImportRow[];
 }
 
 /** AthleteInput creates or updates an athlete. */
@@ -360,6 +364,47 @@ export interface DraftTime {
   competitors: string[];
 }
 
+/**
+ * EntryForm is a filled 报名登记表 as read from a file. Problem says why
+ * the file cannot be imported at all; "" = none.
+ */
+export interface EntryForm {
+  file: string;
+  problem?: string;
+  meet: string;
+  /** "" on a group's form */
+  unit: string;
+  /** Group is the group of a group's form; "" = a unit's form. */
+  group?: string;
+  athletes: FormAthlete[];
+  teams: FormTeam[];
+}
+
+/** EntryFormPreview says what importing some forms would do, form by form. */
+export interface EntryFormPreview {
+  forms: EntryFormResult[];
+  creates: number;
+  updates: number;
+  entries: number;
+  teams: number;
+  errors: number;
+}
+
+/**
+ * EntryFormResult is one form of the preview: its athlete rows and team
+ * rows, or the problem that keeps the whole form out.
+ */
+export interface EntryFormResult {
+  file: string;
+  /** "" on a group's form */
+  unit: string;
+  /** a group's form */
+  group?: string;
+  problem?: string;
+  rows: ImportRow[];
+  teamRows: ImportRow[];
+}
+
 /** EntryInput enters an athlete or relay team; Seed is the typed entry mark, "" = none. */
 export interface EntryInput {
   athleteId?: string;
@@ -384,6 +429,21 @@ export interface EntryLimits {
   unitAthletes: number;
   /** UnitTeams is how many teams of one unit may enter one team event. */
   unitTeams: number;
+}
+
+/**
+ * EntrySummary is how far each unit, and each group, has entered: what the
+ * 报名 page lists to see whose 报名登记表 is still out.
+ */
+export interface EntrySummary {
+  units: UnitEntries[];
+  /**
+   * Groups is empty when the meet has no group; else one row per group,
+   * then one for the units of no group when there are any.
+   */
+  groups: GroupEntries[];
+  /** Limited says some 报名限制 is set, so Over means something. */
+  limited: boolean;
 }
 
 /** EntryView is one entered athlete. */
@@ -530,6 +590,33 @@ export interface EventRules {
   unit: string;
 }
 
+/** FormAthlete is one filled row of the athlete sheet. */
+export interface FormAthlete {
+  /** the sheet's row number */
+  line: number;
+  name: string;
+  gender: string;
+  studentNumber: string;
+  /** on a group's form */
+  unit?: string;
+  /** ticked events, by full name */
+  events: string[];
+  /** Problem is a cell the row cannot be read with; "" = none. */
+  problem?: string;
+}
+
+/**
+ * FormTeam is one filled row of the team sheet: members by name or student
+ * number, in roster (leg) order.
+ */
+export interface FormTeam {
+  line: number;
+  event: string;
+  /** on a group's form */
+  unit?: string;
+  members: string[];
+}
+
 /** Gender of an athlete ("" = unknown) or of an event (男 / 女 / 混合). */
 export type Gender = "男" | "女" | "混合" | "";
 
@@ -550,6 +637,18 @@ export interface GroupChangeRequest {
   groupId: string;
   eventIds: string[];
   combinedIds: string[];
+}
+
+/**
+ * GroupEntries is one group's units and athletes; ID "" = the units and
+ * athletes of no group.
+ */
+export interface GroupEntries {
+  id: string;
+  name: string;
+  units: number;
+  athletes: number;
+  entries: number;
 }
 
 export interface GroupInput {
@@ -805,11 +904,13 @@ export interface ImportPreview {
 export interface ImportRow {
   /** 1-based, among the data rows */
   line: number;
-  /** create | update | error */
+  /** create | update | keep | error */
   action: string;
   name: string;
   /** the error, or a warning */
   message: string;
+  /** a group's entry form names each row's unit */
+  unit?: string;
 }
 
 export interface McpStatus {
@@ -1513,6 +1614,24 @@ export interface Unit {
   shortName: string;
 }
 
+/** UnitEntries is one unit's athletes, entries and teams. */
+export interface UnitEntries {
+  unit: Unit;
+  athletes: number;
+  /**
+   * Entries counts individual events and combineds entered, a combined
+   * once, the way 报名限制 count them.
+   */
+  entries: number;
+  /** teams entered */
+  teams: number;
+  /**
+   * Over is how many of the unit's athletes, and of its events, are over
+   * a limit.
+   */
+  over: number;
+}
+
 /** UnitInput creates or updates a 参赛单位. */
 export interface UnitInput {
   groupIds?: string[];
@@ -1733,9 +1852,32 @@ export const Entries = {
   add(eventID: string, list: EntryInput[]): Promise<void> {
     return call("Entries.Add", eventID, list);
   },
+  /**
+   * ExportForms asks for a folder and writes the 报名登记表 into it: one per
+   * unit, or with byGroup one per group ("" = the units of no group); all of
+   * them when ids is empty. 0 when the user canceled.
+   */
+  exportForms(meetID: string, ids: string[], byGroup: boolean): Promise<number> {
+    return call("Entries.ExportForms", meetID, ids, byGroup);
+  },
+  /** ImportForms imports the forms. */
+  importForms(meetID: string, forms: EntryForm[]): Promise<EntryFormPreview | null> {
+    return call("Entries.ImportForms", meetID, forms);
+  },
   /** LimitWarnings says which 报名限制 entering the athletes or teams would exceed. */
   limitWarnings(eventID: string, ids: string[]): Promise<string[]> {
     return call("Entries.LimitWarnings", eventID, ids);
+  },
+  /**
+   * PickForms asks for filled 报名登记表 files and reads them; nil when the
+   * user canceled.
+   */
+  pickForms(): Promise<EntryForm[]> {
+    return call("Entries.PickForms");
+  },
+  /** PreviewForms reports what importing the forms would do. */
+  previewForms(meetID: string, forms: EntryForm[]): Promise<EntryFormPreview | null> {
+    return call("Entries.PreviewForms", meetID, forms);
   },
   /** Remove withdraws athletes from an event. */
   remove(eventID: string, competitorIDs: string[]): Promise<void> {
@@ -1744,6 +1886,10 @@ export const Entries = {
   /** SetSeed changes an entry mark; "" clears it. */
   setSeed(eventID: string, competitorID: string, seed: string): Promise<void> {
     return call("Entries.SetSeed", eventID, competitorID, seed);
+  },
+  /** Summary counts the athletes, entries and teams of each unit and group. */
+  summary(meetID: string): Promise<EntrySummary | null> {
+    return call("Entries.Summary", meetID);
   },
 } as const;
 
@@ -1819,7 +1965,7 @@ export const Results = {
   },
 } as const;
 
-/** Reports renders and prints 秩序册, 成绩册, 检录单 and 成绩记录表. */
+/** Reports renders and prints books, 报名表, 检录单 and 成绩记录表. */
 export const Reports = {
   /** CheckInTargets lists the rounds the 检录单 can print and its days. */
   checkInTargets(meetID: string): Promise<CheckInTargets | null> {

@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { limits?: boolean; athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { limits?: boolean; athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean; groups?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { updatePrereleases: false, theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false };
@@ -146,7 +146,7 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
       once: () => () => {},
       call: async (method: string, ...args: any[]) => {
         switch (method) {
-          case "Groups.List": return [];
+          case "Groups.List": return options.groups ? [{ id: "g1", meetId: "meet", name: "高一", ordinal: 1, events: 0, units: 1, athletes: 0 }] : [];
           case "Groups.Suggestions": return [];
           case "Settings.Preferences": return { ...prefs };
           case "Settings.SavePreferences":
@@ -179,6 +179,30 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
             (globalThis as any).__meetCalls = [...((globalThis as any).__meetCalls ?? []), structuredClone(args)];
             Object.assign(meet, args[1]); changed("meets", "meet", ""); return null;
           case "Units.List": return [{ id: "unit", meetId: "meet", name: "一班", shortName: "" }];
+          // 报名登记表: the first pick has a file from another meet; the second is clean.
+          case "Entries.Summary": return {
+            units: [
+              { unit: { id: "unit", meetId: "meet", name: "一班", shortName: "", groupIds: options.groups ? ["g1"] : [] }, athletes: 24, entries: 24, teams: 0, over: options.limits ? 2 : 0 },
+              { unit: { id: "unit2", meetId: "meet", name: "二班", shortName: "", groupIds: [] }, athletes: 0, entries: 0, teams: 0, over: 0 },
+            ],
+            groups: options.groups ? [{ id: "g1", name: "高一", units: 1, athletes: 24, entries: 24 }, { id: "", name: "未分组", units: 1, athletes: 0, entries: 0 }] : [],
+            limited: !!options.limits,
+          };
+          case "Entries.ExportForms": (globalThis as any).__formExports = [...((globalThis as any).__formExports ?? []), args[2] ? "group" : args[1]]; (globalThis as any).__formExportIds = [...((globalThis as any).__formExportIds ?? []), args[1]]; return args[1].length || 1;
+          case "Entries.PickForms": {
+            const picks = (globalThis as any).__formPicks = ((globalThis as any).__formPicks ?? 0) + 1;
+            const form = { file: "一班-报名登记表.xlsx", meet: "秋季运动会", unit: "一班", athletes: [{ line: 4, name: "王五", gender: "男", studentNumber: "", events: ["男子100m 初中组"] }], teams: [{ line: 2, event: "男子4×100m", members: ["王五"] }] };
+            return picks === 1 ? [form, { file: "旧表.xlsx", meet: "春季运动会", unit: "一班", athletes: [], teams: [] }] : [form];
+          }
+          case "Entries.PreviewForms":
+          case "Entries.ImportForms": {
+            if (method === "Entries.ImportForms") (globalThis as any).__formImports = args[1].length;
+            const forms = args[1].map((f: any) => f.meet === "秋季运动会"
+              ? { file: f.file, unit: f.unit, rows: [{ line: 4, action: "create", name: "王五", message: "" }], teamRows: [{ line: 2, action: "create", name: "男子4×100m", message: "王五" }] }
+              : { file: f.file, unit: f.unit, problem: `这是「${f.meet}」的表`, rows: [], teamRows: [] });
+            const errors = forms.filter((f: any) => f.problem).length;
+            return { forms, creates: 1, updates: 0, entries: 1, teams: 1, errors };
+          }
           case "Athletes.List": return athletes.map((athlete) => ({ athlete, unitName: "一班", entries: 1, placed: true }));
           case "Events.List": return [{ event, autoName: true, rounds: [], formatText: "直接决赛", entries: 24, heats: 1, placed: 8, results: 0, timeText: options.datedList ? "2026-11-12 09:00" : "09:00" }];
           case "Events.Presets": return presets;

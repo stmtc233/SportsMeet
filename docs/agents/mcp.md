@@ -91,7 +91,7 @@
 | `preview_entries` → `add_entries` | 批量报名;每项二选一 `athleteId` / `teamId`;`result.warnings` 列出超出报名限制的人或单位,只提示不拦截 |
 | `preview_remove_entries` → `remove_entries` | 取消报名;个人传 `athleteIds`,接力传 `teamIds` |
 | `preview_delete_team` → `delete_team` | 传 `eventId` 与 `id`,删除未排进组的队伍及其报名 |
-| `preview_athletes` → `import_athletes` | 表格运动员、单位与报名导入 |
+| `preview_athletes` → `import_athletes` | 表格运动员、单位与报名导入;各单位交回的报名登记表(或任意格式的报名表)由 AI 读出后整理成表格行,队伍再逐个 `save_team` 并报名。登记表文件导入只在界面 |
 | `preview_import` → `import_meet` | 交换格式导入 |
 | `preview_arrange` → `auto_arrange` | 只追加新组,排除已保存的排位 |
 | `preview_advance` → `advance` | 根据上一轮 Q / q 生成下一轮组 |

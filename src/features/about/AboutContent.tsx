@@ -13,7 +13,10 @@ const licenses = [
   { name: "React", license: "MIT" },
   { name: "Lucide", license: "ISC" },
   { name: "purego", license: "Apache-2.0" },
-  { name: "golang.org/x/net、text、oauth2、sync、sys、time", license: "BSD-3-Clause" },
+  { name: "excelize、efp、nfp", license: "BSD-3-Clause" },
+  { name: "mscfb、msoleps", license: "Apache-2.0" },
+  { name: "go-deepcopy", license: "MIT" },
+  { name: "golang.org/x/net、text、oauth2、sync、sys、time、crypto", license: "BSD-3-Clause" },
 ];
 
 export function AboutContent() {

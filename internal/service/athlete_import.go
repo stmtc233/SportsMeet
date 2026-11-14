@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/plugins/sqlite"
@@ -58,12 +59,16 @@ func ParseTable(text string) (Table, error) {
 	r := csv.NewReader(strings.NewReader(text))
 	r.FieldsPerRecord = -1
 	r.LazyQuotes = true
-	r.TrimLeadingSpace = true
 	switch {
 	case strings.Contains(first, "\t"):
+		// Leading-space trimming would also eat the tabs of empty cells and
+		// shift the rest of the row; cells are trimmed below instead.
 		r.Comma = '\t'
 	case !strings.Contains(first, ",") && strings.Contains(first, "，"):
 		r.Comma = '，'
+		r.TrimLeadingSpace = true
+	default:
+		r.TrimLeadingSpace = true
 	}
 	records, err := r.ReadAll()
 	if err != nil {
@@ -109,9 +114,10 @@ type AthleteImport struct {
 // ImportRow is one row of the preview.
 type ImportRow struct {
 	Line    int    `json:"line"`   // 1-based, among the data rows
-	Action  string `json:"action"` // create | update | error
+	Action  string `json:"action"` // create | update | keep | error
 	Name    string `json:"name"`
-	Message string `json:"message"` // the error, or a warning
+	Message string `json:"message"`        // the error, or a warning
+	Unit    string `json:"unit,omitempty"` // a group's entry form names each row's unit
 }
 
 // AthleteImportPreview says what an import would do.
@@ -122,6 +128,30 @@ type AthleteImportPreview struct {
 	Errors   int         `json:"errors"`
 	NewUnits []string    `json:"newUnits"`
 	Entries  int         `json:"entries"` // new entries
+	Teams    int         `json:"teams"`   // new teams, each entered
+	// TeamRows are the rows of an entry form's team sheet.
+	TeamRows []ImportRow `json:"teamRows,omitempty"`
+}
+
+// formRows is what an entry form adds to a table: the sheet's line of each
+// row, problems found while reading a row, the full names of the events a
+// row ticks, and the teams of the team sheet.
+type formRows struct {
+	lines    []int
+	problems []string
+	events   [][]string
+	units    []string // each row's unit, as the form names it
+	teams    []formTeam
+}
+
+// formTeam is one row of the team sheet: an event, the unit's name as the
+// table gives it, and members by name or student number in roster order.
+type formTeam struct {
+	line    int
+	unit    string
+	event   string
+	members []string
+	problem string // why the row cannot be imported; "" = none
 }
 
 type athleteImportPlan struct {
@@ -133,7 +163,8 @@ var eventSeparators = strings.NewReplacer("，", "\n", ",", "\n", "、", "\n", "
 
 // planAthleteImport validates every row and builds the statements of the
 // import; the preview and the import share it, so they cannot disagree.
-func (s *Service) planAthleteImport(ctx context.Context, meetID string, in AthleteImport) (*athleteImportPlan, error) {
+// form is nil for a pasted table.
+func (s *Service) planAthleteImport(ctx context.Context, meetID string, in AthleteImport, form *formRows) (*athleteImportPlan, error) {
 	meet, err := s.GetMeet(ctx, meetID)
 	if err != nil {
 		return nil, err
@@ -173,9 +204,10 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 	if err != nil {
 		return nil, err
 	}
-	groupByName := map[string]string{}
+	groupByName, groupNames := map[string]string{}, map[string]string{}
 	for _, g := range groups {
 		groupByName[domain.NormalizeText(g.Name)] = g.ID
+		groupNames[g.ID] = g.Name
 	}
 	byNumber, byBib, byName := map[string]*domain.Athlete{}, map[string]*domain.Athlete{}, map[string]bool{}
 	for i := range athletes {
@@ -211,12 +243,17 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 	p := &plan.preview
 	now := s.store.Now()
 	seenNumber, seenBib := map[string]int{}, map[string]int{}
-	touched := map[string]int{} // existing athlete id → line that updates it
+	seenName := map[string]bool{}        // unit|name of form rows with neither id
+	touched := map[string]int{}          // existing athlete id → line that updates it
+	saved := map[string]domain.Athlete{} // athletes as the import leaves them
 	var unitStmts, stmts []sqlite.Statement
 	var limited []importLimitRow
 
 	for i, row := range in.Rows {
 		line := i + 1
+		if form != nil {
+			line = form.lines[i]
+		}
 		cell := func(name string) string {
 			if c, ok := col[name]; ok && c < len(row) {
 				return strings.TrimSpace(row[c])
@@ -228,6 +265,10 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 			out.Action, out.Message = "error", fmt.Sprintf(format, a...)
 			p.Errors++
 			p.Rows = append(p.Rows, out)
+		}
+		if form != nil && form.problems[i] != "" {
+			fail("%s", form.problems[i])
+			continue
 		}
 		input := AthleteInput{Name: cell(ColName), Gender: cell(ColGender), Bib: cell(ColBib),
 			StudentNumber: cell(ColStudentNumber), ClassName: cell(ColClassName), Grade: cell(ColGrade),
@@ -255,6 +296,32 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 			existing = byNumber[num]
 		case bib != "":
 			existing = byBib[bib]
+		}
+		// A form names its unit, so a row without either id is the unit's
+		// athlete of that name: the same form imported again adds no one.
+		if form != nil && num == "" && bib == "" {
+			k := domain.NormalizeText(cell(ColUnit)) + "|" + domain.NormalizeText(a.Name)
+			if seenName[k] {
+				fail("同一单位有两行同名，请填写学号")
+				continue
+			}
+			seenName[k] = true
+		}
+		if existing == nil && form != nil && num == "" && bib == "" {
+			unit, name := unitIDs[domain.NormalizeText(cell(ColUnit))], domain.NormalizeText(a.Name)
+			var same []*domain.Athlete
+			for i := range athletes {
+				if athletes[i].UnitID == unit && domain.NormalizeText(athletes[i].Name) == name {
+					same = append(same, &athletes[i])
+				}
+			}
+			if len(same) > 1 {
+				fail("本单位有同名运动员，请填写学号")
+				continue
+			}
+			if len(same) == 1 {
+				existing = same[0]
+			}
 		}
 		if existing != nil {
 			if n := touched[existing.ID]; n > 0 {
@@ -300,21 +367,32 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 		if a.GroupID == "" && len(unitGroups[unitID]) == 1 {
 			a.GroupID = unitGroups[unitID][0]
 		}
+		gender := a.Gender
+		if gender == "" && existing != nil {
+			gender = existing.Gender
+		}
+
+		tokens := strings.Split(eventSeparators.Replace(cell(ColEvents)), "\n")
+		if form != nil {
+			tokens = form.events[i]
+		}
 		var eventIDs []string
-		bad := ""
-		for _, token := range strings.Split(eventSeparators.Replace(cell(ColEvents)), "\n") {
+		problem := ""
+		for _, token := range tokens {
 			if token = strings.TrimSpace(token); token == "" {
 				continue
 			}
-			id := matchEvent(events, token, a.Gender, a.GroupID)
-			if id == "" {
-				bad = token
+			e, n := findEvent(events, token, gender, a.GroupID, false)
+			if e == nil {
+				problem = eventProblem(events, token, n, gender, a.GroupID, groupNames[a.GroupID], len(groups) > 0, false)
 				break
 			}
-			eventIDs = append(eventIDs, id)
+			if !slices.Contains(eventIDs, e.ID) {
+				eventIDs = append(eventIDs, e.ID)
+			}
 		}
-		if bad != "" {
-			fail("找不到项目「%s」", bad)
+		if problem != "" {
+			fail("%s", problem)
 			continue
 		}
 
@@ -362,14 +440,13 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 			p.Creates++
 			stmts = append(stmts, insertAthlete(a, now))
 		}
-		for _, eventID := range eventIDs {
-			if k := eventID + "|" + a.ID; !entered[k] {
+		saved[a.ID] = a
+		for _, id := range eventIDs {
+			if k := id + "|" + a.ID; !entered[k] {
 				entered[k] = true
 				p.Entries++
-				stmts = append(stmts, store.Stmt(`INSERT INTO entries(event_id, athlete_id) VALUES (?, ?)`, eventID, a.ID))
+				stmts = append(stmts, store.Stmt(`INSERT INTO entries(event_id, athlete_id) VALUES (?, ?)`, id, a.ID))
 			}
-		}
-		for _, id := range eventIDs {
 			for _, e := range events {
 				if e.ID == id && e.GroupID != "" && a.GroupID != "" && e.GroupID != a.GroupID {
 					out.Message = "跨组报名"
@@ -382,11 +459,193 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 		limited = append(limited, importLimitRow{row: len(p.Rows), athleteID: a.ID, unitID: a.UnitID, eventIDs: eventIDs})
 		p.Rows = append(p.Rows, out)
 	}
-	if err := s.importLimitWarnings(ctx, meet, events, limited, p); err != nil {
+
+	var teamStmts []sqlite.Statement
+	var newTeams []importLimitTeam
+	if form != nil && len(form.teams) > 0 {
+		for _, a := range athletes {
+			if _, ok := saved[a.ID]; !ok {
+				saved[a.ID] = a
+			}
+		}
+		teams, err := s.store.ListTeams(ctx, sc)
+		if err != nil {
+			return nil, err
+		}
+		unitByID := map[string]domain.Unit{}
+		for _, u := range units {
+			unitByID[u.ID] = u
+		}
+		teamStmts, newTeams = planFormTeams(form.teams, events, teams, unitIDs, unitByID, saved, p)
+	}
+	if err := s.importLimitWarnings(ctx, meet, events, limited, newTeams, p); err != nil {
 		return nil, err
 	}
-	plan.stmts = append(unitStmts, stmts...)
+	plan.stmts = append(append(unitStmts, stmts...), teamStmts...)
 	return plan, nil
+}
+
+// planFormTeams turns the team sheet into new teams, each entered. A unit
+// that already has a team in an event keeps its teams as they are, so a
+// form imported twice adds nothing; the rows that would add more say so.
+func planFormTeams(rows []formTeam, events []domain.Event, teams []domain.Team, unitIDs map[string]string, unitByID map[string]domain.Unit, saved map[string]domain.Athlete, p *AthleteImportPreview) ([]sqlite.Statement, []importLimitTeam) {
+	hasTeam, teamOf := map[string]bool{}, map[string]domain.Team{} // event|unit, event|athlete
+	for _, t := range teams {
+		hasTeam[t.EventID+"|"+t.UnitID] = true
+		for _, m := range t.MemberIDs {
+			teamOf[t.EventID+"|"+m] = t
+		}
+	}
+	type draft struct {
+		row  int // index into p.TeamRows
+		team domain.Team
+	}
+	var drafts []draft
+	count := map[string]int{} // event|unit → new teams
+	for _, r := range rows {
+		out := ImportRow{Line: r.line, Name: r.event}
+		fail := func(format string, a ...any) {
+			out.Action, out.Message = "error", fmt.Sprintf(format, a...)
+			p.Errors++
+			p.TeamRows = append(p.TeamRows, out)
+		}
+		if r.problem != "" {
+			fail("%s", r.problem)
+			continue
+		}
+		if r.event == "" {
+			fail("请填写项目")
+			continue
+		}
+		e, _ := findEvent(events, r.event, "", "", true)
+		if e == nil || !e.IsTeam() || domain.NormalizeText(e.Name) != domain.NormalizeText(r.event) {
+			fail("本赛事没有队伍项目「%s」", r.event)
+			continue
+		}
+		unitID := unitIDs[domain.NormalizeText(r.unit)]
+		key := e.ID + "|" + unitID
+		if hasTeam[key] {
+			out.Action, out.Message = "keep", "本单位已有队伍，未改动"
+			for _, t := range teams {
+				if t.EventID == e.ID && t.UnitID == unitID && sameMembers(t.MemberIDs, r.members, saved) {
+					out.Message = ""
+				}
+			}
+			p.TeamRows = append(p.TeamRows, out)
+			continue
+		}
+		var ids, names []string
+		problem := ""
+		for _, m := range r.members {
+			id, n := findMember(saved, unitID, m)
+			switch {
+			case n == 0:
+				problem = fmt.Sprintf("本单位没有「%s」", m)
+			case n > 1:
+				problem = fmt.Sprintf("「%s」有同名，请写学号", m)
+			case slices.Contains(ids, id):
+				problem = fmt.Sprintf("「%s」重复", m)
+			}
+			if problem == "" {
+				if t, ok := teamOf[e.ID+"|"+id]; ok {
+					problem = fmt.Sprintf("「%s」已在「%s」", m, t.Name)
+				}
+			}
+			if problem != "" {
+				break
+			}
+			ids = append(ids, id)
+			names = append(names, saved[id].Name)
+			teamOf[e.ID+"|"+id] = domain.Team{Name: e.Name}
+		}
+		if problem != "" {
+			fail("%s", problem)
+			continue
+		}
+		count[key]++
+		out.Action, out.Message = "create", strings.Join(names, "、")
+		drafts = append(drafts, draft{row: len(p.TeamRows), team: domain.Team{ID: newID(), EventID: e.ID, UnitID: unitID, MemberIDs: ids}})
+		p.TeamRows = append(p.TeamRows, out)
+	}
+	// One team takes the unit's name; several are numbered.
+	var stmts []sqlite.Statement
+	var created []importLimitTeam
+	seen := map[string]int{}
+	for _, d := range drafts {
+		t := d.team
+		key := t.EventID + "|" + t.UnitID
+		seen[key]++
+		t.Name = unitByID[t.UnitID].Name
+		if count[key] > 1 {
+			t.Name = fmt.Sprintf("%s %d队", t.Name, seen[key])
+		}
+		stmts = append(stmts, insertTeam(t)...)
+		stmts = append(stmts, insertEntry(t.EventID, "", t.ID, nil))
+		p.Teams++
+		created = append(created, importLimitTeam{row: d.row, eventID: t.EventID, teamID: t.ID, unitID: t.UnitID})
+	}
+	return stmts, created
+}
+
+// findMember finds a unit's athlete by student number, else by name; it
+// returns how many fit when not exactly one.
+func findMember(athletes map[string]domain.Athlete, unitID, text string) (string, int) {
+	key := domain.NormalizeText(text)
+	var byNumber, byName []string
+	for id, a := range athletes {
+		if a.UnitID != unitID {
+			continue
+		}
+		if key != "" && domain.NormalizeText(a.StudentNumber) == key {
+			byNumber = append(byNumber, id)
+		}
+		if domain.NormalizeText(a.Name) == key {
+			byName = append(byName, id)
+		}
+	}
+	if len(byNumber) == 1 {
+		return byNumber[0], 1
+	}
+	if len(byName) == 1 {
+		return byName[0], 1
+	}
+	return "", len(byName)
+}
+
+// sameMembers reports whether a team's roster is the one a row writes.
+func sameMembers(ids, members []string, athletes map[string]domain.Athlete) bool {
+	if len(ids) != len(members) {
+		return false
+	}
+	for i, id := range ids {
+		a := athletes[id]
+		m := domain.NormalizeText(members[i])
+		if m != domain.NormalizeText(a.Name) && m != domain.NormalizeText(a.StudentNumber) {
+			return false
+		}
+	}
+	return true
+}
+
+// eventProblem says why a cell names no single event: the meet has none
+// of that name, none for the athlete's gender or group, or several.
+func eventProblem(events []domain.Event, token string, n int, gender domain.Gender, groupID, groupName string, grouped, teams bool) string {
+	if n == 0 {
+		if _, all := findEvent(events, token, "", "", teams); all == 0 {
+			return fmt.Sprintf("本赛事没有项目「%s」", token)
+		}
+		if _, any := findEvent(events, token, gender, "", teams); any == 0 {
+			return fmt.Sprintf("「%s」没有%s子项目", token, gender)
+		}
+		return fmt.Sprintf("「%s」没有%s的项目", token, groupName)
+	}
+	switch {
+	case gender == "":
+		return fmt.Sprintf("「%s」有多个项目，请填写性别", token)
+	case groupID == "" && grouped:
+		return fmt.Sprintf("「%s」有多个项目，请填写组别", token)
+	}
+	return fmt.Sprintf("「%s」有多个项目，请填写项目全名", token)
 }
 
 // importLimitRow is a row that will be saved, as the entry limits see it.
@@ -397,9 +656,15 @@ type importLimitRow struct {
 	eventIDs  []string
 }
 
+// importLimitTeam is a team an entry form creates; row indexes TeamRows.
+type importLimitTeam struct {
+	row                     int
+	eventID, teamID, unitID string
+}
+
 // importLimitWarnings adds to the rows that enter events the limits the
 // import would exceed; they never stop it.
-func (s *Service) importLimitWarnings(ctx context.Context, meet *domain.Meet, events []domain.Event, rows []importLimitRow, p *AthleteImportPreview) error {
+func (s *Service) importLimitWarnings(ctx context.Context, meet *domain.Meet, events []domain.Event, rows []importLimitRow, teams []importLimitTeam, p *AthleteImportPreview) error {
 	limits, err := s.loadEntryLimits(ctx, meet)
 	if err != nil || !limits.limits.Any() {
 		return err
@@ -418,10 +683,22 @@ func (s *Service) importLimitWarnings(ctx context.Context, meet *domain.Meet, ev
 			limits.entries = append(limits.entries, domain.LimitEntry{Item: id, AthleteID: r.athleteID, UnitID: r.unitID})
 		}
 	}
+	for _, t := range teams {
+		limits.entries = append(limits.entries, domain.LimitEntry{Item: t.eventID, TeamID: t.teamID, UnitID: t.unitID})
+	}
 	report := limits.check()
 	names := map[string]string{}
 	for _, e := range events {
 		names[e.ID] = e.Name
+	}
+	note := func(r *ImportRow, notes []string) {
+		if len(notes) == 0 {
+			return
+		}
+		if r.Message != "" {
+			notes = append([]string{r.Message}, notes...)
+		}
+		r.Message = strings.Join(notes, "；")
 	}
 	for _, r := range rows {
 		if len(r.eventIDs) == 0 {
@@ -436,26 +713,25 @@ func (s *Service) importLimitWarnings(ctx context.Context, meet *domain.Meet, ev
 				notes = append(notes, fmt.Sprintf("「%s」本单位%s", names[id], limits.unitOverText(n, false)))
 			}
 		}
-		if len(notes) == 0 {
-			continue
+		note(&p.Rows[r.row], notes)
+	}
+	for _, t := range teams {
+		if n := report.Units[domain.UnitItem{Item: t.eventID, UnitID: t.unitID}]; n > 0 {
+			note(&p.TeamRows[t.row], []string{"本单位" + limits.unitOverText(n, true)})
 		}
-		row := &p.Rows[r.row]
-		if row.Message != "" {
-			notes = append([]string{row.Message}, notes...)
-		}
-		row.Message = strings.Join(notes, "；")
 	}
 	return nil
 }
 
-// matchEvent finds the event a cell names: its full name, or its
+// findEvent finds the event a cell names: its full name, or its
 // discipline among the events of the athlete's gender (and mixed ones)
-// when that is unambiguous. Relays take teams, not athletes.
-func matchEvent(events []domain.Event, token string, gender domain.Gender, groupID ...string) string {
+// and group, else among those with no group. Team events count only when teams is set. When no single
+// event fits it returns nil and how many did.
+func findEvent(events []domain.Event, token string, gender domain.Gender, groupID string, teams bool) (*domain.Event, int) {
 	name, disc := domain.NormalizeText(token), domain.DisciplineKey(token)
-	exact, candidates := []domain.Event{}, []domain.Event{}
+	var exact, candidates []domain.Event
 	for _, e := range events {
-		if e.IsTeam() || e.CombinedID != "" {
+		if e.CombinedID != "" || (e.IsTeam() && !teams) {
 			continue
 		}
 		if domain.NormalizeText(e.Name) == name {
@@ -466,30 +742,49 @@ func matchEvent(events []domain.Event, token string, gender domain.Gender, group
 		}
 	}
 	if len(exact) == 1 {
-		return exact[0].ID
+		return &exact[0], 1
 	}
 	if len(exact) > 1 {
 		candidates = exact
 	}
-	found := ""
+	// The athlete's own group first, else events with no group, which are
+	// open to every group.
+	var found, open []domain.Event
 	for _, e := range candidates {
-		if e.Gender != gender && e.Gender != domain.GenderMixed {
+		if gender != "" && e.Gender != gender && e.Gender != domain.GenderMixed {
 			continue
 		}
-		if len(groupID) > 0 && groupID[0] != "" && e.GroupID != groupID[0] {
-			continue
+		switch {
+		case groupID == "" || e.GroupID == groupID:
+			found = append(found, e)
+		case e.GroupID == "":
+			open = append(open, e)
 		}
-		if found != "" {
-			return ""
-		}
-		found = e.ID
 	}
-	return found
+	if len(found) == 0 {
+		found = open
+	}
+	if len(found) == 1 {
+		return &found[0], 1
+	}
+	return nil, len(found)
+}
+
+// matchEvent is findEvent among individual events, by id; "" = none.
+func matchEvent(events []domain.Event, token string, gender domain.Gender, groupID ...string) string {
+	g := ""
+	if len(groupID) > 0 {
+		g = groupID[0]
+	}
+	if e, _ := findEvent(events, token, gender, g, false); e != nil {
+		return e.ID
+	}
+	return ""
 }
 
 // PreviewAthleteImport reports what importing the table would do.
 func (s *Service) PreviewAthleteImport(ctx context.Context, meetID string, in AthleteImport) (*AthleteImportPreview, error) {
-	plan, err := s.planAthleteImport(ctx, meetID, in)
+	plan, err := s.planAthleteImport(ctx, meetID, in, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -501,7 +796,7 @@ func (s *Service) PreviewAthleteImport(ctx context.Context, meetID string, in At
 func (s *Service) ImportAthletes(ctx context.Context, src store.Source, meetID string, in AthleteImport) (*AthleteImportPreview, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	plan, err := s.planAthleteImport(ctx, meetID, in)
+	plan, err := s.planAthleteImport(ctx, meetID, in, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -515,7 +810,7 @@ func (s *Service) ImportAthletes(ctx context.Context, src store.Source, meetID s
 	err = s.write(ctx,
 		store.Audit{Source: src, Action: "athlete.imported", MeetID: meetID,
 			Message: fmt.Sprintf("新建 %d 人，更新 %d 人", p.Creates, p.Updates),
-			Detail:  map[string]int{"creates": p.Creates, "updates": p.Updates, "units": len(p.NewUnits), "entries": p.Entries}},
+			Detail:  map[string]int{"creates": p.Creates, "updates": p.Updates, "units": len(p.NewUnits), "entries": p.Entries, "teams": p.Teams}},
 		Change{Kind: "athletes", MeetID: meetID}, plan.stmts...)
 	if err != nil {
 		return nil, err
