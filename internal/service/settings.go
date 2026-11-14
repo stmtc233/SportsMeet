@@ -58,11 +58,11 @@ func (s *Service) SavePreferences(ctx context.Context, p Preferences) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.saveSetting(ctx, "preferences", p, "settings.preferences")
+	return s.saveSetting(ctx, store.SourceUI, "preferences", p, "settings.preferences")
 }
 
 func (s *Service) MCPConfig(ctx context.Context) (MCPConfig, error) {
-	cfg := MCPConfig{Port: 18765}
+	cfg := MCPConfig{Enabled: true, Port: 18765}
 	raw, err := s.store.GetSetting(ctx, "mcp")
 	if err != nil {
 		return cfg, err
@@ -89,25 +89,25 @@ func PrepareMCPConfig(cfg MCPConfig, rotate bool) (MCPConfig, error) {
 }
 
 // SaveMCPConfig is called after the runtime has reserved its listener.
-func (s *Service) SaveMCPConfig(ctx context.Context, cfg MCPConfig) error {
+func (s *Service) SaveMCPConfig(ctx context.Context, source store.Source, cfg MCPConfig) error {
 	checked, err := PrepareMCPConfig(cfg, false)
 	if err != nil {
 		return err
 	}
 	if checked != cfg {
-		return invalid("请重新开启 MCP")
+		return invalid("请重新开启 AI/MCP")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.saveSetting(ctx, "mcp", cfg, "settings.mcp")
+	return s.saveSetting(ctx, source, "mcp", cfg, "settings.mcp")
 }
 
-func (s *Service) saveSetting(ctx context.Context, key string, value any, action string) error {
+func (s *Service) saveSetting(ctx context.Context, source store.Source, key string, value any, action string) error {
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
 	// Audit stores the key only: MCP tokens must never appear in logs.
-	return s.write(ctx, store.Audit{Source: store.SourceUI, Action: action, Message: key}, Change{Kind: "settings"},
+	return s.write(ctx, store.Audit{Source: source, Action: action, Message: key}, Change{Kind: "settings"},
 		store.Stmt(`INSERT INTO settings(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, string(raw)))
 }

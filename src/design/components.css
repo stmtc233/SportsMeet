@@ -217,6 +217,8 @@ textarea {
 .st-list-item--action:hover:not(:disabled, [aria-disabled]) { background: var(--st-hover); }
 .st-list-item--action:is(:disabled, [aria-disabled]) { opacity: 0.45; cursor: default; }
 .st-list-item[aria-current] { background: var(--st-tone-info-container); color: var(--st-tone-info-on-container); }
+.st-list-item[data-highlighted] { background: var(--st-tone-info-container); color: var(--st-tone-info-on-container); }
+.st-list-item[data-highlighted] .st-list-item__leading { color: inherit; }
 .st-list-item__leading { display: inline-flex; color: var(--st-text-muted); }
 .st-nav-group { position: relative; display: flex; flex-direction: column; gap: var(--st-space-2); }
 .st-nav-group > .st-list-item { position: relative; }

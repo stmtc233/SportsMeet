@@ -1,5 +1,7 @@
 import { Fragment, useEffect } from "react";
 import { ErrorBoundary } from "./app/ErrorBoundary";
+import { AIMCPEntry } from "./features/ai-mcp/AIMCPEntry";
+import { AIMCPPage } from "./features/ai-mcp/AIMCPPage";
 import { NavProvider, meetTabLabels, sideTab, useNav, type MeetTab } from "./app/nav";
 import { IconArrange, IconBack, IconEntries, IconEvent, IconMeet, IconOverview, IconPrint, IconResults, IconSettings, IconSetup, IconTime, StFieldFeedback, StListItem, StNavGroup, StNavHeading, StTag, StToastHost, iconStroke } from "./design";
 import type { OverviewBadges } from "./mygo";
@@ -61,6 +63,7 @@ function Shell() {
   const { route, go } = useNav();
   if (route.page === "meets") return <MeetsPage />;
   if (route.page === "settings") return <SettingsPage />;
+  if (route.page === "ai-mcp") return <AIMCPPage />;
   const meetId = route.meetId;
   const current = sideTab(route);
   return (
@@ -69,6 +72,7 @@ function Shell() {
         <MeetHeader meetId={meetId} />
         <MeetNav meetId={meetId} current={current} />
         <div className="app__side-spacer" />
+        <AIMCPEntry sidebar />
         <StListItem title="设置" leading={<IconSettings size={18} strokeWidth={iconStroke} />} onClick={() => go({ page: "settings", section: null, returnTo: route })} />
         <StListItem title="全部赛事" leading={<IconBack size={18} strokeWidth={iconStroke} />} onClick={() => go({ page: "meets" })} />
       </nav>

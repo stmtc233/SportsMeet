@@ -5,12 +5,12 @@
 
 ## 开关与连接
 
-- **默认关闭**,在设置「MCP」开启;关闭时端口不监听。
+- **默认开启（用户要求）**，在独立「AI/MCP」页管理；已保存的开关选择在重启后保留，关闭时端口不监听。
 - 只监听 `127.0.0.1`,端口默认 18765,设置允许 1024–65535。地址为 `http://127.0.0.1:<port>/mcp`。传输为 Streamable HTTP,用官方 Go SDK `github.com/modelcontextprotocol/go-sdk`。
-- **独立的高熵 Bearer 令牌**:首次开启时生成,常量时间比较;设置里可显示 / 复制 / 轮换,轮换后旧客户端立即失效。
+- **独立的高熵 Bearer 令牌**:首次开启时生成,常量时间比较;「AI/MCP」页可显示 / 复制 / 轮换,轮换后旧客户端立即失效。
 - 请求带 `Origin` 且不是本机时拒绝(403),防止网页里的脚本借用户浏览器调用本机服务。
 - 请求体上限 2MB,包含未声明长度的请求;超限返回 413。同时检查 `Host`,只允许 localhost 与回环地址。传输使用无状态模式,每次请求都验证令牌。
-- 设置页提供「复制连接信息」:由应用生成地址与令牌的通用配置片段,不区分客户端。
+- 「AI/MCP」页提供「复制连接信息」:由应用生成地址与令牌的通用配置片段,不区分客户端。
 
 ## 工具边界
 
@@ -56,7 +56,7 @@
 
 ## 监听与设置一致性
 
-- 开启或换端口时先预留本机监听,保存设置成功后才开始处理请求并切换运行状态;端口占用或保存失败时保留原设置与监听。启动时恢复保存的开关,监听失败时应用仍可使用,设置页显示停止状态与原因。
+- 启动时为缺少令牌的已开启配置生成令牌，预留监听并保存配置后才开始处理请求；令牌保存失败时释放端口，页面显示原因；自动初始化的操作日志来源为 `system`。开启或换端口时先预留本机监听,保存设置成功后才开始处理请求并切换运行状态;端口占用或保存失败时保留原设置与监听。启动时恢复保存的开关,监听失败时应用仍可使用,「AI/MCP」页显示停止状态与原因。
 - 每个已通过认证的请求持运行管理器读锁到结束;关闭、换端口和令牌轮换等候这些请求完成,新请求随后使用当前配置。关闭监听后端口释放;退出先关闭 MCP 再关闭数据库。
 - 令牌使用 `crypto/rand` 生成 32 字节,只通过本地设置绑定显示或复制。日志只记设置键,不含令牌。复制令牌和连接信息使用 mygo 的 Concealed 剪贴板选项。
 - 设置、令牌、原生文件对话框和系统打印窗口均不向 MCP 开放;MCP 的导入导出传递数据,报表工具返回 HTML。
@@ -137,7 +137,24 @@
 
 ## 客户端连接
 
-在「设置 → MCP」开启后点「复制连接信息」,将应用生成的 `mcpServers.sportsmeet` 地址与 Authorization 请求头配置到支持 Streamable HTTP 的客户端。没有令牌的请求返回 401,非本机 Origin / Host 返回 403。应用不为客户端提供云模型或自动传输赛事数据。
+在「AI/MCP」页点「复制连接信息」,将应用生成的 `mcpServers.sportsmeet` 地址与 Authorization 请求头配置到支持 Streamable HTTP 的客户端。没有令牌的请求返回 401,非本机 Origin / Host 返回 403。应用不为客户端提供云模型或自动传输赛事数据。
+
+页面列出的客户端支持 Streamable HTTP 与自定义认证请求头，兼容性依据官方文档；使用与 SportsMeet 同机运行的客户端，各自按下表配置。地址与 Authorization 请求头取「复制连接信息」，第三方客户端未逐一进行实机连接验证。
+
+| 客户端与官方说明 | HTTP 连接配置 |
+|---|---|
+| [TRAE](https://docs.trae.ai/ide/add-mcp-servers) | HTTP 服务使用 `url` 与 `headers`，支持 Streamable HTTP |
+| [Qoder](https://docs.qoder.com/cli/mcp-reference) | CLI 使用 `type: "http"`、`url` 与 `headers`；[IDE](https://docs.qoder.com/user-guide/chat/model-context-protocol) 自动识别 Streamable HTTP |
+| [CodeBuddy](https://www.codebuddy.ai/docs/cli/mcp) | CodeBuddy Code 使用 `type: "http"`、`url` 与 `headers` |
+| [WorkBuddy](https://open.workbuddy.cn/en/docs/connector) | Streamable HTTP 使用 `type: "streamableHttp"`、`url` 与 `headers` |
+| [Qwen Code](https://qwenlm.github.io/qwen-code-docs/en/developers/tools/mcp-server/) | 使用 `httpUrl` 与 `headers`，地址取复制信息中的 `url` |
+| [Kimi Code](https://github.com/MoonshotAI/kimi-code/blob/main/docs/zh/customization/mcp.md) | 使用 `url` 与 `headers`，HTTP 为默认传输 |
+| [Claude Code](https://code.claude.com/docs/en/mcp) | HTTP 连接可通过 `--header` 设置 Authorization |
+| [Codex](https://developers.openai.com/codex/mcp/) | `config.toml` 的 `[mcp_servers.sportsmeet]` 使用 `url` 与 `http_headers` |
+| [Cursor](https://cursor.com/docs/mcp) | `mcpServers` 下配置 `url` 与 `headers` |
+| [Gemini CLI](https://geminicli.com/docs/tools/mcp-server/) | 使用 `httpUrl` 与 `headers`，地址取复制信息中的 `url` |
+| [Google Antigravity](https://antigravity.google/docs/mcp) | 使用 `serverUrl` 与 `headers` |
+| [Cline](https://docs.cline.bot/mcp/mcp-overview) | 使用 `type: "streamableHttp"`、`url` 与 `headers` |
 
 ## 全能与计次、计分
 

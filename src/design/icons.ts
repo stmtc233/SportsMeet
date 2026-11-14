@@ -1,4 +1,4 @@
-// The app's icons: Lucide only, re-exported here so pages never import an
+// The app's functional icons: Lucide, re-exported here so pages never import an
 // icon library themselves (docs/agents/design-system.md「图标」).
 export {
   ArrowDown as IconDown,
@@ -28,6 +28,7 @@ export {
   Settings as IconSettings,
   Shuffle as IconAuto,
   SlidersHorizontal as IconSetup,
+  Sparkles as IconAI,
   Timer as IconResults,
   Trash2 as IconDelete,
   Trophy as IconMeet,

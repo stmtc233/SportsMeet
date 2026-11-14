@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLeaveGuard } from "../../app/nav";
-import { StButton, StConfirmButton, StListItem, StNotice, StRow, StSection, StStack, StSwitchItem, StTextField } from "../../design";
-import { SettingsController, useMCPStatus } from "./controller";
+import { StAgentIcon, StButton, StConfirmButton, StListItem, StNotice, StRow, StSection, StStack, StSwitchItem, StTextField } from "../../design";
+import { MCPController, useMCPStatus } from "./controller";
+import { supportedAgents } from "./agents";
 
 export function MCPPanel() {
   const { data, error } = useMCPStatus();
@@ -16,7 +17,7 @@ export function MCPPanel() {
     if (busy) return;
     setBusy(true);
     setFailed("");
-    const saved = await SettingsController.configure(enabled, nextPort, rotate);
+    const saved = await MCPController.configure(enabled, nextPort, rotate);
     if (saved) { setPort(null); setToken(""); }
     else setFailed("未能更新，请检查端口");
     setBusy(false);
@@ -39,16 +40,24 @@ export function MCPPanel() {
       <StSection title="连接">
         <StStack>
           <StRow>
-            <StButton disabled={busy || !data.running} onClick={() => void SettingsController.copyConnection()}>复制连接信息</StButton>
+            <StButton disabled={busy || !data.running} onClick={() => void MCPController.copyConnection()}>复制连接信息</StButton>
             <StButton disabled={busy || !data.enabled} onClick={async () => {
               if (token) setToken("");
-              else setToken((await SettingsController.reveal()) ?? "");
+              else setToken((await MCPController.reveal()) ?? "");
             }} reserveWidthFor={["显示令牌", "隐藏令牌"]}>{token ? "隐藏令牌" : "显示令牌"}</StButton>
-            <StButton disabled={busy || !data.enabled} onClick={() => void SettingsController.copyToken()}>复制令牌</StButton>
+            <StButton disabled={busy || !data.enabled} onClick={() => void MCPController.copyToken()}>复制令牌</StButton>
             <StConfirmButton disabled={busy || dirty || !data.enabled} onConfirm={() => void configure(data.enabled, data.port, true)}>轮换令牌</StConfirmButton>
           </StRow>
           {token && <StTextField label="令牌" value={token} onChange={() => {}} readOnly width="fill" />}
         </StStack>
+      </StSection>
+      <StSection title="支持的 Agent">
+        <StRow>
+          {supportedAgents.map(({ agent, name }) => (
+            <div className="mcp-agent" key={agent}><StAgentIcon agent={agent} /><span>{name}</span></div>
+          ))}
+          <span className="mcp-agent">…</span>
+        </StRow>
       </StSection>
       {dirty && <div className="save-bar">
         <StButton disabled={busy} onClick={() => { setPort(null); setFailed(""); }}>放弃</StButton>

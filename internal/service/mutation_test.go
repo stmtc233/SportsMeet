@@ -205,7 +205,7 @@ func TestPreferencesPersistAndPrint(t *testing.T) {
 	must(t, svc.SavePreferences(ctx, prefs))
 	cfg, err := PrepareMCPConfig(MCPConfig{Enabled: true, Port: 18765}, false)
 	must(t, err)
-	must(t, svc.SaveMCPConfig(ctx, cfg))
+	must(t, svc.SaveMCPConfig(ctx, store.SourceUI, cfg))
 	must(t, db.Close())
 	db, err = store.Open(ctx, dir)
 	must(t, err)

@@ -18,6 +18,7 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stmtc233/sportsmeet/internal/service"
+	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
 const MaxBody = 2 << 20
@@ -63,15 +64,24 @@ func (m *Manager) Start(ctx context.Context) error {
 	if !cfg.Enabled {
 		return nil
 	}
-	if cfg.Token == "" {
-		m.lastError = "请重新开启 MCP"
-		return errors.New(m.lastError)
+	prepared, err := service.PrepareMCPConfig(cfg, false)
+	if err != nil {
+		m.lastError = "无法生成连接令牌"
+		return err
 	}
 	srv, listener, err := m.reserve(cfg.Port)
 	if err != nil {
 		m.lastError = "端口无法监听，请更换端口"
 		return errors.New(m.lastError)
 	}
+	if prepared != cfg {
+		if err := m.svc.SaveMCPConfig(ctx, store.SourceSystem, prepared); err != nil {
+			_ = listener.Close()
+			m.lastError = "连接配置未保存，请重试"
+			return err
+		}
+	}
+	m.config, m.lastError = prepared, ""
 	m.server = srv
 	go func() { _ = srv.Serve(listener) }()
 	return nil
@@ -100,7 +110,7 @@ func (m *Manager) Configure(ctx context.Context, enabled bool, port int, rotate 
 			return errors.New("端口无法监听，请更换端口")
 		}
 	}
-	if err = m.svc.SaveMCPConfig(ctx, cfg); err != nil {
+	if err = m.svc.SaveMCPConfig(ctx, store.SourceUI, cfg); err != nil {
 		if reserved != nil {
 			_ = reserved.Close()
 		}
@@ -142,7 +152,7 @@ func (m *Manager) Connection(ctx context.Context) (string, error) {
 	m.gate.RLock()
 	defer m.gate.RUnlock()
 	if !m.config.Enabled || m.server == nil {
-		return "", errors.New("请先开启 MCP")
+		return "", errors.New("请先开启 AI/MCP")
 	}
 	data, err := json.MarshalIndent(map[string]any{"mcpServers": map[string]any{"sportsmeet": map[string]any{
 		"url": fmt.Sprintf("http://127.0.0.1:%d/mcp", m.config.Port), "headers": map[string]string{"Authorization": "Bearer " + m.config.Token},

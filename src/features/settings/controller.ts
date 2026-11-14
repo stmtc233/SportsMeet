@@ -6,7 +6,6 @@ import { App, Settings, type Preferences } from "../../mygo";
 import { appendOlder, mergeNewest, type AuditLog } from "./auditLog";
 
 export const usePreferences = () => useData(() => Settings.preferences(), [], (c) => c.kind === "settings", "preferences");
-export const useMCPStatus = () => useData(() => Settings.mcpStatus(), [], (c) => c.kind === "settings", "mcpStatus");
 export const useAppInfo = () => useData(() => App.info(), [], () => false, "appInfo");
 
 /** The app's own settings, each control taking effect at once (lib/optimistic.ts). */
@@ -46,10 +45,6 @@ export function useAuditLog(meetId: string, source: string) {
 
 export const SettingsController = {
   save: (preferences: Preferences) => act(() => Settings.savePreferences(preferences)),
-  configure: (enabled: boolean, port: number, rotate = false) => act(() => Settings.configureMCP(enabled, port, rotate), "已保存"),
-  reveal: () => act(() => Settings.revealToken()),
-  copyToken: () => act(() => Settings.copyToken(), "已复制令牌"),
   checkForUpdates: () => act(() => App.checkForUpdates()),
   openRepository: () => act(() => App.openRepository()),
-  copyConnection: () => act(() => Settings.copyConnection(), "已复制连接信息"),
 };

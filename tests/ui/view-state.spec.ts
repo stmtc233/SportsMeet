@@ -54,10 +54,10 @@ test("设置打开上次的分类，打印选择保留", async ({ page }) => {
   await installRuntime(page);
   await page.goto("/");
   await page.getByRole("button", { name: "设置", exact: true }).click();
-  await page.getByRole("button", { name: "MCP", exact: true }).click();
+  await page.getByRole("button", { name: "操作日志", exact: true }).click();
   await page.getByRole("button", { name: "返回", exact: true }).click();
   await page.getByRole("button", { name: "设置", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "MCP", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "操作日志", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "返回", exact: true }).click();
   await page.getByText("秋季运动会", { exact: true }).click();
   await page.getByRole("button", { name: "打印", exact: true }).click();

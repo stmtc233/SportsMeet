@@ -102,8 +102,7 @@ test("操作菜单跳过禁用项，Tab 离开并返回正常顺序", async ({ p
 test("错误状态、说明关联与延后播报", async ({ page }) => {
   await installRuntime(page);
   await page.goto("/");
-  await page.getByRole("button", { name: "设置", exact: true }).click();
-  await page.getByRole("button", { name: "MCP", exact: true }).click();
+  await page.getByRole("button", { name: /^AI\/MCP/ }).click();
   const port = page.getByLabel("端口", { exact: true });
   await port.fill("1");
   await expect(port).toHaveAttribute("aria-invalid", "true");

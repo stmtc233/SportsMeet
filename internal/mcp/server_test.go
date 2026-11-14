@@ -25,6 +25,10 @@ func setup(t *testing.T) (*Manager, *service.Service) {
 		t.Fatal(err)
 	}
 	svc := service.New(db, nil)
+	// Most protocol tests choose their own port and start from a saved off state.
+	if err := svc.SaveMCPConfig(context.Background(), store.SourceUI, service.MCPConfig{Port: 18765}); err != nil {
+		t.Fatal(err)
+	}
 	m := New(svc)
 	t.Cleanup(func() { _ = m.Close(); _ = db.Close() })
 	if err := m.Start(context.Background()); err != nil {
@@ -52,7 +56,7 @@ func enable(t *testing.T, m *Manager) {
 func TestAuthenticationAndLimits(t *testing.T) {
 	m, _ := setup(t)
 	if m.Status().Running || m.Status().Enabled || m.Token() != "" {
-		t.Fatal("must default off")
+		t.Fatal("saved off state was not restored")
 	}
 	enable(t, m)
 	token := m.Token()
@@ -96,6 +100,63 @@ func TestAuthenticationAndLimits(t *testing.T) {
 		if w.Code == 401 || w.Code == 403 {
 			t.Fatalf("local origin rejected: %s %d", origin, w.Code)
 		}
+	}
+}
+
+func TestDefaultStartupPersistsTokenAndDisabledChoice(t *testing.T) {
+	ctx := context.Background()
+	db, err := store.Open(ctx, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := service.New(db, nil)
+	cfg, err := svc.MCPConfig(ctx)
+	if err != nil || !cfg.Enabled || cfg.Port != 18765 || cfg.Token != "" {
+		t.Fatalf("unexpected defaults: %+v, %v", cfg, err)
+	}
+	// A live desktop app can occupy the production default port.
+	// Seed only the port so Start must still generate and persist its first token.
+	cfg.Port = port(t)
+	raw, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Write(ctx, store.Stmt(`INSERT INTO settings(key, value) VALUES ('mcp', ?)`, string(raw))); err != nil {
+		t.Fatal(err)
+	}
+	m := New(svc)
+	defer m.Close()
+	if err := m.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !m.Status().Running || !m.Status().Enabled || len(m.Token()) != 64 {
+		t.Fatal("default startup did not create an authenticated listener")
+	}
+	token := m.Token()
+	log, err := svc.ListAudit(ctx, service.AuditQuery{Source: "system"})
+	if err != nil || len(log.Rows) != 1 || log.Rows[0].Action != "settings.mcp" || strings.Contains(log.Rows[0].Message, token) {
+		t.Fatalf("startup did not record a system settings action: %v", err)
+	}
+	cfg, err = svc.MCPConfig(ctx)
+	if err != nil || cfg.Token != token {
+		t.Fatal("startup token was not persisted")
+	}
+	if err := m.Close(); err != nil {
+		t.Fatal(err)
+	}
+	restored := New(svc)
+	defer restored.Close()
+	if err := restored.Start(ctx); err != nil || restored.Token() != token || !restored.Status().Running {
+		t.Fatalf("restart did not reuse startup token: %v", err)
+	}
+	if err := restored.Configure(ctx, false, cfg.Port, false); err != nil {
+		t.Fatal(err)
+	}
+	disabled := New(svc)
+	defer disabled.Close()
+	if err := disabled.Start(ctx); err != nil || disabled.Status().Enabled || disabled.Status().Running {
+		t.Fatalf("restart did not preserve disabled choice: %v", err)
 	}
 }
 

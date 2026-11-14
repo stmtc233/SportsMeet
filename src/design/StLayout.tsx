@@ -102,13 +102,15 @@ export function StMuted({ children }: { children: ReactNode }) {
 }
 
 /** A settings-style row: the whole row is the click target. `indent` sets it one level in, under the row above (a tree). */
-export function StListItem({ title, subtitle, leading, trailing, onClick, selected, disabled, indent }: {
+export function StListItem({ title, subtitle, leading, trailing, onClick, selected, highlighted, disabled, indent }: {
   title: ReactNode;
   subtitle?: ReactNode;
   leading?: ReactNode;
   trailing?: ReactNode;
   onClick?: () => void;
   selected?: boolean;
+  /** Highlights an enabled feature independently of the current page. */
+  highlighted?: boolean;
   disabled?: boolean;
   indent?: boolean;
 }) {
@@ -125,7 +127,7 @@ export function StListItem({ title, subtitle, leading, trailing, onClick, select
   if (!onClick) return <div className="st-list-item" data-indent={indent || undefined}>{body}</div>;
   // A div, not a button: the trailing slot may hold buttons of its own.
   return (
-    <div role="button" tabIndex={disabled ? -1 : 0} className="st-list-item st-list-item--action" aria-current={selected || undefined} aria-disabled={disabled || undefined} data-indent={indent || undefined}
+    <div role="button" tabIndex={disabled ? -1 : 0} className="st-list-item st-list-item--action" aria-current={selected || undefined} aria-disabled={disabled || undefined} data-highlighted={highlighted || undefined} data-indent={indent || undefined}
       onClick={disabled ? undefined : onClick}
       onKeyDown={(e) => {
         if (!disabled && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {

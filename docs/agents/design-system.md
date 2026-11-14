@@ -65,6 +65,8 @@
 - 表格单元格里的下拉框与输入框没有可见标签，经 `aria-label` 带上对象名称区分（「运动员1的组别」）。`StCheckbox` 的 `label` 是可见文字，无文字的勾选框用 `aria-label`；表格行操作经名称单元格的原生按钮进入键盘顺序，整行点击保留。
 - 字段说明与错误只在存在时建立描述关联，成绩窄格的错误保留读屏文本；解析、校验和错误文案仍由 Go 提供。对话框主要提交按钮使用 `type="submit"`，以共享表单入口处理校验后的焦点。
 
+「AI/MCP」入口的开启高亮用 `StListItem.highlighted`，使用语义色并配「已开启」文字；`selected` 只表达当前导航位置。
+
 ## 动效
 
 只为让用户看清「发生了什么」,不为装饰;任何动画都不推迟下一次点击。
@@ -100,6 +102,7 @@
 - 品牌标识为「跑道 S」，几何、色彩、留白与导出规则以 [品牌规范](../brand-guidelines.md) 为准；母版在 `resources/brand/source/`，运行 `bun run brand:generate` 统一导出并同步应用与官网图标。品牌标识独立于功能图标，不用 Lucide 替代，也不单独修改导出的位图。
 
 - 全应用统一用 **Lucide**(ISC 许可,线性描边,`lucide-react`),经 `src/design/icons.ts` 改名为 `Icon*` 统一导出后使用;页面不直接引入其他图标库。
+- AI/MCP 页的客户端品牌标识经 `StAgentIcon` 统一提供，使用本地保存的 Simple Icons（CC0）与 Lobe Icons（MIT）单色轮廓并随主题继承文字色，保留源图的填充规则与透明度；Lobe Icons 的完整许可在 `public/licenses/lobe-icons.txt`，随前端构建复制进应用；品牌标识与 Lucide 功能图标分开。
 - 描边统一 `1.75`(24 视口),圆头圆角。
 - Lucide 没有的图标按同一规格(24 网格、约 2 留边、圆头描边)自绘 SVG,放进 `src/design/icons/`。
 - 新增依赖须同步「关于 → 开源许可」。

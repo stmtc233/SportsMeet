@@ -9,6 +9,7 @@ export type EventTab = "entries" | "arrange" | "results";
 export type Route =
   | { page: "meets" }
   | { page: "settings"; section: SettingsSection | null; returnTo?: Route }
+  | { page: "ai-mcp"; returnTo?: Route }
   | { page: "meet"; meetId: string; tab: MeetTab }
   | { page: "combined"; meetId: string; combinedId: string; returnTo?: Route }
   | { page: "event"; meetId: string; eventId: string; tab: EventTab; returnTo?: Route };

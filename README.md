@@ -4,7 +4,7 @@
 
 - 基于 [mygo](https://github.com/egoist/mygo)(Go + 系统 WebView),支持 macOS / Windows / Linux
 - 数据存本机 SQLite,不上传
-- 可在「设置 → MCP」开启本机服务,让外部 AI 助手查询赛事、导入报名表、编排、批量排时间与录成绩
+- 本机服务默认开启，可在「AI/MCP」管理,让外部 AI 助手查询赛事、导入报名表、编排、批量排时间与录成绩
 - 开放的交换格式:[docs/interchange-format.md](docs/interchange-format.md)
 
 ## 开发
@@ -22,7 +22,7 @@ bun run dev
 
 ## 本机 MCP
 
-打开「设置 → MCP」,开启「允许本机连接」后点「复制连接信息」,将地址与请求头配置到支持 Streamable HTTP 的客户端。默认端口 18765,只监听 `127.0.0.1`,使用独立 Bearer 令牌;关闭后释放端口。
+本机服务默认开启。打开「AI/MCP」点「复制连接信息」,将地址与请求头配置到支持 Streamable HTTP 的客户端。默认端口 18765,只监听 `127.0.0.1`,使用独立 Bearer 令牌;关闭后释放端口。
 
 查询与单条基础数据保存可直接调用。批量操作、删除、覆盖已有成绩须先预览,用户确认后携带预览指纹提交。已有成绩的赛事、项目和组不能经 MCP 删除;空成绩可直接录入,名次与晋级由应用计算。工具目录与边界见 [MCP 说明](docs/agents/mcp.md)。
 

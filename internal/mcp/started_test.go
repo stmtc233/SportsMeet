@@ -25,9 +25,6 @@ func TestSDKHeatStarted(t *testing.T) {
 	svc := service.New(db, nil)
 	m := New(svc)
 	t.Cleanup(func() { _ = m.Close(); _ = db.Close() })
-	if err := m.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
 	enable(t, m)
 
 	meet, err := svc.CreateMeet(ctx, store.SourceUI, service.MeetInput{Name: "开赛验证", StartDate: "2026-11-12"})

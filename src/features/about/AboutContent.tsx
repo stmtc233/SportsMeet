@@ -12,6 +12,8 @@ const licenses = [
   { name: "segmentio/encoding、asm", license: "MIT" },
   { name: "React", license: "MIT" },
   { name: "Lucide", license: "ISC" },
+  { name: "Simple Icons", license: "CC0-1.0" },
+  { name: "Lobe Icons", license: "MIT" },
   { name: "purego", license: "Apache-2.0" },
   { name: "excelize、efp、nfp", license: "BSD-3-Clause" },
   { name: "mscfb、msoleps", license: "Apache-2.0" },

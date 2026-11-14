@@ -48,9 +48,17 @@ for (const width of [1280, 800]) {
         await page.getByRole("radio", { name: label, exact: true }).click();
         await noOverflow(page);
       }
+      await page.getByRole("button", { name: /^AI\/MCP/ }).click();
+      await expect(page.getByRole("heading", { name: "AI/MCP", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "支持的 Agent", exact: true })).toBeVisible();
+      for (const name of ["TRAE", "Qoder", "CodeBuddy", "WorkBuddy", "Qwen Code", "Kimi Code", "Claude Code", "Codex", "Cursor", "Gemini CLI", "Google Antigravity", "Cline"]) await expect(page.getByText(name, { exact: true })).toBeVisible();
+      await expect(page.locator(".mcp-agent svg[aria-hidden=true]")).toHaveCount(12);
+      await expect(page.locator(".mcp-agent").last()).toHaveText("…");
+      await noOverflow(page);
+      await page.getByRole("button", { name: "返回", exact: true }).click();
       await page.getByRole("button", { name: "设置", exact: true }).click();
       const nav = page.getByRole("navigation", { name: "设置分类" });
-      for (const section of ["通用", "MCP", "操作日志", "关于"]) {
+      for (const section of ["通用", "操作日志", "关于"]) {
         await nav.getByRole("button", { name: section, exact: true }).click();
         await expect(page.getByRole("heading", { name: section, exact: true })).toBeVisible();
         await noOverflow(page);
@@ -69,18 +77,21 @@ test("设置保存、宽窄切换与离开确认", async ({ page }) => {
   await page.getByRole("button", { name: "通用", exact: true }).click();
   await page.getByRole("radio", { name: "深色", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("button", { name: "MCP", exact: true }).click();
+  await page.getByRole("button", { name: "返回", exact: true }).click();
+  await page.getByRole("button", { name: /^AI\/MCP/ }).click();
   const port = page.getByLabel("端口", { exact: true });
   await port.fill("18766");
   await page.setViewportSize({ width: 800, height: 800 });
   await expect(port).toBeFocused();
   await expect(port).toHaveValue("18766");
-  await page.getByRole("button", { name: "设置分类", exact: true }).click();
+  await page.getByRole("button", { name: "返回", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "放弃未保存的改动？" })).toBeVisible();
   await page.getByRole("button", { name: "继续编辑", exact: true }).click();
   await expect(port).toHaveValue("18766");
   await page.getByRole("button", { name: "保存", exact: true }).click();
   await expect(page.getByRole("button", { name: "保存", exact: true })).toHaveCount(0);
+  await page.getByRole("switch", { name: "允许本机连接" }).click();
+  await expect(page.getByText("已停止", { exact: true })).toBeVisible();
   await page.getByRole("switch", { name: "允许本机连接" }).click();
   await expect(page.getByText("运行中", { exact: true })).toBeVisible();
   await port.fill("9999");
@@ -147,5 +158,34 @@ for (const width of [1280, 800]) {
     await page.getByRole("radio", { name: "编排", exact: true }).click();
     await page.getByRole("button", { name: "返回总览", exact: true }).click();
     await expect(page.getByRole("heading", { name: "总览", exact: true })).toBeVisible();
+  });
+}
+
+for (const width of [1280, 800]) {
+  test(`AI/MCP 独立入口随开关高亮 ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await installRuntime(page);
+    await page.goto("/");
+    const entry = page.getByRole("button", { name: /^AI\/MCP/ });
+    await expect(entry).toHaveClass(/st-button--tonal/);
+    await expect(entry).toContainText("已开启");
+    await entry.click();
+    await expect(page.getByRole("switch", { name: "允许本机连接" })).toHaveAttribute("aria-checked", "true");
+    await page.getByRole("switch", { name: "允许本机连接" }).click();
+    await expect(page.getByText("已停止", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "返回", exact: true }).click();
+    await expect(entry).toHaveClass(/st-button--secondary/);
+    await expect(entry).not.toContainText("已开启");
+    await page.getByText("秋季运动会", { exact: true }).click();
+    await expect(entry).not.toHaveAttribute("data-highlighted");
+    await entry.click();
+    await page.getByRole("switch", { name: "允许本机连接" }).click();
+    await expect(page.getByText("运行中", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "返回", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "总览", exact: true })).toBeVisible();
+    await expect(entry).toHaveAttribute("data-highlighted", "true");
+    await expect(entry).not.toHaveAttribute("aria-current");
+    await page.getByRole("button", { name: "设置", exact: true }).click();
+    await expect(page.getByRole("navigation", { name: "设置分类" }).getByRole("button", { name: /MCP/ })).toHaveCount(0);
   });
 }

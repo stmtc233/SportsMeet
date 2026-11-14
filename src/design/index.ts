@@ -4,6 +4,7 @@ import "./tokens.css";
 import "./components.css";
 
 export * from "./icons";
+export * from "./StAgentIcon";
 export * from "./StButton";
 export * from "./StDialog";
 export * from "./StFields";
