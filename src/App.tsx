@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ErrorBoundary } from "./app/ErrorBoundary";
 import { NavProvider, useNav, type MeetTab } from "./app/nav";
-import { IconAthletes, IconBack, IconEvent, IconExport, IconGroup, IconMeet, IconPrint, IconSettings, IconTime, IconUnit, StFieldFeedback, StListItem, StNavGroup, StToastHost, iconStroke } from "./design";
+import { IconAthletes, IconBack, IconEdit, IconEvent, IconExport, IconGroup, IconMeet, IconPrint, IconSettings, IconTime, IconUnit, StFieldFeedback, StListItem, StNavGroup, StToastHost, iconStroke } from "./design";
 import { AthletesPage } from "./features/athletes/AthletesPage";
 import { CombinedList } from "./features/combined/CombinedList";
 import { CombinedWorkspace } from "./features/combined/CombinedWorkspace";
@@ -9,6 +9,7 @@ import { EventWorkspace } from "./features/event/EventWorkspace";
 import { EventsPage } from "./features/events/EventsPage";
 import { ExchangePage } from "./features/exchange/ExchangePage";
 import { GroupsPage } from "./features/groups/GroupsPage";
+import { MeetDialog } from "./features/meets/MeetDialog";
 import { MeetsPage } from "./features/meets/MeetsPage";
 import { useMeet } from "./features/meets/data";
 import { ReportsPage } from "./features/reports/ReportsPage";
@@ -45,6 +46,7 @@ function Shell() {
           ))}
         </StNavGroup>
         <div className="app__side-spacer" />
+        <EditMeet meetId={meetId} />
         <StListItem title="设置" leading={<IconSettings size={18} strokeWidth={iconStroke} />} onClick={() => go({ page: "settings", section: null, returnTo: route })} />
         <StListItem title="全部赛事" leading={<IconBack size={18} strokeWidth={iconStroke} />} onClick={() => go({ page: "meets" })} />
       </nav>
@@ -72,6 +74,17 @@ function MeetHeader({ meetId }: { meetId: string }) {
       {/* The subtitle line is kept while loading and without dates: the tabs below never shift. */}
       <StListItem title={<strong>{meet?.name ?? ""}</strong>} subtitle={meet?.datesText || "\u00a0"} />
     </div>
+  );
+}
+
+function EditMeet({ meetId }: { meetId: string }) {
+  const meet = useMeet(meetId).data;
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <StListItem title="编辑赛事" leading={<IconEdit size={18} strokeWidth={iconStroke} />} disabled={!meet} onClick={() => setOpen(true)} />
+      <MeetDialog open={open && !!meet} meet={meet ?? undefined} onClose={() => setOpen(false)} />
+    </>
   );
 }
 

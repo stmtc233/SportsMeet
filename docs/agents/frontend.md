@@ -54,7 +54,7 @@
 
 ## 报名限制
 
-- 「编辑赛事」的三个限报输入框只保留两位数字,空为不限(`meets/limits.ts`,有单测);范围校验在 Go。
+- 赛事侧栏底部「编辑赛事」(在「设置」之上)与赛事列表的「编辑」打开同一个 `MeetDialog`;「编辑赛事」的三个限报输入框只保留两位数字,空为不限(`meets/limits.ts`,有单测);范围校验在 Go。
 - 报名对话框(`AddEntriesDialog`、`AddTeamsDialog`、`CombinedEntriesDialog`)随勾选经 controller 的 `useEntryLimitWarnings` / `useCombinedLimitWarnings` 调用 Go,由 `event/LimitNotice.tsx` 显示前 3 条与剩余条数,不禁用「报名」。钩子按 ID 内容而不是数组对象触发请求:对话框关着时每次渲染都会传入新的空数组,按对象触发会无限重渲染。
 - 报名表在姓名旁标「超出限报项数」「单位超出限报」,运动员列表的报名项数用警告色;表格导入预览的「说明」列原样显示 Go 写的提示。计数规则见 [domain.md](domain.md)「报名限制」。
 
