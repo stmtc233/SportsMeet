@@ -46,7 +46,7 @@ textarea {
   white-space: nowrap;
   cursor: pointer;
   flex: none;
-  transition: background-color var(--st-motion-fast), color var(--st-motion-fast), border-color var(--st-motion-fast), opacity var(--st-motion-fast), transform var(--st-motion-fast) var(--st-ease-out);
+  transition: opacity var(--st-motion-fast), transform var(--st-motion-fast) var(--st-ease-out);
 }
 .st-button--small { height: var(--st-control-sm); padding: 0 var(--st-space-8); font-size: var(--st-text-sm); }
 .st-button--large { height: var(--st-control-lg); padding: 0 var(--st-space-16); font-size: var(--st-text-lg); }
@@ -80,7 +80,7 @@ textarea {
   color: var(--st-text-muted);
   cursor: pointer;
   flex: none;
-  transition: background-color var(--st-motion-fast), color var(--st-motion-fast), opacity var(--st-motion-fast), transform var(--st-motion-fast) var(--st-ease-out);
+  transition: opacity var(--st-motion-fast), transform var(--st-motion-fast) var(--st-ease-out);
 }
 .st-icon-button:active:not(:disabled) { background-image: linear-gradient(var(--st-pressed), var(--st-pressed)); transform: scale(0.94); }
 .st-icon-button--small { width: var(--st-control-sm); height: var(--st-control-sm); }
@@ -171,7 +171,6 @@ textarea {
   corner-shape: superellipse(1.78);
   background: transparent;
   text-align: start;
-  transition: background-color var(--st-motion-fast), color var(--st-motion-fast);
 }
 .st-list-item--action { cursor: pointer; }
 .st-list-item--action:hover:not(:disabled, [aria-disabled]) { background: var(--st-hover); }
@@ -310,7 +309,7 @@ textarea {
   white-space: nowrap;
   cursor: pointer;
   position: relative;
-  transition: color var(--st-motion-fast), opacity var(--st-motion-fast);
+  transition: opacity var(--st-motion-fast);
 }
 .st-segmented button:hover:not(:disabled, [aria-checked="true"]) { color: var(--st-text); }
 .st-segmented--small button { height: calc(var(--st-control-sm) - 4px); padding: 0 var(--st-space-8); font-size: var(--st-text-sm); }
@@ -331,7 +330,7 @@ textarea {
   cursor: pointer;
   text-align: start;
   color: var(--st-text-muted);
-  transition: border-color var(--st-motion-fast), opacity var(--st-motion-fast);
+  transition: opacity var(--st-motion-fast);
 }
 .st-select:hover:not(:disabled) { border-color: var(--st-tone-neutral-accent); }
 .st-select--small { height: var(--st-control-sm); font-size: var(--st-text-sm); }
@@ -380,7 +379,6 @@ textarea {
   white-space: nowrap;
   cursor: pointer;
   flex: none;
-  transition: background-color var(--st-motion-fast);
 }
 .st-menu-item:hover:not(:disabled) { background: var(--st-hover); }
 .st-menu-item:disabled { opacity: 0.45; cursor: default; }

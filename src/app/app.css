@@ -70,7 +70,6 @@
   text-align: start;
   width: 100%;
   cursor: grab;
-  transition: background-color var(--st-motion-fast), border-color var(--st-motion-fast);
   animation: st-fade-in var(--st-motion-medium) var(--st-ease-out) backwards;
 }
 .chip:hover { background: var(--st-hover); }
@@ -86,14 +85,13 @@
 .heat-started { display: inline-flex; flex: 0 1 auto; align-items: center; gap: var(--st-space-4); min-width: 0; overflow: hidden; font-weight: 400; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .heat-started > * { flex: none; }
 .heat-slots { display: flex; flex-direction: column; padding: var(--st-space-4); }
-.slot { display: flex; align-items: center; gap: var(--st-space-4); min-height: 34px; border-radius: var(--st-radius-8); corner-shape: superellipse(1.78); transition: background-color var(--st-motion-fast); }
+.slot { display: flex; align-items: center; gap: var(--st-space-4); min-height: 34px; border-radius: var(--st-radius-8); corner-shape: superellipse(1.78); }
 .slot[data-over] { background: var(--st-tone-info-container); }
 .slot[data-target] { cursor: pointer; }
 .slot[data-target]:hover { background: var(--st-hover); }
 .slot__pos { width: 28px; text-align: center; color: var(--st-text-muted); flex: none; }
 .slot__body { flex: 1; min-width: 0; }
 .slot__empty { color: var(--st-text-muted); font-size: var(--st-text-sm); padding: 0 var(--st-space-8); }
-.drop-roster { transition: background-color var(--st-motion-fast); }
 .drop-roster[data-over] { background: var(--st-tone-info-container); }
 
 /* results */
