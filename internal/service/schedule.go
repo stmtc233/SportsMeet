@@ -19,7 +19,7 @@ import (
 
 // ScheduleRequest assigns local wall-clock times to the unscored heats of
 // one round, or of several rounds one after another (docs/agents/arrange.md
-// 「批量排时间」).
+// 「排时间」).
 type ScheduleRequest struct {
 	EventID         string     `json:"eventId,omitempty" jsonschema:"单个轮次时的项目 ID；填了 rounds 时不用"`
 	RoundID         string     `json:"roundId,omitempty" jsonschema:"单个轮次时的轮次 ID；填了 rounds 时不用"`
@@ -29,7 +29,7 @@ type ScheduleRequest struct {
 	RoundGapMinutes int        `json:"roundGapMinutes,omitempty" jsonschema:"连排时上一轮次最后一组结束到下一轮次第一组开始之间另留的分钟数，0 至 1440"`
 }
 
-// RoundRef names one round of a multi-round schedule.
+// RoundRef names one round: of a multi-round schedule, of a batch arrangement.
 type RoundRef struct {
 	EventID string `json:"eventId"`
 	RoundID string `json:"roundId"`
@@ -189,7 +189,7 @@ func (s *Service) planSchedule(ctx context.Context, in ScheduleRequest) (*Schedu
 	for _, t := range targets {
 		e, ok := plan.eventBy[t.EventID]
 		if !ok {
-			return nil, nil, invalid("连排的轮次须属于同一赛事")
+			return nil, nil, invalid("排时间的轮次须属于同一赛事")
 		}
 		var round *domain.Round
 		for i, r := range plan.rounds[e.ID] {

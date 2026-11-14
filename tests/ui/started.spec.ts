@@ -140,34 +140,31 @@ for (const width of [1280, 800]) {
       await expect(frame.getByText("秩序册", { exact: true })).toBeVisible();
       await expect(print).toBeEnabled();
 
-      // The settings it follows.
+      // The meet's settings it follows.
       await page.goto("/");
-      await page.getByRole("button", { name: "设置", exact: true }).click();
-      const nav = page.getByRole("navigation", { name: "设置分类" });
-      await nav.getByRole("button", { name: "编排", exact: true }).click();
-      const lead = page.getByRole("button", { name: "检录提前时间", exact: true });
+      await page.getByText("秋季运动会", { exact: true }).click();
+      await page.getByRole("button", { name: "赛事设置", exact: true }).click();
+      const setup = page.locator(".narrow");
+      const lead = setup.getByRole("button", { name: "检录提前时间", exact: true });
       await expect(lead).toContainText("20 分钟");
       await lead.click();
       await page.getByRole("option", { name: "不显示", exact: true }).click();
       await expect(lead).toContainText("不显示");
       await noOverflow(page);
-      if (width === 800) await page.getByRole("button", { name: "设置分类", exact: true }).click();
-      await nav.getByRole("button", { name: "打印", exact: true }).click();
-      const time = page.getByRole("switch", { name: /成绩时间/ });
+      const time = setup.getByRole("switch", { name: /成绩时间/ });
       await expect(time).toHaveAttribute("aria-checked", "false");
       await time.click();
       await expect(time).toHaveAttribute("aria-checked", "true");
-      // 分页: 检录单 first, then 成绩记录表; both by round.
-      const breaks = page.getByRole("button", { name: "分页", exact: true });
-      await expect(breaks).toHaveCount(2);
-      for (const [i, choice] of [[0, "每组一页"], [1, "不分页"]] as const) {
-        await expect(breaks.nth(i)).toContainText("每个轮次一页");
-        await breaks.nth(i).click();
+      // 检录单 and 成绩记录表 each start pages by round.
+      for (const [name, choice] of [["检录单分页", "每组一页"], ["成绩记录表分页", "不分页"]] as const) {
+        const breaks = setup.getByRole("button", { name, exact: true });
+        await expect(breaks).toContainText("每个轮次一页");
+        await breaks.click();
         await page.getByRole("option", { name: choice, exact: true }).click();
-        await expect(breaks.nth(i)).toContainText(choice);
+        await expect(breaks).toContainText(choice);
       }
       expect(await page.evaluate(async () => {
-        const p = await (globalThis as any).mygo.call("Settings.Preferences");
+        const p = await (globalThis as any).mygo.call("Meets.Settings", "meet");
         return [p.checkInLeadMinutes, p.printResultsTime, p.printCheckInBreak, p.printRecordBreak];
       })).toEqual([0, true, "heat", "none"]);
       await noOverflow(page);

@@ -227,10 +227,10 @@ func TestTeamScoresCombinedOnlyAndRoundtripReports(t *testing.T) {
 			must(t, os.WriteFile(os.Getenv("SPORTSMEET_TEAM_REPORT_OUTPUT"), []byte(html), 0o644))
 		}
 	}
-	prefs, err := f.svc.Preferences(f.ctx)
+	prefs, err := f.svc.MeetSettings(f.ctx, f.meet)
 	must(t, err)
 	prefs.PrintTeamScores = false
-	must(t, f.svc.SavePreferences(f.ctx, prefs))
+	must(t, f.svc.SaveMeetSettings(f.ctx, ui, f.meet, prefs))
 	html, err := f.svc.RenderReport(f.ctx, ReportResults, f.meet, nil)
 	must(t, err)
 	if strings.Contains(html, "团体总分表") {

@@ -1,13 +1,13 @@
-import { useRef, useState, type ReactNode } from "react";
-import { IconPrint, StButton, StCheckbox, StEmpty, StMultiSelect, StNotice, StPage, StSelect, StToolbar, iconStroke } from "../../design";
-import { useScrollMemory, useViewState } from "../../lib/viewState";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { IconPrint, StButton, StCheckbox, StEmpty, StListItem, StMultiSelect, StNavGroup, StNavHeading, StNotice, StPage, StSelect, StToolbar, iconStroke } from "../../design";
+import { recall, remember, useScrollMemory, useViewState } from "../../lib/viewState";
 import { useGroups } from "../groups/controller";
 import { ungrouped } from "../groups/GroupFields";
 import type { Zoom } from "./paginate";
 import { ReportPreview, type PrintPages } from "./ReportPreview";
 import { checkInRows, checkInSelection } from "./checkin";
 import { ReportsController, useCheckInTargets, useReportHTML, useReportTargets, useReportTeamScores, useSheetHTML } from "./controller";
-import { reportKindKey, reportKinds, type ReportKind as Kind } from "./kinds";
+import { reportGroups, reportKindKey, reportKinds, reportScopeKey, type ReportKind as Kind, type ReportScope } from "./kinds";
 
 const zooms: { value: Zoom; label: string }[] = [
   { value: "fit", label: "适合宽度" }, { value: "0.5", label: "50%" }, { value: "0.75", label: "75%" }, { value: "1", label: "100%" }, { value: "1.5", label: "150%" },
@@ -54,6 +54,24 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   const req = { meetId, roundIds: rounds.roundIds, day };
   const { data: sheetHTML, error: sheetError } = useSheetHTML(sheet ?? "checkin", req, sheet ? rounds.chosen.length : 0);
 
+  // Opened from another page for some rounds or events: tick just those, once.
+  const scopeKey = reportScopeKey(meetId);
+  useEffect(() => {
+    const scope = recall<ReportScope>(scopeKey);
+    if (!scope || scope.kind !== kind) return;
+    const ids = new Set(scope.ids);
+    if (sheet) {
+      if (!targets) return;
+      setDay("");
+      setSkippedRounds(new Set(checkInRows(targets, "").map((r) => r.id).filter((id) => !ids.has(id))));
+    } else {
+      if (!events) return;
+      setPickedGroups([]);
+      setSkipped(new Set(events.map((e) => e.id).filter((id) => !ids.has(id))));
+    }
+    remember(scopeKey, undefined);
+  }, [scopeKey, kind, sheet, targets, events, setDay, setSkippedRounds, setSkipped, setPickedGroups]);
+
   const html = sheet ? sheetHTML : bookHTML;
   const count = teamUnavailable ? 0 : sheet ? rounds.chosen.length : chosen.length;
   const error = kind === "team_scores" && teamError ? teamError : sheet ? targetsError || sheetError : eventsError || bookError;
@@ -71,20 +89,18 @@ export function ReportsPage({ meetId }: { meetId: string }) {
     <StPage flush
       toolbar={
         <StToolbar title="打印">
-          <StSelect aria-label="报表种类" value={kind} onChange={setKind}
-            options={reportKinds} />
           <StButton variant="primary" icon={<IconPrint size={16} strokeWidth={iconStroke} />} disabled={count === 0 || !html || shown !== html} loading={busy} onClick={print}>打印</StButton>
         </StToolbar>
       }>
       <div className="split">
         {sheet ? (
-          <ChoiceList title="轮次" scrollKey={`reports:rounds:${meetId}`} items={rows} skipped={skippedRounds} onChange={setSkippedRounds}
+          <ChoiceList kind={kind} onKind={setKind} title="轮次" scrollKey={`reports:rounds:${meetId}`} items={rows} skipped={skippedRounds} onChange={setSkippedRounds}
             filter={
               <StSelect label="日期" width="fill" value={day} onChange={setDay}
                 options={[{ value: "", label: "全部日期" }, ...(targets?.days ?? []).map((d) => ({ value: d, label: d }))]} />
             } />
         ) : (
-          <ChoiceList title="项目" scrollKey={`reports:events:${meetId}`} items={all.map((e) => ({ id: e.id, label: e.name }))} skipped={skipped} onChange={setSkipped}
+          <ChoiceList kind={kind} onKind={setKind} title="项目" scrollKey={`reports:events:${meetId}`} items={all.map((e) => ({ id: e.id, label: e.name }))} skipped={skipped} onChange={setSkipped}
             filter={grouped ? <StMultiSelect aria-label="组别" width="fill" allLabel="全部组别" value={groupIds} options={groupChoices} onChange={setPickedGroups} /> : undefined} />
         )}
         <div className="report-main">
@@ -105,8 +121,13 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   );
 }
 
-/** The side list of what to print: everything ticked unless unticked here. */
-function ChoiceList({ title, scrollKey, items, skipped, onChange, filter }: {
+/**
+ * The side of 打印: the reports by part of the meet, then what to print of
+ * the one chosen, everything ticked unless unticked here.
+ */
+function ChoiceList({ kind, onKind, title, scrollKey, items, skipped, onChange, filter }: {
+  kind: Kind;
+  onKind: (kind: Kind) => void;
   title: string;
   scrollKey: string;
   items: { id: string; label: string }[];
@@ -124,6 +145,16 @@ function ChoiceList({ title, scrollKey, items, skipped, onChange, filter }: {
   };
   return (
     <aside className="split__side">
+      <nav className="report-kinds" aria-label="报表">
+        <StNavGroup>
+          {reportGroups.map((g) => (
+            <Fragment key={g.title}>
+              <StNavHeading>{g.title}</StNavHeading>
+              {g.kinds.map((k) => <StListItem key={k} title={reportKinds.find((r) => r.value === k)!.label} selected={k === kind} onClick={() => onKind(k)} />)}
+            </Fragment>
+          ))}
+        </StNavGroup>
+      </nav>
       {filter && <div className="split__side-filter">{filter}</div>}
       <div className="split__side-head">
         <span>{title}</span>

@@ -76,10 +76,10 @@ func TestEntriesReportTeamsAndCombined(t *testing.T) {
 func TestEntriesReportLongTable(t *testing.T) {
 	f := newFixture(t, 140, track())
 	f.enter(f.athletes...)
-	prefs, err := f.svc.Preferences(f.ctx)
+	prefs, err := f.svc.MeetSettings(f.ctx, f.meet)
 	must(t, err)
 	prefs.PrintNewPage = true
-	must(t, f.svc.SavePreferences(f.ctx, prefs))
+	must(t, f.svc.SaveMeetSettings(f.ctx, ui, f.meet, prefs))
 	_, err = f.svc.SaveEvent(f.ctx, ui, f.meet, "", EventInput{Gender: "女", Discipline: "跳远", Kind: "distance"})
 	must(t, err)
 	html, err := f.svc.RenderReport(f.ctx, ReportEntries, f.meet, nil)

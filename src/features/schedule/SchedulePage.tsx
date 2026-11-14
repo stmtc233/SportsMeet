@@ -34,7 +34,7 @@ export function SchedulePage({ meetId }: { meetId: string }) {
     <StPage scrollKey={`schedule:${meetId}`}
       toolbar={
         <StToolbar title="日程">
-          <StButton icon={<IconTime size={16} strokeWidth={iconStroke} />} disabled={!data || empty} onClick={() => setChaining(true)}>连排…</StButton>
+          <StButton icon={<IconTime size={16} strokeWidth={iconStroke} />} disabled={!data || empty} onClick={() => setChaining(true)}>排时间…</StButton>
         </StToolbar>
       }>
       <StEnterScope>

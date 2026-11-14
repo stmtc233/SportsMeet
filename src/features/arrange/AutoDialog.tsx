@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { StButton, StDialog, StSegmented, StSwitchItem, StTextField } from "../../design";
-import { usePreferences } from "../settings/controller";
+import { useMeetSettings } from "../meets/data";
 import { ArrangeController } from "./controller";
 import type { EventDetail, PlannedHeat, RoundView } from "../../mygo";
+
+/** The view-state key another page sets to a round id to open 「自动编排」 on it. */
+export const autoArrangeKey = (eventId: string) => `arrange:auto:${eventId}`;
 
 /** Options of 「自动编排」; the plan is computed by Go and appended to the draft. */
 export function AutoDialog({ open, detail, round, exclude, onClose, onPlanned }: {
@@ -13,7 +16,7 @@ export function AutoDialog({ open, detail, round, exclude, onClose, onPlanned }:
   onClose: () => void;
   onPlanned: (heats: PlannedHeat[]) => void;
 }) {
-  const { data: preferences } = usePreferences();
+  const { data: preferences } = useMeetSettings(detail.event.meetId);
   const laned = detail.rules.usesLanes;
   const prev = detail.rounds.find((r) => r.ordinal === round.ordinal - 1);
   const canAdvance = Boolean(prev?.advance);

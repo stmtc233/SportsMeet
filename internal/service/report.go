@@ -34,7 +34,7 @@ func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventID
 	if kind != ReportStartList {
 		return "", invalid("报表类型不正确")
 	}
-	prefs, err := s.Preferences(ctx)
+	prefs, err := s.MeetSettings(ctx, meetID)
 	if err != nil {
 		return "", err
 	}

@@ -47,8 +47,8 @@ for (const width of [1280, 800]) {
       await expect(day.locator("[data-conflict]")).toHaveCount(2);
       await noOverflow(page);
       await page.locator(".app__side").getByRole("button", { name: "日程", exact: true }).click();
-      await page.getByRole("button", { name: "连排…", exact: true }).click();
-      await expect(page.getByRole("dialog", { name: "连排轮次", exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "排时间…", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: "排时间", exact: true })).toBeVisible();
       await noOverflow(page);
       expect(errors).toEqual([]);
     });
@@ -81,10 +81,10 @@ test("日程页修改轮次开始时间", async ({ page }) => {
   await expect(sprint.getByRole("button", { name: "08:30", exact: true })).toBeVisible();
 });
 
-test("多轮次连排预览冲突后保存", async ({ page }) => {
+test("多轮次排时间预览冲突后保存", async ({ page }) => {
   await openTimetable(page);
-  await page.getByRole("button", { name: "连排…", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "连排轮次", exact: true });
+  await page.getByRole("button", { name: "排时间…", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "排时间", exact: true });
   await expect(dialog.getByRole("button", { name: "预览", exact: true })).toBeDisabled();
   await dialog.getByText("男子100m 初中组 决赛", { exact: true }).click();
   await dialog.getByText("男子跳远 决赛", { exact: true }).click();
@@ -122,13 +122,13 @@ test("从冲突跳到编排页并在组上标出", async ({ page }) => {
   expect(await page.evaluate(() => (globalThis as any).__heatEdits)).toEqual([]);
 });
 
-test("连排顺序可调整并按调整后的顺序预览", async ({ page }) => {
+test("先后顺序可调整并按调整后的顺序预览", async ({ page }) => {
   await openTimetable(page);
-  await page.getByRole("button", { name: "连排…", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "连排轮次", exact: true });
+  await page.getByRole("button", { name: "排时间…", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "排时间", exact: true });
   await dialog.getByText("男子100m 初中组 决赛", { exact: true }).click();
   await dialog.getByText("男子跳远 决赛", { exact: true }).click();
-  const order = dialog.getByRole("list", { name: "连排顺序" });
+  const order = dialog.getByRole("list", { name: "先后顺序" });
   await expect(order.getByRole("button", { name: "上移「男子100m 初中组 决赛」", exact: true })).toBeDisabled();
   // Keyboard: focus the button and press Enter.
   await order.getByRole("button", { name: "上移「男子跳远 决赛」", exact: true }).focus();
@@ -143,16 +143,14 @@ test("连排顺序可调整并按调整后的顺序预览", async ({ page }) => 
   await expect(dialog.getByRole("button", { name: "保存", exact: true })).toHaveCount(0);
 });
 
-test("设置里的最短休息时间与竞赛日程表", async ({ page }) => {
+test("赛事设置里的最短休息时间与竞赛日程表", async ({ page }) => {
   await installRuntime(page);
   await page.goto("/");
-  await page.getByRole("button", { name: "设置", exact: true }).click();
-  const nav = page.getByRole("navigation", { name: "设置分类" });
-  await nav.getByRole("button", { name: "编排", exact: true }).click();
-  await expect(page.getByText("最短休息时间", { exact: true })).toBeVisible();
-  await expect(page.getByText("只查重叠", { exact: true })).toBeVisible();
-  await nav.getByRole("button", { name: "打印", exact: true }).click();
-  await expect(page.getByText("竞赛日程表", { exact: true })).toBeVisible();
+  await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "赛事设置", exact: true }).click();
+  const setup = page.locator(".narrow");
+  await expect(setup.getByRole("button", { name: "最短休息时间", exact: true })).toContainText("只查重叠");
+  await expect(setup.getByRole("switch", { name: /竞赛日程表/ })).toHaveAttribute("aria-checked", "true");
 });
 
 test("日期、轮次标题与表头逐层吸顶", async ({ page }) => {

@@ -16,7 +16,7 @@ func (s *Service) renderEntries(ctx context.Context, meetID string, eventIDs []s
 	if err != nil {
 		return "", err
 	}
-	prefs, err := s.Preferences(ctx)
+	prefs, err := s.MeetSettings(ctx, meetID)
 	if err != nil {
 		return "", err
 	}

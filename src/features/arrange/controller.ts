@@ -33,7 +33,7 @@ export function useDraftConflicts(eventId: string, meetId: string, rounds: Draft
   const request = JSON.stringify(draftTimes(eventId, rounds));
   const [tick, setTick] = useState(0);
   const [data, setData] = useState<HeatConflicts[]>([]);
-  useEffect(() => events.dataChanged.on((c) => { if (c.meetId === meetId || c.kind === "settings") setTick((n) => n + 1); }), [meetId]);
+  useEffect(() => events.dataChanged.on((c) => { if (c.meetId === meetId) setTick((n) => n + 1); }), [meetId]);
   useEffect(() => {
     let live = true;
     const timer = setTimeout(() => {

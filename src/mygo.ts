@@ -39,6 +39,18 @@ export interface Athlete {
   note: string;
 }
 
+/**
+ * AthleteEntryOption is an individual event as the athlete dialog offers
+ * it: whether the athlete is in it, and whether that can be undone there.
+ */
+export interface AthleteEntryOption {
+  eventId: string;
+  name: string;
+  entered: boolean;
+  /** Placed: in a heat of the event, so the entry stays until moved out. */
+  placed: boolean;
+}
+
 /** AthleteImport is a table with its column mapping; Rows are data rows. */
 export interface AthleteImport {
   rows: string[][];
@@ -161,6 +173,51 @@ export interface BarView {
   height: number;
   heightText: string;
   trials: string;
+}
+
+/**
+ * BatchArrangePreview is what a batch arrangement would add; rounds with
+ * an Error are left out of it.
+ */
+export interface BatchArrangePreview {
+  previewHash: string;
+  errors: string[];
+  rounds: BatchArrangeRound[];
+  heats: number;
+  people: number;
+}
+
+/**
+ * BatchArrangeRequest arranges several rounds at once with the same
+ * options, each event at its own default heat size: a first round takes
+ * its entries, a later one the qualifiers of the round before. Only those
+ * not placed yet are arranged, in new heats after the existing ones.
+ */
+export interface BatchArrangeRequest {
+  meetId: string;
+  rounds: RoundRef[];
+  /** seed | random */
+  order: string;
+  /**
+   * Lanes: center (good marks in the middle lanes; events without lanes
+   * go in order), sequential or random.
+   */
+  lanes: string;
+  separateUnits: boolean;
+  balance: boolean;
+  seed: number;
+}
+
+/** BatchArrangeRound is one round of the preview. */
+export interface BatchArrangeRound {
+  eventId: string;
+  roundId: string;
+  text: string;
+  source: string;
+  perHeat: number;
+  heats: number;
+  people: number;
+  error: string;
 }
 
 /**
@@ -973,6 +1030,58 @@ export interface MeetInput {
   entryLimits?: EntryLimits;
 }
 
+/**
+ * MeetRounds is every round of a meet with where it stands: by event for
+ * the 编排 page, by day and time for the 成绩 page.
+ */
+export interface MeetRounds {
+  /** Rounds are in the 项目 page's order, each event's rounds in order. */
+  rounds: RoundRow[];
+  /**
+   * Days hold the rounds with a planned time by their first time;
+   * Unscheduled the rounds with heats but no time.
+   */
+  days: RoundDay[];
+  unscheduled: RoundRow[];
+  /**
+   * Day is the day the 成绩 page opens on: today when the meet has
+   * rounds then, else the first day with a round not finished, else the
+   * first day; "" without days.
+   */
+  day: string;
+}
+
+/** MeetSettings are a meet's own arrange and print settings (赛事设置). */
+export interface MeetSettings {
+  /** SeparateUnits and Balance are 自动编排's defaults. */
+  separateUnits: boolean;
+  balance: boolean;
+  /**
+   * MinRestMinutes is the shortest rest an athlete needs between two
+   * heats; 0 checks overlaps only (docs/agents/arrange.md「冲突检查」).
+   */
+  minRestMinutes: number;
+  /**
+   * CheckInLeadMinutes is how long before a heat's planned start its
+   * athletes check in, 0–240; 0 prints no check-in time.
+   */
+  checkInLeadMinutes: number;
+  printNewPage: boolean;
+  /** PrintSchedule puts the competition schedule at the start of the 秩序册. */
+  printSchedule: boolean;
+  /** PrintRoster puts the units' athletes at the start of the 秩序册. */
+  printRoster: boolean;
+  /**
+   * PrintCheckInBreak and PrintRecordBreak are where the 检录单 and the
+   * 成绩记录表 start a new page (SheetBreak*).
+   */
+  printCheckInBreak: string;
+  printRecordBreak: string;
+  /** PrintResultsTime prints each heat's results time in the 成绩册. */
+  printResultsTime: boolean;
+  printTeamScores: boolean;
+}
+
 /** MeetView is a meet with its days as shown. */
 export interface MeetView {
   id: string;
@@ -1023,6 +1132,19 @@ export interface Overview {
    * branch "" with all of them.
    */
   structure: OverviewBranch[];
+  badges: OverviewBadges;
+}
+
+/**
+ * OverviewBadges are the counts the sidebar shows by its pages: units not
+ * entered, rounds to arrange now, athlete time conflicts, rounds being
+ * scored.
+ */
+export interface OverviewBadges {
+  entries: number;
+  arrange: number;
+  schedule: number;
+  results: number;
 }
 
 /** OverviewBranch is a group with its units and its events. */
@@ -1084,6 +1206,11 @@ export interface OverviewStep {
   total: number;
   warnings: number;
   extra: number;
+  /**
+   * Hint names the next thing to do there: 二班未报名, 男子100m 编排决赛;
+   * "" when there is none to name.
+   */
+  hint: string;
 }
 
 /**
@@ -1164,37 +1291,14 @@ export interface PointRulePreview {
   rows: PointBandView[];
 }
 
-/** Preferences contains only settings used by the app. MCP secrets have a separate API. */
+/**
+ * Preferences are the app's own settings; a meet's arrange and print
+ * settings are its MeetSettings. MCP secrets have a separate API.
+ */
 export interface Preferences {
   theme: string;
   /** UpdatePrereleases includes test versions in mygo's update checks. */
   updatePrereleases: boolean;
-  separateUnits: boolean;
-  balance: boolean;
-  printNewPage: boolean;
-  /** PrintSchedule puts the competition schedule at the start of the 秩序册. */
-  printSchedule: boolean;
-  /** PrintRoster puts the units' athletes at the start of the 秩序册. */
-  printRoster: boolean;
-  /**
-   * MinRestMinutes is the shortest rest an athlete needs between two
-   * heats; 0 checks overlaps only (docs/agents/arrange.md「冲突检查」).
-   */
-  minRestMinutes: number;
-  /**
-   * CheckInLeadMinutes is how long before a heat's planned start its
-   * athletes check in, 0–240; 0 prints no check-in time.
-   */
-  checkInLeadMinutes: number;
-  /**
-   * PrintCheckInBreak and PrintRecordBreak are where the 检录单 and the
-   * 成绩记录表 start a new page (SheetBreak*).
-   */
-  printCheckInBreak: string;
-  printRecordBreak: string;
-  /** PrintResultsTime prints each heat's results time in the 成绩册. */
-  printResultsTime: boolean;
-  printTeamScores: boolean;
 }
 
 export interface ReportTarget {
@@ -1265,6 +1369,15 @@ export interface ResultView {
   note: string;
 }
 
+/** RoundDay is one day's rounds. */
+export interface RoundDay {
+  /** YYYY-MM-DD */
+  day: string;
+  /** 2026-11-12 周四 */
+  text: string;
+  rounds: RoundRow[];
+}
+
 /**
  * RoundInput is a round held before the final (预赛 heat, 次赛
  * quarterfinal, 半决赛 semifinal) and who advances from it: the first
@@ -1276,10 +1389,58 @@ export interface RoundInput {
   advanceByMark: number;
 }
 
-/** RoundRef names one round of a multi-round schedule. */
+/** RoundRef names one round: of a multi-round schedule, of a batch arrangement. */
 export interface RoundRef {
   eventId: string;
   roundId: string;
+}
+
+/** RoundRow is one round and where it stands. */
+export interface RoundRow {
+  eventId: string;
+  eventName: string;
+  combinedId: string;
+  groupId: string;
+  roundId: string;
+  roundLabel: string;
+  /**
+   * Text names the round: 男子100m 预赛, or the event alone when it has
+   * one round.
+   */
+  text: string;
+  first: boolean;
+  /** PrevLabel and NextLabel name the rounds before and after; "" = none. */
+  prevLabel: string;
+  nextLabel: string;
+  team: boolean;
+  /**
+   * StartAt is the round's first planned time; StartText shows it
+   * relative to the day the round is listed on.
+   */
+  startAt: string;
+  startText: string;
+  /** TimeText shows StartAt with its date unless on the meet's first day. */
+  timeText: string;
+  heats: number;
+  /** heats with a result in every slot */
+  heatsDone: number;
+  /**
+   * People is how many are placed in its heats; Unplaced how many more
+   * the round would take: the entries of a first round, those who
+   * advanced into a later one, not placed yet.
+   */
+  people: number;
+  unplaced: number;
+  arrange: string;
+  /** "" without heats */
+  results: string;
+  /**
+   * Source is who an automatic arrangement takes: 报名, or the round
+   * before's qualifiers (预赛晋级者).
+   */
+  source: string;
+  /** CanArrange: someone is left to place and the round can take them now. */
+  canArrange: boolean;
 }
 
 /** RoundSave is one round's changes. */
@@ -1384,7 +1545,7 @@ export interface SchedulePreview {
 /**
  * ScheduleRequest assigns local wall-clock times to the unscored heats of
  * one round, or of several rounds one after another (docs/agents/arrange.md
- * 「批量排时间」).
+ * 「排时间」).
  */
 export interface ScheduleRequest {
   eventId?: string;
@@ -1803,6 +1964,14 @@ export const Meets = {
   overview(id: string): Promise<Overview | null> {
     return call("Meets.Overview", id);
   },
+  /** SaveSettings keeps the meet's arrange and print settings. */
+  saveSettings(meetID: string, in_: MeetSettings): Promise<void> {
+    return call("Meets.SaveSettings", meetID, in_);
+  },
+  /** Settings returns the meet's arrange and print settings. */
+  settings(meetID: string): Promise<MeetSettings> {
+    return call("Meets.Settings", meetID);
+  },
   /** Update changes a meet. */
   update(id: string, in_: MeetInput): Promise<void> {
     return call("Meets.Update", id, in_);
@@ -1982,6 +2151,14 @@ export const Entries = {
     return call("Entries.Add", eventID, list);
   },
   /**
+   * Summary counts the athletes, entries and teams of each unit and group.
+   * AthleteOptions lists the individual events the athlete dialog offers for
+   * an athlete of this gender and group ("" for one not saved yet).
+   */
+  athleteOptions(meetID: string, athleteID: string, gender: string, groupID: string): Promise<AthleteEntryOption[]> {
+    return call("Entries.AthleteOptions", meetID, athleteID, gender, groupID);
+  },
+  /**
    * ExportForms asks for a folder and writes the 报名登记表 into it: one per
    * unit, or with byGroup one per group ("" = the units of no group); all of
    * them when ids is empty. 0 when the user canceled.
@@ -2012,11 +2189,14 @@ export const Entries = {
   remove(eventID: string, competitorIDs: string[]): Promise<void> {
     return call("Entries.Remove", eventID, competitorIDs);
   },
+  /** SetAthlete makes the athlete's individual events exactly eventIDs. */
+  setAthlete(meetID: string, athleteID: string, eventIDs: string[]): Promise<void> {
+    return call("Entries.SetAthlete", meetID, athleteID, eventIDs);
+  },
   /** SetSeed changes an entry mark; "" clears it. */
   setSeed(eventID: string, competitorID: string, seed: string): Promise<void> {
     return call("Entries.SetSeed", eventID, competitorID, seed);
   },
-  /** Summary counts the athletes, entries and teams of each unit and group. */
   summary(meetID: string): Promise<EntrySummary | null> {
     return call("Entries.Summary", meetID);
   },
@@ -2024,6 +2204,10 @@ export const Entries = {
 
 /** Arrange plans and saves heats. */
 export const Arrange = {
+  /** Batch confirms the batch arrangement shown in the dialog. */
+  batch(in_: BatchArrangeRequest, hash: string): Promise<BatchArrangePreview | null> {
+    return call("Arrange.Batch", in_, hash);
+  },
   /**
    * DraftConflicts lists the conflicts of the arrange page's draft heats,
    * unsaved changes included, by heat key.
@@ -2043,6 +2227,10 @@ export const Arrange = {
   heatPlan(roundStart: string, at: string, minutes: string, day: string): Promise<HeatPlan | null> {
     return call("Arrange.HeatPlan", roundStart, at, minutes, day);
   },
+  /** MeetRounds is every round of the meet with its arrange and result state. */
+  meetRounds(meetID: string): Promise<MeetRounds | null> {
+    return call("Arrange.MeetRounds", meetID);
+  },
   /** MeetSchedule is the meet's timetable by day with its conflicts. */
   meetSchedule(meetID: string): Promise<Timetable | null> {
     return call("Arrange.MeetSchedule", meetID);
@@ -2050,6 +2238,10 @@ export const Arrange = {
   /** Plan computes new heats for those not yet placed; it writes nothing. */
   plan(req: PlanRequest): Promise<PlannedHeat[]> {
     return call("Arrange.Plan", req);
+  },
+  /** PreviewBatch computes an automatic arrangement of several rounds. */
+  previewBatch(in_: BatchArrangeRequest): Promise<BatchArrangePreview | null> {
+    return call("Arrange.PreviewBatch", in_);
   },
   previewSchedule(in_: ScheduleRequest): Promise<SchedulePreview | null> {
     return call("Arrange.PreviewSchedule", in_);

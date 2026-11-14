@@ -90,24 +90,24 @@ func TestCheckInSheets(t *testing.T) {
 	}
 
 	// Lead 0 prints no check-in time; a new page per sheet.
-	prefs, err := f.svc.Preferences(f.ctx)
+	prefs, err := f.svc.MeetSettings(f.ctx, f.meet)
 	must(t, err)
 	if prefs.CheckInLeadMinutes != domain.DefaultCheckInLeadMinutes || prefs.PrintCheckInBreak != SheetBreakRound || prefs.PrintResultsTime {
 		t.Fatalf("defaults = %+v", prefs)
 	}
 	prefs.CheckInLeadMinutes, prefs.PrintCheckInBreak = 0, SheetBreakHeat
-	must(t, f.svc.SavePreferences(f.ctx, prefs))
+	must(t, f.svc.SaveMeetSettings(f.ctx, ui, f.meet, prefs))
 	html = renderCheckIn(t, f, CheckInRequest{})
 	if strings.Contains(html, "检录时间") || strings.Count(html, `class="sheet break"`) != 3 {
 		t.Fatalf("lead 0 with new pages:\n%s", html)
 	}
 	prefs.CheckInLeadMinutes = 45
-	must(t, f.svc.SavePreferences(f.ctx, prefs))
+	must(t, f.svc.SaveMeetSettings(f.ctx, ui, f.meet, prefs))
 	order(t, renderCheckIn(t, f, CheckInRequest{}), "第1组", "08:45")
 
 	for _, lead := range []int{-1, domain.MaxCheckInLeadMinutes + 1} {
 		prefs.CheckInLeadMinutes = lead
-		wantInvalid(t, f.svc.SavePreferences(f.ctx, prefs), "检录提前时间")
+		wantInvalid(t, f.svc.SaveMeetSettings(f.ctx, ui, f.meet, prefs), "检录提前时间")
 	}
 	_, err = f.svc.RenderCheckIn(f.ctx, CheckInRequest{MeetID: f.meet, Day: "2026-13-01"})
 	wantInvalid(t, err, "日期格式")

@@ -136,17 +136,17 @@ func TestTimetableAndConflicts(t *testing.T) {
 	if len(cl.Conflicts) != 0 {
 		t.Fatalf("no rest asked: %+v", cl)
 	}
-	prefs, err := tf.svc.Preferences(tf.ctx)
+	prefs, err := tf.svc.MeetSettings(tf.ctx, tf.meet)
 	must(t, err)
 	prefs.MinRestMinutes = 10
-	must(t, tf.svc.SavePreferences(tf.ctx, prefs))
+	must(t, tf.svc.SaveMeetSettings(tf.ctx, ui, tf.meet, prefs))
 	cl, err = tf.svc.MeetConflicts(tf.ctx, tf.meet)
 	must(t, err)
 	if cl.MinRestMinutes != 10 || len(cl.Conflicts) != 1 || cl.Conflicts[0].Overlap || cl.Conflicts[0].Text != "间隔 6 分钟" || cl.Conflicts[0].First.EventID != tf.relay {
 		t.Fatalf("rest conflicts: %+v", cl)
 	}
 	prefs.MinRestMinutes = -1
-	wantInvalid(t, tf.svc.SavePreferences(tf.ctx, prefs), "最短休息时间")
+	wantInvalid(t, tf.svc.SaveMeetSettings(tf.ctx, ui, tf.meet, prefs), "最短休息时间")
 
 	// All-around components take part: the all-around's 100m at 09:02 is
 	// 2 minutes after 100m heat 1 (选手01, 选手02) and 8 after the relay
@@ -187,10 +187,10 @@ func TestTimetableReportSection(t *testing.T) {
 	if strings.Contains(only, "<td>男子100m</td>") {
 		t.Fatal("schedule ignores the selection")
 	}
-	prefs, err := tf.svc.Preferences(tf.ctx)
+	prefs, err := tf.svc.MeetSettings(tf.ctx, tf.meet)
 	must(t, err)
 	prefs.PrintSchedule = false
-	must(t, tf.svc.SavePreferences(tf.ctx, prefs))
+	must(t, tf.svc.SaveMeetSettings(tf.ctx, ui, tf.meet, prefs))
 	html, err = tf.svc.RenderReport(tf.ctx, ReportStartList, tf.meet, nil)
 	must(t, err)
 	if strings.Contains(html, "竞赛日程表") {
@@ -224,13 +224,13 @@ func TestStartListRoster(t *testing.T) {
 	if strings.Contains(results, "代表队名单") {
 		t.Fatal("results print the roster")
 	}
-	prefs, err := tf.svc.Preferences(tf.ctx)
+	prefs, err := tf.svc.MeetSettings(tf.ctx, tf.meet)
 	must(t, err)
 	if !prefs.PrintRoster {
 		t.Fatal("roster is off by default")
 	}
 	prefs.PrintRoster = false
-	must(t, tf.svc.SavePreferences(tf.ctx, prefs))
+	must(t, tf.svc.SaveMeetSettings(tf.ctx, ui, tf.meet, prefs))
 	html, err = tf.svc.RenderReport(tf.ctx, ReportStartList, tf.meet, nil)
 	must(t, err)
 	if strings.Contains(html, "代表队名单") {
@@ -294,10 +294,10 @@ func TestMultiRoundSchedule(t *testing.T) {
 	}
 	// 选手01 runs 100m heat 1 09:00–09:05 and the relay at 09:20: a
 	// 16-minute rest flags the 15 minutes between them in the preview.
-	prefs, err := tf.svc.Preferences(tf.ctx)
+	prefs, err := tf.svc.MeetSettings(tf.ctx, tf.meet)
 	must(t, err)
 	prefs.MinRestMinutes = 16
-	must(t, tf.svc.SavePreferences(tf.ctx, prefs))
+	must(t, tf.svc.SaveMeetSettings(tf.ctx, ui, tf.meet, prefs))
 	p, err = tf.svc.PreviewSchedule(tf.ctx, in)
 	must(t, err)
 	if len(p.Conflicts) != 1 || p.Conflicts[0].GapMinutes != 15 || p.Warnings[len(p.Warnings)-1] != "排完后有 1 处时间冲突" {

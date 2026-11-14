@@ -9,7 +9,7 @@ function SeedCell({ eventId, event, entry }: { eventId: string; event: Event; en
   useEffect(() => setText(entry.seedText), [entry.seedText]);
   return (
     <span onClick={(e) => e.stopPropagation()}>
-      <StMarkField event={event} kind={event.kind} value={text} onChange={setText} aria-label="报名成绩"
+      <StMarkField quiet event={event} kind={event.kind} value={text} onChange={setText} aria-label="报名成绩"
         onCommit={(tidy) => {
           if (tidy !== entry.seedText) void EventsController.setSeed(eventId, entry.competitorId, tidy);
         }} />

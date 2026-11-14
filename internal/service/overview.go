@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sort"
 
@@ -31,6 +32,7 @@ type Overview struct {
 	// athletes and events of no group. A meet without groups has the one
 	// branch "" with all of them.
 	Structure []OverviewBranch `json:"structure"`
+	Badges    OverviewBadges   `json:"badges"`
 }
 
 // OverviewPhase is a part of the workflow and its steps in order.
@@ -93,6 +95,31 @@ type OverviewStep struct {
 	Total    int    `json:"total"`
 	Warnings int    `json:"warnings"`
 	Extra    int    `json:"extra"`
+	// Hint names the next thing to do there: 二班未报名, 男子100m 编排决赛;
+	// "" when there is none to name.
+	Hint string `json:"hint"`
+}
+
+// OverviewBadges are the counts the sidebar shows by its pages: units not
+// entered, rounds to arrange now, athlete time conflicts, rounds being
+// scored.
+type OverviewBadges struct {
+	Entries  int `json:"entries"`
+	Arrange  int `json:"arrange"`
+	Schedule int `json:"schedule"`
+	Results  int `json:"results"`
+}
+
+// hint names the first of n things and how many there are: 二班未报名,
+// 二班等 3 个未报名.
+func hint(first string, n int, what string) string {
+	switch {
+	case n == 0:
+		return ""
+	case n == 1:
+		return first + what
+	}
+	return fmt.Sprintf("%s等 %d 个%s", first, n, what)
 }
 
 // OverviewRound is a round still to be held.
@@ -202,11 +229,17 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 		}
 	}
 	entered, over, ungrouped := 0, 0, 0
+	var firstIdle, firstUngrouped string
 	for _, u := range summary.Units {
 		if u.Entries > 0 || u.Teams > 0 {
 			entered++
+		} else if firstIdle == "" {
+			firstIdle = u.Unit.Name
 		}
 		if len(groups) > 0 && len(u.Unit.GroupIDs) == 0 {
+			if ungrouped == 0 {
+				firstUngrouped = u.Unit.Name
+			}
 			ungrouped++
 		}
 		over += u.Over
@@ -222,6 +255,11 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 	live, final := map[string]bool{}, map[string]bool{}
 	var next []OverviewRound
 	var nextAt []string
+	// The first of each to name in a step's hint.
+	var toArrange, toSchedule, toSend string
+	// The first round with heats not finished, for a meet without times.
+	var open *OverviewRound
+	toArrangeN, toScheduleN := 0, 0
 	for _, e := range p.events {
 		rs := p.rounds[e.ID]
 		if p.entered[e.ID] == 0 && (len(rs) == 0 || len(rs[0].Heats) == 0) {
@@ -231,12 +269,22 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 		live[e.ID] = true
 		if len(rs) > 0 && len(rs[0].Heats) > 0 {
 			arranged++
+		} else {
+			if toArrangeN == 0 {
+				toArrange = e.Name
+			}
+			toArrangeN++
 		}
 		for i, r := range rs {
 			rounds++
 			at := domain.EarliestScheduled([]domain.Round{r})
 			if at != "" {
 				timed++
+			} else {
+				if toScheduleN == 0 {
+					toSchedule = roundText(e, len(rs), r)
+				}
+				toScheduleN++
 			}
 			done, began := roundFinished(r)
 			switch {
@@ -254,9 +302,15 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 				case len(rs[i+1].Heats) > 0:
 					advanced++
 				case done:
+					if waiting == 0 {
+						toSend = e.Name + " 编排" + rs[i+1].Label()
+					}
 					waiting++
 					wait[e.ID] = append(wait[e.ID], r.ID)
 				}
+			}
+			if !done && len(r.Heats) > 0 && open == nil {
+				open = &OverviewRound{EventName: e.Name, RoundLabel: r.Label(), Heats: len(r.Heats), Started: began}
 			}
 			if !done && at != "" {
 				next = append(next, OverviewRound{EventID: e.ID, EventName: e.Name, RoundLabel: r.Label(),
@@ -265,6 +319,7 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 			}
 		}
 	}
+	conflicts := len(p.conflicts(nil))
 	ties, err := s.waitingTies(ctx, p, wait)
 	if err != nil {
 		return nil, err
@@ -273,9 +328,27 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 	if results == StepTodo && started > 0 {
 		results = StepDoing
 	}
-	during := []OverviewStep{{Key: "results", State: results, Done: finished, Total: rounds, Extra: started}}
+	order := make([]int, len(next))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool { return nextAt[order[a]] < nextAt[order[b]] })
+	for _, i := range order {
+		if next[i].Heats > 0 {
+			open = &next[i]
+			break
+		}
+	}
+	resultsHint := ""
+	if open != nil {
+		resultsHint = open.EventName + " " + open.RoundLabel + " 待录成绩"
+		if open.Started {
+			resultsHint = open.EventName + " " + open.RoundLabel + " 录入中"
+		}
+	}
+	during := []OverviewStep{{Key: "results", State: results, Done: finished, Total: rounds, Extra: started, Hint: resultsHint}}
 	if sending > 0 {
-		during = append(during, OverviewStep{Key: "advance", State: stepState(advanced, sending), Done: advanced, Total: sending, Warnings: ties, Extra: waiting})
+		during = append(during, OverviewStep{Key: "advance", State: stepState(advanced, sending), Done: advanced, Total: sending, Warnings: ties, Extra: waiting, Hint: toSend})
 	}
 	team := OverviewStep{Key: "team", State: StepOff}
 	if rules.Enabled {
@@ -285,10 +358,12 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 	out.Phases = []OverviewPhase{
 		{Key: "before", Steps: []OverviewStep{
 			{Key: "events", State: countState(events + len(combineds)), Done: events, Total: events, Extra: len(combineds)},
-			{Key: "units", State: countState(len(summary.Units)), Done: len(summary.Units), Total: len(summary.Units), Warnings: ungrouped},
-			{Key: "entries", State: stepState(entered, len(summary.Units)), Done: entered, Total: len(summary.Units), Warnings: over},
-			{Key: "arrange", State: stepState(arranged, withEntries), Done: arranged, Total: withEntries},
-			{Key: "schedule", State: stepState(timed, rounds), Done: timed, Total: rounds, Warnings: len(p.conflicts(nil))},
+			{Key: "units", State: countState(len(summary.Units)), Done: len(summary.Units), Total: len(summary.Units), Warnings: ungrouped,
+				Hint: hint(firstUngrouped, ungrouped, "未分组")},
+			{Key: "entries", State: stepState(entered, len(summary.Units)), Done: entered, Total: len(summary.Units), Warnings: over,
+				Hint: hint(firstIdle, len(summary.Units)-entered, "未报名")},
+			{Key: "arrange", State: stepState(arranged, withEntries), Done: arranged, Total: withEntries, Hint: hint(toArrange, toArrangeN, "待编排")},
+			{Key: "schedule", State: stepState(timed, rounds), Done: timed, Total: rounds, Warnings: conflicts, Hint: hint(toSchedule, toScheduleN, "未排时间")},
 		}},
 		{Key: "during", Steps: during},
 		{Key: "after", Steps: []OverviewStep{team}},
@@ -301,11 +376,7 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 		}
 	}
 
-	order := make([]int, len(next))
-	for i := range order {
-		order[i] = i
-	}
-	sort.SliceStable(order, func(a, b int) bool { return nextAt[order[a]] < nextAt[order[b]] })
+	out.Badges = OverviewBadges{Entries: len(summary.Units) - entered, Arrange: toArrangeN + waiting, Schedule: conflicts, Results: started}
 	out.NextTotal = len(next)
 	for _, i := range order[:min(len(order), overviewNext)] {
 		out.Next = append(out.Next, next[i])

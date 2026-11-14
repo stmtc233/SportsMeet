@@ -11,8 +11,8 @@ async function openArrange(page: Page, options = {}) {
 }
 async function openSchedule(page: Page) {
   await page.locator(".subbar").getByRole("button", { name: "更多", exact: true }).click();
-  await page.getByRole("menuitem", { name: "批量排时间…", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "批量排时间", exact: true });
+  await page.getByRole("menuitem", { name: "排时间…", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "排时间", exact: true });
   await expect(dialog).toBeVisible();
   await dialog.getByLabel("首组日期").fill("2026-11-12");
   await dialog.getByLabel("首组时间").fill("23:58");
@@ -52,7 +52,7 @@ test("编排草稿阻止批量排时", async ({ page }) => {
   await openArrange(page);
   await page.getByRole("button", { name: "添加组", exact: true }).click();
   await page.locator(".subbar").getByRole("button", { name: "更多", exact: true }).click();
-  await expect(page.getByRole("menuitem", { name: "批量排时间…", exact: true })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: "排时间…", exact: true })).toBeDisabled();
   expect(await page.evaluate(() => (globalThis as any).__scheduleCalls.preview)).toBe(0);
 });
 

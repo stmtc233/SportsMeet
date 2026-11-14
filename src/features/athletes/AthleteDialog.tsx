@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { StButton, StDialog, StSegmented, StSelect, StTextField } from "../../design";
-import type { Athlete, AthleteInput, Unit } from "../../mygo";
+import { StButton, StCheckbox, StDialog, StMuted, StSegmented, StSelect, StTextField } from "../../design";
+import type { Athlete, AthleteEntryOption, AthleteInput, Unit } from "../../mygo";
 import { GroupSelect } from "../groups/GroupFields";
-import { AthletesController } from "./controller";
+import { AthletesController, useAthleteEntryOptions } from "./controller";
 
 const blank: Required<AthleteInput> = { name: "", gender: "", bib: "", studentNumber: "", groupId: "", unitId: "", className: "", grade: "", birthDate: "", note: "" };
 
@@ -18,16 +18,27 @@ export function AthleteDialog({ meetId, open, athlete, units, unitId = "", group
 }) {
   const [form, setForm] = useState<Required<AthleteInput>>(blank);
   const [busy, setBusy] = useState(false);
+  // 报名项目 as ticked here; undefined until one is changed, then the athlete's entries follow it.
+  const [ticked, setTicked] = useState<Set<string>>();
+  const { data: options } = useAthleteEntryOptions(meetId, athlete?.id ?? "", form.gender, form.groupId, open);
+  const entered = new Set((options ?? []).filter((o) => o.entered).map((o) => o.eventId));
+  const events = ticked ?? entered;
   useEffect(() => {
     if (!open) return;
+    setTicked(undefined);
     setForm(athlete ? { name: athlete.name, gender: athlete.gender, bib: athlete.bib, studentNumber: athlete.studentNumber, groupId: athlete.groupId ?? "", unitId: athlete.unitId, className: athlete.className, grade: athlete.grade, birthDate: athlete.birthDate, note: athlete.note } : { ...blank, unitId, groupId });
   }, [open, athlete, unitId, groupId]);
   const set = (patch: Partial<Required<AthleteInput>>) => setForm((f) => ({ ...f, ...patch }));
   const save = async (another: boolean) => {
     setBusy(true);
     const ok = await AthletesController.save(meetId, athlete?.id ?? "", form);
+    // Only events still offered for the gender and group are kept.
+    const ids = (options ?? []).filter((o) => events.has(o.eventId)).map((o) => o.eventId);
+    const id = ok ? ok.athlete?.id : undefined;
+    const entriesOk = !ok || !id || ticked === undefined || (await AthletesController.setEntries(meetId, id, ids));
     setBusy(false);
-    if (!ok) return;
+    if (!ok || !entriesOk) return;
+    setTicked(undefined);
     if (another) setForm((f) => ({ ...blank, gender: f.gender, unitId: f.unitId, className: f.className, grade: f.grade, groupId: f.groupId }));
     else onClose();
   };
@@ -54,6 +65,29 @@ export function AthleteDialog({ meetId, open, athlete, units, unitId = "", group
         <StTextField label="年级" value={form.grade} onChange={(grade) => set({ grade })} />
         <StTextField label="班级" value={form.className} onChange={(className) => set({ className })} />
       </div>
+      <EntryChecks options={options} ticked={events} onChange={setTicked} />
     </StDialog>
+  );
+}
+
+/** 报名项目: the individual events, ticked when entered; one in a heat stays ticked. */
+function EntryChecks({ options, ticked, onChange }: { options: AthleteEntryOption[] | undefined; ticked: Set<string>; onChange: (next: Set<string>) => void }) {
+  if (!options) return null;
+  const toggle = (id: string) => {
+    const next = new Set(ticked);
+    if (!next.delete(id)) next.add(id);
+    onChange(next);
+  };
+  return (
+    <fieldset className="entry-checks">
+      <legend className="entry-checks__title">报名项目</legend>
+      {options.length === 0 ? <StMuted>没有可报的个人项目</StMuted> : (
+        <div className="entry-checks__list">
+          {options.map((o) => (
+            <StCheckbox key={o.eventId} label={o.name} checked={ticked.has(o.eventId)} disabled={o.placed && o.entered} onChange={() => toggle(o.eventId)} />
+          ))}
+        </div>
+      )}
+    </fieldset>
   );
 }

@@ -132,10 +132,10 @@ func TestStartedInReports(t *testing.T) {
 	if !strings.Contains(html, "实际开赛 09:42") || strings.Contains(html, "成绩时间") {
 		t.Fatalf("results book without the results time:\n%s", html)
 	}
-	prefs, err := f.svc.Preferences(f.ctx)
+	prefs, err := f.svc.MeetSettings(f.ctx, f.meet)
 	must(t, err)
 	prefs.PrintResultsTime = true
-	must(t, f.svc.SavePreferences(f.ctx, prefs))
+	must(t, f.svc.SaveMeetSettings(f.ctx, ui, f.meet, prefs))
 	html, err = f.svc.RenderReport(f.ctx, ReportResults, f.meet, nil)
 	must(t, err)
 	if !strings.Contains(html, "成绩时间 2026-11-12 09:42") {

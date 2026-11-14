@@ -44,7 +44,7 @@ func (s *Service) RenderGroupedReport(ctx context.Context, req GroupReportReques
 			return "", invalid("项目或全能不属于本赛事")
 		}
 	}
-	prefs, err := s.Preferences(ctx)
+	prefs, err := s.MeetSettings(ctx, req.MeetID)
 	if err != nil {
 		return "", err
 	}

@@ -37,6 +37,11 @@ func (s *Service) PlanHeats(ctx context.Context, req PlanRequest) ([]arrange.Pla
 	if err != nil {
 		return nil, err
 	}
+	return st.planRound(req)
+}
+
+// planRound is PlanHeats on an event already read.
+func (st *eventState) planRound(req PlanRequest) ([]arrange.PlannedHeat, error) {
 	round := st.round(req.RoundID)
 	if round == nil {
 		return nil, ErrStale
@@ -208,6 +213,30 @@ func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave)
 	if err != nil {
 		return err
 	}
+	stmts, detail, err := s.boardWrites(st, in)
+	if err != nil || len(stmts) == 0 {
+		return err
+	}
+	action := "board.saved"
+	if in.Reset {
+		action = "board.reset"
+	}
+	return s.write(ctx,
+		store.Audit{Source: src, Action: action, MeetID: st.event.MeetID, EventID: in.EventID, Message: st.event.Name, Detail: detail},
+		Change{Kind: "heats", MeetID: st.event.MeetID, EventID: in.EventID}, stmts...)
+}
+
+// boardDetail is what a board save did, for the operation log.
+type boardDetail struct {
+	Added   int `json:"added"`
+	Changed int `json:"changed"`
+	Deleted int `json:"deleted"`
+	Results int `json:"resultsDeleted"`
+}
+
+// boardWrites validates a board save of an event already read with all its
+// athletes (loadEvent) and returns its statements without writing them.
+func (s *Service) boardWrites(st *eventState, in BoardSave) ([]sqlite.Statement, boardDetail, error) {
 	unlocked := map[string]bool{}
 	for _, id := range in.Unlocked {
 		unlocked[id] = true
@@ -215,17 +244,12 @@ func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave)
 	now := s.store.Now()
 	var stmts []sqlite.Statement
 	entering := map[string]bool{}
-	detail := struct {
-		Added   int `json:"added"`
-		Changed int `json:"changed"`
-		Deleted int `json:"deleted"`
-		Results int `json:"resultsDeleted"`
-	}{}
+	var detail boardDetail
 
 	for _, rs := range in.Rounds {
 		round := st.round(rs.RoundID)
 		if round == nil {
-			return ErrStale
+			return nil, detail, ErrStale
 		}
 		current := map[string]*domain.Heat{}
 		for i := range round.Heats {
@@ -235,10 +259,10 @@ func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave)
 		for _, d := range rs.Deleted {
 			h := current[d.ID]
 			if h == nil || arrange.Fingerprint(*h) != d.Base {
-				return ErrStale
+				return nil, detail, ErrStale
 			}
 			if reason := h.Facts().KeepReason(); reason != "" && !in.Reset {
-				return invalid("「%s」%s，不能删除", domain.HeatLabel(h.Ordinal, h.Name), reason)
+				return nil, detail, invalid("「%s」%s，不能删除", domain.HeatLabel(h.Ordinal, h.Name), reason)
 			}
 			deleted[d.ID] = true
 			detail.Deleted++
@@ -249,19 +273,19 @@ func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave)
 		for _, c := range rs.Changed {
 			h := current[c.ID]
 			if h == nil || deleted[c.ID] || arrange.Fingerprint(*h) != c.Base {
-				return ErrStale
+				return nil, detail, ErrStale
 			}
 			changed[c.ID] = c
 		}
 		added := map[string]HeatSave{}
 		for _, a := range rs.Added {
 			if a.Key == "" || current[a.Key] != nil {
-				return errors.New("board: an added heat needs a key of its own")
+				return nil, detail, errors.New("board: an added heat needs a key of its own")
 			}
 			added[a.Key] = a
 		}
 		if len(rs.Order) != len(current)-len(deleted)+len(added) {
-			return ErrStale
+			return nil, detail, ErrStale
 		}
 
 		// The round as it will be, in the new order.
@@ -270,7 +294,7 @@ func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave)
 		listed := map[string]bool{}
 		for _, key := range rs.Order {
 			if listed[key] {
-				return ErrStale
+				return nil, detail, ErrStale
 			}
 			listed[key] = true
 			var bh boardHeat
@@ -282,7 +306,7 @@ func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave)
 			} else {
 				h := current[key]
 				if h == nil || deleted[key] {
-					return ErrStale
+					return nil, detail, ErrStale
 				}
 				bh = boardHeat{heat: *h, old: h}
 				bh.heat.Slots = append([]domain.Slot(nil), h.Slots...)
@@ -293,10 +317,10 @@ func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave)
 			}
 			if save != nil {
 				if save.ScheduledAt != "" && !domain.ValidScheduled(save.ScheduledAt) {
-					return invalid("计划时间格式不正确")
+					return nil, detail, invalid("计划时间格式不正确")
 				}
 				if !domain.ValidDuration(save.DurationMinutes) {
-					return invalid("预计用时须为 1–%d 分钟", domain.MaxDurationMinutes)
+					return nil, detail, invalid("预计用时须为 1–%d 分钟", domain.MaxDurationMinutes)
 				}
 				bh.heat.Name, bh.heat.ScheduledAt = domain.NormalizeHeatName(save.Name), save.ScheduledAt
 				bh.heat.DurationMinutes = save.DurationMinutes
@@ -306,12 +330,12 @@ func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave)
 				}
 				slots, err := st.buildSlots(label, save.Slots, bh.old)
 				if err != nil {
-					return err
+					return nil, detail, err
 				}
 				if bh.old != nil {
 					bh.slots = !sameSlots(bh.old.Slots, slots)
 					if reason := bh.old.Facts().KeepReason(); bh.slots && reason != "" && !unlocked[key] && !in.Reset {
-						return invalid("「%s」%s，请先解锁位置", label, reason)
+						return nil, detail, invalid("「%s」%s，请先解锁位置", label, reason)
 					}
 				}
 				bh.heat.Slots = slots
@@ -328,7 +352,7 @@ func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave)
 			}
 			for _, sl := range bh.heat.Slots {
 				if placed[sl.CompetitorID()] {
-					return invalid("「%s」在同一轮次排了两次", st.competitorName(sl.CompetitorID()))
+					return nil, detail, invalid("「%s」在同一轮次排了两次", st.competitorName(sl.CompetitorID()))
 				}
 				placed[sl.CompetitorID()] = true
 			}
@@ -345,7 +369,7 @@ func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave)
 					continue
 				}
 				if reason := bh.old.Facts().KeepReason(); reason != "" {
-					return invalid("「%s」在%s的「%s」里，请先解锁位置", st.competitorName(sl.CompetitorID()), reason,
+					return nil, detail, invalid("「%s」在%s的「%s」里，请先解锁位置", st.competitorName(sl.CompetitorID()), reason,
 						domain.HeatLabel(bh.old.Ordinal, bh.old.Name))
 				}
 				bh.slots = true
@@ -395,16 +419,7 @@ func (s *Service) saveBoard(ctx context.Context, src store.Source, in BoardSave)
 		rescoreEvent(st.event, round.Advance, final)
 		stmts = append(stmts, resultWrites(before, final, rewritten, now)...)
 	}
-	if len(stmts) == 0 {
-		return nil
-	}
-	action := "board.saved"
-	if in.Reset {
-		action = "board.reset"
-	}
-	return s.write(ctx,
-		store.Audit{Source: src, Action: action, MeetID: st.event.MeetID, EventID: in.EventID, Message: st.event.Name, Detail: detail},
-		Change{Kind: "heats", MeetID: st.event.MeetID, EventID: in.EventID}, stmts...)
+	return stmts, detail, nil
 }
 
 func (sl SlotSave) CompetitorID() string {

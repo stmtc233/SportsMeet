@@ -43,12 +43,17 @@ func startedRollback() []sqlite.Statement {
 	return append(identityRollback(), Stmt("DELETE FROM schema_migrations WHERE version = 7"), Stmt("ALTER TABLE heats DROP COLUMN started_at"))
 }
 
-// limitsRollback undoes migration 0011.
+// settingsRollback undoes migration 0012.
+func settingsRollback() []sqlite.Statement {
+	return []sqlite.Statement{Stmt("DELETE FROM schema_migrations WHERE version = 12"), Stmt("ALTER TABLE meets DROP COLUMN settings")}
+}
+
+// limitsRollback undoes migrations 0012 and 0011.
 func limitsRollback() []sqlite.Statement {
-	return []sqlite.Statement{
+	return append(settingsRollback(),
 		Stmt("DELETE FROM schema_migrations WHERE version = 11"),
 		Stmt("ALTER TABLE meets DROP COLUMN limit_athlete_events"), Stmt("ALTER TABLE meets DROP COLUMN limit_unit_athletes"), Stmt("ALTER TABLE meets DROP COLUMN limit_unit_teams"),
-	}
+	)
 }
 
 func identityRollback() []sqlite.Statement {
@@ -168,5 +173,28 @@ func TestMigrationStopsWhenBackupFails(t *testing.T) {
 	rows, err := db.Query(ctx, "SELECT count(*) FROM schema_migrations WHERE version = 6")
 	if err != nil || rows.Values[0][0].(int64) != 0 {
 		t.Fatalf("migrated without a backup: %v, %v", rows.Values, err)
+	}
+}
+
+func TestMeetSettingsStartFromPreferences(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	s, err := Open(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Write(ctx, InsertMeet(domain.Meet{ID: "m1", Name: "秋季运动会", StartDate: "2026-11-12"}),
+		Stmt(`INSERT INTO settings(key, value) VALUES ('preferences', '{"minRestMinutes":15}')`)); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	rollback(t, dir, settingsRollback())
+	s, err = Open(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if got, err := s.MeetSettings(ctx, "m1"); err != nil || got != `{"minRestMinutes":15}` {
+		t.Fatalf("settings = %q, %v", got, err)
 	}
 }

@@ -121,13 +121,15 @@ interface StMarkFieldProps {
   onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
   "aria-label"?: string;
   name?: string;
+  /** In a table cell of a list that is read more than typed: no box until hovered or focused. */
+  quiet?: boolean;
 }
 
 /**
  * A mark as typed (12.34, 1:05.67, 6.52). Parsing and formatting are Go's
  * (scoring), asked on blur; this component has no parser of its own.
  */
-export function StMarkField({ event, kind, label, value, onChange, onCommit, disabled, placeholder, width = "mark", accept, onKeyDown, name, ...rest }: StMarkFieldProps) {
+export function StMarkField({ event, kind, label, value, onChange, onCommit, disabled, placeholder, width = "mark", accept, onKeyDown, name, quiet, ...rest }: StMarkFieldProps) {
   const [error, setError] = useState("");
   const id = useId();
   useEffect(() => {
@@ -152,7 +154,7 @@ export function StMarkField({ event, kind, label, value, onChange, onCommit, dis
   };
   return (
     <FieldShell label={label} error={error} hideError={!label} width={width} id={id}>
-      <span className="st-input st-input--mark" data-invalid={error ? true : undefined} title={error || undefined}>
+      <span className="st-input st-input--mark" data-quiet={quiet || undefined} data-invalid={error ? true : undefined} title={error || undefined}>
         <input id={id} name={name} value={value} disabled={disabled} placeholder={placeholder} inputMode="decimal" autoComplete="off" spellCheck={false} data-align="end"
           aria-label={rest["aria-label"]} aria-invalid={!!error} aria-describedby={describedBy(id, error)}
           onChange={(e) => { setError(""); onChange(e.target.value); }} onBlur={blur} onKeyDown={onKeyDown} />

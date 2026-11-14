@@ -1,9 +1,10 @@
 package service
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
 func renderRecord(t *testing.T, f *fixture, req CheckInRequest) string {
@@ -122,20 +123,20 @@ func TestRecordSheetSelectionAndPages(t *testing.T) {
 	if n := breaks(); n != 1 {
 		t.Fatalf("%d page breaks by round", n)
 	}
-	prefs, err := f.svc.Preferences(f.ctx)
+	prefs, err := f.svc.MeetSettings(f.ctx, f.meet)
 	must(t, err)
 	if prefs.PrintRecordBreak != SheetBreakRound {
 		t.Fatalf("defaults = %+v", prefs)
 	}
 	for mode, want := range map[string]int{SheetBreakHeat: 5, SheetBreakNone: 0} {
 		prefs.PrintRecordBreak = mode
-		must(t, f.svc.SavePreferences(f.ctx, prefs))
+		must(t, f.svc.SaveMeetSettings(f.ctx, ui, f.meet, prefs))
 		if n := breaks(); n != want {
 			t.Fatalf("%s: %d page breaks, want %d", mode, n, want)
 		}
 	}
 	prefs.PrintRecordBreak = "page"
-	wantInvalid(t, f.svc.SavePreferences(f.ctx, prefs), "分页方式")
+	wantInvalid(t, f.svc.SaveMeetSettings(f.ctx, ui, f.meet, prefs), "分页方式")
 }
 
 // Settings saved with the 检录单's switch keep what it said.
@@ -146,8 +147,8 @@ func TestSheetBreakFromSavedSwitch(t *testing.T) {
 		`{"theme":"system","printCheckInNewPage":false}`:                           SheetBreakRound,
 		`{"theme":"system","printCheckInNewPage":true,"printCheckInBreak":"none"}`: SheetBreakNone,
 	} {
-		must(t, f.svc.saveSetting(f.ctx, "preferences", json.RawMessage(raw), "settings.preferences"))
-		p, err := f.svc.Preferences(f.ctx)
+		must(t, f.svc.store.Write(f.ctx, store.Stmt(`UPDATE meets SET settings = ? WHERE id = ?`, raw, f.meet)))
+		p, err := f.svc.MeetSettings(f.ctx, f.meet)
 		must(t, err)
 		if p.PrintCheckInBreak != want || p.PrintRecordBreak != SheetBreakRound {
 			t.Fatalf("%s: %+v", raw, p)

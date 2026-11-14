@@ -103,7 +103,7 @@ export function ScheduleDialog({ options, multi = false, day, version, onClose }
   };
   const close = () => { if (!busy) onClose(); };
   return (
-    <StDialog open title={multi ? "连排轮次" : "批量排时间"} size={multi ? "large" : undefined} onClose={close} onSubmit={run}
+    <StDialog open title="排时间" size={multi ? "large" : undefined} onClose={close} onSubmit={run}
       actions={<>
         <StButton disabled={busy} onClick={close}>取消</StButton>
         <StButton variant="primary" type="submit" loading={busy} disabled={chosen.length === 0 || (ready && preview.changes.length === 0)} reserveWidthFor={["预览", "保存"]}>{ready ? "保存" : "预览"}</StButton>
@@ -120,8 +120,8 @@ export function ScheduleDialog({ options, multi = false, day, version, onClose }
           {options.length === 0 && <StEmpty>没有轮次</StEmpty>}
         </div>
       </StSection>}
-      {multi && chosen.length > 1 && <StSection title="连排顺序" padded={false}>
-        <ol className="schedule-order" aria-label="连排顺序">
+      {multi && chosen.length > 1 && <StSection title="先后顺序" padded={false}>
+        <ol className="schedule-order" aria-label="先后顺序">
           {chosen.map((o, i) => (
             <li key={o.roundId} className="schedule-order__row">
               <span className="schedule-order__index">{i + 1}</span>

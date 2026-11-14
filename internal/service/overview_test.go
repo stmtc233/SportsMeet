@@ -90,7 +90,8 @@ func TestOverviewAdvanceAndTeam(t *testing.T) {
 	if got := overviewStates(o); got != "before events:done units:done entries:done arrange:done schedule:todo during results:todo advance:todo after team:todo " || o.Current != "schedule" {
 		t.Fatalf("arranged = %s, current %s", got, o.Current)
 	}
-	if a, r, tm := overviewStep(o, "advance"), overviewStep(o, "results"), overviewStep(o, "team"); a.Total != 1 || a.Done != 0 || a.Extra != 0 || r.Total != 2 || tm.Total != 1 || tm.Done != 0 {
+	if a, r, tm := overviewStep(o, "advance"), overviewStep(o, "results"), overviewStep(o, "team"); a.Total != 1 || a.Done != 0 || a.Extra != 0 || r.Total != 2 || tm.Total != 1 || tm.Done != 0 ||
+		r.Hint != "男子100m 预赛 待录成绩" || overviewStep(o, "schedule").Hint != "男子100m 预赛等 2 个未排时间" {
 		t.Fatalf("arranged steps = %+v %+v %+v", a, r, tm)
 	}
 
@@ -99,8 +100,12 @@ func TestOverviewAdvanceAndTeam(t *testing.T) {
 	must(t, f.svc.SaveResults(f.ctx, ui, heats[1].ID, []ResultInput{{Position: 1, Mark: "12.20"}, {Position: 2, Mark: "12.30"}}))
 	o, err = f.svc.Overview(f.ctx, f.meet)
 	must(t, err)
-	if a, r := overviewStep(o, "advance"), overviewStep(o, "results"); a.State != StepTodo || a.Extra != 1 || a.Warnings != 1 || r.Done != 1 || r.State != StepDoing {
+	if a, r := overviewStep(o, "advance"), overviewStep(o, "results"); a.State != StepTodo || a.Extra != 1 || a.Warnings != 1 || r.Done != 1 || r.State != StepDoing ||
+		a.Hint != "男子100m 编排决赛" || r.Hint != "" {
 		t.Fatalf("heat finished = %+v %+v", a, r)
+	}
+	if o.Badges != (OverviewBadges{Arrange: 1, Schedule: 0, Results: 0}) {
+		t.Fatalf("badges = %+v", o.Badges)
 	}
 
 	f.addHeat(1, f.athletes[0], f.athletes[1], f.athletes[2])

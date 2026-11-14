@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLeaveGuard } from "../../app/nav";
 import { IconAdd, IconAuto, IconMore, IconRedo, IconTime, IconUndo, StButton, StConfirmButton, StDialog, StEmpty, StIconButton, StMenu, StEnterScope, StSegmented, StTextField, iconStroke, toast } from "../../design";
 import { errorText, isStale } from "../../lib/errors";
-import { useScrollMemory, useViewState } from "../../lib/viewState";
+import { recall, remember, useScrollMemory, useViewState } from "../../lib/viewState";
 import type { EntryView, EventDetail } from "../../mygo";
 import { AddEntriesDialog } from "../event/AddEntriesDialog";
-import { AutoDialog } from "./AutoDialog";
+import { AutoDialog, autoArrangeKey } from "./AutoDialog";
 import { ArrangeController, useDraftConflicts } from "./controller";
 import { addHeat, appendPlanned, deleteHeat, diff, editHeat, fromDetail, heatChanged, isLocked, merge, moveHeat, place, placedIn, pushHistory, redo, resetAll, undo, unlock, unplace, type ArrangeDraft, type DraftHeat, type Edit, type History } from "./draft";
 import { AthleteChip, dragType, HeatCard } from "./HeatCard";
@@ -23,7 +23,12 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
   const [roundId, setRoundId] = useViewState(`event:round:${event.id}`, detail.rounds[0]?.id ?? "");
   const [picked, setPicked] = useState("");
   const [saving, setSaving] = useState(false);
-  const [auto, setAuto] = useState(false);
+  // 「编排决赛」 on 成绩 opens 自动编排 here on that round, once.
+  const [auto, setAuto] = useState(() => {
+    const asked = recall<string>(autoArrangeKey(event.id));
+    remember(autoArrangeKey(event.id), undefined);
+    return asked !== undefined && asked === roundId;
+  });
   const [scheduling, setScheduling] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<DraftHeat | null>(null);
@@ -154,7 +159,7 @@ export function ArrangeTab({ detail, meetId, onStale }: { detail: EventDetail; m
             </StIconButton>
           )}
           items={[
-            { label: <span title={dirty ? "请先保存编排" : undefined}>批量排时间…</span>, disabled: dirty || saving || roundView.heats.length === 0, onSelect: () => setScheduling(true) },
+            { label: <span title={dirty ? "请先保存编排" : undefined}>排时间…</span>, disabled: dirty || saving || roundView.heats.length === 0, onSelect: () => setScheduling(true) },
             { label: "全部重置…", danger: true, disabled: stats.heats === 0 || draft.reset, onSelect: () => { setTyped(""); setResetting(true); } }]} />
         <StButton disabled={!dirty} onClick={discard}>放弃</StButton>
         {draft.reset ? (

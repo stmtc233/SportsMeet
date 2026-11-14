@@ -86,7 +86,7 @@ test("操作菜单跳过禁用项，Tab 离开并返回正常顺序", async ({ p
   await more.focus();
   await more.press("ArrowDown");
   const menu = page.getByRole("menu");
-  await expect(menu.getByRole("menuitem", { name: "批量排时间…", exact: true })).toBeDisabled();
+  await expect(menu.getByRole("menuitem", { name: "排时间…", exact: true })).toBeDisabled();
   await expect(menu.getByRole("menuitem", { name: "全部重置…", exact: true })).toBeFocused();
   await page.keyboard.press("Home");
   await page.keyboard.press("ArrowDown");

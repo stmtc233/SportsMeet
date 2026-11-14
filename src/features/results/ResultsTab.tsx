@@ -1,14 +1,16 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useLeaveGuard } from "../../app/nav";
+import { useLeaveGuard, useNav } from "../../app/nav";
 import { StButton, StEmpty, StMuted, StSection, StSegmented, StTable, StTag } from "../../design";
 import { statusLabels } from "../../lib/labels";
-import { useScrollMemory, useViewState } from "../../lib/viewState";
+import { remember, useScrollMemory, useViewState } from "../../lib/viewState";
+import { autoArrangeKey } from "../arrange/AutoDialog";
 import type { EntryView, EventDetail, Standing } from "../../mygo";
 import { HeatResults } from "./HeatResults";
 import { TieDialog } from "./TieDialog";
 
 /** Results by round: each heat is typed and saved on its own; the round's ranking follows. */
 export function ResultsTab({ detail }: { detail: EventDetail }) {
+  const { go } = useNav();
   // Shared with the arrange page: switching tabs keeps the round.
   const [roundId, setRoundId] = useViewState(`event:round:${detail.event.id}`, detail.rounds[0]?.id ?? "");
   const [visited, setVisited] = useState(() => [roundId]);
@@ -24,12 +26,22 @@ export function ResultsTab({ detail }: { detail: EventDetail }) {
   const roundDirty = round.heats.some((heat) => dirty[heat.id]);
   const extra = round.ties.reduce((n, t) => n + t.extra, 0);
   const selectRound = (id: string) => { setVisited((old) => old.includes(id) ? old : [...old, id]); setRoundId(id); };
+  // A finished round whose next one has no heats yet: arrange that from its qualifiers.
+  const next = detail.rounds.find((r) => r.ordinal === round.ordinal + 1);
+  const sendOn = round.complete && !roundDirty && round.advance && next && next.heats.length === 0 ? next : undefined;
+  const arrangeNext = () => {
+    if (!sendOn) return;
+    setRoundId(sendOn.id);
+    remember(autoArrangeKey(detail.event.id), sendOn.id);
+    go({ page: "event", meetId: detail.event.meetId, eventId: detail.event.id, tab: "arrange" });
+  };
   return (
     <div className="fill view-enter">
       <div className="subbar">
         {detail.rounds.length > 1 && <StSegmented aria-label="轮次" size="small" value={round.id} onChange={selectRound} options={detail.rounds.map((r) => ({ value: r.id, label: r.label }))} />}
         <span className="subbar__spacer" />
         {round.heats.length > 0 && <StTag tone={round.complete && !roundDirty ? "success" : "neutral"}>{round.complete && !roundDirty ? "已录完" : "录入中"}</StTag>}
+        {sendOn && <StButton size="small" variant="primary" onClick={arrangeNext}>编排{sendOn.label}</StButton>}
       </div>
       <div ref={box} className="split__main">
         {round.heats.length === 0 && <StEmpty>先在「编排」里分组</StEmpty>}

@@ -74,7 +74,7 @@ func (s *Service) loadMeetPlan(ctx context.Context, meetID string) (*meetPlan, e
 	if err != nil {
 		return nil, err
 	}
-	prefs, err := s.Preferences(ctx)
+	prefs, err := s.MeetSettings(ctx, meetID)
 	if err != nil {
 		return nil, err
 	}

@@ -48,3 +48,18 @@ func (a Arrange) EditHeat(ctx context.Context, in service.HeatEdit) (*service.He
 func (a Arrange) DraftConflicts(ctx context.Context, in service.DraftConflictRequest) ([]service.HeatConflicts, error) {
 	return a.Svc.DraftConflicts(ctx, in)
 }
+
+// MeetRounds is every round of the meet with its arrange and result state.
+func (a Arrange) MeetRounds(ctx context.Context, meetID string) (*service.MeetRounds, error) {
+	return a.Svc.MeetRounds(ctx, meetID)
+}
+
+// PreviewBatch computes an automatic arrangement of several rounds.
+func (a Arrange) PreviewBatch(ctx context.Context, in service.BatchArrangeRequest) (*service.BatchArrangePreview, error) {
+	return a.Svc.PreviewBatchArrange(ctx, in)
+}
+
+// Batch confirms the batch arrangement shown in the dialog.
+func (a Arrange) Batch(ctx context.Context, in service.BatchArrangeRequest, hash string) (*service.BatchArrangePreview, error) {
+	return a.Svc.ApplyBatchArrange(ctx, ui, in, hash, true)
+}

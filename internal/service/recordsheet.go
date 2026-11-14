@@ -17,7 +17,7 @@ const recordHeightColumns = 10
 // as the 检录单 is. Its columns follow the event's kind and configuration
 // (recordColumns); marks already entered are not printed.
 func (s *Service) RenderRecordSheet(ctx context.Context, req CheckInRequest) (string, error) {
-	prefs, err := s.Preferences(ctx)
+	prefs, err := s.MeetSettings(ctx, req.MeetID)
 	if err != nil {
 		return "", err
 	}

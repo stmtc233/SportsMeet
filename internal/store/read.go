@@ -329,6 +329,15 @@ func (s *Store) AthleteUsage(ctx context.Context, meetID string) (entries, slots
 }
 
 // GetSetting returns a stored setting, or "" when unset.
+// MeetSettings returns a meet's settings JSON, "" when it has none.
+func (s *Store) MeetSettings(ctx context.Context, meetID string) (string, error) {
+	rows, err := s.Query(ctx, `SELECT settings FROM meets WHERE id = ?`, meetID)
+	if err != nil || len(rows.Values) == 0 {
+		return "", err
+	}
+	return str(rows.Values[0][0]), nil
+}
+
 func (s *Store) GetSetting(ctx context.Context, key string) (string, error) {
 	rows, err := s.Query(ctx, `SELECT value FROM settings WHERE key = ?`, key)
 	if err != nil || len(rows.Values) == 0 {

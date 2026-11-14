@@ -3,7 +3,7 @@ import type { SettingsSection } from "../features/settings/SettingsPage";
 import { StButton, StDialog } from "../design";
 import { recall, remember } from "../lib/viewState";
 
-export type MeetTab = "overview" | "setup" | "events" | "entries" | "schedule" | "team-scoring" | "reports";
+export type MeetTab = "overview" | "setup" | "events" | "entries" | "arrange" | "schedule" | "results" | "team-scoring" | "reports";
 export type EventTab = "entries" | "arrange" | "results";
 
 export type Route =
@@ -24,7 +24,7 @@ const NavContext = createContext<Nav | null>(null);
 
 /** The meet's pages by their sidebar names. */
 export const meetTabLabels: Record<MeetTab, string> = {
-  overview: "总览", setup: "赛事设置", events: "项目", entries: "报名", schedule: "日程", "team-scoring": "团体总分", reports: "打印",
+  overview: "总览", setup: "赛事设置", events: "项目", entries: "报名", arrange: "编排", schedule: "日程", results: "成绩", "team-scoring": "团体总分", reports: "打印",
 };
 
 const meetTabs = Object.keys(meetTabLabels) as MeetTab[];

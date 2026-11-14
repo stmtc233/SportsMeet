@@ -4,7 +4,8 @@ import { useNav, type MeetTab } from "../../app/nav";
 import { remember } from "../../lib/viewState";
 import { nodeKey, rosterDetailKey, rosterNodeKey } from "../entries/tree";
 import { useMeet } from "../meets/data";
-import { reportKindKey, reportKinds, type ReportKind } from "../reports/kinds";
+import { reportKinds, type ReportKind } from "../reports/kinds";
+import { useOpenReport } from "../reports/open";
 import { useOverview } from "./data";
 import { StructureMap } from "./StructureMap";
 
@@ -23,13 +24,13 @@ function stepView(s: OverviewStep): StepView {
     case "entries":
       return { title: "报名", tab: "entries", value: ratio, text: "个单位已报名", progress: true, tags: tag(s.warnings, "warning", "超限") };
     case "arrange":
-      return { title: "编排", tab: "events", value: ratio, text: "个项目已编排", progress: true, tags: [] };
+      return { title: "编排", tab: "arrange", value: ratio, text: "个项目已编排", progress: true, tags: [] };
     case "schedule":
       return { title: "日程", tab: "schedule", value: ratio, text: "个轮次已排时间", progress: true, tags: tag(s.warnings, "warning", "冲突") };
     case "results":
-      return { title: "成绩", tab: "events", value: ratio, text: "个轮次已完成", progress: true, tags: tag(s.extra, "info", "进行中") };
+      return { title: "成绩", tab: "results", value: ratio, text: "个轮次已完成", progress: true, tags: tag(s.extra, "info", "进行中") };
     case "advance":
-      return { title: "晋级", tab: "events", value: ratio, text: "个轮次已晋级", progress: true, tags: [...tag(s.extra, "info", "待晋级"), ...tag(s.warnings, "warning", "待裁定")] };
+      return { title: "晋级", tab: "arrange", value: ratio, text: "个轮次已晋级", progress: true, tags: [...tag(s.extra, "info", "待晋级"), ...tag(s.warnings, "warning", "待裁定")] };
     default:
       return s.state === "off"
         ? { title: "团体总分", tab: "team-scoring", value: "未启用", text: "", progress: false, tags: [] }
@@ -61,10 +62,7 @@ export function OverviewPage({ meetId }: { meetId: string }) {
     }
     go({ page: "meet", meetId, tab: stepView(s).tab });
   };
-  const openReport = (kind: ReportKind) => {
-    remember(reportKindKey, kind, true);
-    go({ page: "meet", meetId, tab: "reports" });
-  };
+  const openReport = useOpenReport(meetId);
   const limits = meet ? [
     meet.entryLimits.athleteEvents > 0 && `每人限报 ${meet.entryLimits.athleteEvents} 项`,
     meet.entryLimits.unitAthletes > 0 && `每项限报 ${meet.entryLimits.unitAthletes} 人`,
@@ -153,6 +151,7 @@ function Step({ index, step, current, onOpen }: { index: number; step: OverviewS
         </span>
         <span className="overview-step__value">{v.value}</span>
         {v.text && <span className="overview-step__text">{v.text}</span>}
+        {step.hint && step.state !== "done" && <span className="overview-step__hint" title={step.hint}>{step.hint}</span>}
         {v.progress && <StProgress value={step.done} max={step.total} tone={tone} label={`${v.title} ${v.value}`} />}
         {v.tags.length > 0 && <span className="overview-step__tags">{v.tags.map((t) => <StTag key={t.text} tone={t.tone}>{t.text}</StTag>)}</span>}
       </button>

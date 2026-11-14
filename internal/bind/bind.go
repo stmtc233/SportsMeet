@@ -67,6 +67,16 @@ func ignoreCancel(err error) error {
 // Meets manages 赛事.
 type Meets struct{ *Core }
 
+// Settings returns the meet's arrange and print settings.
+func (m Meets) Settings(ctx context.Context, meetID string) (service.MeetSettings, error) {
+	return m.Svc.MeetSettings(ctx, meetID)
+}
+
+// SaveSettings keeps the meet's arrange and print settings.
+func (m Meets) SaveSettings(ctx context.Context, meetID string, in service.MeetSettings) error {
+	return m.Svc.SaveMeetSettings(ctx, ui, meetID, in)
+}
+
 // List returns all meets, newest first.
 func (m Meets) List(ctx context.Context) ([]service.MeetView, error) { return m.Svc.ListMeets(ctx) }
 
@@ -258,6 +268,17 @@ func (e Entries) Remove(ctx context.Context, eventID string, competitorIDs []str
 }
 
 // Summary counts the athletes, entries and teams of each unit and group.
+// AthleteOptions lists the individual events the athlete dialog offers for
+// an athlete of this gender and group ("" for one not saved yet).
+func (e Entries) AthleteOptions(ctx context.Context, meetID, athleteID, gender, groupID string) ([]service.AthleteEntryOption, error) {
+	return e.Svc.AthleteEntryOptions(ctx, meetID, athleteID, domain.Gender(gender), groupID)
+}
+
+// SetAthlete makes the athlete's individual events exactly eventIDs.
+func (e Entries) SetAthlete(ctx context.Context, meetID, athleteID string, eventIDs []string) error {
+	return e.Svc.SetAthleteEntries(ctx, ui, meetID, athleteID, eventIDs)
+}
+
 func (e Entries) Summary(ctx context.Context, meetID string) (*service.EntrySummary, error) {
 	return e.Svc.EntrySummary(ctx, meetID)
 }

@@ -36,7 +36,7 @@ for (const width of [1280, 800]) {
       await expect(page.getByText("2 人报名", { exact: true })).toBeVisible();
       for (const i of [0, 1]) {
         await page.getByRole("radio", { name: "分项", exact: true }).click();
-        await page.getByRole("button", { name: "编排", exact: true }).nth(i).click();
+        await page.getByRole("main").getByRole("button", { name: "编排", exact: true }).nth(i).click();
         await page.getByRole("button", { name: "自动编排", exact: true }).first().click();
         await page.getByRole("dialog", { name: "自动编排", exact: true }).getByRole("button", { name: "生成", exact: true }).click();
         await page.locator(".subbar").getByRole("button", { name: "保存", exact: true }).click();

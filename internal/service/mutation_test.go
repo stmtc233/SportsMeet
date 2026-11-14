@@ -197,12 +197,11 @@ func TestPreferencesPersistAndPrint(t *testing.T) {
 	svc := New(db, nil)
 	prefs, err := svc.Preferences(ctx)
 	must(t, err)
-	if prefs.Theme != "system" || !prefs.Balance || !prefs.SeparateUnits || prefs.UpdatePrereleases {
+	if prefs.Theme != "system" || prefs.UpdatePrereleases {
 		t.Fatal("defaults")
 	}
 	prefs.Theme = "dark"
 	prefs.UpdatePrereleases = true
-	prefs.PrintNewPage = true
 	must(t, svc.SavePreferences(ctx, prefs))
 	cfg, err := PrepareMCPConfig(MCPConfig{Enabled: true, Port: 18765}, false)
 	must(t, err)

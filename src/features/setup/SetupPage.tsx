@@ -2,6 +2,7 @@ import { StPage, StToolbar } from "../../design";
 import { ExchangeSection } from "../exchange/ExchangeSection";
 import { TeamScoringSection } from "../team-scoring/TeamScoringSection";
 import { MeetSection } from "./MeetSection";
+import { MeetSettingsSection } from "./MeetSettingsSection";
 
 /** 赛事设置: what the meet is and the rules it runs by, set before entries come in. */
 export function SetupPage({ meetId }: { meetId: string }) {
@@ -10,6 +11,7 @@ export function SetupPage({ meetId }: { meetId: string }) {
       <div className="narrow">
         <MeetSection meetId={meetId} />
         <TeamScoringSection meetId={meetId} />
+        <MeetSettingsSection meetId={meetId} />
         <ExchangeSection meetId={meetId} />
       </div>
     </StPage>

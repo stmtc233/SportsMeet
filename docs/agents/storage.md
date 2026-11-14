@@ -8,9 +8,9 @@
 
 ## 设置
 
-- 复用 `settings(key,value)` 表,`preferences` 与 `mcp` 两个键分别存 JSON。缺失时使用默认值,已有数据库无需新增迁移。
-- 普通偏好默认跟随系统外观、开启同单位分散和均衡人数、关闭项目另起一页、秩序册印代表队名单与竞赛日程表、最短休息时间 0(只查重叠)、检录提前时间 20 分钟、检录单不按组分页、成绩册不印成绩时间。已存的 `preferences` JSON 缺少某个字段时,该字段按默认值读取。MCP 默认关闭、端口 18765,首次开启才生成令牌。
-- 所有设置写入走 service 写锁与日志,广播 `settings` 变更;令牌只保存在本地配置中,不写操作日志。监听切换规则见 [mcp.md](mcp.md)。
+- 应用设置复用 `settings(key,value)` 表,`preferences`(外观、接收测试版)与 `mcp` 两个键分别存 JSON。缺失时使用默认值。外观默认跟随系统;MCP 默认关闭、端口 18765,首次开启才生成令牌。
+- 赛事设置存在 `meets.settings`(JSON 文本,空 = 全部默认):默认开启同单位分散和均衡人数、关闭项目另起一页、秩序册印代表队名单与竞赛日程表、成绩册印团体总分表、不印成绩时间、最短休息时间 0(只查重叠)、检录提前时间 20 分钟、检录单与成绩记录表每个轮次一页。JSON 缺少某个字段时该字段按默认值读取;旧的 `printCheckInNewPage` 开关读作检录单分页(service `parseMeetSettings`)。赛事设置不进交换格式,导入或新建的赛事用默认值。
+- 所有设置写入走 service 写锁与日志;应用设置广播 `settings` 变更,赛事设置广播带赛事 ID 的 `meets` 变更(日志动作 `meet.settings`);令牌只保存在本地配置中,不写操作日志。监听切换规则见 [mcp.md](mcp.md)。
 
 ## 迁移
 
@@ -67,7 +67,8 @@
 - 操作日志按 `ts DESC, id DESC` 读取,以「时刻 + id」接续分页,一页一次查询;不筛赛事时走 `idx_audit_ts`,按赛事筛选时走 `idx_audit_meet(meet_id, ts)`,不必扫过其他赛事的日志。
 - 组读取的那次查询一并取 `duration_minutes`,轮次读取一并取 `scheduled_at`,查询次数不变。
 - 日程、草稿冲突与改时间后的冲突通过 `LoadPlanRounds` 一次读取轮次、组、位置与成绩存在标记（高度只保存了过程的另标出，供总览判断完成），位置查询合并成绩修改时间，不读取成绩详情；`EntryPeople` 在 SQLite 中按赛事项目汇总报名人数并展开队伍。`loadMeetPlan` 的查询次数固定。`LoadPlanRounds` 的结果只用于时间、人数、锁定状态与总览的完成判定，不用于排名、成绩显示或写回。总览要数影响晋级的并列时，只为有轮次等待晋级的项目另用 `LoadRounds` 按 `EventIDs` 一次读取完整成绩，查询次数仍然固定。
-- 批量排时间的预览 / 提交在轻量全赛事日程之上，固定一次 `LoadRounds` 读取全部目标项目的完整轮次与成绩，供确认指纹使用；成绩或备注变化仍使确认失效。
+- 编排页与成绩页的轮次表(`MeetRounds`)读 `loadMeetPlan`,另用一次 `LoadRounds` 读全赛事完整成绩(判断录完与并列)、一次 `ListEntries` 读报名,查询次数固定;批量自动编排的预览 / 提交只为目标项目读取完整详情。
+- 排时间的预览 / 提交在轻量全赛事日程之上，固定一次 `LoadRounds` 读取全部目标项目的完整轮次与成绩，供确认指纹使用；成绩或备注变化仍使确认失效。
 - 项目详情、自动编排与成绩保存用 `ListParticipants` 读取该项目的报名者、位置上的运动员与队伍成员；报名、编排保存和队伍名单编辑仍读取赛事全部运动员，允许加入尚未报名者。
 - 秩序册读取时间、位置与报名成绩，不加载最终成绩或计算排名；成绩册读取完整成绩。按部分项目打印时，先展开选中全能的分项，再按项目集合读取报名、组、成绩、队伍与运动员；`Scope.EventIDs` 为 nil 表示整个赛事，空集合表示不选择任何项目，集合查询使用 `json_each` 维持固定参数和查询次数。
 
@@ -78,6 +79,7 @@
 ## 报名限制
 
 - `0011_entry_limits.sql` 给 `meets` 追加 `limit_athlete_events`、`limit_unit_athletes`、`limit_unit_teams`(`INTEGER NOT NULL DEFAULT 0`),已有赛事升级后不限。计数读取 `LimitEntries` 固定一次查询,不随项目数增长;规则见 [domain.md](domain.md)「报名限制」。
+- `0012_meet_settings.sql` 给 `meets` 追加 `settings`(`TEXT NOT NULL DEFAULT ''`),并把已存的 `preferences` JSON 复制到每个已有赛事,升级后各赛事沿用原来的编排与打印设置;`preferences` 只读外观与接收测试版两项。
 
 ## 组别数据
 

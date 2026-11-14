@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { installRuntime, selectReport } from "./runtime";
+import { expectReport, installRuntime, selectReport } from "./runtime";
 
 let html: string;
 test.beforeAll(() => {
@@ -79,6 +79,6 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     await expect.poll(() => page.evaluate(() => (globalThis as any).__entryReportCalls.at(-1))).toEqual(["entries", "meet", ["event"]]);
     await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByRole("button", { name: "打印", exact: true }).click();
-    await expect(page.getByRole("button", { name: "报表种类", exact: true })).toHaveText("报名表");
+    await expectReport(page, "报名表");
   });
 }

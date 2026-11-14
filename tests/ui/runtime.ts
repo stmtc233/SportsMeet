@@ -1,11 +1,12 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
 export async function installRuntime(page: Page, options: { limits?: boolean; athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean; groups?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
-    let prefs = { updatePrereleases: false, theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false };
+    let prefs = { updatePrereleases: false, theme: "system" };
+    let meetSettings = { separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false, printTeamScores: true };
     let mcp = { enabled: false, running: false, port: 18765, address: "http://127.0.0.1:18765/mcp", error: "" };
     const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12", entryLimits: { athleteEvents: options.limits ? 2 : 0, unitAthletes: 0, unitTeams: 0 } };
     const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0, participantMode: "athlete", teamSize: 0, scoreDecimals: 0, rankDirection: "", attemptMode: "" };
@@ -91,7 +92,7 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
         { id: "later", ordinal: 3, name: "", label: "第3组", ...times("", "", null), ...unstarted, resultsUpdatedText: "", base: "later-base", keepReason: "", slots: [] },
       );
     }
-    const actions = [["results.saved", "录入成绩", "mcp"], ["heats.scheduled", "批量排时间", "ui"], ["unit.created", "新建参赛单位", "ui"]] as const;
+    const actions = [["results.saved", "录入成绩", "mcp"], ["heats.scheduled", "排时间", "ui"], ["unit.created", "新建参赛单位", "ui"]] as const;
     const audit = Array.from({ length: 60 }, (_, i) => {
       const [action, actionText, source] = actions[i % 3]!;
       const minute = 59 - i;
@@ -126,6 +127,16 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
       .map((c) => ({ athleteId: c.athleteId, athleteName: c.athleteName, text: c.text, other: c.first.heatId === heatId ? c.second : c.first }));
     const timetableHeat = (h: any) => ({ id: h.id, label: h.label, name: h.name, base: h.base, scheduledAt: h.scheduledAt, durationMinutes: h.durationMinutes, effectiveAt: h.effectiveAt,
       scheduleInherited: h.scheduleInherited, scheduledText: h.scheduledText, durationText: h.durationText, endAt: "", endText: "", ...started(h.effectiveAt, h.startedAt ?? ""), keepReason: h.keepReason, people: h.slots.length, conflicts: heatConflicts(h.id) });
+    // 编排 and 成绩 (service.MeetRounds): the event's final, a jump not arranged, a relay the next day.
+    const meetRounds = () => {
+      const row = (o: Record<string, unknown>) => ({ eventId: "event", eventName: "男子100m", combinedId: "", groupId: "", roundId: "final", roundLabel: "决赛", text: "男子100m",
+        first: true, prevLabel: "", nextLabel: "", team: false, startAt: "2026-11-12T09:00", startText: "09:00", timeText: "09:00", heats: 3, heatsDone: 1, people: 24, unplaced: 0,
+        arrange: "arranged", results: "doing", source: "报名", canArrange: false, ...o });
+      const final = row({});
+      const jump = row({ eventId: "jump", eventName: "女子跳远", text: "女子跳远", roundId: "jump-final", startAt: "2026-11-12T10:00", startText: "10:00", timeText: "10:00", heats: 0, heatsDone: 0, people: 0, unplaced: 6, arrange: "todo", results: "", canArrange: true });
+      const day2 = row({ eventId: "relay", eventName: "男子4×100m", text: "男子4×100m", roundId: "relay-final", startAt: "2026-11-13T09:00", startText: "09:00", timeText: "2026-11-13 09:00", heats: 1, heatsDone: 1, results: "done", team: true });
+      return { rounds: [final, jump, day2], days: [{ day: "2026-11-12", text: "2026-11-12 周四", rounds: [final, jump] }, { day: "2026-11-13", text: "2026-11-13 周五", rounds: [day2] }], unscheduled: [], day: "2026-11-12" };
+    };
     const timetable = () => {
       const r = detail.rounds[0]!;
       const heats = r.heats.map(timetableHeat);
@@ -138,7 +149,7 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
         startAt: "2026-11-12T09:00", startText: "09:00", heatCount: 1, people: 1, peopleEntered: false, heats: [jumpHeat] };
       const high = { eventId: "high", eventName: "男子跳高", roundId: "high-round", roundLabel: "决赛", day: "", scheduledAt: "", scheduledText: "", startAt: "", startText: "", heatCount: 0, people: 12, peopleEntered: true, heats: [] };
       const day = [sprint, jump].filter((x) => x.day).sort((a, b) => a.startAt.localeCompare(b.startAt));
-      return { minRestMinutes: prefs.minRestMinutes, days: [{ day: "2026-11-12", rounds: day }], unscheduled: sprint.day ? [high] : [sprint, high], conflicts: conflicts() };
+      return { minRestMinutes: meetSettings.minRestMinutes, days: [{ day: "2026-11-12", rounds: day }], unscheduled: sprint.day ? [high] : [sprint, high], conflicts: conflicts() };
     };
     const error = (message: string) => { const e = new Error(message); e.name = "CallError"; throw e; };
     (globalThis as any).mygo = {
@@ -175,12 +186,14 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
           case "App.OpenRepository": (globalThis as any).__repositoryOpened = true; return null;
           case "Meets.List": return [meet];
           case "Meets.Get": return meet;
+          case "Meets.Settings": return { ...meetSettings };
+          case "Meets.SaveSettings": meetSettings = { ...args[1] }; changed("meets", args[0]); return null;
           case "Meets.Overview": return {
             phases: [
               { key: "before", steps: [
                 { key: "events", state: "done", done: 1, total: 1, warnings: 0, extra: 0 },
                 { key: "units", state: "done", done: 2, total: 2, warnings: options.groups ? 1 : 0, extra: 0 },
-                { key: "entries", state: "doing", done: 1, total: 2, warnings: options.limits ? 2 : 0, extra: 0 },
+                { key: "entries", state: "doing", done: 1, total: 2, warnings: options.limits ? 2 : 0, extra: 0, hint: "二班未报名" },
                 { key: "arrange", state: "done", done: 1, total: 1, warnings: 0, extra: 0 },
                 { key: "schedule", state: "doing", done: 1, total: 2, warnings: options.conflicts ? 1 : 0, extra: 0 },
               ] },
@@ -191,6 +204,7 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
               { key: "after", steps: [{ key: "team", state: "off", done: 0, total: 0, warnings: 0, extra: 0 }] },
             ],
             current: "entries",
+            badges: { entries: 1, arrange: 0, schedule: options.conflicts ? 1 : 0, results: 1 },
             next: [{ eventId: "event", eventName: "男子100m", roundLabel: "决赛", startText: "09:00", heats: 3, started: true }],
             nextTotal: 1, units: 2, athletes: 24, groups: options.groups ? 1 : 0,
             structure: (() => {
@@ -234,6 +248,16 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
             return { forms, creates: 1, updates: 0, entries: 1, teams: 1, errors };
           }
           case "Athletes.List": return athletes.map((athlete) => ({ athlete, unitName: "一班", entries: 1, placed: true }));
+          case "Athletes.Save":
+            (globalThis as any).__athleteSaves = [...((globalThis as any).__athleteSaves ?? []), structuredClone(args)];
+            return { athlete: { ...(athletes.find((a) => a.id === args[1]) ?? {}), ...args[2], id: args[1] || "new-athlete" }, warnings: [] };
+          case "Entries.AthleteOptions": return [
+            { eventId: "event", name: "男子100m", entered: args[1] !== "", placed: args[1] !== "" },
+            { eventId: "high", name: "混合跳高", entered: false, placed: false },
+          ];
+          case "Entries.SetAthlete":
+            (globalThis as any).__athleteEntries = structuredClone(args);
+            changed("entries", "meet", ""); return null;
           case "Events.List": return [{ event, autoName: true, rounds: [], formatText: "直接决赛", entries: 24, heats: 1, placed: 8, results: 0, timeText: options.datedList ? "2026-11-12 09:00" : "09:00" }];
           case "Events.Presets": return presets;
           case "Events.Rules": {
@@ -391,6 +415,15 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
             return p;
           }
           case "Arrange.MeetSchedule": return timetable();
+          case "Arrange.MeetRounds": return meetRounds();
+          case "Arrange.PreviewBatch": {
+            (globalThis as any).__batchCalls = [...((globalThis as any).__batchCalls ?? []), structuredClone(args)];
+            const rows = args[0].rounds.map((r: { eventId: string; roundId: string }) => ({ eventId: r.eventId, roundId: r.roundId, text: r.eventId === "event" ? "男子100m 决赛" : "女子跳远", source: "报名", perHeat: 8, heats: r.eventId === "event" ? 0 : 1, people: r.eventId === "event" ? 0 : 6, error: r.eventId === "event" ? "没有要编排的人" : "" }));
+            return { previewHash: "batch", errors: [], rounds: rows, heats: 1, people: 6 };
+          }
+          case "Arrange.Batch":
+            (globalThis as any).__batchSaved = structuredClone(args);
+            changed("heats", "meet", ""); return { previewHash: "batch", errors: [], rounds: [], heats: 1, people: 6 };
           case "Arrange.DraftConflicts": {
             // The draft's own heats by key; 运动员1 placed in a heat at 09:00 meets the 跳远 heat.
             (globalThis as any).__draftConflictCalls = ((globalThis as any).__draftConflictCalls ?? 0) + 1;
@@ -446,8 +479,12 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
   }, options);
 }
 
-/** Select a printable report through the shared kind picker. */
+/** Select a printable report in 打印's list. */
 export async function selectReport(page: Page, name: string) {
-  await page.getByRole("button", { name: "报表种类", exact: true }).click();
-  await page.getByRole("option", { name, exact: true }).click();
+  await page.getByRole("navigation", { name: "报表" }).getByRole("button", { name, exact: true }).click();
+}
+
+/** 打印's list shows this report chosen. */
+export async function expectReport(page: Page, name: string) {
+  await expect(page.getByRole("navigation", { name: "报表" }).getByRole("button", { name, exact: true })).toHaveAttribute("aria-current", "true");
 }

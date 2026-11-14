@@ -64,7 +64,7 @@
 ## 预览实现
 
 - service 持真实写锁创建仅用于本次请求的计划实例,调用界面使用的业务方法;计划实例的 `write` 只收集一批 SQL、日志与通知,不执行写入、不广播。任一校验失败即返回错误,不会留下局部写入。
-- 通用操作的预览指纹覆盖参数和目标赛事完整状态(包含成绩、逐次记录、名次、晋级与备注),不含导出时刻;新赛事导入覆盖输入和赛事列表。相关赛事任意数据变化都会要求重新预览。批量排时间的指纹覆盖赛事与每个目标轮次所属项目、轮次的完整状态,规则见 [arrange.md](arrange.md)「批量排时间」。
+- 通用操作的预览指纹覆盖参数和目标赛事完整状态(包含成绩、逐次记录、名次、晋级与备注),不含导出时刻;新赛事导入覆盖输入和赛事列表。相关赛事任意数据变化都会要求重新预览。排时间的指纹覆盖赛事与每个目标轮次所属项目、轮次的完整状态,规则见 [arrange.md](arrange.md)「排时间」。
 - 确认提交在同一把 service 写锁内重新生成计划、检查指纹、事务写入,成功后才广播。预览生成的新建实体 ID 不可用于后续操作,以提交返回的 ID 为准。
 - 普通界面赛事导入的指纹同样包含文件内容与目标赛事状态,避免仅有备注等变化时复用确认。
 
@@ -104,9 +104,9 @@
 | `preview_results` → `set_results` | 成绩与逐次记录,空成绩可直接提交 |
 | `preview_delete_meet/unit/event/athletes/heat` → `delete_meet/unit/event/athletes/heat` | 各实体删除,按对应工具传赛事 / 项目 / 组 / 运动员 ID |
 
-## 批量排时间参数
+## 排时间参数
 
-- `preview_schedule` 与 `schedule_heats` 都接受 `request: {eventId, roundId, startAt, intervalMinutes}`,排一个轮次;连排多个轮次时改传 `rounds: [{eventId, roundId}, …]`(按顺序,同一赛事)与可选的 `roundGapMinutes`(0–1440),此时不用 `eventId` / `roundId`。`startAt` 是首个未比赛组的本地时间,格式 `YYYY-MM-DDTHH:mm`;间隔单位为分钟。排序、跳过、轮次衔接与日期边界见 [arrange.md](arrange.md)「批量排时间」。
+- `preview_schedule` 与 `schedule_heats` 都接受 `request: {eventId, roundId, startAt, intervalMinutes}`,排一个轮次;连排多个轮次时改传 `rounds: [{eventId, roundId}, …]`(按顺序,同一赛事)与可选的 `roundGapMinutes`(0–1440),此时不用 `eventId` / `roundId`。`startAt` 是首个未比赛组的本地时间,格式 `YYYY-MM-DDTHH:mm`;间隔单位为分钟。排序、跳过、轮次衔接与日期边界见 [arrange.md](arrange.md)「排时间」。
 - 间隔同时写为每个被排组的预计用时 `durationMinutes`。
 - 返回类型 `SchedulePreview`:顶层包含 `previewHash`、`errors`、`warnings`、`changes`、`skipped` 与 `conflicts`;每项改动与跳过都带所属 `eventId`、`roundId` 与显示名 `round`;每项改动给出组 ID、组标签、原单独时间 `before`(空 = 沿用轮次)与新时间 `after`、原 / 新预计用时 `beforeMinutes` / `afterMinutes`,以及显示文本 `beforeText` / `afterText`;每项跳过给出组 ID、标签与原因。`warnings` 如「N 组不在赛事日期内」「排完后有 N 处时间冲突」,只提示不阻止提交,客户端须一并转告用户;`conflicts` 是排完后至少涉及一个被改组的冲突,格式同 `list_conflicts`。没有改动时数组为空。
 - 提交还须同一组 `request`、`previewHash` 与 `confirmed=true`,客户端必须先展示预览并取得用户确认。界面与 MCP 调用同一组 `PreviewSchedule` / `ApplySchedule`,任一入口生成的指纹均可由另一入口验证;日志记录实际提交来源。
@@ -115,7 +115,7 @@
 
 - `get_schedule {meetId}` 返回 `Timetable`:`days[]`(`day` 与当天的 `rounds[]`)、`unscheduled[]`(全部没有时间的轮次,有组的在前)、`conflicts[]` 与 `minRestMinutes`。轮次给出项目、轮次名、开始时间 `scheduledAt` / `scheduledText`、最早计划时间 `startAt` / `startText`、组数 `heatCount`、人数 `people` 与 `peopleEntered`(口径见 [arrange.md](arrange.md)「竞赛日程」);组给出 `scheduledAt`、`effectiveAt`、`scheduleInherited`、`durationMinutes`、`endAt` / `endText`、`keepReason`(非空即已比赛)、实际开赛时间 `startedAt` / `startedText` 与差值 `startDeltaText`、`people` 与该组的冲突。
 - `list_conflicts {meetId}` 返回 `{minRestMinutes, conflicts}`;每项冲突给出运动员、`overlap`、`gapMinutes`(重叠时为负)、文本 `text`(「时间重叠」/「间隔 N 分钟」)与两个组 `first` / `second`(项目、轮次、组的 ID 与名称,带日期的时间 `timeText`,完整名称 `text`)。规则见 [arrange.md](arrange.md)「冲突检查」;冲突只提示,任何写入都不因它被拒绝。
-- 最短休息时间只能在应用「设置 → 编排」修改,MCP 不改设置。
+- 最短休息时间只能在应用「赛事设置」修改,MCP 不改设置。
 
 ## 轮次开始时间
 

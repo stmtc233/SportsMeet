@@ -221,7 +221,7 @@ func competitorHeading(e domain.Event, named bool) string {
 // check-in time is the heat's effective planned time minus the settings'
 // lead (domain.CheckInAt); a heat without a time prints it blank.
 func (s *Service) RenderCheckIn(ctx context.Context, req CheckInRequest) (string, error) {
-	prefs, err := s.Preferences(ctx)
+	prefs, err := s.MeetSettings(ctx, req.MeetID)
 	if err != nil {
 		return "", err
 	}

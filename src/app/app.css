@@ -46,6 +46,7 @@
 /* event workspace */
 .split { flex: 1; min-height: 0; display: flex; }
 .split__side { width: 248px; flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--st-outline); background: var(--st-surface); min-height: 0; }
+.report-kinds { flex: none; padding: var(--st-space-8); border-bottom: 1px solid var(--st-outline); }
 .split__side-filter { padding: var(--st-space-8) var(--st-space-12); border-bottom: 1px solid var(--st-outline); }
 .split__side-head { display: flex; align-items: center; gap: var(--st-space-8); padding: var(--st-space-8) var(--st-space-12); border-bottom: 1px solid var(--st-outline); font-weight: 600; }
 .split__side-head > span { flex: 1; }
@@ -135,6 +136,8 @@
 .height-cell[data-state="done"] .st-input { border-color: transparent; }
 .height-row-error { grid-column: 3 / -1; padding-bottom: var(--st-space-4); color: var(--st-tone-danger-accent); font-size: var(--st-text-sm); line-height: 1.4; animation: st-rise-in var(--st-motion-medium) var(--st-ease-out) backwards; }
 .result-rows { width: max-content; min-width: 100%; }
+.result-row__name { display: flex; align-items: center; gap: var(--st-space-8); min-width: 0; }
+.result-row__who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .result-row { display: grid; grid-template-columns: var(--result-cols); align-items: center; column-gap: var(--st-space-8); min-height: 40px; padding: var(--st-space-4) var(--st-space-16) var(--st-space-4) var(--st-space-8); border-bottom: 1px solid var(--st-outline); }
 .result-row:last-child { border-bottom: 0; }
 .result-row:hover { background: var(--st-hover); }
@@ -210,6 +213,7 @@
 }
 .overview-step:hover { background: var(--st-hover); }
 .overview-step[data-current] { border-color: var(--st-primary); box-shadow: inset 0 0 0 1px var(--st-primary); }
+.overview-step__hint { font-size: var(--st-text-sm); color: var(--st-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .overview-step__next { margin-inline-start: auto; color: var(--st-primary); font-size: var(--st-text-sm); font-weight: 500; }
 .overview-step[data-state="off"] .overview-step__value { color: var(--st-text-muted); }
 .overview-step:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
@@ -321,3 +325,17 @@
 
 /* Keep wide score details inside the table. */
 .team-score-table { min-width: 0; overflow-x: auto; }
+/* 编排 / 成绩 */
+.round-state { display: inline-flex; gap: var(--st-space-4); }
+.batch-preview { display: flex; flex-direction: column; gap: var(--st-space-8); }
+.batch-preview__list { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; border: 1px solid var(--st-outline); border-radius: var(--st-radius-8); corner-shape: superellipse(1.78); }
+.batch-preview__row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--st-space-12); align-items: center; padding: var(--st-space-8) var(--st-space-12); }
+.batch-preview__row + .batch-preview__row { border-top: 1px solid var(--st-outline); }
+.batch-preview__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.batch-preview__row[data-skipped] .batch-preview__name { color: var(--st-text-muted); }
+.batch-preview__count { font-variant-numeric: tabular-nums; }
+/* 运动员对话框的报名项目 */
+.entry-checks { margin: var(--st-space-16) 0 0; padding: 0; border: 0; min-width: 0; }
+.entry-checks__title { padding: 0; margin-bottom: var(--st-space-8); font-size: var(--st-text-sm); font-weight: 500; color: var(--st-text-muted); }
+.entry-checks__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--st-space-4) var(--st-space-12); max-height: 200px; overflow-y: auto; }
+.setup-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--st-space-12); padding: var(--st-space-12) var(--st-space-16) var(--st-space-16); }

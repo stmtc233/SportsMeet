@@ -11,7 +11,7 @@ function round(id: string, heats: TimetableHeat[]): TimetableRound {
     heatCount: heats.length, people: heats.length, heats };
 }
 
-test("连排选项按日程顺序，未安排的在后，取第一个未比赛的组", () => {
+test("排时间选项按日程顺序，未安排的在后，取第一个未比赛的组", () => {
   const t: Timetable = { minRestMinutes: 0, conflicts: [],
     days: [{ day: "2026-11-12", rounds: [round("a", [heat("a1", "2026-11-12T09:00", "已有成绩", 5), heat("a2", "2026-11-12T09:05", "", 6)])] },
       { day: "2026-11-13", rounds: [round("b", [])] }],

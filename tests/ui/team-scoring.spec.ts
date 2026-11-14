@@ -121,7 +121,7 @@ test("一键启用计分，校验错误保留输入", async ({ page }) => {
   await selectReport(page, "团体总分");
   await expect(page.getByText("尚未启用团体计分", { exact: true })).toBeVisible();
   await expect(page.locator(".st-toolbar").getByRole("button", { name: "打印", exact: true })).toBeDisabled();
-  await page.getByRole("button", { name: "团体总分", exact: true }).click();
+  await page.locator(".app__side").getByRole("button", { name: "团体总分", exact: true }).click();
   await expect(page.getByText("未启用团体计分", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "启用团体计分", exact: true }).click();
   await expect(page.getByRole("heading", { name: "初中组 正式排名", exact: true })).toBeVisible();
