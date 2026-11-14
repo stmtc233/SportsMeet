@@ -176,13 +176,21 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
           case "Meets.List": return [meet];
           case "Meets.Get": return meet;
           case "Meets.Overview": return {
-            steps: [
-              { key: "events", state: "done", done: 1, total: 1, warnings: 0, extra: 0 },
-              { key: "entries", state: "doing", done: 1, total: 2, warnings: options.limits ? 2 : 0, extra: 0 },
-              { key: "arrange", state: "done", done: 1, total: 1, warnings: 0, extra: 0 },
-              { key: "schedule", state: "doing", done: 1, total: 2, warnings: options.conflicts ? 1 : 0, extra: 0 },
-              { key: "results", state: "doing", done: 0, total: 1, warnings: 0, extra: 1 },
+            phases: [
+              { key: "before", steps: [
+                { key: "events", state: "done", done: 1, total: 1, warnings: 0, extra: 0 },
+                { key: "units", state: "done", done: 2, total: 2, warnings: options.groups ? 1 : 0, extra: 0 },
+                { key: "entries", state: "doing", done: 1, total: 2, warnings: options.limits ? 2 : 0, extra: 0 },
+                { key: "arrange", state: "done", done: 1, total: 1, warnings: 0, extra: 0 },
+                { key: "schedule", state: "doing", done: 1, total: 2, warnings: options.conflicts ? 1 : 0, extra: 0 },
+              ] },
+              { key: "during", steps: [
+                { key: "results", state: "doing", done: 0, total: 2, warnings: 0, extra: 1 },
+                { key: "advance", state: "todo", done: 0, total: 1, warnings: 1, extra: 1 },
+              ] },
+              { key: "after", steps: [{ key: "team", state: "off", done: 0, total: 0, warnings: 0, extra: 0 }] },
             ],
+            current: "entries",
             next: [{ eventId: "event", eventName: "男子100m", roundLabel: "决赛", startText: "09:00", heats: 3, started: true }],
             nextTotal: 1, units: 2, athletes: 24, groups: options.groups ? 1 : 0,
             structure: (() => {

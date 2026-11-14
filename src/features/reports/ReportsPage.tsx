@@ -7,9 +7,7 @@ import type { Zoom } from "./paginate";
 import { ReportPreview, type PrintPages } from "./ReportPreview";
 import { checkInRows, checkInSelection } from "./checkin";
 import { ReportsController, useCheckInTargets, useReportHTML, useReportTargets, useReportTeamScores, useSheetHTML } from "./controller";
-
-type Kind = "startlist" | "results" | "checkin" | "record" | "team_scores" | "entries";
-const kinds: Kind[] = ["startlist", "results", "checkin", "record", "team_scores", "entries"];
+import { reportKindKey, reportKinds, type ReportKind as Kind } from "./kinds";
 
 const zooms: { value: Zoom; label: string }[] = [
   { value: "fit", label: "适合宽度" }, { value: "0.5", label: "50%" }, { value: "0.75", label: "75%" }, { value: "1", label: "100%" }, { value: "1.5", label: "150%" },
@@ -17,8 +15,8 @@ const zooms: { value: Zoom; label: string }[] = [
 
 /** Reports rendered by Go, laid out on A4 sheets here, then printed from a window of their own. */
 export function ReportsPage({ meetId }: { meetId: string }) {
-  const [savedKind, setKind] = useViewState<Kind>("reports:kind", "startlist", true);
-  const kind = kinds.includes(savedKind) ? savedKind : "startlist";
+  const [savedKind, setKind] = useViewState<Kind>(reportKindKey, "startlist", true);
+  const kind = reportKinds.some((k) => k.value === savedKind) ? savedKind : "startlist";
   const [busy, setBusy] = useState(false);
   const [savedZoom, setZoom] = useViewState<Zoom>("reports:zoom", "fit", true);
   const zoom = zooms.some((z) => z.value === savedZoom) ? savedZoom : "fit";
@@ -74,7 +72,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
       toolbar={
         <StToolbar title="打印">
           <StSelect aria-label="报表种类" value={kind} onChange={setKind}
-            options={[{ value: "startlist", label: "秩序册" }, { value: "results", label: "成绩册" }, { value: "entries", label: "报名表" }, { value: "checkin", label: "检录单" }, { value: "record", label: "成绩记录表" }, { value: "team_scores", label: "团体总分" }]} />
+            options={reportKinds} />
           <StButton variant="primary" icon={<IconPrint size={16} strokeWidth={iconStroke} />} disabled={count === 0 || !html || shown !== html} loading={busy} onClick={print}>打印</StButton>
         </StToolbar>
       }>

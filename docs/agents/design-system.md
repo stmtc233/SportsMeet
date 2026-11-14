@@ -39,7 +39,7 @@
 | `StCard` / `StSection` | 卡片 / 带标题的分组卡片 |
 | `StRow` / `StStack` / `StEmpty` / `StMuted` | 一行控件(底边对齐)/ 纵向排列 / 空列表占位 / 次要文字 |
 | `StNotice` / `StTag` | 提示条 / 小标签(状态、`Q` / `q` 晋级标记) |
-| `StProgress` | 细进度条(总览的工作流阶段):`value / max` 与语气色,`role=progressbar` 带名称;填充用 `scaleX` 变化 |
+| `StProgress` | 细进度条(总览的工作流步骤):`value / max` 与语气色,`role=progressbar` 带名称;填充用 `scaleX` 变化 |
 | `StListItem` / `StSwitchItem` / `StDivider` | 设置式列表行,整行可点;`StListItem` 是 `div[role=button]`,右侧可再放按钮;`indent` 缩进一级,作为上一行的下级(树) |
 | `StNavGroup` / `StNavHeading` | 导航用的一列 `StListItem`(应用侧栏、设置分类):选中底色是一块滑动的底板,规则同 `StSegmented`;`StNavHeading` 是组内的分组标题,底板只停在入口上 |
 | `StEnterScope` / `useEnter` / `StChanged` | 动效辅助(`motion.tsx`):范围内首次显示时已有的内容不动,之后挂载的才播放进入动画;`StChanged` 在值变化时短暂强调一次,首次显示不播 |

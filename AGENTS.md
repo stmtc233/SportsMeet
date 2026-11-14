@@ -77,7 +77,7 @@ SportsMeet/
 │   ├── mygo.ts              ← `mygo generate` 生成物,勿手改
 │   ├── app/                 ← nav.tsx(页面路由状态、离开前确认、返回来源页)、ErrorBoundary.tsx(页面渲染出错时的退路)、app.css(外壳与页面布局,只用 token)
 │   ├── design/              ← tokens.css、components.css、`St*` 组件、icons.ts、motion.tsx(滑动底板、进入范围、变化强调);经 index.ts 统一导出
-│   ├── features/            ← meets/ overview/(总览:工作流各阶段状态、可跳转的赛事结构图、待比赛轮次与赛事信息) setup/(赛事设置:赛事信息、报名限制、团体总分、赛事文件) entries/(报名:组别 → 单位的树与运动员名单,登记表下发与回收、报名进度) groups/(赛事组别) units/ athletes/ events/(项目列表,含全能) event/(项目工作区:报名、队伍、组时间显示)combined/(全能)arrange/ schedule/(竞赛日程)results/ reports/ team-scoring/(团体总分) exchange/ settings/ about/
+│   ├── features/            ← meets/ overview/(总览:赛前 / 比赛 / 赛后三段工作流与下一步、可跳转的赛事结构图、待比赛轮次与赛事信息) setup/(赛事设置:赛事信息、报名限制、团体总分、赛事文件) entries/(报名:组别 → 单位的树与运动员名单,登记表下发与回收、报名进度) groups/(赛事组别) units/ athletes/ events/(项目列表,含全能) event/(项目工作区:报名、队伍、组时间显示)combined/(全能)arrange/ schedule/(竞赛日程)results/ reports/(打印,`kinds.ts` 是报表种类) team-scoring/(团体总分) exchange/ settings/ about/
 │   └── lib/                 ← coalesce.ts(事件刷新合并)、useData.ts(读取与按键缓存)、viewState.ts(滚动位置与切换状态记忆)、action.ts、errors.ts、labels.ts、wallTime.ts(日期 / 时刻输入拆合)
 ├── .agents/skills/          ← mygo 自带的 agent 技能
 ├── tests/ui/                ← Playwright 页面冒烟测试(模拟 mygo 桥接)
@@ -176,7 +176,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 - **数字一律等宽**,界面与打印模板都设 `tabular-nums`(→ design-system.md)。
 - **圆角用 `superellipse(1.78)` 平滑轮廓**,胶囊、圆形与开关显式 `round`(→ design-system.md)。
 - **动效只用 `--st-motion-*` token**,只动透明度、位移与颜色(棘轮把关),不推迟下一次点击;悬停立即切换,只有新加入的内容播进入动画;对话框只有进入动画,录入格不加动画,减少动态效果时归零(→ design-system.md「动效」)。
-- **总览是赛事的第一页**:侧栏第一项,进入赛事默认打开;各阶段的完成判定与赛事结构只在 Go(`service.Overview`),前端只显示,结构图的节点跳到它所在的页面与位置(→ frontend.md「总览」)。
+- **总览是赛事的第一页**:侧栏第一项,进入赛事默认打开;工作流分赛前 / 比赛 / 赛后三段,各步骤的完成判定、下一步与赛事结构只在 Go(`service.Overview`),前端只显示,步骤卡、打印入口与结构图的节点跳到它所在的页面与位置(→ frontend.md「总览」)。
 - **侧栏按阶段分组**(赛前 / 比赛 / 输出);项目与全能工作区返回进入它的页面,返回目标只由 `nav.tsx` 的 `go` 自动记录(→ frontend.md「导航」)。
 - **切页不跳动**:读取结果按键缓存、回到页面先显示上次结果;滚动位置与页内选择经 `lib/viewState.ts` 记住;读取中不显示空列表占位(→ frontend.md「视图状态」、design-system.md「交互约定」)。
 - **品牌标识为「跑道 S」**,母版在 `resources/brand/source/`,运行 `bun run brand:generate` 统一导出各格式并同步应用与官网图标(→ [品牌规范](docs/brand-guidelines.md))。
@@ -240,7 +240,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 
 ### 5.6 未实现与后续计划
 
-当前已实现:总览(工作流各阶段状态、可跳转的赛事结构图、待比赛轮次与赛事信息)、基础数据(赛事、参赛单位、运动员含表格导入、项目含 35 个预设与自定义配置、报名与报名限制提示)、编排(预赛 / 次赛 / 半决赛 / 决赛、自动编排、手动调整、草稿保存、批量排时间与多轮次连排)、竞赛日程页与运动员时间冲突提示、秩序册代表队名单与竞赛日程表、统一的时间规则(项目按时间排序、组与成绩修改时间显示、报表打印时间)、计时 / 田赛 / 计次 / 计分成绩录入与排名晋级、并列名次的人工裁定、普通队伍项目、全能分项与积分总排名、赛事统一组别与批量归属整理、按组别分榜的团体总分与规则预览确认及打印、报名登记表下发与回收导入、报名表、秩序册、成绩册、检录单与成绩记录表打印、组的实际开赛时间、交换格式导入导出、设置(通用 / 编排 / 打印 / MCP / 操作日志 / 关于)、新版本检测与更新、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
+当前已实现:总览(赛前 / 比赛 / 赛后三段工作流与下一步、可跳转的赛事结构图、待比赛轮次与赛事信息)、基础数据(赛事、参赛单位、运动员含表格导入、项目含 35 个预设与自定义配置、报名与报名限制提示)、编排(预赛 / 次赛 / 半决赛 / 决赛、自动编排、手动调整、草稿保存、批量排时间与多轮次连排)、竞赛日程页与运动员时间冲突提示、秩序册代表队名单与竞赛日程表、统一的时间规则(项目按时间排序、组与成绩修改时间显示、报表打印时间)、计时 / 田赛 / 计次 / 计分成绩录入与排名晋级、并列名次的人工裁定、普通队伍项目、全能分项与积分总排名、赛事统一组别与批量归属整理、按组别分榜的团体总分与规则预览确认及打印、报名登记表下发与回收导入、报名表、秩序册、成绩册、检录单与成绩记录表打印、组的实际开赛时间、交换格式导入导出、设置(通用 / 编排 / 打印 / MCP / 操作日志 / 关于)、新版本检测与更新、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
 
 排序依据:先让学校能装上、能办完一场校运会,再补规则细节与打磨。
 

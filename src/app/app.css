@@ -197,7 +197,11 @@
 .save-bar { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: var(--st-space-8); padding: var(--st-space-12); border: 1px solid var(--st-outline); border-radius: var(--st-radius-12); corner-shape: superellipse(1.78); background: var(--st-surface-raised); animation: st-bar-in var(--st-motion-medium) var(--st-ease-out) backwards; }
 /* 总览 */
 .overview { display: flex; flex-direction: column; gap: var(--st-space-section); max-width: 1120px; margin: 0 auto; width: 100%; }
-.overview__steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--st-space-12); }
+.overview__phases { display: flex; flex-direction: column; gap: var(--st-space-16); }
+.overview-phase__head { display: flex; align-items: center; gap: var(--st-space-4); min-height: 32px; margin-bottom: var(--st-space-8); }
+.overview-phase__title { flex: 1; min-width: 0; margin: 0; font-size: var(--st-text-lg); font-weight: 600; }
+/* auto-fill keeps a card as wide in a phase of two steps as in one of five. */
+.overview__steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: var(--st-space-12); }
 .overview-step {
   display: flex; flex-direction: column; align-items: stretch; gap: var(--st-space-8); width: 100%; height: 100%;
   padding: var(--st-space-16); border: 1px solid var(--st-outline); border-radius: var(--st-radius-12); corner-shape: superellipse(1.78);
@@ -205,6 +209,9 @@
   transition: background-color var(--st-motion-fast) var(--st-ease-out);
 }
 .overview-step:hover { background: var(--st-hover); }
+.overview-step[data-current] { border-color: var(--st-primary); box-shadow: inset 0 0 0 1px var(--st-primary); }
+.overview-step__next { margin-inline-start: auto; color: var(--st-primary); font-size: var(--st-text-sm); font-weight: 500; }
+.overview-step[data-state="off"] .overview-step__value { color: var(--st-text-muted); }
 .overview-step:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
 .overview-step__head { display: flex; align-items: center; gap: var(--st-space-8); font-weight: 600; }
 .overview-step__index {

@@ -996,7 +996,16 @@ export interface MeetView {
  * rounds still to be held, and its size.
  */
 export interface Overview {
-  steps: OverviewStep[];
+  /**
+   * Phases are the workflow in order: before (赛前), during (比赛) and
+   * after (赛后) the competition.
+   */
+  phases: OverviewPhase[];
+  /**
+   * Current is the key of the step to work on: the first one neither
+   * done nor off; "" when every step is.
+   */
+  current: string;
   /**
    * Next lists the rounds with a planned time that are not finished,
    * earliest first, at most overviewNext of them.
@@ -1044,6 +1053,13 @@ export interface OverviewEvent {
   state: string;
 }
 
+/** OverviewPhase is a part of the workflow and its steps in order. */
+export interface OverviewPhase {
+  /** before | during | after */
+  key: string;
+  steps: OverviewStep[];
+}
+
 /** OverviewRound is a round still to be held. */
 export interface OverviewRound {
   eventId: string;
@@ -1056,12 +1072,12 @@ export interface OverviewRound {
 }
 
 /**
- * OverviewStep is one stage of the workflow: Done of Total, its state, and
- * what is worth a look (Warnings). Extra carries the counts a stage shows
+ * OverviewStep is one step of the workflow: Done of Total, its state, and
+ * what is worth a look (Warnings). Extra carries the counts a step shows
  * besides Done and Total.
  */
 export interface OverviewStep {
-  /** events | entries | arrange | schedule | results */
+  /** events | units | entries | arrange | schedule | results | advance | team */
   key: string;
   state: string;
   done: number;

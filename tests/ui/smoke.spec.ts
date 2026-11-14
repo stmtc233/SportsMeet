@@ -90,6 +90,15 @@ test("设置保存、宽窄切换与离开确认", async ({ page }) => {
   await expect(port).toHaveValue("18766");
 });
 
+test("总览的「未分组」单位进报名并选中「未分组」", async ({ page }) => {
+  await installRuntime(page, { groups: true });
+  await page.goto("/");
+  await page.getByText("秋季运动会", { exact: true }).click();
+  await page.locator(".overview__phases").getByRole("button", { name: /^参赛单位.*未分组 1/ }).click();
+  await expect(page.getByRole("heading", { name: "报名", exact: true })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "组别与单位" }).getByRole("button", { name: /^未分组 \d/ })).toHaveAttribute("aria-current", "true");
+});
+
 for (const width of [1280, 800]) {
   test(`总览显示工作流与待比赛 ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
@@ -98,12 +107,27 @@ for (const width of [1280, 800]) {
     await page.getByText("秋季运动会", { exact: true }).click();
     await expect(page.getByRole("heading", { name: "总览", exact: true })).toBeVisible();
     await expect(page.getByRole("progressbar", { name: "报名 1 / 2", exact: true })).toBeVisible();
-    const steps = page.locator(".overview__steps");
-    await expect(steps.getByText("超限 2", { exact: true })).toBeVisible();
-    await expect(steps.getByText("冲突 1", { exact: true })).toBeVisible();
+    // Three phases, the steps numbered on through them, the first not done marked.
+    const phases = page.locator(".overview__phases");
+    await expect(phases.getByRole("heading", { level: 2 })).toHaveText(["赛前", "比赛", "赛后"]);
+    await expect(phases.locator(".overview-step__index")).toHaveText(["", "", "3", "", "5", "6", "7", "8"]);
+    const current = phases.locator("[aria-current=step]");
+    await expect(current).toHaveCount(1);
+    await expect(current).toContainText("报名");
+    await expect(phases.getByText("超限 2", { exact: true })).toBeVisible();
+    await expect(phases.getByText("冲突 1", { exact: true })).toBeVisible();
+    await expect(phases.getByText("待晋级 1", { exact: true })).toBeVisible();
+    await expect(phases.getByText("待裁定 1", { exact: true })).toBeVisible();
+    await expect(phases.getByText("未启用", { exact: true })).toBeVisible();
+    // 团体总分 prints only once enabled.
+    await expect(phases.getByRole("button", { name: "团体总分", exact: true })).toHaveCount(0);
     await noOverflow(page);
     await page.getByRole("button", { name: /^报名\s*1 \/ 2/ }).click();
     await expect(page.getByRole("heading", { name: "报名", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "总览", exact: true }).click();
+    // A phase's print button opens 打印 on that report.
+    await page.locator(".overview__phases").getByRole("button", { name: "检录单", exact: true }).click();
+    await expect(page.getByRole("button", { name: "报表种类", exact: true })).toHaveText("检录单");
     await page.getByRole("button", { name: "总览", exact: true }).click();
     // 赛事结构: a unit opens selected in the 报名 tree, an event on its own page.
     const map = page.locator(".mindmap");
