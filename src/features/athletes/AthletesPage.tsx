@@ -59,7 +59,7 @@ export function AthletesPage({ meetId }: { meetId: string }) {
             ...(groups?.length ? [{ key: "group", title: "组别", width: "minmax(72px, 0.8fr)", render: (r: AthleteRow) => groups.find((g) => g.id === r.athlete.groupId)?.name ?? ungrouped }] : []),
             { key: "class", title: "班级", width: "minmax(96px, 1fr)", render: (r) => [r.athlete.grade, r.athlete.className].filter(Boolean).join(" ") },
             { key: "number", title: "学号", width: "minmax(96px, 1fr)", render: (r) => r.athlete.studentNumber },
-            { key: "entries", title: "报名", width: "88px", align: "end", render: (r) => (r.entries > 0 ? <StTag tone={r.placed ? "info" : "neutral"}>{r.entries} 项</StTag> : "") },
+            { key: "entries", title: "报名", width: "88px", align: "end", render: (r) => (r.entries > 0 ? <StTag tone={r.overLimit ? "warning" : r.placed ? "info" : "neutral"}>{r.entries} 项</StTag> : "") },
           ]} />
       </div>
       <AthleteDialog meetId={meetId} open={editing !== null} athlete={editing?.athlete} units={units ?? []} onClose={() => setEditing(null)} />

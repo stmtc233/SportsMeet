@@ -36,6 +36,19 @@ export function useTeamSizeWarning(event: Event, count: number) {
   return warning;
 }
 
+/** The 报名限制 entering ids would exceed, from Go; nothing while ids is empty. */
+export function useEntryLimitWarnings(eventId: string, ids: string[]) {
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const key = ids.join("\n"); // the request follows the ids, not the array passed in
+  useEffect(() => {
+    let live = true;
+    if (key === "") setWarnings((old) => (old.length ? [] : old));
+    else void Entries.limitWarnings(eventId, key.split("\n")).then((list) => { if (live) setWarnings(list ?? []); }).catch(() => {});
+    return () => { live = false; };
+  }, [eventId, key]);
+  return warnings;
+}
+
 export const EventsController = {
   eventName: (gender: string, discipline: string, group: string) => Marks.eventName(gender as Gender, discipline, group),
   save: (meetId: string, id: string, input: EventInput) => act(() => Events.save(meetId, id, input), "已保存"),

@@ -15,6 +15,8 @@ type MeetInput struct {
 	EndDate   string `json:"endDate,omitempty"`
 	Location  string `json:"location,omitempty"`
 	Note      string `json:"note,omitempty"`
+	// EntryLimits are the 报名限制; nil keeps the meet's (none for a new one).
+	EntryLimits *domain.EntryLimits `json:"entryLimits,omitempty"`
 }
 
 func (in MeetInput) meet() (domain.Meet, error) {
@@ -34,6 +36,12 @@ func (in MeetInput) meet() (domain.Meet, error) {
 		return m, invalid("结束日期格式不正确")
 	case m.EndDate != "" && m.EndDate < m.StartDate:
 		return m, invalid("结束日期早于开始日期")
+	}
+	if in.EntryLimits != nil {
+		if err := in.EntryLimits.Validate(); err != nil {
+			return m, invalid("%s", err)
+		}
+		m.EntryLimits = *in.EntryLimits
 	}
 	return m, nil
 }
@@ -113,14 +121,20 @@ func (s *Service) UpdateMeet(ctx context.Context, src store.Source, id string, i
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, err := s.GetMeet(ctx, id); err != nil {
+	old, err := s.GetMeet(ctx, id)
+	if err != nil {
 		return err
 	}
+	if in.EntryLimits == nil {
+		m.EntryLimits = old.EntryLimits
+	}
+	l := m.EntryLimits
 	return s.write(ctx,
 		store.Audit{Source: src, Action: "meet.updated", MeetID: id, Message: m.Name},
 		Change{Kind: "meets", MeetID: id},
-		store.Stmt(`UPDATE meets SET name = ?, start_date = ?, end_date = ?, location = ?, note = ? WHERE id = ?`,
-			m.Name, m.StartDate, m.EndDate, m.Location, m.Note, id))
+		store.Stmt(`UPDATE meets SET name = ?, start_date = ?, end_date = ?, location = ?, note = ?,
+			limit_athlete_events = ?, limit_unit_athletes = ?, limit_unit_teams = ? WHERE id = ?`,
+			m.Name, m.StartDate, m.EndDate, m.Location, m.Note, l.AthleteEvents, l.UnitAthletes, l.UnitTeams, id))
 }
 
 // DeleteMeet removes a meet with everything in it (foreign keys cascade).

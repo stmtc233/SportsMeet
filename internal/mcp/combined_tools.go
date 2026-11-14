@@ -50,7 +50,7 @@ func registerCombined(s *sdk.Server, svc *service.Service) {
 	addTool(s, "save_combined", "按已确认预览保存全能及分项。", false, func(ctx context.Context, in combinedWriteArg) (any, error) {
 		return svc.ApplyMutation(ctx, service.Mutation{Action: "save_combined", MeetID: in.MeetID, CombinedID: in.CombinedID, Combined: in.Input}, in.PreviewHash, in.Confirmed)
 	})
-	addTool(s, "preview_combined_entries", "预览全能完整报名名单；所有分项同时报名，移除已有排位者会拒绝。", true, func(ctx context.Context, in combinedEntriesArg) (any, error) {
+	addTool(s, "preview_combined_entries", "预览全能完整报名名单；所有分项同时报名，移除已有排位者会拒绝。result.warnings 列出超出赛事报名限制的运动员或单位，只提示不拦截，须转告用户。", true, func(ctx context.Context, in combinedEntriesArg) (any, error) {
 		return svc.PreviewMutation(ctx, service.Mutation{Action: "combined_entries", CombinedID: in.CombinedID, IDs: in.AthleteIDs})
 	})
 	addTool(s, "set_combined_entries", "按确认预览设置全能完整名单，原子更新所有分项。", false, func(ctx context.Context, in combinedEntriesArg) (any, error) {

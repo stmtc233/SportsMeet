@@ -68,7 +68,7 @@ func mutationPair[In any](s *sdk.Server, svc *service.Service, previewName, name
 }
 
 func registerMutations(s *sdk.Server, svc *service.Service) {
-	mutationPair(s, svc, "preview_entries", "add_entries", "批量报名", func(in entriesArg) (service.Mutation, confirmation) {
+	mutationPair(s, svc, "preview_entries", "add_entries", "批量报名；result.warnings 列出超出赛事报名限制的运动员或单位，只提示不拦截，须转告用户", func(in entriesArg) (service.Mutation, confirmation) {
 		return service.Mutation{Action: "add_entries", EventID: in.EventID, Entries: in.Entries}, in.confirmation
 	})
 	mutationPair(s, svc, "preview_remove_entries", "remove_entries", "取消报名，已排进组的运动员须先在界面移出", func(in removeEntriesArg) (service.Mutation, confirmation) {

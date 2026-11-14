@@ -53,6 +53,7 @@ export async function installCombinedRuntime(page: Page, rejectCreate = false) {
         }
         case "Combined.ParseRule": return parseRule(args[0], args[1]);
         case "Combined.Get": recompute(); return clone(detail);
+        case "Combined.LimitWarnings": return [];
         case "Combined.Entries": {
           detail.athleteIds = args[1];
           for (const child of Object.values(children)) child.entries = args[1].map((id: string) => { const a = athletes.find((a) => a.id === id)!; return { athleteId: id, competitorId: id, name: a.name, gender: a.gender, bib: a.bib, unitId: "unit", unitName: "一班", seedText: "", seedMark: null, placed: false, genderMismatch: false }; });

@@ -134,7 +134,8 @@ var eventSeparators = strings.NewReplacer("，", "\n", ",", "\n", "、", "\n", "
 // planAthleteImport validates every row and builds the statements of the
 // import; the preview and the import share it, so they cannot disagree.
 func (s *Service) planAthleteImport(ctx context.Context, meetID string, in AthleteImport) (*athleteImportPlan, error) {
-	if _, err := s.GetMeet(ctx, meetID); err != nil {
+	meet, err := s.GetMeet(ctx, meetID)
+	if err != nil {
 		return nil, err
 	}
 	col := map[string]int{}
@@ -212,6 +213,7 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 	seenNumber, seenBib := map[string]int{}, map[string]int{}
 	touched := map[string]int{} // existing athlete id → line that updates it
 	var unitStmts, stmts []sqlite.Statement
+	var limited []importLimitRow
 
 	for i, row := range in.Rows {
 		line := i + 1
@@ -377,10 +379,73 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 		if a.GroupID == "" && len(groups) > 0 && out.Message == "" {
 			out.Message = "未指定参赛组别"
 		}
+		limited = append(limited, importLimitRow{row: len(p.Rows), athleteID: a.ID, unitID: a.UnitID, eventIDs: eventIDs})
 		p.Rows = append(p.Rows, out)
+	}
+	if err := s.importLimitWarnings(ctx, meet, events, limited, p); err != nil {
+		return nil, err
 	}
 	plan.stmts = append(unitStmts, stmts...)
 	return plan, nil
+}
+
+// importLimitRow is a row that will be saved, as the entry limits see it.
+type importLimitRow struct {
+	row       int
+	athleteID string
+	unitID    string
+	eventIDs  []string
+}
+
+// importLimitWarnings adds to the rows that enter events the limits the
+// import would exceed; they never stop it.
+func (s *Service) importLimitWarnings(ctx context.Context, meet *domain.Meet, events []domain.Event, rows []importLimitRow, p *AthleteImportPreview) error {
+	limits, err := s.loadEntryLimits(ctx, meet)
+	if err != nil || !limits.limits.Any() {
+		return err
+	}
+	unitOf := map[string]string{}
+	for _, r := range rows {
+		unitOf[r.athleteID] = r.unitID
+	}
+	for i, e := range limits.entries {
+		if u, ok := unitOf[e.AthleteID]; ok && e.TeamID == "" {
+			limits.entries[i].UnitID = u
+		}
+	}
+	for _, r := range rows {
+		for _, id := range r.eventIDs {
+			limits.entries = append(limits.entries, domain.LimitEntry{Item: id, AthleteID: r.athleteID, UnitID: r.unitID})
+		}
+	}
+	report := limits.check()
+	names := map[string]string{}
+	for _, e := range events {
+		names[e.ID] = e.Name
+	}
+	for _, r := range rows {
+		if len(r.eventIDs) == 0 {
+			continue
+		}
+		var notes []string
+		if n := report.Athletes[r.athleteID]; n > 0 {
+			notes = append(notes, limits.athleteOverText(n))
+		}
+		for _, id := range r.eventIDs {
+			if n := report.Units[domain.UnitItem{Item: id, UnitID: r.unitID}]; n > 0 {
+				notes = append(notes, fmt.Sprintf("「%s」本单位%s", names[id], limits.unitOverText(n, false)))
+			}
+		}
+		if len(notes) == 0 {
+			continue
+		}
+		row := &p.Rows[r.row]
+		if row.Message != "" {
+			notes = append([]string{row.Message}, notes...)
+		}
+		row.Message = strings.Join(notes, "；")
+	}
+	return nil
 }
 
 // matchEvent finds the event a cell names: its full name, or its

@@ -75,6 +75,10 @@
 
 - `0009_team_scoring.sql` 的 `meet_team_scoring(meet_id, rules_json)` 保存赛事级规则，`meet_id` 为主键及级联外键；已有赛事缺省未启用。单位总分与名次读取时计算，批量读取查询次数不随项目或组数增长，规则及失效目标引用处理见 [team-scoring.md](team-scoring.md)。
 
+## 报名限制
+
+- `0011_entry_limits.sql` 给 `meets` 追加 `limit_athlete_events`、`limit_unit_athletes`、`limit_unit_teams`(`INTEGER NOT NULL DEFAULT 0`),已有赛事升级后不限。计数读取 `LimitEntries` 固定一次查询,不随项目数增长;规则见 [domain.md](domain.md)「报名限制」。
+
 ## 组别数据
 
 - `0010_meet_groups.sql` 的 `meet_groups(id, meet_id, name, name_key, ordinal)` 保存赛事组别目录，`unit_groups(unit_id, group_id)` 保存单位多组归属；`events`、`combined_events`、`athletes` 的 `group_id` 外键均建完整索引。名称规范化与唯一性由 service 维护。

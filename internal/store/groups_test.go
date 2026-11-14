@@ -16,7 +16,7 @@ func TestGroupMigrationPreservesRecordsAndBacksUpV9(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Close()
-	rollback(t, dir, identityRollback()[:9])
+	rollback(t, dir, identityRollback()[:len(limitsRollback())+9])
 	db, err := sqlite.Open(ctx, filepath.Join(dir, FileName), sqlite.OpenOptions{})
 	if err != nil {
 		t.Fatal(err)

@@ -39,6 +39,10 @@ type EntryView struct {
 	GenderMismatch bool          `json:"genderMismatch"` // differs from the event's gender
 	CompetitorID   string        `json:"competitorId"`
 	TeamID         string        `json:"teamId,omitempty"`
+	// OverEvents: the athlete enters more events than the meet allows.
+	OverEvents bool `json:"overEvents"`
+	// OverUnit: the unit enters more athletes (teams) here than allowed.
+	OverUnit bool `json:"overUnit"`
 }
 
 // RoundView is a round with its heats and overall order.
@@ -263,7 +267,13 @@ func (s *Service) GetEvent(ctx context.Context, eventID string) (*EventDetail, e
 	if meet != nil {
 		start = meet.StartDate
 	}
-	return st.view(domain.PlannedDay(st.event, st.rounds, start), s.zone), nil
+	v := st.view(domain.PlannedDay(st.event, st.rounds, start), s.zone)
+	if meet != nil {
+		if err := s.entryLimitFlags(ctx, meet, st.event, v.Entries); err != nil {
+			return nil, err
+		}
+	}
+	return v, nil
 }
 
 func (st *eventState) view(day string, zone *time.Location) *EventDetail {

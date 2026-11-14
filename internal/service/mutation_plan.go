@@ -19,8 +19,12 @@ func (s *Service) planMutation(ctx context.Context, in Mutation, before any) (an
 		c, err := s.SaveCombined(ctx, src, in.MeetID, in.CombinedID, in.Combined)
 		return c, false, err
 	case "combined_entries":
-		err := s.SetCombinedEntries(ctx, src, in.CombinedID, in.IDs)
-		return in.IDs, false, err
+		warnings, err := s.CombinedLimitWarnings(ctx, in.CombinedID, in.IDs)
+		if err != nil {
+			return nil, false, err
+		}
+		err = s.SetCombinedEntries(ctx, src, in.CombinedID, in.IDs)
+		return CombinedEntriesPlan{AthleteIDs: in.IDs, Warnings: warnings}, false, err
 	case "delete_combined":
 		detail, err := s.GetCombined(ctx, in.CombinedID)
 		if err != nil {
@@ -29,8 +33,16 @@ func (s *Service) planMutation(ctx context.Context, in Mutation, before any) (an
 		return detail, false, s.DeleteCombined(ctx, src, in.CombinedID)
 
 	case "add_entries":
-		err := s.AddEntries(ctx, src, in.EventID, in.Entries)
-		return in.Entries, false, err
+		ids := make([]string, len(in.Entries))
+		for i, e := range in.Entries {
+			ids[i] = e.AthleteID + e.TeamID
+		}
+		warnings, err := s.EntryLimitWarnings(ctx, in.EventID, ids)
+		if err != nil {
+			return nil, false, err
+		}
+		err = s.AddEntries(ctx, src, in.EventID, in.Entries)
+		return EntriesPlan{Entries: in.Entries, Warnings: warnings}, false, err
 	case "remove_entries":
 		err := s.RemoveEntries(ctx, src, in.EventID, in.IDs)
 		return in.IDs, false, err

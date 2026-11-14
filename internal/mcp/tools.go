@@ -52,12 +52,12 @@ func NewServer(svc *service.Service) *sdk.Server {
 	addTool(s, "get_schedule", "读取一个赛事的竞赛日程：days 按天、按生效时间列出各项目的轮次与组（startText / effectiveAt / endAt / durationText，scheduleInherited 表示沿用轮次开始时间，keepReason 非空表示已比赛；startedAt / startedText / startDeltaText 是实际开赛时间及与计划的差），unscheduled 是没有任何计划时间的轮次，conflicts 是全部运动员时间冲突。只读。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.Schedule(ctx, in.MeetID) })
 	addTool(s, "list_conflicts", "列出一个赛事的运动员时间冲突：同一运动员（队伍展开为队员，含全能分项）的两个组时间重叠，或前一组预计结束到后一组开始不足设置里的最短休息时间。没有预计用时的组按时间点计，没有计划时间的组不参与。只提示，不拦截任何保存。只读。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.MeetConflicts(ctx, in.MeetID) })
 	addTool(s, "export_meet", "返回一个赛事的完整交换格式对象，含成绩。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.ExportMeet(ctx, in.MeetID) })
-	addTool(s, "create_meet", "创建赛事。", false, func(ctx context.Context, in struct {
+	addTool(s, "create_meet", "创建赛事。entryLimits 是报名限制（0 = 不限，0–99）：athleteEvents 每人限报项数（个人项目各计一项，全能计一项，队伍项目不计），unitAthletes 每单位每个个人项目或全能限报人数，unitTeams 每单位每个队伍项目限报队数；超出只提示、不拦截报名。", false, func(ctx context.Context, in struct {
 		Input service.MeetInput `json:"input"`
 	}) (any, error) {
 		return svc.CreateMeet(ctx, store.SourceMCP, in.Input)
 	})
-	addTool(s, "update_meet", "更新一个赛事。input 是全部字段，省略的可选字段会清空。", false, func(ctx context.Context, in struct {
+	addTool(s, "update_meet", "更新一个赛事。input 是全部字段，省略的可选字段会清空；entryLimits 省略时保持不变。entryLimits 是报名限制（0 = 不限，0–99）：athleteEvents 每人限报项数（个人项目各计一项，全能计一项，队伍项目不计），unitAthletes 每单位每个个人项目或全能限报人数，unitTeams 每单位每个队伍项目限报队数；超出只提示、不拦截报名。", false, func(ctx context.Context, in struct {
 		MeetID string            `json:"meetId"`
 		Input  service.MeetInput `json:"input"`
 	}) (any, error) {

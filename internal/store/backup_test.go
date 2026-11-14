@@ -43,8 +43,16 @@ func startedRollback() []sqlite.Statement {
 	return append(identityRollback(), Stmt("DELETE FROM schema_migrations WHERE version = 7"), Stmt("ALTER TABLE heats DROP COLUMN started_at"))
 }
 
-func identityRollback() []sqlite.Statement {
+// limitsRollback undoes migration 0011.
+func limitsRollback() []sqlite.Statement {
 	return []sqlite.Statement{
+		Stmt("DELETE FROM schema_migrations WHERE version = 11"),
+		Stmt("ALTER TABLE meets DROP COLUMN limit_athlete_events"), Stmt("ALTER TABLE meets DROP COLUMN limit_unit_athletes"), Stmt("ALTER TABLE meets DROP COLUMN limit_unit_teams"),
+	}
+}
+
+func identityRollback() []sqlite.Statement {
+	return append(limitsRollback(),
 		Stmt("DELETE FROM schema_migrations WHERE version = 10"),
 		Stmt("DROP TABLE unit_groups"),
 		Stmt("DROP INDEX idx_events_group"), Stmt("DROP INDEX idx_combined_group"), Stmt("DROP INDEX idx_athletes_group"),
@@ -56,7 +64,7 @@ func identityRollback() []sqlite.Statement {
 		Stmt("DROP INDEX idx_athletes_bib_key"), Stmt("DROP INDEX idx_athletes_student_key"), Stmt("DROP INDEX idx_athletes_name_key"),
 		Stmt("DROP INDEX idx_entries_event"),
 		Stmt("ALTER TABLE athletes DROP COLUMN bib_key"), Stmt("ALTER TABLE athletes DROP COLUMN student_number_key"), Stmt("ALTER TABLE athletes DROP COLUMN name_key"),
-	}
+	)
 }
 
 func rollback(t *testing.T, dir string, stmts []sqlite.Statement) {

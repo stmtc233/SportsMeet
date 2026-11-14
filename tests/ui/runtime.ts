@@ -2,12 +2,12 @@ import type { Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { limits?: boolean; athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { updatePrereleases: false, theme: "system", separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false };
     let mcp = { enabled: false, running: false, port: 18765, address: "http://127.0.0.1:18765/mcp", error: "" };
-    const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12" };
+    const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12", entryLimits: { athleteEvents: options.limits ? 2 : 0, unitAthletes: 0, unitTeams: 0 } };
     const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0, participantMode: "athlete", teamSize: 0, scoreDecimals: 0, rankDirection: "", attemptMode: "" };
     const athletes = Array.from({ length: options.athleteCount ?? 24 }, (_, i) => ({ id: `a${i}`, meetId: "meet", name: `运动员${i + 1}`, gender: "男", bib: String(100 + i), studentNumber: "", unitId: "unit", className: "一班", grade: "", birthDate: "", note: "", createdAt: 1 }));
     const entries = athletes.map((a) => ({ athleteId: a.id, competitorId: a.id, name: a.name, gender: "男", bib: a.bib, unitId: "unit", unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" }));
@@ -27,6 +27,10 @@ export async function installRuntime(page: Page, options: { athleteCount?: numbe
     };
     const unstarted = started("", "");
     const detail = { day: "2026-11-12", rules, event, teams: [] as any[], entries, rounds: [{ id: "round", stage: "final", ordinal: 1, name: "", label: "决赛", advance: null, scheduledAt: "", scheduledText: "", complete: false, standings: [], heats: [{ id: "heat", ordinal: 1, name: "", label: "第1组", ...times("", "2026-11-12T09:00", null), ...unstarted, resultsUpdatedText: "", base: "base", keepReason: "", slots: entries.slice(0, 8).map((a, i) => ({ position: i + 1, athleteId: a.athleteId, competitorId: a.competitorId, result: null })) }] }] };
+    if (options.limits) {
+      detail.entries.splice(2);
+      Object.assign(detail.entries[0]!, { overEvents: true });
+    }
     if (options.relay) {
       Object.assign(event, { relayLegCount: 4, participantMode: "team", kind: "relay", name: "男子4×100m", discipline: "4×100m", groupLabel: "" });
       rules.team = true;
@@ -164,6 +168,9 @@ export async function installRuntime(page: Page, options: { athleteCount?: numbe
           case "App.OpenRepository": (globalThis as any).__repositoryOpened = true; return null;
           case "Meets.List": return [meet];
           case "Meets.Get": return meet;
+          case "Meets.Update":
+            (globalThis as any).__meetCalls = [...((globalThis as any).__meetCalls ?? []), structuredClone(args)];
+            Object.assign(meet, args[1]); changed("meets", "meet", ""); return null;
           case "Units.List": return [{ id: "unit", meetId: "meet", name: "一班", shortName: "" }];
           case "Athletes.List": return athletes.map((athlete) => ({ athlete, unitName: "一班", entries: 1, placed: true }));
           case "Events.List": return [{ event, autoName: true, rounds: [], formatText: "直接决赛", entries: 24, heats: 1, placed: 8, results: 0, timeText: options.datedList ? "2026-11-12 09:00" : "09:00" }];
@@ -196,9 +203,15 @@ export async function installRuntime(page: Page, options: { athleteCount?: numbe
             else detail.teams.push(team);
             changed("teams", "meet", "event"); return structuredClone(team);
           }
+          case "Entries.LimitWarnings":
+            return options.limits ? args[1].map((id: string) => `「${athletes.find((a) => a.id === id)!.name}」报 3 项，限报 2 项`) : [];
           case "Entries.Add": {
             (globalThis as any).__relayCalls.push({ method, args });
-            for (const en of args[1]) {
+            for (const en of args[1].filter((en: any) => en.athleteId)) {
+              const a = athletes.find((a) => a.id === en.athleteId)!;
+              detail.entries.push({ athleteId: a.id, competitorId: a.id, name: a.name, gender: "男", bib: a.bib, unitId: "unit", unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" });
+            }
+            for (const en of args[1].filter((en: any) => en.teamId)) {
               const team = detail.teams.find((t) => t.id === en.teamId)!;
               team.entered = true;
               detail.entries.push({ athleteId: "", competitorId: team.id, teamId: team.id, name: team.name, gender: "", bib: "", unitId: team.unitId, unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" } as any);

@@ -52,6 +52,12 @@
 - `features/combined/` 提供列表、创建／编辑、分项工作区入口、统一报名、总成绩、计分表预览与规则重算，完整规则见 [combined.md](combined.md)。
 - 成绩页位置名称和逐次表头来自 `EventDetail.rules`；投掷显示「试投」，支持 `X`、`-` 与「免投」。
 
+## 报名限制
+
+- 「编辑赛事」的三个限报输入框只保留两位数字,空为不限(`meets/limits.ts`,有单测);范围校验在 Go。
+- 报名对话框(`AddEntriesDialog`、`AddTeamsDialog`、`CombinedEntriesDialog`)随勾选经 controller 的 `useEntryLimitWarnings` / `useCombinedLimitWarnings` 调用 Go,由 `event/LimitNotice.tsx` 显示前 3 条与剩余条数,不禁用「报名」。钩子按 ID 内容而不是数组对象触发请求:对话框关着时每次渲染都会传入新的空数组,按对象触发会无限重渲染。
+- 报名表在姓名旁标「超出限报项数」「单位超出限报」,运动员列表的报名项数用警告色;表格导入预览的「说明」列原样显示 Go 写的提示。计数规则见 [domain.md](domain.md)「报名限制」。
+
 ## 队伍与接力
 
 - 项目可按个人或队伍参赛，接力固定按队伍参赛。报名页与编排名单底部的「管理队伍」打开 `features/event/AddTeamsDialog.tsx`,显示队伍、单位、成员／棒次、报名状态以及编辑 / 删除入口;队伍经勾选后批量报名。

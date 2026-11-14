@@ -9,6 +9,8 @@ type Meet struct {
 	Location  string `json:"location"`
 	Note      string `json:"note"`
 	CreatedAt int64  `json:"createdAt"` // ms
+	// EntryLimits are the meet's 报名限制, 0 = none.
+	EntryLimits EntryLimits `json:"entryLimits"`
 }
 
 // Unit is one 参赛单位.

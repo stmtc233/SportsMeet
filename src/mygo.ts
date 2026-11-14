@@ -79,6 +79,8 @@ export interface AthleteRow {
   entries: number;
   /** occupies a slot somewhere */
   placed: boolean;
+  /** OverLimit: enters more events than the meet's 每人限报项数. */
+  overLimit: boolean;
 }
 
 /** AthleteSave includes advisory name collisions without weakening bib/student-number uniqueness. */
@@ -365,6 +367,25 @@ export interface EntryInput {
   seed?: string;
 }
 
+/**
+ * EntryLimits are a meet's 报名限制; 0 means no limit. Exceeding them is
+ * only pointed out, never refused (docs/agents/domain.md「报名限制」).
+ */
+export interface EntryLimits {
+  /**
+   * AthleteEvents is how many events one athlete may enter. Individual
+   * events count; a combined counts once; team events do not count.
+   */
+  athleteEvents: number;
+  /**
+   * UnitAthletes is how many athletes of one unit may enter one
+   * individual event or combined.
+   */
+  unitAthletes: number;
+  /** UnitTeams is how many teams of one unit may enter one team event. */
+  unitTeams: number;
+}
+
 /** EntryView is one entered athlete. */
 export interface EntryView {
   groupMismatch: boolean;
@@ -383,6 +404,10 @@ export interface EntryView {
   genderMismatch: boolean;
   competitorId: string;
   teamId?: string;
+  /** OverEvents: the athlete enters more events than the meet allows. */
+  overEvents: boolean;
+  /** OverUnit: the unit enters more athletes (teams) here than allowed. */
+  overUnit: boolean;
 }
 
 /** Event is one single item: gender + discipline + optional group. */
@@ -807,6 +832,8 @@ export interface Meet {
   note: string;
   /** ms */
   createdAt: number;
+  /** EntryLimits are the meet's 报名限制, 0 = none. */
+  entryLimits: EntryLimits;
 }
 
 /** MeetCounts is what deleting a meet or an event would remove. */
@@ -824,6 +851,8 @@ export interface MeetInput {
   endDate?: string;
   location?: string;
   note?: string;
+  /** EntryLimits are the 报名限制; nil keeps the meet's (none for a new one). */
+  entryLimits?: EntryLimits;
 }
 
 /** MeetView is a meet with its days as shown. */
@@ -838,6 +867,8 @@ export interface MeetView {
   note: string;
   /** ms */
   createdAt: number;
+  /** EntryLimits are the meet's 报名限制, 0 = none. */
+  entryLimits: EntryLimits;
   /** domain.DateRangeText */
   datesText: string;
 }
@@ -1600,6 +1631,10 @@ export const Combined = {
   get(id: string): Promise<CombinedDetail | null> {
     return call("Combined.Get", id);
   },
+  /** LimitWarnings says which 报名限制 the full new roster would exceed. */
+  limitWarnings(id: string, athleteIDs: string[]): Promise<string[]> {
+    return call("Combined.LimitWarnings", id, athleteIDs);
+  },
   list(meetID: string): Promise<CombinedRowSummary[]> {
     return call("Combined.List", meetID);
   },
@@ -1658,6 +1693,10 @@ export const Entries = {
   /** Add enters athletes into an event. */
   add(eventID: string, list: EntryInput[]): Promise<void> {
     return call("Entries.Add", eventID, list);
+  },
+  /** LimitWarnings says which 报名限制 entering the athletes or teams would exceed. */
+  limitWarnings(eventID: string, ids: string[]): Promise<string[]> {
+    return call("Entries.LimitWarnings", eventID, ids);
   },
   /** Remove withdraws athletes from an event. */
   remove(eventID: string, competitorIDs: string[]): Promise<void> {

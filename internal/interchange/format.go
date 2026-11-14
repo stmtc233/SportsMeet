@@ -7,7 +7,7 @@ import "github.com/stmtc233/sportsmeet/internal/domain"
 // Format and Version identify the file (spec §2).
 const (
 	Format  = "sportsmeet-interchange"
-	Version = 8
+	Version = 9
 )
 
 // File is one meet's full snapshot.
@@ -37,6 +37,8 @@ type Meet struct {
 	EndDate     *string                  `json:"endDate,omitempty"`
 	Location    string                   `json:"location,omitempty"`
 	Note        string                   `json:"note,omitempty"`
+	// EntryLimits are the 报名限制 (v9); omitted = none.
+	EntryLimits *domain.EntryLimits `json:"entryLimits,omitempty"`
 }
 
 type Unit struct {

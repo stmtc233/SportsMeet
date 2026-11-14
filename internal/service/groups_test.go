@@ -258,7 +258,7 @@ func TestGroupCombinedMovesAndV8RoundTrip(t *testing.T) {
 	}
 	file, err := f.svc.ExportMeet(f.ctx, f.meet)
 	must(t, err)
-	if file.Version != 8 || len(file.Groups) != 2 || len(file.Units[0].GroupIDs)+len(file.Units[1].GroupIDs) != 3 {
+	if file.Version != interchange.Version || len(file.Groups) != 2 || len(file.Units[0].GroupIDs)+len(file.Units[1].GroupIDs) != 3 {
 		t.Fatal("missing v8 groups")
 	}
 	data, err := interchange.Encode(file)

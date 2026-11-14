@@ -112,6 +112,10 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 	}
 	rules.Overrides = liveRules
 	f.Meet.TeamScoring = &rules
+	if meet.EntryLimits.Any() {
+		limits := meet.EntryLimits
+		f.Meet.EntryLimits = &limits
+	}
 	unitNames := map[string]string{}
 	for _, u := range units {
 		unitNames[u.ID] = u.Name
@@ -283,6 +287,9 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 			Location: f.Meet.Location, Note: f.Meet.Note, CreatedAt: now}
 		if f.Meet.EndDate != nil {
 			m.EndDate = *f.Meet.EndDate
+		}
+		if f.Meet.EntryLimits != nil {
+			m.EntryLimits = *f.Meet.EntryLimits
 		}
 		plan.stmts = append(plan.stmts, store.InsertMeet(m))
 	} else {

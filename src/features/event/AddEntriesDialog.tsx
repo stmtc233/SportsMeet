@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { StButton, StCheckbox, StDialog, StEmpty, StRow, StSearchField, StSelect, StTable } from "../../design";
 import type { AthleteRow, EventDetail } from "../../mygo";
 import { useAthletes } from "../athletes/controller";
-import { EventsController } from "../events/controller";
+import { EventsController, useEntryLimitWarnings } from "../events/controller";
 import { AddTeamsDialog } from "./AddTeamsDialog";
+import { LimitNotice } from "./LimitNotice";
 import { useUnits } from "../units/controller";
 
 /** Picks athletes of the meet to enter into the event, several at once. */
@@ -35,9 +36,11 @@ function AddAthletesDialog({ open, detail, meetId, onClose }: Props) {
       && (!sameGender || gender === "混合" || r.athlete.gender === gender)
       && (q === "" || [r.athlete.name, r.athlete.bib, r.athlete.studentNumber].some((v) => v.toLowerCase().includes(q))));
   }, [athletes, detail.entries, query, unit, sameGender, gender, sameGroup, detail.event.groupId]);
+  const picked = useMemo(() => [...selected], [selected]);
+  const warnings = useEntryLimitWarnings(detail.event.id, open ? picked : []);
   const add = async () => {
     setBusy(true);
-    const ok = await EventsController.addEntries(detail.event.id, [...selected].map((athleteId) => ({ athleteId, seed: "" })));
+    const ok = await EventsController.addEntries(detail.event.id, picked.map((athleteId) => ({ athleteId, seed: "" })));
     setBusy(false);
     if (ok) onClose();
   };
@@ -57,6 +60,7 @@ function AddAthletesDialog({ open, detail, meetId, onClose }: Props) {
         {detail.event.groupId && <StCheckbox checked={sameGroup} onChange={setSameGroup} label="只看同组别" />}
         {gender !== "混合" && <StCheckbox checked={sameGender} onChange={setSameGender} label={`只看${gender}生`} />}
       </StRow>
+      <LimitNotice warnings={warnings} />
       <div className="preview-table">
         <StTable<AthleteRow> dense rows={rows} rowKey={(r) => r.athlete.id} rowLabel={(r) => r.athlete.name} actionColumn="name" selected={selected} onSelect={setSelected}
           onRowClick={(r) => setSelected((old) => {

@@ -30,6 +30,8 @@ type AthleteRow struct {
 	UnitName   string         `json:"unitName"`
 	Entries    int            `json:"entries"` // events entered
 	Placed     bool           `json:"placed"`  // occupies a slot somewhere
+	// OverLimit: enters more events than the meet's 每人限报项数.
+	OverLimit bool `json:"overLimit"`
 }
 
 // ListAthletes returns a meet's athletes with their unit and usage.
@@ -54,6 +56,10 @@ func (s *Service) ListAthletes(ctx context.Context, meetID string) ([]AthleteRow
 	if err != nil {
 		return nil, err
 	}
+	over, err := s.overLimitAthletes(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
 	members := map[string]bool{}
 	for _, t := range teams {
 		for _, id := range t.MemberIDs {
@@ -62,7 +68,7 @@ func (s *Service) ListAthletes(ctx context.Context, meetID string) ([]AthleteRow
 	}
 	out := make([]AthleteRow, len(athletes))
 	for i, a := range athletes {
-		out[i] = AthleteRow{TeamMember: members[a.ID], Athlete: a, UnitName: names[a.UnitID], Entries: entries[a.ID], Placed: slots[a.ID] > 0}
+		out[i] = AthleteRow{TeamMember: members[a.ID], Athlete: a, UnitName: names[a.UnitID], Entries: entries[a.ID], Placed: slots[a.ID] > 0, OverLimit: over[a.ID] > 0}
 	}
 	return out, nil
 }

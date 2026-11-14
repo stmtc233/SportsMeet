@@ -1,8 +1,8 @@
-# 交换格式规范 v8
+# 交换格式规范 v9
 
 SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的完整快照**:参赛单位、运动员、项目、报名、轮次、组、成绩。
 
-- 机器可读定义：[v8](schema/interchange-v8.schema.json)；兼容读取 [v7](schema/interchange-v7.schema.json)、[v6](schema/interchange-v6.schema.json)、[v5](schema/interchange-v5.schema.json)、[v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
+- 机器可读定义：[v9](schema/interchange-v9.schema.json)；兼容读取 [v8](schema/interchange-v8.schema.json)、[v7](schema/interchange-v7.schema.json)、[v6](schema/interchange-v6.schema.json)、[v5](schema/interchange-v5.schema.json)、[v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
 - 示例:[examples/sample-meet.json](examples/sample-meet.json)
 
 ## 1. 文件
@@ -20,12 +20,12 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ## 2. 版本
 
 ```json
-{ "format": "sportsmeet-interchange", "version": 8 }
+{ "format": "sportsmeet-interchange", "version": 9 }
 ```
 
 - `format` 固定,不符即拒绝读取。
 - `version` 为正整数。增删字段、改字段含义、改单位、改枚举取值均须 +1。
-- 写出方总是写 v8；读取方支持 v1–v8。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；v1–v6 不解释赛事的团体计分规则 `meet.teamScoring`；v1–v7 不解释赛事组别目录 `groups` 与各实体的 `groupId` / `groupIds`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
+- 写出方总是写 v9；读取方支持 v1–v9。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；v1–v6 不解释赛事的团体计分规则 `meet.teamScoring`；v1–v7 不解释赛事组别目录 `groups` 与各实体的 `groupId` / `groupIds`；v1–v8 不解释赛事的报名限制 `meet.entryLimits`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
 - 读取方必须能读所有已发布版本;遇到比自己新的版本直接拒绝,并提示升级软件(不尝试猜测读取)。
 
 ## 3. 基本约定
@@ -101,6 +101,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `endDate` | 日期 | | 省略 = 与 `startDate` 同一天 |
 | `location` | string | | |
 | `note` | string | | |
+| `entryLimits` | object \| null | | 报名限制，省略／null 为不限，见 §5.14 |
 | `teamScoring` | object \| null | | 团体计分规则，省略／null 按未启用的默认规则，见 §5.12 |
 
 ### 5.2 参赛单位 `units[]`
@@ -291,6 +292,16 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `ordinal` | integer | ✓ | 正整数且不重复，决定显示顺序 |
 
 所有引用须在目录中存在；单位可多个组别，运动员最多一个默认组别，项目与全能可不分组别。默认归属与实际报名独立，跨组报名允许保存。全能分项与父项引用须完全一致。文件不保存派生的各组单位总分与排名。
+
+### 5.14 报名限制 `meet.entryLimits`
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|:---:|---|
+| `athleteEvents` | integer | | 每人限报项数：个人项目各计一项，全能计一项（分项不另计），队伍项目不计 |
+| `unitAthletes` | integer | | 每个参赛单位在一个个人项目或全能里的限报人数 |
+| `unitTeams` | integer | | 每个参赛单位在一个队伍项目里的限报队数 |
+
+各项为 0–99 的整数，0 或省略为不限；导出时没有任何限制就省略整个对象。限制只用于提示，文件里超出限制的报名照常导入。导入新赛事时采用文件的限制，导入已有赛事保留目标赛事的限制。计数规则见 [领域细则](agents/domain.md)「报名限制」。
 
 ## 6. 校验
 

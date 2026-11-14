@@ -177,7 +177,7 @@ func TestTeamScoresCombinedOnlyAndRoundtripReports(t *testing.T) {
 	wantInvalid(t, err, "不属于本赛事")
 	file, err := f.svc.ExportMeet(f.ctx, f.meet)
 	must(t, err)
-	if file.Version != 8 || file.Meet.TeamScoring == nil {
+	if file.Version != interchange.Version || file.Meet.TeamScoring == nil {
 		t.Fatal("missing current rules")
 	}
 	data, err := interchange.Encode(file)

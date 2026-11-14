@@ -82,13 +82,13 @@
 | `list_event_presets` | 读取常用项目初始 `input`，可调整后交给 `save_event` |
 | `list_units` / `list_athletes` / `list_events` | 按赛事读取基础数据与进度;项目按日期与计划时间排序,见 [domain.md](domain.md)「时间」 |
 | `get_event` | 队伍名单、报名、轮次(含开始时间)、组、位置、成绩、总排名与晋级;组给出单独时间 `scheduledAt`、生效时间 `effectiveAt`、`scheduleInherited`、预计用时 `durationMinutes`、结束时间 `endAt`,以及实际开赛时间 `startedAt` / `startedText` 与差值 `startDeltaText` |
-| `create_meet` / `update_meet` | 创建 / 更新一个赛事 |
+| `create_meet` / `update_meet` | 创建 / 更新一个赛事,含报名限制 `entryLimits`(更新时省略即保持原值) |
 | `save_unit` / `save_athlete` / `save_event` | 创建 / 更新单条数据;`id` 留空创建 |
 | `save_team` | 创建 / 更新一个队伍及完整成员名单;规则见 [domain.md](domain.md)「队伍与接力」 |
 | `set_seed` | 更新一个报名成绩;个人传 `athleteId`,接力传 `teamId` |
 | `parse_table` | CSV / TSV 解析与列映射;导入只传数据行 |
 | `export_meet` / `render_report` | 完整交换格式对象 / 秩序册、成绩册或团体总分表 HTML |
-| `preview_entries` → `add_entries` | 批量报名;每项二选一 `athleteId` / `teamId` |
+| `preview_entries` → `add_entries` | 批量报名;每项二选一 `athleteId` / `teamId`;`result.warnings` 列出超出报名限制的人或单位,只提示不拦截 |
 | `preview_remove_entries` → `remove_entries` | 取消报名;个人传 `athleteIds`,接力传 `teamIds` |
 | `preview_delete_team` → `delete_team` | 传 `eventId` 与 `id`,删除未排进组的队伍及其报名 |
 | `preview_athletes` → `import_athletes` | 表格运动员、单位与报名导入 |
@@ -143,7 +143,7 @@
 
 - `save_event` 的 `rounds` 列出决赛之前的轮次(`stage` 为 `heat / quarterfinal / semifinal`,各带 `advanceByPlace / advanceByMark`),留空即直接决赛;更新时未列出的轮次被删除,已有组的轮次不能删除(→ [domain.md](domain.md)「层级」)。
 - `save_event` 支持 `count / score`，以及 `participantMode`、`teamSize`、`scoreDecimals`、`rankDirection`、`attemptMode`；`set_results` 使用项目配置解析、汇总和排名，多次模式须提交逐次成绩。普通队伍使用 `teamId`，规则与接力一致。
-- `list_combined / get_combined / parse_point_rule` 查询；`preview_save_combined → save_combined` 保存全能及独立分项；`preview_combined_entries → set_combined_entries` 保存完整名单；`preview_delete_combined → delete_combined` 删除无成绩全能。批量操作沿用赛事快照指纹。
+- `list_combined / get_combined / parse_point_rule` 查询；`preview_save_combined → save_combined` 保存全能及独立分项；`preview_combined_entries → set_combined_entries` 保存完整名单，预览结果的 `warnings` 列出超出报名限制的人或单位；`preview_delete_combined → delete_combined` 删除无成绩全能。批量操作沿用赛事快照指纹。
 - `preview_combined_rules → apply_combined_rules` 接受 `request: {combinedId, rules: [{eventId, rule: {table, invalidPolicies}}]}`，必须给出所有分项；预览包含每人原、新逐项积分、总分、名次和资格，确认时携带 `previewHash`、`confirmed=true`。原始成绩不被规则修改覆盖，数据变化须重新预览。
 - 全能分项不能经 `save_event / add_entries / remove_entries / delete_event` 绕过归属与统一报名；成绩仍用普通成绩工具，覆盖保护不变。完整规则见 [combined.md](combined.md)。
 

@@ -40,7 +40,7 @@ func Decode(data []byte) (*File, error) {
 	if head.Version < 1 {
 		return nil, Problems{"version 必须为正整数"}
 	}
-	if head.Version < 8 {
+	if head.Version < 9 {
 		var err error
 		if data, err = withoutNewerFields(data, head.Version); err != nil {
 			return nil, fmt.Errorf("不是有效的 JSON:%w", err)
@@ -111,6 +111,11 @@ func withoutNewerFields(data []byte, version int) ([]byte, error) {
 	var doc map[string]any
 	if err := dec.Decode(&doc); err != nil {
 		return nil, err
+	}
+	if version < 9 {
+		if meet, ok := doc["meet"].(map[string]any); ok {
+			delete(meet, "entryLimits")
+		}
 	}
 	if version < 8 {
 		delete(doc, "groups")
@@ -188,6 +193,9 @@ func Validate(f *File) Problems {
 	}
 	if f.Meet.EndDate != nil && !domain.ValidDate(*f.Meet.EndDate) {
 		add("meet.endDate 应为 YYYY-MM-DD")
+	}
+	if l := f.Meet.EntryLimits; l != nil && l.Validate() != nil {
+		add("meet.entryLimits 各项应为 0–%d 的整数", domain.MaxEntryLimit)
 	}
 
 	units := map[string]bool{}

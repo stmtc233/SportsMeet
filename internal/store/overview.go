@@ -107,3 +107,24 @@ func (s *Store) AthleteNameExists(ctx context.Context, meetID, exceptID, name st
 	}
 	return i64(rows.Values[0][0]) != 0, nil
 }
+
+// LimitEntries returns a meet's entries as the entry limits count them,
+// in one query: entries of events outside combineds, then combined entries;
+// each with the athlete's or the team's unit.
+func (s *Store) LimitEntries(ctx context.Context, meetID string) ([]domain.LimitEntry, error) {
+	rows, err := s.Query(ctx, `SELECT e.event_id, COALESCE(e.athlete_id,''), COALESCE(e.team_id,''), COALESCE(a.unit_id, t.unit_id, '')
+ FROM entries e JOIN events v ON v.id = e.event_id
+ LEFT JOIN athletes a ON a.id = e.athlete_id LEFT JOIN teams t ON t.id = e.team_id
+ WHERE v.meet_id = ? AND COALESCE(v.combined_id,'') = ''
+ UNION ALL SELECT c.combined_id, c.athlete_id, '', COALESCE(a.unit_id,'')
+ FROM combined_entries c JOIN combined_events v ON v.id = c.combined_id JOIN athletes a ON a.id = c.athlete_id
+ WHERE v.meet_id = ?`, meetID, meetID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.LimitEntry, len(rows.Values))
+	for i, r := range rows.Values {
+		out[i] = domain.LimitEntry{Item: str(r[0]), AthleteID: str(r[1]), TeamID: str(r[2]), UnitID: str(r[3])}
+	}
+	return out, nil
+}

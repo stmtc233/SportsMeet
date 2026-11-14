@@ -32,14 +32,12 @@ func (sc Scope) events(col string) (string, any) {
 
 // GetMeet returns the meet, or nil when it does not exist.
 func (s *Store) GetMeet(ctx context.Context, id string) (*domain.Meet, error) {
-	rows, err := s.Query(ctx, `SELECT id, name, start_date, end_date, location, note, created_at
-		FROM meets WHERE id = ?`, id)
+	rows, err := s.Query(ctx, `SELECT `+meetColumns+` FROM meets WHERE id = ?`, id)
 	if err != nil || len(rows.Values) == 0 {
 		return nil, err
 	}
-	r := rows.Values[0]
-	return &domain.Meet{ID: str(r[0]), Name: str(r[1]), StartDate: str(r[2]), EndDate: str(r[3]),
-		Location: str(r[4]), Note: str(r[5]), CreatedAt: i64(r[6])}, nil
+	m := scanMeet(rows.Values[0])
+	return &m, nil
 }
 
 // ListUnits returns a meet's units by name.

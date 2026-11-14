@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Combined, type CombinedInput, type CombinedRulesRequest, type Event, type EventInput, type PointRuleInput } from "../../mygo";
 import { act } from "../../lib/action";
 import { useData } from "../../lib/useData";
@@ -14,6 +15,17 @@ export const CombinedController = {
   previewRules: (request: CombinedRulesRequest) => act(() => Combined.previewRules(request)),
   applyRules: (request: CombinedRulesRequest, hash: string) => act(() => Combined.applyRules(request, hash, true), "已保存"),
 };
+/** The 报名限制 the combined's new roster would exceed, from Go. */
+export function useCombinedLimitWarnings(id: string, athleteIds: string[]) {
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const key = athleteIds.join("\n");
+  useEffect(() => {
+    let live = true;
+    void Combined.limitWarnings(id, key ? key.split("\n") : []).then((list) => { if (live) setWarnings(list ?? []); }).catch(() => {});
+    return () => { live = false; };
+  }, [id, key]);
+  return warnings;
+}
 export function inputFromEvent(e: Event): Required<EventInput> {
   return { ...blankEvent, name: e.name, gender: e.gender, discipline: e.discipline, groupId: e.groupId ?? "", groupLabel: e.groupLabel, kind: e.kind, date: e.date, laneCount: e.laneCount, attemptCount: e.attemptCount, note: e.note, startMode: e.startMode, distanceMode: e.distanceMode, relayLegCount: e.relayLegCount, participantMode: e.participantMode ?? "athlete", teamSize: e.teamSize ?? 0, scoreDecimals: e.scoreDecimals ?? 0, rankDirection: e.rankDirection ?? "", attemptMode: e.attemptMode ?? "" };
 }

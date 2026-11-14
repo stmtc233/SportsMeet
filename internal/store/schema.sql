@@ -7,7 +7,10 @@ CREATE TABLE meets (
     end_date TEXT NOT NULL DEFAULT '',
     location TEXT NOT NULL DEFAULT '',
     note TEXT NOT NULL DEFAULT '',
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    limit_athlete_events INTEGER NOT NULL DEFAULT 0,
+    limit_unit_athletes INTEGER NOT NULL DEFAULT 0,
+    limit_unit_teams INTEGER NOT NULL DEFAULT 0
 );
 
 -- 参赛单位

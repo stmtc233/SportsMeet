@@ -108,6 +108,10 @@ func (c Combined) Save(ctx context.Context, meetID, id string, in service.Combin
 func (c Combined) Entries(ctx context.Context, id string, athleteIDs []string) error {
 	return c.Svc.SetCombinedEntries(ctx, ui, id, athleteIDs)
 }
+// LimitWarnings says which 报名限制 the full new roster would exceed.
+func (c Combined) LimitWarnings(ctx context.Context, id string, athleteIDs []string) ([]string, error) {
+	return c.Svc.CombinedLimitWarnings(ctx, id, athleteIDs)
+}
 func (c Combined) Delete(ctx context.Context, id string) error {
 	return c.Svc.DeleteCombined(ctx, ui, id)
 }
@@ -230,6 +234,11 @@ type Entries struct{ *Core }
 // Add enters athletes into an event.
 func (e Entries) Add(ctx context.Context, eventID string, list []service.EntryInput) error {
 	return e.Svc.AddEntries(ctx, ui, eventID, list)
+}
+
+// LimitWarnings says which 报名限制 entering the athletes or teams would exceed.
+func (e Entries) LimitWarnings(ctx context.Context, eventID string, ids []string) ([]string, error) {
+	return e.Svc.EntryLimitWarnings(ctx, eventID, ids)
 }
 
 // SetSeed changes an entry mark; "" clears it.
