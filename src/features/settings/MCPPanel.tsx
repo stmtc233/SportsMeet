@@ -50,7 +50,7 @@ export function MCPPanel() {
           {token && <StTextField label="令牌" value={token} onChange={() => {}} readOnly width="fill" />}
         </StStack>
       </StSection>
-      {dirty && <div className="settings-save">
+      {dirty && <div className="save-bar">
         <StButton disabled={busy} onClick={() => { setPort(null); setFailed(""); }}>放弃</StButton>
         <StButton variant="primary" loading={busy} disabled={!validPort} onClick={() => void configure(data.enabled, Number(portText))}>保存</StButton>
       </div>}

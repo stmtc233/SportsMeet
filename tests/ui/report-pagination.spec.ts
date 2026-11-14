@@ -60,7 +60,7 @@ test("分页过程中切换报表并离开页面", async ({ page }) => {
   await expect(page.frameLocator('iframe[title="预览"]').getByText("成绩册切换完成", { exact: true })).toBeVisible();
   await expect(page.locator(".subbar__count")).toHaveText("1 页");
   await selectReport(page, "秩序册");
-  await page.getByRole("button", { name: "运动员", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "运动员", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "报名", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "报名", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });

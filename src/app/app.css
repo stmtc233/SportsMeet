@@ -172,7 +172,29 @@
 .settings__content { flex: 1; min-width: 0; overflow-y: auto; scrollbar-gutter: stable; padding: var(--st-space-page); }
 .settings__back { display: none; }
 .settings__title { margin: 0; font-size: var(--st-text-title); }
-.settings-save { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: var(--st-space-8); padding: var(--st-space-12); border: 1px solid var(--st-outline); border-radius: var(--st-radius-12); corner-shape: superellipse(1.78); background: var(--st-surface-raised); animation: st-bar-in var(--st-motion-medium) var(--st-ease-out) backwards; }
+/* 报名: the tree of groups and units, the athletes of the picked one beside
+   it; a narrow window shows one of the two, the tree first. */
+.roster-tree__foot { flex-direction: row; gap: var(--st-space-8); }
+.roster-tree__foot > * { flex: 1; }
+.roster-tree__group { font-weight: 600; }
+.roster-tree__count { min-width: 2em; text-align: end; color: var(--st-text-muted); font-size: var(--st-text-sm); font-variant-numeric: tabular-nums; }
+.roster-tree__more { display: inline-flex; margin-inline-end: calc(var(--st-space-4) * -1); }
+.roster-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.roster-main__bar { align-items: center; }
+.roster-main__back { display: none; }
+.roster-main__title { margin: 0; display: flex; align-items: baseline; gap: var(--st-space-8); min-width: 0; font-size: var(--st-text-lg); white-space: nowrap; }
+.roster-main__outer { color: var(--st-text-muted); font-weight: 400; }
+.roster-main__outer::after { content: "›"; margin-inline-start: var(--st-space-8); }
+.roster-main__count { color: var(--st-text-muted); font-size: var(--st-text-sm); font-weight: 400; font-variant-numeric: tabular-nums; }
+.group-units { display: flex; flex-wrap: wrap; gap: var(--st-space-8) var(--st-space-16); max-height: 240px; overflow-y: auto; }
+.group-new { display: flex; align-items: flex-end; gap: var(--st-space-8); }
+@media (max-width: 900px) {
+  .roster > .split__side { width: 100%; border-right: 0; }
+  .roster:not([data-detail]) > .roster-main { display: none; }
+  .roster[data-detail] > .split__side { display: none; }
+  .roster-main__back { display: inline-flex; }
+}
+.save-bar { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: var(--st-space-8); padding: var(--st-space-12); border: 1px solid var(--st-outline); border-radius: var(--st-radius-12); corner-shape: superellipse(1.78); background: var(--st-surface-raised); animation: st-bar-in var(--st-motion-medium) var(--st-ease-out) backwards; }
 /* 总览 */
 .overview { display: flex; flex-direction: column; gap: var(--st-space-section); max-width: 1120px; margin: 0 auto; width: 100%; }
 .overview__steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--st-space-12); }
@@ -197,6 +219,51 @@
 .overview__facts { display: grid; grid-template-columns: auto 1fr; gap: var(--st-space-8) var(--st-space-16); margin: 0; }
 .overview__facts dt { color: var(--st-text-muted); }
 .overview__facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+/* 赛事结构: a mind map drawn with borders. Each list hangs off the node on
+   its left: a stub from that node, a vertical line from the first child's
+   middle to the last's, and a stub into each child. A narrow window lays it
+   out top-down instead, each list under its node like a file tree. */
+.mindmap { --mm-line: var(--st-outline); --mm-mid: 19px; display: flex; align-items: center; min-width: 0; }
+.mindmap__list { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; margin: 0; padding: 0 0 0 var(--st-space-12); list-style: none; }
+.mindmap__list::before { content: ""; position: absolute; left: 0; top: 50%; width: var(--st-space-12); border-top: 1px solid var(--mm-line); }
+.mindmap__item { position: relative; display: flex; align-items: center; min-width: 0; padding: var(--st-space-4) 0 var(--st-space-4) var(--st-space-12); }
+.mindmap__item::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; border-left: 1px solid var(--mm-line); }
+.mindmap__item:first-child::before { top: 50%; }
+.mindmap__item:last-child::before { bottom: 50%; }
+.mindmap__item::after { content: ""; position: absolute; left: 0; top: 50%; width: var(--st-space-12); border-top: 1px solid var(--mm-line); }
+.mindmap__node {
+  flex: none; display: inline-flex; align-items: baseline; gap: var(--st-space-8); padding: var(--st-space-8) var(--st-space-12);
+  border: 1px solid var(--st-outline); border-radius: var(--st-radius-8); corner-shape: superellipse(1.78); background: var(--st-surface); color: var(--st-text);
+  font: inherit; white-space: nowrap; cursor: pointer; transition: background-color var(--st-motion-fast) var(--st-ease-out);
+}
+.mindmap__node:hover { background: var(--st-hover); }
+.mindmap__node:focus-visible, .mindmap__chip:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
+.mindmap__node--root { border-color: transparent; background: var(--st-tone-info-container); color: var(--st-tone-info-on-container); font-weight: 600; }
+.mindmap__node--root:hover { background: var(--st-tone-info-container); }
+.mindmap__node--group { font-weight: 600; }
+.mindmap__node--leaf { border-color: transparent; background: transparent; color: var(--st-text-muted); }
+.mindmap__count { color: var(--st-text-muted); font-size: var(--st-text-sm); font-weight: 400; font-variant-numeric: tabular-nums; }
+.mindmap__node--root .mindmap__count { color: inherit; }
+.mindmap__chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: var(--st-space-4); }
+.mindmap__chip {
+  display: inline-flex; align-items: center; gap: var(--st-space-4); min-height: 28px; padding: 0 var(--st-space-8);
+  border: 1px solid var(--st-outline); border-radius: var(--st-radius-8); corner-shape: superellipse(1.78); background: var(--st-surface); color: var(--st-text);
+  font: inherit; font-size: var(--st-text-sm); white-space: nowrap; cursor: pointer; transition: background-color var(--st-motion-fast) var(--st-ease-out);
+}
+.mindmap__chip:hover { background: var(--st-hover); }
+.mindmap__chip[data-tone] { border-color: transparent; background: var(--tone-bg); color: var(--tone-fg); }
+.mindmap__chip[data-tone]:hover { background: var(--tone-bg); box-shadow: inset 0 0 0 1px var(--tone-accent); }
+.mindmap__chip--more { color: var(--st-text-muted); }
+@media (max-width: 1000px) {
+  .mindmap { flex-direction: column; align-items: flex-start; }
+  .mindmap__list { align-self: stretch; padding-left: var(--st-space-16); }
+  .mindmap__list::before { display: none; }
+  .mindmap__item { flex-direction: column; align-items: flex-start; padding: var(--st-space-4) 0 0 var(--st-space-16); }
+  .mindmap__item::before, .mindmap__item:first-child::before { top: 0; bottom: 0; }
+  .mindmap__item:last-child::before { bottom: auto; height: calc(var(--st-space-4) + var(--mm-mid)); }
+  .mindmap__item::after { top: calc(var(--st-space-4) + var(--mm-mid)); width: var(--st-space-16); }
+  .mindmap__chips { align-self: stretch; padding: var(--st-space-4) 0 var(--st-space-4) var(--st-space-12); }
+}
 @media (max-width: 1100px) {
   .overview__columns { grid-template-columns: minmax(0, 1fr); }
 }

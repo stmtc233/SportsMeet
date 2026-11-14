@@ -35,7 +35,8 @@ for (const width of [1280, 800]) {
       await expect(page.getByRole("heading", { name: "项目", exact: true })).toBeVisible();
       await settled(page);
       await page.evaluate(() => performance.mark("perf-start"));
-      await page.getByRole("button", { name: "运动员", exact: true }).click();
+      await page.getByRole("button", { name: "报名", exact: true }).click();
+      await page.getByRole("complementary", { name: "组别与单位" }).getByRole("button", { name: /^全部 \d/ }).click();
       await expect(page.getByText(`${count} 人`, { exact: true })).toBeVisible();
       await settled(page);
       const openMS = await page.evaluate(() => performance.now() - performance.getEntriesByName("perf-start").at(-1)!.startTime);
@@ -66,7 +67,8 @@ test("虚拟列表占位高度诊断", async ({ page }) => {
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
   await page.getByRole("button", { name: "项目", exact: true }).click();
-  await page.getByRole("button", { name: "运动员", exact: true }).click();
+  await page.getByRole("button", { name: "报名", exact: true }).click();
+  await page.getByRole("complementary", { name: "组别与单位" }).getByRole("button", { name: /^全部 \d/ }).click();
   const table = page.getByRole("table");
   await settled(page);
   const before = await table.evaluate((el) => el.scrollHeight);

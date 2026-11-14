@@ -212,6 +212,7 @@ textarea {
   background: transparent;
   text-align: start;
 }
+.st-list-item[data-indent] { padding-inline-start: calc(var(--st-space-12) + var(--st-space-24)); }
 .st-list-item--action { cursor: pointer; }
 .st-list-item--action:hover:not(:disabled, [aria-disabled]) { background: var(--st-hover); }
 .st-list-item--action:is(:disabled, [aria-disabled]) { opacity: 0.45; cursor: default; }
@@ -219,6 +220,7 @@ textarea {
 .st-list-item__leading { display: inline-flex; color: var(--st-text-muted); }
 .st-nav-group { position: relative; display: flex; flex-direction: column; gap: var(--st-space-2); }
 .st-nav-group > .st-list-item { position: relative; }
+.st-nav-heading { padding: var(--st-space-12) var(--st-space-12) var(--st-space-2); color: var(--st-text-muted); font-size: var(--st-text-sm); }
 .st-nav-group__thumb {
   position: absolute;
   top: 0;

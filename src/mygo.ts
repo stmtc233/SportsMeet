@@ -439,7 +439,7 @@ export interface EntrySummary {
   units: UnitEntries[];
   /**
    * Groups is empty when the meet has no group; else one row per group,
-   * then one for the units of no group when there are any.
+   * then one for no group when some unit or athlete has none.
    */
   groups: GroupEntries[];
   /** Limited says some 报名限制 is set, so Over means something. */
@@ -646,13 +646,30 @@ export interface GroupChangeRequest {
 export interface GroupEntries {
   id: string;
   name: string;
+  /** units of the group; of no group for "" */
   units: number;
   athletes: number;
   entries: number;
+  /**
+   * Members are the group's units in unit order, each with its athletes
+   * of this group: the 报名 page's tree and the 总览 structure. For "" they
+   * are the units of no group, then the other units that have athletes of
+   * no group, so every athlete shows under some unit.
+   */
+  members: GroupMember[];
 }
 
 export interface GroupInput {
   name: string;
+}
+
+/**
+ * GroupMember is a unit under a group and how many of its athletes are in
+ * that group.
+ */
+export interface GroupMember {
+  unitId: string;
+  athletes: number;
 }
 
 export interface GroupReportRequest {
@@ -990,6 +1007,41 @@ export interface Overview {
   units: number;
   athletes: number;
   groups: number;
+  /**
+   * Structure is the meet laid out as 组别 → 参赛单位 / 项目: one branch
+   * per group in catalog order, then 未分组 (GroupID "") for the units,
+   * athletes and events of no group. A meet without groups has the one
+   * branch "" with all of them.
+   */
+  structure: OverviewBranch[];
+}
+
+/** OverviewBranch is a group with its units and its events. */
+export interface OverviewBranch {
+  groupId: string;
+  /** "" for the meet without groups */
+  name: string;
+  /** athletes of the group */
+  athletes: number;
+  units: OverviewUnit[];
+  events: OverviewEvent[];
+}
+
+/**
+ * OverviewEvent is an event or a combined event (Combined) of a group, in
+ * the 项目 page's order, named without its group, and how far it got.
+ */
+export interface OverviewEvent {
+  id: string;
+  combined: boolean;
+  name: string;
+  /**
+   * State: todo (its first round has no heats), arranged, doing (some
+   * result is in) or done (the final is finished). A combined event is
+   * done when all its components are, doing when one has a result,
+   * arranged when one has heats.
+   */
+  state: string;
 }
 
 /** OverviewRound is a round still to be held. */
@@ -1016,6 +1068,19 @@ export interface OverviewStep {
   total: number;
   warnings: number;
   extra: number;
+}
+
+/**
+ * OverviewUnit is a unit under a group: its athletes of that group, and
+ * the unit's 报名进度 as on the 报名 page.
+ */
+export interface OverviewUnit {
+  id: string;
+  name: string;
+  athletes: number;
+  /** has an entry or a team */
+  entered: boolean;
+  over: number;
 }
 
 /** PickedFile is a file chosen for import. */

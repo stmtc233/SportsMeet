@@ -14,6 +14,16 @@ async function installGroups(page: Page) {
     const val = (n: number) => ({ exact: String(n), text: String(n) });
     const rules = { enabled: true, places: [9, 7], tiePolicy: "average", relayMultiplier: 2, overrides: [] };
     const board = (g: any, i: number) => ({ groupId: g.id, groupName: g.name, detail: { rules, targets: [], groups: [], rows: [{ unitId: `u${i}`, unitName: `${g.name}1班`, rank: 1, male: val(i ? 9 : 16), female: val(0), mixed: val(0), total: val(i ? 9 : 16), lines: [] }], sources: [], warnings: [], unassigned: [], state: "正式排名", counted: 1, total: 1, complete: true } });
+    // 一班 in 初一, 二班 in 初二; the tree reads them from the summary.
+    const units = [{ id: "unit", meetId: "meet", name: "一班", shortName: "", groupIds: ["g1"] }, { id: "unit2", meetId: "meet", name: "二班", shortName: "", groupIds: ["g2"] }];
+    const summary = () => ({
+      units: units.map((unit) => ({ unit, athletes: unit.id === "unit" ? 24 : 0, entries: 0, teams: 0, over: 0 })),
+      groups: groups.map((g) => {
+        const members = units.filter((u) => u.groupIds.includes(g.id)).map((u) => ({ unitId: u.id, athletes: 0 }));
+        return { id: g.id, name: g.name, units: members.length, athletes: 0, entries: 0, members };
+      }),
+      limited: false,
+    });
     (globalThis as any).__groupCalls = [];
     bridge.call = async (method: string, ...args: any[]) => {
       (globalThis as any).__groupCalls.push({ method, args: clone(args) });
@@ -30,6 +40,8 @@ async function installGroups(page: Page) {
         case "Groups.Delete": groups = groups.filter((g) => g.id !== args[1]); changed(); return null;
         case "Groups.Suggestions": return [{ kind: "athlete", id: "a0", name: "运动员1", candidates: ["g1"], reason: "年级" }];
         case "Groups.Assign": case "Groups.Change": changed(); return null;
+        case "Units.List": return clone(units);
+        case "Entries.Summary": return summary();
         case "TeamScoring.Boards": return groups.slice(0, 2).map(board);
         case "TeamScoring.Get": return board(groups[0], 0).detail;
         case "Events.List": {
@@ -53,25 +65,34 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     await installGroups(page); await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
     await page.getByRole("button", { name: "项目", exact: true }).click();
-    await page.getByRole("navigation").getByRole("button", { name: "组别", exact: true }).click();
+    await page.getByRole("navigation").getByRole("button", { name: "报名", exact: true }).click();
+    // Groups live in the 报名 tree; a group's dialog also says which units are in it.
     await page.getByRole("button", { name: "添加组别", exact: true }).click();
     const add = page.getByRole("dialog", { name: "添加组别", exact: true });
     await add.getByLabel("名称", { exact: true }).fill("初三");
+    await add.getByRole("checkbox", { name: "一班", exact: true }).check();
     await add.getByRole("button", { name: "保存", exact: true }).click();
-    const row = (name: string) => page.locator(".st-list-item").filter({ hasText: name });
+    expect(await lastCall(page, "Groups.Assign")).toEqual([{ meetId: "meet", assignments: [{ kind: "unit", id: "unit", groupIds: ["g1", "g3"] }] }]);
+    const row = (name: string) => page.locator(".roster-tree .st-list-item").filter({ hasText: name });
+    const menu = async (name: string, item: string) => {
+      await page.getByRole("button", { name: `${name} 更多`, exact: true }).click();
+      await page.getByRole("menuitem", { name: item, exact: true }).click();
+    };
     await expect(row("初三")).toBeVisible();
-    await row("初三").getByRole("button", { name: "上移", exact: true }).click();
+    await menu("初三", "上移");
     await expect.poll(() => lastCall(page, "Groups.Reorder").then((a) => a?.[1])).toEqual(["g1", "g3", "g2"]);
-    await row("初三").getByRole("button", { name: "编辑", exact: true }).click();
+    await menu("初三", "编辑组别");
     const edit = page.getByRole("dialog", { name: "编辑组别", exact: true });
+    await expect(edit.getByRole("checkbox", { name: "二班", exact: true })).not.toBeChecked();
     await edit.getByLabel("名称", { exact: true }).fill("九年级"); await edit.getByRole("button", { name: "保存", exact: true }).click();
     // A group in use can be deleted too; the dialog says what becomes ungrouped.
-    await row("初一").getByRole("button", { name: "删除", exact: true }).click();
+    await menu("初一", "删除组别");
     await expect(page.getByRole("dialog", { name: "删除「初一」？", exact: true })).toContainText("1 个项目、1 个单位、1 名运动员将改为未分组");
     await page.getByRole("dialog", { name: "删除「初一」？", exact: true }).getByRole("button", { name: "取消", exact: true }).click();
-    await row("九年级").getByRole("button", { name: "删除", exact: true }).click();
+    await menu("九年级", "删除组别");
     await page.getByRole("dialog", { name: "删除「九年级」？", exact: true }).getByRole("button", { name: "删除", exact: true }).click();
     await expect(row("九年级")).toHaveCount(0);
+    await expect(page.getByRole("navigation").getByRole("button", { name: "赛事设置", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "整理归属", exact: true }).click();
     const organize = page.getByRole("dialog", { name: "整理归属", exact: true });
     await expect(organize.getByLabel("运动员1的组别", { exact: true })).toHaveText("初一");
@@ -123,14 +144,18 @@ test("项目按组别筛选、添加并直接调整组别", async ({ page }) => 
   expect(await lastCall(page, "Groups.Change")).toEqual([{ meetId: "meet", groupId: "g1", eventIds: ["event2"], combinedIds: [] }]);
 });
 
-test("参赛单位表格多选后调整组别", async ({ page }) => {
+test("项目对话框里新建组别", async ({ page }) => {
   await installGroups(page); await page.goto("/"); await page.getByText("秋季运动会", { exact: true }).click();
-  await page.getByRole("navigation").getByRole("button", { name: "参赛单位", exact: true }).click();
-  await expect(page.getByText(/^选择/)).toHaveCount(0);
-  await page.getByRole("table").getByRole("row").nth(1).getByRole("checkbox").check();
-  await page.getByRole("button", { name: "调整组别", exact: true }).click();
-  await page.screenshot({ path: "test-results/units-group-menu.png", animations: "disabled" });
-  await page.getByRole("menuitem", { name: "初二", exact: true }).click();
-  const [request] = await lastCall(page, "Groups.Assign");
-  expect(request.assignments).toEqual([expect.objectContaining({ kind: "unit", groupIds: ["g2"] })]);
+  await page.getByRole("button", { name: "项目", exact: true }).click();
+  await page.getByRole("button", { name: "添加项目", exact: true }).click();
+  const add = page.getByRole("dialog", { name: "添加项目", exact: true });
+  await add.getByLabel("组别", { exact: true }).click();
+  await page.getByRole("option", { name: "新建组别…", exact: true }).click();
+  // Enter adds the group, not the event.
+  await add.getByLabel("新组别", { exact: true }).fill("初三");
+  await add.getByLabel("新组别", { exact: true }).press("Enter");
+  await expect(add.getByLabel("组别", { exact: true })).toHaveText("初三");
+  expect((await lastCall(page, "Groups.Save"))[2]).toEqual({ name: "初三" });
+  await add.getByLabel("项目名", { exact: true }).fill("200m"); await add.getByRole("button", { name: "保存", exact: true }).click();
+  expect((await lastCall(page, "Events.Save"))[2].groupId).toBe("g3");
 });

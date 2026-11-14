@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNav } from "../../app/nav";
+import { backTo, useNav, type Route } from "../../app/nav";
 import { IconBack, StButton, StEmpty, StIconButton, StNotice, StPage, StSection, StSegmented, StTable, StTag, StToolbar, iconStroke } from "../../design";
 import type { CombinedComponentView, CombinedRow } from "../../mygo";
 import { kindLabels } from "../../lib/labels";
@@ -9,14 +9,15 @@ import { CombinedDialog } from "./CombinedDialog";
 import { CombinedEntriesDialog } from "./CombinedEntriesDialog";
 import { CombinedRulesDialog } from "./CombinedRulesDialog";
 
-export function CombinedWorkspace({ meetId, combinedId }: { meetId: string; combinedId: string }) {
+export function CombinedWorkspace({ meetId, combinedId, returnTo }: { meetId: string; combinedId: string; returnTo?: Route }) {
   const { go } = useNav();
+  const back = backTo(returnTo, { page: "meet", meetId, tab: "events" });
   const { data: detail, error } = useCombinedDetail(combinedId, meetId);
   const [tab, setTab] = useViewState(`combined:tab:${combinedId}`, "components");
   const [editing, setEditing] = useState(false);
   const [entries, setEntries] = useState(false);
   const [rules, setRules] = useState(false);
-  return <StPage flush toolbar={<StToolbar title={detail?.combined.name ?? "全能"} leading={<StIconButton label="返回全能列表" onClick={() => go({ page: "combineds", meetId })}><IconBack size={18} strokeWidth={iconStroke} /></StIconButton>}>
+  return <StPage flush toolbar={<StToolbar title={detail?.combined.name ?? "全能"} leading={<StIconButton label={back.label} onClick={() => go(back.route)}><IconBack size={18} strokeWidth={iconStroke} /></StIconButton>}>
     <StButton onClick={() => setEditing(true)} disabled={!detail}>编辑全能</StButton>
     <StButton onClick={() => setRules(true)} disabled={!detail}>计分规则</StButton>
   </StToolbar>}>

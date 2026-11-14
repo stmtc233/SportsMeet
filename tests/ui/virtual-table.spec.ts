@@ -7,8 +7,8 @@ for (const width of [1280, 800]) {
     await installRuntime(page, { athleteCount: 1000 });
     await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
-    await page.getByRole("button", { name: "项目", exact: true }).click();
-    await page.getByRole("button", { name: "运动员", exact: true }).click();
+    await page.getByRole("button", { name: "报名", exact: true }).click();
+    await page.getByRole("complementary", { name: "组别与单位" }).getByRole("button", { name: /^全部 \d/ }).click();
     const table = page.getByRole("table");
     await expect(page.getByText("运动员1", { exact: true })).toBeVisible();
     await table.evaluate((el) => { el.scrollTop = el.scrollHeight; });

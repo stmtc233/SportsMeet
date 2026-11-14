@@ -25,11 +25,21 @@ for (const width of [1280, 800]) {
       await page.getByRole("button", { name: "项目", exact: true }).click();
       await expect(page.getByRole("heading", { name: "项目", exact: true })).toBeVisible();
       await noOverflow(page);
-      for (const label of ["日程", "运动员", "参赛单位", "打印", "导入导出"]) {
-        await page.getByRole("button", { name: label, exact: true }).click();
+      for (const label of ["赛事设置", "报名", "日程", "团体总分", "打印"]) {
+        await page.getByRole("navigation").getByRole("button", { name: label, exact: true }).click();
         await expect(page.getByRole("heading", { name: label, exact: true })).toBeVisible();
         await noOverflow(page);
       }
+      await page.getByRole("navigation").getByRole("button", { name: "报名", exact: true }).click();
+      // The tree's unit lists its athletes; a narrow window shows one side at a time.
+      const tree = page.getByRole("complementary", { name: "组别与单位" });
+      await tree.getByRole("button", { name: /^一班 .*\d/ }).click();
+      await expect(page.getByRole("heading", { name: "一班 24 人", exact: true })).toBeVisible();
+      await expect(tree).toBeVisible({ visible: width > 900 });
+      await noOverflow(page);
+      if (width === 800) await page.getByRole("button", { name: "组别与单位", exact: true }).click();
+      await tree.getByRole("button", { name: /^全部 \d/ }).click();
+      await expect(page.getByRole("heading", { name: "全部 24 人", exact: true })).toBeVisible();
       await page.getByRole("button", { name: "项目", exact: true }).click();
       await page.getByText("男子100m 初中组", { exact: true }).click();
       await noOverflow(page);
@@ -88,13 +98,29 @@ for (const width of [1280, 800]) {
     await page.getByText("秋季运动会", { exact: true }).click();
     await expect(page.getByRole("heading", { name: "总览", exact: true })).toBeVisible();
     await expect(page.getByRole("progressbar", { name: "报名 1 / 2", exact: true })).toBeVisible();
-    await expect(page.getByText("超限 2", { exact: true })).toBeVisible();
-    await expect(page.getByText("冲突 1", { exact: true })).toBeVisible();
+    const steps = page.locator(".overview__steps");
+    await expect(steps.getByText("超限 2", { exact: true })).toBeVisible();
+    await expect(steps.getByText("冲突 1", { exact: true })).toBeVisible();
     await noOverflow(page);
     await page.getByRole("button", { name: /^报名\s*1 \/ 2/ }).click();
     await expect(page.getByRole("heading", { name: "报名", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "总览", exact: true }).click();
+    // 赛事结构: a unit opens selected in the 报名 tree, an event on its own page.
+    const map = page.locator(".mindmap");
+    await expect(map.getByRole("button", { name: "二班 0 未报名", exact: true })).toBeVisible();
+    await map.getByRole("button", { name: "一班 24 超限 2", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "一班 24 人", exact: true })).toBeVisible();
+    if (width > 900) await expect(page.getByRole("complementary", { name: "组别与单位" }).getByRole("button", { name: /^一班 .*\d/ })).toHaveAttribute("aria-current", "true");
+    await page.getByRole("button", { name: "总览", exact: true }).click();
+    await page.locator(".mindmap").getByRole("button", { name: "男子100m 进行中", exact: true }).click();
+    await expect(page.getByRole("radio", { name: "成绩", exact: true })).toHaveAttribute("aria-checked", "true");
+    await page.getByRole("button", { name: "返回总览", exact: true }).click();
     await page.getByText("男子100m 决赛", { exact: true }).click();
     await expect(page.getByRole("radio", { name: "成绩", exact: true })).toHaveAttribute("aria-checked", "true");
+    // The event stays under 总览 in the sidebar, and its back button goes there.
+    await expect(page.getByRole("navigation").getByRole("button", { name: "总览", exact: true })).toHaveAttribute("aria-current", "true");
+    await page.getByRole("radio", { name: "编排", exact: true }).click();
+    await page.getByRole("button", { name: "返回总览", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "总览", exact: true })).toBeVisible();
   });
 }

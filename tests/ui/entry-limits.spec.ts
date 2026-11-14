@@ -9,9 +9,8 @@ for (const width of [1280, 800]) {
 
     await page.getByText("秋季运动会", { exact: true }).click();
 
-    await page.getByRole("button", { name: "项目", exact: true }).click();
-    await page.getByRole("button", { name: "编辑赛事", exact: true }).click();
-    const meet = page.getByRole("dialog", { name: "编辑赛事", exact: true });
+    await page.getByRole("button", { name: "赛事设置", exact: true }).click();
+    const meet = page.locator(".narrow");
     await expect(meet.getByLabel("每人限报项数", { exact: true })).toHaveValue("2");
     await meet.getByLabel("单位每项限报人数", { exact: true }).fill("3人");
     await expect(meet.getByLabel("单位每项限报人数", { exact: true })).toHaveValue("3");
@@ -21,7 +20,9 @@ for (const width of [1280, 800]) {
     const saved = await page.evaluate(() => (globalThis as any).__meetCalls[0][1].entryLimits);
     expect(saved).toEqual({ athleteEvents: 0, unitAthletes: 3, unitTeams: 0 });
 
-    await expect(meet).toBeHidden();
+    await expect(meet.getByRole("button", { name: "保存", exact: true })).toHaveCount(0);
+    await expect(meet.getByLabel("单位每项限报人数", { exact: true })).toHaveValue("3");
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByText("男子100m 初中组", { exact: true }).click();
     await page.getByRole("radio", { name: "报名", exact: true }).click();
     await expect(page.getByText("超出限报项数", { exact: true })).toHaveCount(1);

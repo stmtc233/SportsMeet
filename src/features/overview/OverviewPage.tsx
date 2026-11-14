@@ -3,6 +3,7 @@ import type { OverviewRound, OverviewStep } from "../../mygo";
 import { useNav, type MeetTab } from "../../app/nav";
 import { useMeet } from "../meets/data";
 import { useOverview } from "./data";
+import { StructureMap } from "./StructureMap";
 
 type StepView = { title: string; tab: MeetTab; value: string; text: string; tags: { tone: Tone; text: string }[] };
 
@@ -45,6 +46,9 @@ export function OverviewPage({ meetId }: { meetId: string }) {
           <ol className="overview__steps">
             {data.steps.map((s, i) => <Step key={s.key} index={i + 1} step={s} onOpen={(tab) => go({ page: "meet", meetId, tab })} />)}
           </ol>
+          <StSection title="赛事结构">
+            <StructureMap meetId={meetId} meetName={meet?.name ?? ""} athletes={data.athletes} branches={data.structure ?? []} />
+          </StSection>
           <div className="overview__columns">
             <StSection title="待比赛" padded={false}
               actions={data.nextTotal > data.next.length && <StButton size="small" variant="ghost" onClick={() => go({ page: "meet", meetId, tab: "schedule" })}>全部 {data.nextTotal} 个</StButton>}>

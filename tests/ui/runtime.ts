@@ -9,7 +9,7 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
     let mcp = { enabled: false, running: false, port: 18765, address: "http://127.0.0.1:18765/mcp", error: "" };
     const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12", entryLimits: { athleteEvents: options.limits ? 2 : 0, unitAthletes: 0, unitTeams: 0 } };
     const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0, participantMode: "athlete", teamSize: 0, scoreDecimals: 0, rankDirection: "", attemptMode: "" };
-    const athletes = Array.from({ length: options.athleteCount ?? 24 }, (_, i) => ({ id: `a${i}`, meetId: "meet", name: `运动员${i + 1}`, gender: "男", bib: String(100 + i), studentNumber: "", unitId: "unit", className: "一班", grade: "", birthDate: "", note: "", createdAt: 1 }));
+    const athletes = Array.from({ length: options.athleteCount ?? 24 }, (_, i) => ({ id: `a${i}`, meetId: "meet", name: `运动员${i + 1}`, gender: "男", bib: String(100 + i), studentNumber: "", unitId: "unit", groupId: options.groups ? "g1" : "", className: "一班", grade: "", birthDate: "", note: "", createdAt: 1 }));
     const entries = athletes.map((a) => ({ athleteId: a.id, competitorId: a.id, name: a.name, gender: "男", bib: a.bib, unitId: "unit", unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" }));
     const rules = { timed: true, usesLanes: true, positionLabel: "道次", attemptLabel: "", startLabel: "分道", defaultPerHeat: 8, team: false, multipleAttempts: false, markLabel: "成绩", unit: "" };
     // What Go returns with a heat's times (service.HeatTimes): the own time, else the round's start.
@@ -184,19 +184,30 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
               { key: "results", state: "doing", done: 0, total: 1, warnings: 0, extra: 1 },
             ],
             next: [{ eventId: "event", eventName: "男子100m", roundLabel: "决赛", startText: "09:00", heats: 3, started: true }],
-            nextTotal: 1, units: 2, athletes: 24, groups: 0,
+            nextTotal: 1, units: 2, athletes: 24, groups: options.groups ? 1 : 0,
+            structure: (() => {
+              const one = { id: "unit", name: "一班", athletes: 24, entered: true, over: options.limits ? 2 : 0 };
+              const two = { id: "unit2", name: "二班", athletes: 0, entered: false, over: 0 };
+              const event = { id: "event", combined: false, name: "男子100m", state: "doing" };
+              return options.groups
+                ? [{ groupId: "g1", name: "高一", athletes: 24, units: [one], events: [event] }, { groupId: "", name: "未分组", athletes: 0, units: [two], events: [] }]
+                : [{ groupId: "", name: "", athletes: 24, units: [one, two], events: [event] }];
+            })(),
           };
           case "Meets.Update":
             (globalThis as any).__meetCalls = [...((globalThis as any).__meetCalls ?? []), structuredClone(args)];
             Object.assign(meet, args[1]); changed("meets", "meet", ""); return null;
-          case "Units.List": return [{ id: "unit", meetId: "meet", name: "一班", shortName: "" }];
+          case "Units.List": return [{ id: "unit", meetId: "meet", name: "一班", shortName: "", groupIds: options.groups ? ["g1"] : [] }];
           // 报名登记表: the first pick has a file from another meet; the second is clean.
           case "Entries.Summary": return {
             units: [
               { unit: { id: "unit", meetId: "meet", name: "一班", shortName: "", groupIds: options.groups ? ["g1"] : [] }, athletes: 24, entries: 24, teams: 0, over: options.limits ? 2 : 0 },
               { unit: { id: "unit2", meetId: "meet", name: "二班", shortName: "", groupIds: [] }, athletes: 0, entries: 0, teams: 0, over: 0 },
             ],
-            groups: options.groups ? [{ id: "g1", name: "高一", units: 1, athletes: 24, entries: 24 }, { id: "", name: "未分组", units: 1, athletes: 0, entries: 0 }] : [],
+            groups: options.groups ? [
+              { id: "g1", name: "高一", units: 1, athletes: 24, entries: 24, members: [{ unitId: "unit", athletes: 24 }] },
+              { id: "", name: "未分组", units: 1, athletes: 0, entries: 0, members: [{ unitId: "unit2", athletes: 0 }] },
+            ] : [],
             limited: !!options.limits,
           };
           case "Entries.ExportForms": (globalThis as any).__formExports = [...((globalThis as any).__formExports ?? []), args[2] ? "group" : args[1]]; (globalThis as any).__formExportIds = [...((globalThis as any).__formExportIds ?? []), args[1]]; return args[1].length || 1;
@@ -416,6 +427,8 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
             (globalThis as any).__prints = [...((globalThis as any).__prints ?? []), args[1]];
             return null;
           case "Combined.List": return [];
+          case "TeamScoring.Get": return { rules: { enabled: false, places: [7, 5, 4, 3, 2, 1], tiePolicy: "average", relayMultiplier: 2, overrides: [] }, targets: [{ eventId: event.id, combinedId: "", name: event.name, gender: "男", groupLabel: "", relay: false }],
+            groups: [], rows: [], sources: [], unassigned: [], warnings: [], counted: 0, total: 0, complete: false, state: "未启用" };
           case "Reports.Render": return "<!DOCTYPE html><html><body><h1>秋季运动会</h1><p>秩序册</p></body></html>";
           case "Marks.EventName": return `${args[0] === "混合" ? "混合" : args[0] === "女" ? "女子" : "男子"}${args[1]}${args[2] ? ` ${args[2]}` : ""}`;
           default: return error(`未模拟的方法：${method}`);

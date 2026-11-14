@@ -101,8 +101,8 @@ export function StMuted({ children }: { children: ReactNode }) {
   return <span className="st-muted">{children}</span>;
 }
 
-/** A settings-style row: the whole row is the click target. */
-export function StListItem({ title, subtitle, leading, trailing, onClick, selected, disabled }: {
+/** A settings-style row: the whole row is the click target. `indent` sets it one level in, under the row above (a tree). */
+export function StListItem({ title, subtitle, leading, trailing, onClick, selected, disabled, indent }: {
   title: ReactNode;
   subtitle?: ReactNode;
   leading?: ReactNode;
@@ -110,6 +110,7 @@ export function StListItem({ title, subtitle, leading, trailing, onClick, select
   onClick?: () => void;
   selected?: boolean;
   disabled?: boolean;
+  indent?: boolean;
 }) {
   const body = (
     <>
@@ -121,10 +122,10 @@ export function StListItem({ title, subtitle, leading, trailing, onClick, select
       {trailing && <span className="st-list-item__trailing">{trailing}</span>}
     </>
   );
-  if (!onClick) return <div className="st-list-item">{body}</div>;
+  if (!onClick) return <div className="st-list-item" data-indent={indent || undefined}>{body}</div>;
   // A div, not a button: the trailing slot may hold buttons of its own.
   return (
-    <div role="button" tabIndex={disabled ? -1 : 0} className="st-list-item st-list-item--action" aria-current={selected || undefined} aria-disabled={disabled || undefined}
+    <div role="button" tabIndex={disabled ? -1 : 0} className="st-list-item st-list-item--action" aria-current={selected || undefined} aria-disabled={disabled || undefined} data-indent={indent || undefined}
       onClick={disabled ? undefined : onClick}
       onKeyDown={(e) => {
         if (!disabled && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
@@ -135,6 +136,11 @@ export function StListItem({ title, subtitle, leading, trailing, onClick, select
       {body}
     </div>
   );
+}
+
+/** A label over a stretch of StNavGroup items; the selected background slides across it. */
+export function StNavHeading({ children }: { children: ReactNode }) {
+  return <div className="st-nav-heading">{children}</div>;
 }
 
 /** A column of StListItems for navigation; the selected item's background slides to the next one. */

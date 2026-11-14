@@ -27,6 +27,7 @@ export {
   Search as IconSearch,
   Settings as IconSettings,
   Shuffle as IconAuto,
+  SlidersHorizontal as IconSetup,
   Timer as IconResults,
   Trash2 as IconDelete,
   Trophy as IconMeet,

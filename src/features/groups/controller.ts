@@ -11,7 +11,19 @@ export function useGroupSuggestions(meetId: string) {
 }
 
 export const GroupsController = {
-  save: (meetId: string, id: string, input: GroupInput) => act(() => Groups.save(meetId, id, input), "已保存"),
+  /** Saves the group, then sets which units belong to it (assignments get the group's id, new or not). */
+  save: (meetId: string, id: string, input: GroupInput, assignments?: (groupId: string) => GroupAssignment[]) =>
+    act(async () => {
+      const group = await Groups.save(meetId, id, input);
+      const list = group && assignments ? assignments(group.id) : [];
+      if (list.length > 0) await Groups.assign({ meetId, assignments: list });
+      return group;
+    }, "已保存"),
+  /** A new group by name; the group, or undefined when it failed. */
+  create: async (meetId: string, name: string) => {
+    const group = await act(() => Groups.save(meetId, "", { name }), "已添加组别");
+    return group && typeof group === "object" ? group : undefined;
+  },
   remove: (meetId: string, id: string) => act(() => Groups.delete(meetId, id), "已删除"),
   reorder: (meetId: string, ids: string[]) => act(() => Groups.reorder(meetId, ids)),
   /** Moves events and combined events to a group ("" = ungrouped). */

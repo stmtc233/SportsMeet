@@ -14,6 +14,9 @@ test("侧栏选中底板停在当前分类上", async ({ page }) => {
     return item && box ? Math.abs(item.y - box.y) + Math.abs(item.height - box.height) : -1;
   };
   await expect.poll(aligned("项目")).toBeLessThan(1);
-  await page.getByRole("button", { name: "运动员", exact: true }).click();
-  await expect.poll(aligned("运动员")).toBeLessThan(1);
+  // Across a heading: the thumb lands on the item, not on the heading above it.
+  await page.getByRole("button", { name: "打印", exact: true }).click();
+  await expect.poll(aligned("打印")).toBeLessThan(1);
+  await page.getByRole("button", { name: "总览", exact: true }).click();
+  await expect.poll(aligned("总览")).toBeLessThan(1);
 });

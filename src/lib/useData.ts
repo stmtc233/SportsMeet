@@ -6,7 +6,8 @@ import { errorText } from "./errors";
 export interface Data<T> {
   data: T | undefined;
   error: string;
-  reload: () => void;
+  /** Reads again; resolves once the result is in. */
+  reload: () => Promise<void>;
 }
 
 // The last result of each keyed read. A page that comes back shows it at

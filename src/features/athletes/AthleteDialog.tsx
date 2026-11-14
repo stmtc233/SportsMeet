@@ -6,14 +6,22 @@ import { AthletesController } from "./controller";
 
 const blank: Required<AthleteInput> = { name: "", gender: "", bib: "", studentNumber: "", groupId: "", unitId: "", className: "", grade: "", birthDate: "", note: "" };
 
-/** Creates an athlete (athlete undefined) or edits one. */
-export function AthleteDialog({ meetId, open, athlete, units, onClose }: { meetId: string; open: boolean; athlete?: Athlete; units: Unit[]; onClose: () => void }) {
+/** Creates an athlete (athlete undefined; in unitId and groupId when given) or edits one. */
+export function AthleteDialog({ meetId, open, athlete, units, unitId = "", groupId = "", onClose }: {
+  meetId: string;
+  open: boolean;
+  athlete?: Athlete;
+  units: Unit[];
+  unitId?: string;
+  groupId?: string;
+  onClose: () => void;
+}) {
   const [form, setForm] = useState<Required<AthleteInput>>(blank);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!open) return;
-    setForm(athlete ? { name: athlete.name, gender: athlete.gender, bib: athlete.bib, studentNumber: athlete.studentNumber, groupId: athlete.groupId ?? "", unitId: athlete.unitId, className: athlete.className, grade: athlete.grade, birthDate: athlete.birthDate, note: athlete.note } : blank);
-  }, [open, athlete]);
+    setForm(athlete ? { name: athlete.name, gender: athlete.gender, bib: athlete.bib, studentNumber: athlete.studentNumber, groupId: athlete.groupId ?? "", unitId: athlete.unitId, className: athlete.className, grade: athlete.grade, birthDate: athlete.birthDate, note: athlete.note } : { ...blank, unitId, groupId });
+  }, [open, athlete, unitId, groupId]);
   const set = (patch: Partial<Required<AthleteInput>>) => setForm((f) => ({ ...f, ...patch }));
   const save = async (another: boolean) => {
     setBusy(true);

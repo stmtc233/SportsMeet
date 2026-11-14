@@ -10,7 +10,6 @@ for (const width of [1280, 800]) {
       await page.goto("/");
       await page.getByText("秋季运动会", { exact: true }).click();
       await page.getByRole("button", { name: "项目", exact: true }).click();
-      await page.getByRole("button", { name: "全能", exact: true }).click();
       await page.getByRole("button", { name: "添加全能", exact: true }).click();
       const create = page.getByRole("dialog", { name: "添加全能", exact: true });
       await create.getByLabel("全能名称", { exact: true }).fill("校园两项全能");
@@ -48,7 +47,7 @@ for (const width of [1280, 800]) {
         await marks.nth(1).fill(i === 0 ? "13.50" : "4.50");
         await page.getByRole("button", { name: "保存", exact: true }).click();
         await expect(page.getByRole("button", { name: "保存", exact: true })).toBeDisabled();
-        await page.getByRole("button", { name: "返回项目列表", exact: true }).click();
+        await page.getByRole("button", { name: "返回全能", exact: true }).click();
       }
       await page.getByRole("radio", { name: "总成绩", exact: true }).click();
       await expect(page.getByText("正式排名", { exact: true })).toBeVisible();

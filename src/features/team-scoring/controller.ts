@@ -8,6 +8,11 @@ export function useTeamBoards(filter: TeamScoreFilter) {
   return useData(() => TeamScoring.boards(filter), [key], (c) => c.meetId === filter.meetId, `teamBoards:${key}`);
 }
 
+/** The meet's rules with every target they can weigh, for 赛事设置. */
+export function useTeamDetail(meetId: string) {
+  return useData(() => TeamScoring.get({ meetId }), [meetId], (c) => c.meetId === meetId, `teamDetail:${meetId}`);
+}
+
 /** The rules as typed: numbers stay text until Go parses them. */
 export function toInput(rules: TeamScoringRules, enabled = rules.enabled): TeamScoringInput {
   return {

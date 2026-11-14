@@ -1,6 +1,8 @@
-import { StButton, StCheckbox, StMenu, StMuted, StRow, StSelect, StStack } from "../../design";
+import { useState } from "react";
+import { StButton, StCheckbox, StMenu, StMuted, StRow, StSelect, StStack, StTextField } from "../../design";
 import { useViewState } from "../../lib/viewState";
-import { useGroups } from "./controller";
+import type { CompetitionGroup } from "../../mygo";
+import { GroupsController, useGroups } from "./controller";
 
 /** Shown for "" everywhere: an event, unit or athlete without a group. */
 export const ungrouped = "未分组";
@@ -30,13 +32,55 @@ export function GroupFilter({ meetId, value, onChange }: { meetId: string; value
   );
 }
 
-/** The one group of an event, combined event or athlete. */
+// The option of GroupSelect that adds a group instead of picking one.
+const newGroup = "+new";
+
+/**
+ * The one group of an event, combined event or athlete. 「新建组别…」 turns
+ * it into a name field right there, so a group is made where it is needed.
+ */
 export function GroupSelect({ meetId, value, onChange, disabled }: { meetId: string; value: string; onChange: (id: string) => void; disabled?: boolean }) {
   const { data: groups } = useGroups(meetId);
-  const known = value === "" || !groups || groups.some((g) => g.id === value);
+  const [name, setName] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // The group just made shows until the list read again has it.
+  const [made, setMade] = useState<CompetitionGroup | null>(null);
+  const options = [...(groups ?? []), ...(made && !groups?.some((g) => g.id === made.id) ? [made] : [])];
+  const known = value === "" || !groups || options.some((g) => g.id === value);
+
+  const create = async () => {
+    if (!name?.trim()) return;
+    setBusy(true);
+    const group = await GroupsController.create(meetId, name.trim());
+    setBusy(false);
+    if (!group) return;
+    setMade(group);
+    setName(null);
+    onChange(group.id);
+  };
+  if (name !== null) {
+    return (
+      // Enter adds the group rather than submitting the dialog around it.
+      <div className="group-new" onKeyDownCapture={(e) => {
+        if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          e.stopPropagation();
+          void create();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          setName(null);
+        }
+      }}>
+        <StTextField label="新组别" placeholder="初一" autoFocus width="fill" value={name} onChange={setName} disabled={busy} />
+        <StButton disabled={busy} onClick={() => setName(null)}>取消</StButton>
+        <StButton variant="primary" loading={busy} disabled={!name.trim()} onClick={create}>添加</StButton>
+      </div>
+    );
+  }
   return (
-    <StSelect label="组别" width="fill" value={known ? value : ""} onChange={onChange} disabled={disabled}
-      options={[{ value: "", label: ungrouped }, ...(groups ?? []).map((g) => ({ value: g.id, label: g.name }))]} />
+    <StSelect label="组别" width="fill" value={known ? value : ""} onChange={(v) => (v === newGroup ? setName("") : onChange(v))} disabled={disabled}
+      options={[{ value: "", label: ungrouped }, ...options.map((g) => ({ value: g.id, label: g.name })), { value: newGroup, label: "新建组别…" }]} />
   );
 }
 

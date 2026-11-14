@@ -13,7 +13,7 @@ import (
 type EntrySummary struct {
 	Units []UnitEntries `json:"units"`
 	// Groups is empty when the meet has no group; else one row per group,
-	// then one for the units of no group when there are any.
+	// then one for no group when some unit or athlete has none.
 	Groups []GroupEntries `json:"groups"`
 	// Limited says some 报名限制 is set, so Over means something.
 	Limited bool `json:"limited"`
@@ -37,9 +37,21 @@ type UnitEntries struct {
 type GroupEntries struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
-	Units    int    `json:"units"`
+	Units    int    `json:"units"` // units of the group; of no group for ""
 	Athletes int    `json:"athletes"`
 	Entries  int    `json:"entries"`
+	// Members are the group's units in unit order, each with its athletes
+	// of this group: the 报名 page's tree and the 总览 structure. For "" they
+	// are the units of no group, then the other units that have athletes of
+	// no group, so every athlete shows under some unit.
+	Members []GroupMember `json:"members"`
+}
+
+// GroupMember is a unit under a group and how many of its athletes are in
+// that group.
+type GroupMember struct {
+	UnitID   string `json:"unitId"`
+	Athletes int    `json:"athletes"`
 }
 
 // EntrySummary counts the meet's athletes, entries and teams by unit and by
@@ -75,24 +87,7 @@ func (s *Service) EntrySummary(ctx context.Context, meetID string) (*EntrySummar
 		byUnit[u.ID] = &out.Units[i]
 	}
 	if len(groups) > 0 {
-		none := 0
-		for _, u := range units {
-			if len(u.GroupIDs) == 0 {
-				none++
-			}
-		}
-		for _, g := range groups {
-			n := 0
-			for _, u := range units {
-				if slices.Contains(u.GroupIDs, g.ID) {
-					n++
-				}
-			}
-			out.Groups = append(out.Groups, GroupEntries{ID: g.ID, Name: g.Name, Units: n})
-		}
-		if none > 0 {
-			out.Groups = append(out.Groups, GroupEntries{Name: entryform.NoGroup, Units: none})
-		}
+		out.Groups = groupMembers(groups, units, athletes)
 		for i := range out.Groups {
 			byGroup[out.Groups[i].ID] = &out.Groups[i]
 		}
@@ -141,4 +136,50 @@ func (s *Service) EntrySummary(ctx context.Context, meetID string) (*EntrySummar
 		}
 	}
 	return out, nil
+}
+
+// groupMembers lays out each group's units with their athletes of that
+// group, then the row of no group when a unit or an athlete has none.
+func groupMembers(groups []domain.CompetitionGroup, units []domain.Unit, athletes []domain.Athlete) []GroupEntries {
+	order := map[string]int{}
+	for i, u := range units {
+		order[u.ID] = i
+	}
+	in := map[[2]string]int{} // group, unit → athletes of the unit in the group
+	loose := false
+	for _, a := range athletes {
+		in[[2]string{a.GroupID, a.UnitID}]++
+		loose = loose || a.GroupID == ""
+	}
+	var out []GroupEntries
+	var none []GroupMember
+	for _, u := range units {
+		if len(u.GroupIDs) == 0 {
+			none = append(none, GroupMember{UnitID: u.ID, Athletes: in[[2]string{"", u.ID}]})
+		}
+	}
+	for _, g := range groups {
+		row := GroupEntries{ID: g.ID, Name: g.Name, Members: []GroupMember{}}
+		for _, u := range units {
+			if slices.Contains(u.GroupIDs, g.ID) {
+				row.Members = append(row.Members, GroupMember{UnitID: u.ID, Athletes: in[[2]string{g.ID, u.ID}]})
+			}
+		}
+		row.Units = len(row.Members)
+		out = append(out, row)
+	}
+	if len(none) == 0 && !loose {
+		return out
+	}
+	row := GroupEntries{Name: entryform.NoGroup, Units: len(none), Members: none}
+	for _, u := range units {
+		if n := in[[2]string{"", u.ID}]; n > 0 && len(u.GroupIDs) > 0 {
+			row.Members = append(row.Members, GroupMember{UnitID: u.ID, Athletes: n})
+		}
+	}
+	slices.SortStableFunc(row.Members, func(a, b GroupMember) int { return order[a.UnitID] - order[b.UnitID] })
+	if row.Members == nil {
+		row.Members = []GroupMember{}
+	}
+	return append(out, row)
 }

@@ -77,7 +77,7 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     await expect(page.getByRole("columnheader", { name: "女子", exact: true })).toHaveCount(0);
     await page.getByRole("radio", { name: "女子", exact: true }).click();
     await expect(page.getByText("没有符合条件的计分项目", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "运动员", exact: true }).click();
+    await page.getByRole("button", { name: "报名", exact: true }).click();
     await page.getByRole("button", { name: "团体总分", exact: true }).click();
     await expect(page.getByRole("radio", { name: "女子", exact: true })).toBeChecked();
     await page.getByRole("radio", { name: "全部", exact: true }).click();

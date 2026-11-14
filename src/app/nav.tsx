@@ -3,16 +3,15 @@ import type { SettingsSection } from "../features/settings/SettingsPage";
 import { StButton, StDialog } from "../design";
 import { recall, remember } from "../lib/viewState";
 
-export type MeetTab = "overview" | "events" | "entries" | "schedule" | "athletes" | "units" | "groups" | "team-scoring" | "reports" | "exchange";
+export type MeetTab = "overview" | "setup" | "events" | "entries" | "schedule" | "team-scoring" | "reports";
 export type EventTab = "entries" | "arrange" | "results";
 
 export type Route =
   | { page: "meets" }
   | { page: "settings"; section: SettingsSection | null; returnTo?: Route }
   | { page: "meet"; meetId: string; tab: MeetTab }
-  | { page: "combineds"; meetId: string }
-  | { page: "combined"; meetId: string; combinedId: string }
-  | { page: "event"; meetId: string; eventId: string; tab: EventTab };
+  | { page: "combined"; meetId: string; combinedId: string; returnTo?: Route }
+  | { page: "event"; meetId: string; eventId: string; tab: EventTab; returnTo?: Route };
 
 interface Nav {
   route: Route;
@@ -23,7 +22,18 @@ interface Nav {
 
 const NavContext = createContext<Nav | null>(null);
 
-const meetTabs: MeetTab[] = ["overview", "events", "entries", "schedule", "athletes", "units", "groups", "team-scoring", "reports", "exchange"];
+/** The meet's pages by their sidebar names. */
+export const meetTabLabels: Record<MeetTab, string> = {
+  overview: "总览", setup: "赛事设置", events: "项目", entries: "报名", schedule: "日程", "team-scoring": "团体总分", reports: "打印",
+};
+
+const meetTabs = Object.keys(meetTabLabels) as MeetTab[];
+
+/** Where a back button goes, and its name: the page it was opened from, else the fallback. */
+export function backTo(returnTo: Route | undefined, fallback: Route): { route: Route; label: string } {
+  const route = returnTo ?? fallback;
+  return { route, label: route.page === "meet" ? `返回${meetTabLabels[route.tab]}` : route.page === "combined" ? "返回全能" : "返回" };
+}
 
 /** The meet's page last shown while the app runs: opening the meet again goes back there. */
 export function lastMeetTab(meetId: string): MeetTab {
@@ -31,9 +41,37 @@ export function lastMeetTab(meetId: string): MeetTab {
   return tab && meetTabs.includes(tab) ? tab : "overview";
 }
 
+/** The sidebar page a route belongs to: an event or combined event opened from a page stays under it. */
+export function sideTab(route: Route): MeetTab {
+  if (route.page === "meet") return route.tab;
+  if ((route.page === "event" || route.page === "combined") && route.returnTo) return sideTab(route.returnTo);
+  return "events";
+}
+
+/**
+ * An event or combined event remembers where it was opened from, so its
+ * back button goes there: a meet page, or the combined event of a
+ * component. Switching tabs or events keeps the place it came from.
+ */
+function withReturn(current: Route, next: Route): Route {
+  if ((next.page !== "event" && next.page !== "combined") || next.returnTo) return next;
+  if (current.page === "meet") return { ...next, returnTo: current };
+  if (current.page === "event" && next.page === "event") return { ...next, returnTo: current.returnTo };
+  if (current.page === "combined" && next.page === "combined") return { ...next, returnTo: current.returnTo };
+  if (current.page === "combined" && next.page === "event") return { ...next, returnTo: current };
+  return next;
+}
+
 function shown(route: Route) {
   if (route.page === "meet") remember(`meet:tab:${route.meetId}`, route.tab);
+  if (route.page === "event") remember(`event:tab:${route.eventId}`, route.tab);
   return route;
+}
+
+/** The tab an event opens at from a list: the one last used for it, else 报名. */
+export function lastEventTab(eventId: string): EventTab {
+  const tab = recall<EventTab>(`event:tab:${eventId}`);
+  return tab === "arrange" || tab === "results" ? tab : "entries";
 }
 
 export function useNav(): Nav {
@@ -54,11 +92,17 @@ export function useLeaveGuard(dirty: boolean) {
 export function NavProvider({ children }: { children: ReactNode }) {
   const [route, setRoute] = useState<Route>({ page: "meets" });
   const [pending, setPending] = useState<Route | null>(null);
+  const current = useRef(route);
   const dirty = useRef(false);
-  const go = useCallback((next: Route) => {
-    if (dirty.current) setPending(next);
-    else setRoute(shown(next));
+  const show = useCallback((next: Route) => {
+    current.current = next;
+    setRoute(shown(next));
   }, []);
+  const go = useCallback((target: Route) => {
+    const next = withReturn(current.current, target);
+    if (dirty.current) setPending(next);
+    else show(next);
+  }, [show]);
   const setDirty = useCallback((v: boolean) => {
     dirty.current = v;
   }, []);
@@ -66,7 +110,7 @@ export function NavProvider({ children }: { children: ReactNode }) {
   const leave = () => {
     if (!pending) return;
     dirty.current = false;
-    setRoute(shown(pending));
+    show(pending);
     setPending(null);
   };
   return (

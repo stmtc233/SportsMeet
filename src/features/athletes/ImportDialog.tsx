@@ -80,7 +80,7 @@ export function ImportDialog({ meetId, open, onClose }: { meetId: string; open: 
   const sample = (table?.rows ?? []).slice(header ? 1 : 0)[0] ?? [];
   const heads = table?.rows[0] ?? [];
   return (
-    <StDialog open={open} title="批量导入运动员" size="large" onClose={onClose}
+    <StDialog open={open} title="导入名单" size="large" onClose={onClose}
       actions={
         table ? (
           <>

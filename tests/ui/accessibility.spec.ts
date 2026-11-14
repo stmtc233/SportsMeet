@@ -53,7 +53,8 @@ for (const width of [1280, 800]) {
   test(`表格勾选、键盘编辑与虚拟行信息 ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 500 });
     await openMeet(page, 1000);
-    await page.getByRole("button", { name: "运动员", exact: true }).click();
+    await page.getByRole("button", { name: "报名", exact: true }).click();
+    await page.getByRole("complementary", { name: "组别与单位" }).getByRole("button", { name: /^全部 \d/ }).click();
     const table = page.getByRole("table");
     await expect(table).toHaveAttribute("aria-rowcount", "1001");
     await expect(table.getByRole("row").nth(1)).toHaveAttribute("aria-rowindex", "2");
