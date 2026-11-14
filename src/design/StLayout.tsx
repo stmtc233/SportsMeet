@@ -58,6 +58,16 @@ export function StNotice({ tone = "info", children }: { tone?: Tone; children: R
   );
 }
 
+/** A thin bar for how much of something is done; the label names it for screen readers. */
+export function StProgress({ value, max, tone = "info", label }: { value: number; max: number; tone?: Tone; label: string }) {
+  const ratio = max > 0 ? Math.min(1, Math.max(0, value / max)) : 0;
+  return (
+    <div className={`st-progress st-tone-${tone}`} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={max} aria-valuenow={value}>
+      <div className="st-progress__bar" style={{ transform: `scaleX(${ratio})` }} />
+    </div>
+  );
+}
+
 export function StTag({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {
   return <span className={`st-tag st-tone-${tone}`}>{children}</span>;
 }

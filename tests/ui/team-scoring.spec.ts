@@ -60,6 +60,7 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     await installTeamScoring(page);
     await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByRole("button", { name: "团体总分", exact: true }).click();
     await expect(page.getByRole("heading", { name: "初中组 正式排名", exact: true })).toBeVisible();
     const table = page.getByRole("table").first();
@@ -115,6 +116,7 @@ test("一键启用计分，校验错误保留输入", async ({ page }) => {
   await installTeamScoring(page, true);
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
   await page.getByRole("button", { name: "打印", exact: true }).click();
   await selectReport(page, "团体总分");
   await expect(page.getByText("尚未启用团体计分", { exact: true })).toBeVisible();

@@ -5,6 +5,7 @@ test("数据刷新保留未保存的成绩输入", async ({ page }) => {
   await installRuntime(page);
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
   await page.getByText("男子100m 初中组", { exact: true }).click();
   await page.getByRole("radio", { name: "成绩", exact: true }).click();
   const marks = page.getByRole("textbox", { name: "成绩", exact: true });

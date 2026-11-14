@@ -31,6 +31,7 @@ for (const width of [1280, 800]) {
       page.on("pageerror", (err) => errors.push(err.message));
       await page.goto("/");
       await page.getByText("秋季运动会", { exact: true }).click();
+      await page.getByRole("button", { name: "项目", exact: true }).click();
       await expect(page.getByRole("heading", { name: "项目", exact: true })).toBeVisible();
       await settled(page);
       await page.evaluate(() => performance.mark("perf-start"));
@@ -64,6 +65,7 @@ test("虚拟列表占位高度诊断", async ({ page }) => {
   await installRuntime(page, { athleteCount: 1000 });
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
   await page.getByRole("button", { name: "运动员", exact: true }).click();
   const table = page.getByRole("table");
   await settled(page);
@@ -104,6 +106,7 @@ for (const scale of ["school", "large", "extreme", "wide"]) {
     await page.goto("/");
     await page.evaluate(() => (globalThis as any).__loadPerfReport());
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Performance.enable");
     const before = (await cdp.send("Performance.getMetrics")).metrics;

@@ -9,6 +9,7 @@ for (const width of [1280, 800]) {
       await installRuntime(page);
       await page.goto("/");
       await page.getByText("秋季运动会", { exact: true }).click();
+      await page.getByRole("button", { name: "项目", exact: true }).click();
       await page.getByRole("button", { name: "添加项目", exact: true }).click();
       const dialog = page.getByRole("dialog", { name: "添加项目", exact: true });
       await dialog.getByLabel("常用项目", { exact: true }).click();
@@ -46,6 +47,7 @@ for (const width of [1280, 800]) {
     await installRuntime(page, { eventConfig: "group" });
     await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByText("男子1500m", { exact: true }).click();
     await page.getByRole("radio", { name: "编排", exact: true }).click();
     await expect(page.locator(".heat-slots .chip__name")).toHaveCount(16);
@@ -70,6 +72,7 @@ for (const width of [1280, 800]) {
     await installRuntime(page, { eventConfig: "throw" });
     await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByText("男子铅球", { exact: true }).click();
     await page.getByRole("radio", { name: "成绩", exact: true }).click();
     await expect(page.getByRole("textbox", { name: "试投 1", exact: true })).toHaveCount(8);
@@ -90,6 +93,7 @@ for (const width of [1280, 800]) {
     await installRuntime(page);
     await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByRole("button", { name: "添加项目", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "添加项目", exact: true });
     await dialog.getByLabel("项目名", { exact: true }).fill("200m");
@@ -121,6 +125,7 @@ for (const width of [1280, 800]) {
     await installRuntime(page, { datedList: true });
     await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     const cell = page.getByText("2026-11-12 09:00", { exact: true });
     await expect(cell).toBeVisible();
     expect(await cell.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -132,6 +137,7 @@ test("外部起跑方式变化清除不适用的编排草稿", async ({ page }) 
   await installRuntime(page, { emptyBoard: true });
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
   await page.getByText("男子100m 初中组", { exact: true }).click();
   await page.getByRole("radio", { name: "编排", exact: true }).click();
   await page.locator(".drop-roster .chip").first().click();

@@ -7,6 +7,7 @@ for (const width of [1280, 800]) {
     await installRuntime(page, { relay: true });
     await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByText("男子4×100m", { exact: true }).click();
     await page.getByRole("radio", { name: "报名", exact: true }).click();
     await page.getByRole("button", { name: "管理队伍", exact: true }).first().click();
@@ -60,6 +61,7 @@ test("接力保存失败保留队名和棒次", async ({ page }) => {
   await installRuntime(page, { relay: true, rejectTeamSave: true });
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
   await page.getByText("男子4×100m", { exact: true }).click();
     await page.getByRole("radio", { name: "报名", exact: true }).click();
   await page.getByRole("button", { name: "管理队伍", exact: true }).first().click();

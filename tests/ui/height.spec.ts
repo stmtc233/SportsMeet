@@ -5,6 +5,7 @@ async function openHeight(page: Page, options: { heightRounds?: boolean; rejectH
   await installRuntime(page, { eventConfig: "height", ...options });
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
   await page.getByText("男子跳高", { exact: true }).click();
   await page.getByRole("radio", { name: "成绩", exact: true }).click();
 }

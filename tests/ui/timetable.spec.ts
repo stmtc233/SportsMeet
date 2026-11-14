@@ -9,6 +9,7 @@ async function openTimetable(page: Page) {
   await installRuntime(page, { schedule: true, conflicts: true });
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
   await page.locator(".app__side").getByRole("button", { name: "日程", exact: true }).click();
   await expect(page.getByRole("heading", { name: "日程", exact: true })).toBeVisible();
 }

@@ -15,6 +15,7 @@ for (const width of [1280, 800]) {
       await installRuntime(page, { ties: true });
       await page.goto("/");
       await page.getByText("秋季运动会", { exact: true }).click();
+      await page.getByRole("button", { name: "项目", exact: true }).click();
       await page.getByText("男子100m 初中组", { exact: true }).click();
       await page.getByRole("radio", { name: "成绩", exact: true }).click();
 

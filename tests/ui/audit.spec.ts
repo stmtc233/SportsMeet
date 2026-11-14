@@ -29,6 +29,7 @@ test("成绩与编排显示 Go 整理的时间", async ({ page }) => {
   await installRuntime(page, { schedule: true });
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
   await expect(page.getByRole("table").getByText("09:00", { exact: true })).toBeVisible();
   await page.getByText("男子100m 初中组", { exact: true }).click();
   await page.getByRole("radio", { name: "成绩", exact: true }).click();

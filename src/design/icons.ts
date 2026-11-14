@@ -15,6 +15,7 @@ export {
   Flag as IconEvent,
   Info as IconInfo,
   Layers as IconGroup,
+  LayoutDashboard as IconOverview,
   LayoutGrid as IconArrange,
   Lock as IconLock,
   LockOpen as IconUnlock,

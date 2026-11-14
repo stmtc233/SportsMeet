@@ -75,6 +75,11 @@ func (m Meets) Get(ctx context.Context, id string) (*service.MeetView, error) {
 	return m.Svc.MeetDetail(ctx, id)
 }
 
+// Overview sums up where the meet stands: the 总览 page.
+func (m Meets) Overview(ctx context.Context, id string) (*service.Overview, error) {
+	return m.Svc.Overview(ctx, id)
+}
+
 // Count returns what deleting the meet would remove.
 func (m Meets) Count(ctx context.Context, id string) (store.MeetCounts, error) {
 	return m.Svc.CountMeet(ctx, id)

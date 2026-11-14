@@ -16,6 +16,7 @@ async function installReport(page: Page, html: string) {
   }, { html, simple: document("<section><h2>成绩册切换完成</h2><p>结果</p></section>") });
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
   await page.getByRole("button", { name: "打印", exact: true }).click();
 }
 

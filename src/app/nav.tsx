@@ -3,7 +3,7 @@ import type { SettingsSection } from "../features/settings/SettingsPage";
 import { StButton, StDialog } from "../design";
 import { recall, remember } from "../lib/viewState";
 
-export type MeetTab = "events" | "entries" | "schedule" | "athletes" | "units" | "groups" | "team-scoring" | "reports" | "exchange";
+export type MeetTab = "overview" | "events" | "entries" | "schedule" | "athletes" | "units" | "groups" | "team-scoring" | "reports" | "exchange";
 export type EventTab = "entries" | "arrange" | "results";
 
 export type Route =
@@ -23,12 +23,12 @@ interface Nav {
 
 const NavContext = createContext<Nav | null>(null);
 
-const meetTabs: MeetTab[] = ["events", "entries", "schedule", "athletes", "units", "groups", "team-scoring", "reports", "exchange"];
+const meetTabs: MeetTab[] = ["overview", "events", "entries", "schedule", "athletes", "units", "groups", "team-scoring", "reports", "exchange"];
 
 /** The meet's page last shown while the app runs: opening the meet again goes back there. */
 export function lastMeetTab(meetId: string): MeetTab {
   const tab = recall<MeetTab>(`meet:tab:${meetId}`);
-  return tab && meetTabs.includes(tab) ? tab : "events";
+  return tab && meetTabs.includes(tab) ? tab : "overview";
 }
 
 function shown(route: Route) {

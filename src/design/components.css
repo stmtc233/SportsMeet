@@ -159,6 +159,19 @@ textarea {
   font-size: var(--st-text-sm);
   animation: st-rise-in var(--st-motion-medium) var(--st-ease-out) backwards;
 }
+.st-progress {
+  height: 4px;
+  border-radius: 999px;
+  corner-shape: round;
+  background: var(--st-tone-neutral-container);
+  overflow: hidden;
+}
+.st-progress__bar {
+  height: 100%;
+  background: var(--tone-accent);
+  transform-origin: left;
+  transition: transform var(--st-motion-slow) var(--st-ease-out);
+}
 .st-tag {
   display: inline-flex;
   align-items: center;

@@ -974,6 +974,50 @@ export interface MeetView {
   datesText: string;
 }
 
+/**
+ * Overview is the 总览 page: where the meet stands in its workflow, the
+ * rounds still to be held, and its size.
+ */
+export interface Overview {
+  steps: OverviewStep[];
+  /**
+   * Next lists the rounds with a planned time that are not finished,
+   * earliest first, at most overviewNext of them.
+   */
+  next: OverviewRound[];
+  /** all such rounds */
+  nextTotal: number;
+  units: number;
+  athletes: number;
+  groups: number;
+}
+
+/** OverviewRound is a round still to be held. */
+export interface OverviewRound {
+  eventId: string;
+  eventName: string;
+  roundLabel: string;
+  startText: string;
+  heats: number;
+  /** some result is in */
+  started: boolean;
+}
+
+/**
+ * OverviewStep is one stage of the workflow: Done of Total, its state, and
+ * what is worth a look (Warnings). Extra carries the counts a stage shows
+ * besides Done and Total.
+ */
+export interface OverviewStep {
+  /** events | entries | arrange | schedule | results */
+  key: string;
+  state: string;
+  done: number;
+  total: number;
+  warnings: number;
+  extra: number;
+}
+
 /** PickedFile is a file chosen for import. */
 export interface PickedFile {
   path: string;
@@ -1673,6 +1717,10 @@ export const Meets = {
   /** List returns all meets, newest first. */
   list(): Promise<MeetView[]> {
     return call("Meets.List");
+  },
+  /** Overview sums up where the meet stands: the 总览 page. */
+  overview(id: string): Promise<Overview | null> {
+    return call("Meets.Overview", id);
   },
   /** Update changes a meet. */
   update(id: string, in_: MeetInput): Promise<void> {

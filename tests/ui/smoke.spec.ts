@@ -22,6 +22,7 @@ for (const width of [1280, 800]) {
       await noOverflow(page);
       await page.getByRole("button", { name: "取消", exact: true }).click();
       await page.getByText("秋季运动会", { exact: true }).click();
+      await page.getByRole("button", { name: "项目", exact: true }).click();
       await expect(page.getByRole("heading", { name: "项目", exact: true })).toBeVisible();
       await noOverflow(page);
       for (const label of ["日程", "运动员", "参赛单位", "打印", "导入导出"]) {
@@ -78,3 +79,22 @@ test("设置保存、宽窄切换与离开确认", async ({ page }) => {
   await page.getByRole("button", { name: "放弃", exact: true }).click();
   await expect(port).toHaveValue("18766");
 });
+
+for (const width of [1280, 800]) {
+  test(`总览显示工作流与待比赛 ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await installRuntime(page, { limits: true, conflicts: true });
+    await page.goto("/");
+    await page.getByText("秋季运动会", { exact: true }).click();
+    await expect(page.getByRole("heading", { name: "总览", exact: true })).toBeVisible();
+    await expect(page.getByRole("progressbar", { name: "报名 1 / 2", exact: true })).toBeVisible();
+    await expect(page.getByText("超限 2", { exact: true })).toBeVisible();
+    await expect(page.getByText("冲突 1", { exact: true })).toBeVisible();
+    await noOverflow(page);
+    await page.getByRole("button", { name: /^报名\s*1 \/ 2/ }).click();
+    await expect(page.getByRole("heading", { name: "报名", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "总览", exact: true }).click();
+    await page.getByText("男子100m 决赛", { exact: true }).click();
+    await expect(page.getByRole("radio", { name: "成绩", exact: true })).toHaveAttribute("aria-checked", "true");
+  });
+}

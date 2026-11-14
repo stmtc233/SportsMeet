@@ -28,6 +28,7 @@ test("编排与成绩共用所选轮次", async ({ page }) => {
   await installRuntime(page, { eventConfig: "height", heightRounds: true });
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
   await page.getByText("男子跳高", { exact: true }).click();
   await page.getByRole("radio", { name: "编排", exact: true }).click();
   await page.getByRole("radio", { name: "半决赛", exact: true }).click();

@@ -52,6 +52,7 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     await page.setViewportSize({ width, height: 900 }); await page.emulateMedia({ colorScheme });
     await installGroups(page); await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByRole("navigation").getByRole("button", { name: "组别", exact: true }).click();
     await page.getByRole("button", { name: "添加组别", exact: true }).click();
     const add = page.getByRole("dialog", { name: "添加组别", exact: true });
@@ -108,6 +109,7 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
 
 test("项目按组别筛选、添加并直接调整组别", async ({ page }) => {
   await installGroups(page); await page.goto("/"); await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
   await page.getByLabel("组别", { exact: true }).click(); await page.getByRole("option", { name: "初二", exact: true }).click();
   await expect(page.getByText("男子100m 初一", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "添加项目", exact: true }).click();

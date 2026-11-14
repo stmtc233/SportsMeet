@@ -175,6 +175,17 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
           case "App.OpenRepository": (globalThis as any).__repositoryOpened = true; return null;
           case "Meets.List": return [meet];
           case "Meets.Get": return meet;
+          case "Meets.Overview": return {
+            steps: [
+              { key: "events", state: "done", done: 1, total: 1, warnings: 0, extra: 0 },
+              { key: "entries", state: "doing", done: 1, total: 2, warnings: options.limits ? 2 : 0, extra: 0 },
+              { key: "arrange", state: "done", done: 1, total: 1, warnings: 0, extra: 0 },
+              { key: "schedule", state: "doing", done: 1, total: 2, warnings: options.conflicts ? 1 : 0, extra: 0 },
+              { key: "results", state: "doing", done: 0, total: 1, warnings: 0, extra: 1 },
+            ],
+            next: [{ eventId: "event", eventName: "男子100m", roundLabel: "决赛", startText: "09:00", heats: 3, started: true }],
+            nextTotal: 1, units: 2, athletes: 24, groups: 0,
+          };
           case "Meets.Update":
             (globalThis as any).__meetCalls = [...((globalThis as any).__meetCalls ?? []), structuredClone(args)];
             Object.assign(meet, args[1]); changed("meets", "meet", ""); return null;

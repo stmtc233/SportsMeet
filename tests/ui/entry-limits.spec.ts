@@ -8,6 +8,8 @@ for (const width of [1280, 800]) {
     await page.goto("/");
 
     await page.getByText("秋季运动会", { exact: true }).click();
+
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByRole("button", { name: "编辑赛事", exact: true }).click();
     const meet = page.getByRole("dialog", { name: "编辑赛事", exact: true });
     await expect(meet.getByLabel("每人限报项数", { exact: true })).toHaveValue("2");

@@ -7,6 +7,7 @@ for (const width of [1280, 800]) {
     await installRuntime(page, { eventConfig: "count" });
     await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByText("男子跳绳", { exact: true }).click();
     await page.getByRole("radio", { name: "成绩", exact: true }).click();
     await page.getByRole("textbox", { name: "尝试 1", exact: true }).nth(0).fill("0");
@@ -23,6 +24,7 @@ for (const width of [1280, 800]) {
     await installRuntime(page, { eventConfig: "score" });
     await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByText("男子技巧评分", { exact: true }).click();
     await page.getByRole("radio", { name: "成绩", exact: true }).click();
     await page.getByRole("textbox", { name: "分数", exact: true }).nth(0).fill("12.5");
@@ -35,6 +37,7 @@ for (const width of [1280, 800]) {
     await installRuntime(page, { eventConfig: "teamCount" });
     await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByText("男子集体跳绳", { exact: true }).click();
     await page.getByRole("button", { name: "管理队伍", exact: true }).first().click();
     await page.getByRole("button", { name: "添加队伍", exact: true }).click();

@@ -39,6 +39,7 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     }, html);
     await page.goto("/");
     await page.getByText("秋季运动会", { exact: true }).click();
+    await page.getByRole("button", { name: "项目", exact: true }).click();
     await page.getByRole("button", { name: "打印", exact: true }).click();
     await selectReport(page, "报名表");
     await expect(page.locator(".subbar__count")).toHaveText(/\d+ 页/);

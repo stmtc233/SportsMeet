@@ -9,6 +9,7 @@ async function openMeet(page: Page) {
   await installRuntime(page, { schedule: true });
   await page.goto("/");
   await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
 }
 
 const calls = (page: Page, name: string) => page.evaluate((name) => (globalThis as any)[name] ?? [], name);

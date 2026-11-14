@@ -9,6 +9,7 @@ for (const width of [1280, 800]) {
       await installCombinedRuntime(page);
       await page.goto("/");
       await page.getByText("秋季运动会", { exact: true }).click();
+      await page.getByRole("button", { name: "项目", exact: true }).click();
       await page.getByRole("button", { name: "全能", exact: true }).click();
       await page.getByRole("button", { name: "添加全能", exact: true }).click();
       const create = page.getByRole("dialog", { name: "添加全能", exact: true });
