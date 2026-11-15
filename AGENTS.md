@@ -46,7 +46,7 @@ SportsMeet 是一款开源的**单机离线**田径与校园运动会编排软�
 
 ```
 SportsMeet/
-├── AGENTS.md / CLAUDE.md / README.md / LICENSE(MIT)
+├── AGENTS.md / CLAUDE.md / README.md / CHANGELOG.md(发布说明) / LICENSE(MIT)
 ├── main.go                  ← mygo 入口:窗口、Bind 各服务、MCP 开关、更新窗口;数据打不开时弹窗说明后退出
 ├── go.mod
 ├── mygo.config.ts           ← 应用名、标识、版本(唯一来源,Go 经 `mygo.App.Version()` 读取)、打包、更新来源与公钥;bindings 输出 src/mygo.ts
@@ -133,6 +133,8 @@ bun run test:ui                      # 先 bunx playwright install chromium
 | Windows(amd64) | `sportsmeet-setup-….exe` | `-windows-amd64-portable.zip` |
 | Linux(amd64) | `.deb`、`.rpm` | `-linux-amd64.tar.gz` |
 | Linux(arm64) | `…_arm64.deb`、`….aarch64.rpm` | `-linux-arm64.tar.gz` |
+
+发布说明写在 `CHANGELOG.md` 的 `## <版本>` 下;mygo 打包时将对应内容写入签名更新文件,GitHub release 使用同一份说明。
 
 同一次打包还上传各平台的更新文件:`update-<平台>.json`、`sportsmeet-<版本>-<平台>.tar.gz`、增量包、`install.sh` 与 `SHA256SUMS`。已安装的应用从最新 release 读 `update-<平台>.json`,所以 mygo 生成的文件不改名、不从 release 里删。
 

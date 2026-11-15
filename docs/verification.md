@@ -21,6 +21,7 @@ bunx mygo build -skip-dmg -skip-notarize -skip-installer
 
 - 官网发布脚本测试覆盖 Linux x86-64 / ARM64 的 `.deb`、`.rpm` 与便携包匹配、ARM64 文件排在前面时仍选对架构、没有 ARM64 文件的 release 继续发布，以及 ARM64 包不齐时拒绝发布。
 - Linux 支持 `bunx mygo build -platform linux/amd64,linux/arm64` 交叉打包。arm64 在 macOS 完成编译并生成 `.deb`、`.rpm` 与便携包，主程序与 SQLite 库的 ELF 架构须为 AArch64；原生 Linux 窗口、安装与更新仍需实机验证。
+- 正式版的本地打包验证覆盖 macOS 通用应用、Windows amd64 程序与 Linux amd64 / arm64 安装包和便携包；命令为 `bunx mygo build -platform darwin/universal,windows/amd64,linux/amd64,linux/arm64 -skip-dmg -skip-notarize -skip-installer`，不生成 macOS 磁盘映像、Windows 安装包或签名更新文件，这些由发布工作流生成。
 
 页面测试先安装浏览器:
 
@@ -85,7 +86,7 @@ SPORTSMEET_BROWSER_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google C
 - `internal/service/performance_test.go`：真实 mygo SQLite、临时数据库，service 入口生成与写入样本；覆盖 1,000 / 3,000 / 10,000 名运动员、400–5,000 组的串行延迟、分配量与 4 / 16 客户端混合读写；结束后检查计数、数据库与外键完整性。
 - `internal/arrange/performance_test.go`：纯自动编排算法，比较 1,000 / 10,000 / 50,000 人单项目与同单位分散开关。
 - `tests/ui/performance.spec.ts`：1280 / 800 宽、1,000–50,000 人名单末尾可达、搜索与占位高度，以及 Go 真实生成秩序册的分页耗时、长任务、数据行 / 组完整、无空白页 / 溢出页。13 项通过。
-- 普通页面测试 88 项通过；`virtual-table.spec.ts` 覆盖长名单滚动、底部筛选、跨虚拟化阈值、恢复完整列表与窗口高度变化；`report-pagination.spec.ts` 覆盖长表重复表头、整组不拆、强制换页、内容不丢失与分页中切换报表 / 离开页面。
+- 普通页面测试 137 项通过，17 项按需性能测试默认跳过；`virtual-table.spec.ts` 覆盖长名单滚动、底部筛选、跨虚拟化阈值、恢复完整列表与窗口高度变化；`report-pagination.spec.ts` 覆盖长表重复表头、整组不拆、强制换页、内容不丢失与分页中切换报表 / 离开页面。
 - 索引迁移覆盖规范化键的 Unicode / 空白规则、源字段保留、非唯一索引与迁移前备份；完整索引查询计划检查覆盖项目报名查询。只读连接池覆盖取消、关闭唤醒、只读限制与重复关闭；`go test -race ./internal/store ./internal/service ./internal/mcp` 通过。
 - 逐记录交换文件编码与标准编码器逐字节比对，覆盖空 / nil 集合、可选全能、嵌套轮次与组、引号、反斜线、换行和 HTML 字符，保持声明格式的字段顺序与省略规则。
 - 性能采样只对应本机 macOS / Chrome；不代表 Windows、原生 WebView、MCP HTTP、真实打印机或长期内存泄漏验证。

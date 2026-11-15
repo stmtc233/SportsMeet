@@ -181,6 +181,7 @@
 - 操作日志:只读表格,按赛事(`StSelect`)与来源(`StSegmented`:全部 / 界面 / MCP / 系统)筛选,每页 50 条,「加载更多」接续上一页,没有更多时置灰。任一数据变化重读最新一页并与已加载的页按 id 合并(`settings/auditLog.ts`,有单测);新记录多于一页、接不上已加载部分时从最新一页重新开始,不显示断档。读取经 `settings/controller.ts` 的 `useAuditLog` 与生成的 `Settings.auditLog`。
 - 关于包含版本、GitHub 仓库、软件更新与开源许可；仓库经 `bind.App.OpenRepository` 用系统浏览器打开，链接地址由 `App.Info` 返回。
 - 新版本检测用 mygo 的更新插件(`main.go` 里 `mygo.Use`),窗口固定简体中文:启动 10 秒后与每天各在后台检查一次,有新版本时弹出更新窗口,可安装、稍后提醒或跳过；「检查更新」经 `bind.App.CheckForUpdates` 立即打开同一窗口。`App.Info` 返回当前构建能否自行更新及说明；开发运行与无法自行更新的安装方式不做后台检查，关于页显示「手动更新」与「查看发布」，经同一绑定用系统浏览器打开仓库的 `/releases`，供用户选择版本下载安装。
+- 更新窗口的发布说明来自 `CHANGELOG.md` 中当前版本的章节，由 mygo 打包时写入签名更新文件；GitHub release 沿用同一份内容。
 - 「接收测试版」默认关，保存在 `Preferences.updatePrereleases`，与外观共用 service 写入、日志与事件。启动读取及每次设置写入成功后，主程序在广播事件前通过 `mygo.Updater.SetPrereleases` 应用选择；开启时检查正式版与测试版中的最新版本，关闭后等待高于当前版本的正式版，不降级。关于页与其他偏好共用 `settings/controller.ts` 的 `useOptimisticPreferences`，点击「检查更新」等待已排队的保存完成，保证立即检查使用保存后的渠道。
 - 赛事列表工具栏与赛事侧栏均提供设置入口,返回恢复进入设置前的页面。分类导航经同一 `useNav` 离开确认,宽窄变化只通过 CSS 控制分类列表的可见性。
 - 应用偏好读取经 `settings/controller.ts` 的钩子，写入经 `SettingsController`；AI/MCP 读取与写入经 `ai-mcp/controller.ts` 的 `useMCPStatus` / `MCPController`，共用生成的 `Settings` 绑定。普通偏好接口不含令牌。设置写入广播 `kind=settings`，外观与 AI/MCP 入口按事件刷新。
