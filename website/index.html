@@ -8,7 +8,7 @@
 <meta name="color-scheme" content="light dark">
 <meta property="og:title" content="SportsMeet">
 <meta property="og:description" content="免费开源的运动会编排系统">
-<meta property="og:image" content="assets/events-light.png">
+<meta property="og:image" content="assets/overview-light.png">
 <link rel="icon" href="assets/favicon.ico" sizes="any">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -54,8 +54,8 @@
   </div>
   <figure class="shot hero-shot">
     <picture>
-      <source srcset="assets/events-dark.png" media="(prefers-color-scheme: dark)">
-      <img src="assets/events-light.png" alt="项目列表:每个项目的时间、类型、赛制、报名人数与进度" width="2560" height="1600">
+      <source srcset="assets/overview-dark.png" media="(prefers-color-scheme: dark)">
+      <img src="assets/overview-light.png" alt="总览：赛前、比赛、赛后三段工作流，标出下一步" width="2560" height="1600">
     </picture>
   </figure>
 </section>
@@ -70,28 +70,46 @@
 
   <article class="feature">
     <div class="copy">
-      <h2>分组排道,自动或手动</h2>
-      <p>自动编排只排还没分组的人,可以让同单位的人分开、各组人数均衡。拖动调整后一次保存;已有成绩的组自动锁定,不会被覆盖。</p>
+      <h2>报名登记表，发下去再收回来</h2>
+      <p>按参赛单位导出报名登记表，各班填好交回后一次导入。也可以从表格复制名单粘贴进来。</p>
       <ul>
-        <li>预赛、次赛、半决赛、决赛,各带晋级规则</li>
-        <li>分道、不分道、分道后抢道</li>
-        <li>接力与队伍项目按队编排</li>
+        <li>组别 → 单位的树，按单位看报名进度</li>
+        <li>超项、超额只提示，不拦截</li>
+        <li>号码与学号在赛事内不重复</li>
       </ul>
     </div>
     <figure class="shot">
       <picture>
-        <source srcset="assets/arrange-dark.png" media="(prefers-color-scheme: dark)">
-        <img loading="lazy" src="assets/arrange-light.png" alt="编排页:男子100m 预赛两个组的道次" width="2560" height="1600">
+        <source srcset="assets/entries-dark.png" media="(prefers-color-scheme: dark)">
+        <img loading="lazy" src="assets/entries-light.png" alt="报名页：组别与单位的树、运动员名单与报名项数" width="2560" height="1600">
       </picture>
     </figure>
   </article>
 
   <article class="feature flip">
     <div class="copy">
-      <h2>整场日程一页看清</h2>
-      <p>按天列出每个轮次和每一组的时间。可以把多个轮次连着排,一次定好间隔与预计用时。</p>
+      <h2>分组排道，自动或手动</h2>
+      <p>自动编排只排还没分组的人，同单位尽量分开、各组人数均衡。拖动调整后一次保存；已有成绩的组自动锁定，不会被覆盖。</p>
       <ul>
-        <li>同一运动员两组时间重叠或休息不足时提示</li>
+        <li>预赛、次赛、半决赛、决赛，各带晋级规则</li>
+        <li>分道、不分道、分道后抢道</li>
+        <li>全赛事勾选多个轮次一次编排</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <picture>
+        <source srcset="assets/arrange-dark.png" media="(prefers-color-scheme: dark)">
+        <img loading="lazy" src="assets/arrange-light.png" alt="编排页：男子400m 两个组的道次" width="2560" height="1600">
+      </picture>
+    </figure>
+  </article>
+
+  <article class="feature">
+    <div class="copy">
+      <h2>整场日程一页看清</h2>
+      <p>按天列出每个轮次和每一组的时间。可以把多个轮次连着排，一次定好间隔与预计用时。</p>
+      <ul>
+        <li>同一运动员时间重叠或休息不足时提示</li>
         <li>接力队员与全能分项一并检查</li>
         <li>记录每组实际开赛时间</li>
       </ul>
@@ -99,60 +117,97 @@
     <figure class="shot">
       <picture>
         <source srcset="assets/schedule-dark.png" media="(prefers-color-scheme: dark)">
-        <img loading="lazy" src="assets/schedule-light.png" alt="日程页:按时间排列的轮次与各组" width="2560" height="1600">
-      </picture>
-    </figure>
-  </article>
-
-  <article class="feature">
-    <div class="copy">
-      <h2>录完成绩,名次就出来</h2>
-      <p>每次保存后重新计算名次与晋级,并列同名次、下一名顺延。<span class="q">Q</span> 按名次晋级,<span class="q">q</span> 按成绩晋级。</p>
-      <ul>
-        <li>径赛计时、远度逐次、高度逐杆</li>
-        <li>计次与计分的校园趣味项目</li>
-        <li>全能按计分表换算积分与总排名</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <picture>
-        <source srcset="assets/results-dark.png" media="(prefers-color-scheme: dark)">
-        <img loading="lazy" src="assets/results-light.png" alt="成绩页:录入男子100m 预赛成绩后显示名次与晋级标记" width="2560" height="1600">
+        <img loading="lazy" src="assets/schedule-light.png" alt="日程页：按时间排列的轮次与各组，带实际开赛时间" width="2560" height="1600">
       </picture>
     </figure>
   </article>
 
   <article class="feature flip">
     <div class="copy">
-      <h2>秩序册和成绩册直接打印</h2>
-      <p>选好项目,预览就是纸上的样子。秩序册带竞赛日程表;检录单与成绩记录表按轮次分页。</p>
+      <h2>录完成绩，名次就出来</h2>
+      <p>每次保存后重新计算名次与晋级，并列同名次、下一名顺延。<span class="q">Q</span> 按名次晋级，<span class="q">q</span> 按成绩晋级。</p>
       <ul>
-        <li>秩序册、成绩册</li>
-        <li>检录单,自动算出检录时间</li>
-        <li>供裁判手写的成绩记录表</li>
+        <li>径赛计时、远度逐次、高度逐杆</li>
+        <li>并列名次由裁判裁定先后</li>
+        <li>计次、计分与全能积分</li>
       </ul>
     </div>
     <figure class="shot">
       <picture>
-        <source srcset="assets/reports-dark.png" media="(prefers-color-scheme: dark)">
-        <img loading="lazy" src="assets/reports-light.png" alt="打印页:秩序册预览,首页是竞赛日程表" width="2560" height="1600">
+        <source srcset="assets/results-dark.png" media="(prefers-color-scheme: dark)">
+        <img loading="lazy" src="assets/results-light.png" alt="成绩页：男子100m 预赛两组的成绩、名次与晋级标记" width="2560" height="1600">
       </picture>
     </figure>
   </article>
 
   <article class="feature">
     <div class="copy">
-      <h2>报名表一贴就导入</h2>
-      <p>从表格里复制运动员名单粘贴进来,对好列就能导入。运动员属于赛事,各项目共用,号码与学号在赛事内不重复。</p>
+      <h2>田赛逐次录入</h2>
+      <p>远度项目逐次录入，自动取最好成绩排名。高度项目逐杆记录试跳，标出下一跳。</p>
       <ul>
-        <li>35 个常用项目预设,也可自定义</li>
-        <li>参赛单位可以是学校、班级或代表队</li>
+        <li>试跳、试投次数可设</li>
+        <li>最好成绩相同时比次好成绩</li>
+        <li>高度按跨高度连续失败自动判定</li>
       </ul>
     </div>
     <figure class="shot">
       <picture>
-        <source srcset="assets/athletes-dark.png" media="(prefers-color-scheme: dark)">
-        <img loading="lazy" src="assets/athletes-light.png" alt="运动员页:号码、姓名、参赛单位与报名项目数" width="2560" height="1600">
+        <source srcset="assets/field-dark.png" media="(prefers-color-scheme: dark)">
+        <img loading="lazy" src="assets/field-light.png" alt="成绩页：男子跳远三次试跳、最好成绩与名次" width="2560" height="1600">
+      </picture>
+    </figure>
+  </article>
+
+  <article class="feature flip">
+    <div class="copy">
+      <h2>团体总分自动汇总</h2>
+      <p>按决赛名次换算得分，按组别分别给各参赛单位排名。接力、全能可以单独设倍数。</p>
+      <ul>
+        <li>分值、并列规则可自定义</li>
+        <li>男子、女子分开统计</li>
+        <li>直接打印团体总分表</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <picture>
+        <source srcset="assets/team-scoring-dark.png" media="(prefers-color-scheme: dark)">
+        <img loading="lazy" src="assets/team-scoring-light.png" alt="团体总分页：初一、初二各班的男子、女子与总分" width="2560" height="1600">
+      </picture>
+    </figure>
+  </article>
+
+  <article class="feature">
+    <div class="copy">
+      <h2>秩序册和成绩册直接打印</h2>
+      <p>选好项目，预览就是纸上的样子。分页、续页与页码都排好了。</p>
+      <ul>
+        <li>报名表、秩序册、成绩册</li>
+        <li>检录单，自动算出检录时间</li>
+        <li>供裁判手写的成绩记录表</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <picture>
+        <source srcset="assets/reports-dark.png" media="(prefers-color-scheme: dark)">
+        <img loading="lazy" src="assets/reports-light.png" alt="打印页：秩序册预览，代表队名单" width="2560" height="1600">
+      </picture>
+    </figure>
+  </article>
+
+  <article class="feature flip">
+    <div class="copy">
+      <h2>让 AI 助手一起干活</h2>
+      <p>Claude Code、Cursor、Codex 等 AI 助手通过本机 MCP 查询赛事、导入报名、编排、排时间和录成绩。</p>
+      <ul>
+        <li>只接受本机连接，使用独立令牌</li>
+        <li>批量改动先预览，确认后才写入</li>
+        <li>名次与晋级仍由应用计算</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <picture>
+        <source srcset="assets/mcp-dark.png" media="(prefers-color-scheme: dark)">
+        <img loading="lazy" src="assets/mcp-light.png" alt="AI/MCP 页：服务状态、连接信息与支持的 Agent" width="2560" height="1600">
       </picture>
     </figure>
   </article>
@@ -167,8 +222,8 @@
       <p>所有数据存在本机的 SQLite 文件里,不上传。升级前自动备份。</p>
     </div>
     <div class="card">
-      <h3>让 AI 助手帮忙</h3>
-      <p>AI 助手可以通过本机 MCP 查询赛事、导入报名表、编排和录成绩。服务默认开启，在「AI/MCP」管理，只接受本机连接；批量改动先预览，确认后才写入。</p>
+      <h3>自动更新</h3>
+      <p>有新版本时在应用内提示，一键下载安装。也可以选择接收测试版。</p>
     </div>
     <div class="card">
       <h3>开放的交换格式</h3>
