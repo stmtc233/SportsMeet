@@ -24,6 +24,8 @@ type MeetSettings struct {
 	PrintSchedule bool `json:"printSchedule"`
 	// PrintRoster puts the units' athletes at the start of the 秩序册.
 	PrintRoster bool `json:"printRoster"`
+	// PrintCompact lays the 秩序册's lists out in rows (report.Book.Compact).
+	PrintCompact bool `json:"printCompact"`
 	// PrintCheckInBreak and PrintRecordBreak are where the 检录单 and the
 	// 成绩记录表 start a new page (SheetBreak*).
 	PrintCheckInBreak string `json:"printCheckInBreak"`

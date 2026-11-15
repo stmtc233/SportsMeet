@@ -1071,6 +1071,8 @@ export interface MeetSettings {
   printSchedule: boolean;
   /** PrintRoster puts the units' athletes at the start of the 秩序册. */
   printRoster: boolean;
+  /** PrintCompact lays the 秩序册's lists out in rows (report.Book.Compact). */
+  printCompact: boolean;
   /**
    * PrintCheckInBreak and PrintRecordBreak are where the 检录单 and the
    * 成绩记录表 start a new page (SheetBreak*).

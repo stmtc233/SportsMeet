@@ -43,6 +43,7 @@ func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventID
 		return "", err
 	}
 	book.NewPage = prefs.PrintNewPage
+	book.Compact = prefs.PrintCompact
 	if !prefs.PrintSchedule {
 		book.Schedule = nil
 	}

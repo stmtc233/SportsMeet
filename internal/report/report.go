@@ -7,14 +7,20 @@ package report
 import (
 	"bytes"
 	_ "embed"
+	"fmt"
 	"html/template"
+	"strconv"
 )
 
 // Book is one meet's printable content.
 type Book struct {
 	GroupName  string
 	GroupBooks []Book
-	NewPage    bool   // Start each event on a new printed page.
+	NewPage    bool // Start each event on a new printed page.
+	// Compact lays a 秩序册's lists out side by side: the athletes of an
+	// individual event's heat, of a 全能's roster and of the 代表队名单 go as
+	// many a row as fit instead of one a table row. Teams keep their table.
+	Compact    bool
 	Title      string // 报名表 / 秩序册 / 成绩册 / 团体总分表
 	Meet       string
 	Dates      string // 2026-11-12 or 2026-11-12 – 2026-11-13
@@ -57,6 +63,58 @@ func (g RosterGroup) Rows() [][]Line {
 	return out
 }
 
+// RosterStyle lines up the compact 代表队名单 across all its units.
+func (b Book) RosterStyle() template.CSS {
+	var lines []Line
+	for _, u := range b.Rosters {
+		for _, g := range u.Groups {
+			lines = append(lines, g.Athletes...)
+		}
+	}
+	return flowStyle(lines)
+}
+
+// flowStyle sets the least widths of a compact list's parts (style.css
+// .entry): each the widest of its texts in the list, in its own em, so the
+// parts line up across rows and heats. A text wider than its estimate
+// widens its own entry instead of running into the next one.
+func flowStyle(lines []Line) template.CSS {
+	var pos, bib, name, unit, seed float64
+	for _, l := range lines {
+		pos = max(pos, textWidth(strconv.Itoa(l.Position), 0.67))
+		bib = max(bib, textWidth(l.Bib, 0.62))
+		name = max(name, textWidth(l.Name, 0.62))
+		unit = max(unit, textWidth(l.Unit, 0.62))
+		seed = max(seed, textWidth(l.Seed, 0.62))
+	}
+	return template.CSS(fmt.Sprintf("--pos:%.2fem;--bib:%.2fem;--name:%.2fem;--unit:%.2fem;--seed:%.2fem", pos, bib, name, unit, seed))
+}
+
+// textWidth estimates how wide a text prints, in em of its own font size,
+// from the report's fonts (style.css body): Han and full-width forms are
+// square, figures (figure em each) and Latin letters narrower. A little
+// over the measured widths, for fonts with wider figures and letters.
+func textWidth(s string, figure float64) float64 {
+	w := 0.0
+	for _, r := range s {
+		switch {
+		case r >= '0' && r <= '9':
+			w += figure
+		case r >= 'A' && r <= 'Z':
+			w += 0.7
+		case r >= 'a' && r <= 'z':
+			w += 0.55
+		case r < 0x80:
+			w += 0.45
+		case r < 0x2E80: // Latin with accents, ·, ×
+			w += 0.7
+		default: // CJK, kana, full-width forms
+			w++
+		}
+	}
+	return w
+}
+
 // ScheduleDay is one day of the 竞赛日程表.
 type ScheduleDay struct {
 	Day  string
@@ -90,6 +148,17 @@ type Event struct {
 	// or team members, for half the page.
 	Wide   bool
 	Rounds []Round
+}
+
+// FlowStyle lines up a compact event's athletes across all its heats.
+func (e Event) FlowStyle() template.CSS {
+	var lines []Line
+	for _, r := range e.Rounds {
+		for _, h := range r.Heats {
+			lines = append(lines, h.Lines...)
+		}
+	}
+	return flowStyle(lines)
 }
 
 // Round is one round. Ranked rounds print Standings across the heats;
@@ -305,6 +374,9 @@ type Combined struct {
 	Roster     []Line
 	Tables     []CombinedTable
 }
+
+// FlowStyle lines up a compact roster.
+func (c Combined) FlowStyle() template.CSS { return flowStyle(c.Roster) }
 
 // CombinedPart is a component in the start list: its order and first time.
 type CombinedPart struct {

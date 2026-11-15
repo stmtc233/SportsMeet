@@ -12,19 +12,23 @@
   <p class="meta">{{.Dates}}{{if .Location}} · {{.Location}}{{end}}</p>
 </header>
 {{if .Rosters}}
-<section class="rosters">
+<section class="rosters"{{if $.Compact}} style="{{$.RosterStyle}}"{{end}}>
   <h2>代表队名单</h2>
   {{range .Rosters}}
   <div class="unit">
     <h3>{{.Name}}<small>{{.Count}} 人{{if .Bibs}} · {{.Bibs}}{{end}}</small></h3>
     {{range .Groups}}
     {{if .Label}}<h4>{{.Label}}<small>{{len .Athletes}} 人</small></h4>{{end}}
+    {{if $.Compact}}
+    <div class="entries">{{range .Athletes}}<span class="entry"><span class="bib">{{.Bib}}</span><span class="who">{{.Name}}</span></span>{{end}}</div>
+    {{else}}
     <table class="names">
       <tbody>
         {{range .Rows}}<tr>{{range .}}<td>{{if .Name}}<span class="bib">{{.Bib}}</span>{{.Name}}{{end}}</td>{{end}}</tr>
         {{end}}
       </tbody>
     </table>
+    {{end}}
     {{end}}
   </div>
   {{end}}
@@ -45,13 +49,22 @@
   {{end}}
 </section>
 {{end}}
-{{range .Events}}{{$e := .}}
+{{range .Events}}{{$e := .}}{{$flow := and $.Compact (not .Team)}}
 <section class="event">
   <h2>{{.Name}}{{if .Meta}}<small>{{.Meta}}</small>{{end}}</h2>
   {{range .Rounds}}
   <div class="round">
     <h3>{{.Label}}{{if .Advance}}<small>{{.Advance}}</small>{{end}}</h3>
-    {{if .Heats}}
+    {{if and .Heats $flow}}
+    <div class="heats flow" style="{{$e.FlowStyle}}">
+      {{range .Heats}}
+      <div class="heat">
+        <h4>{{.Label}}{{if .Time}}<small>{{.Time}}</small>{{end}}</h4>
+        <div class="entries">{{range .Lines}}<span class="entry"><span class="num">{{.Position}}</span><span class="bib">{{.Bib}}</span><span class="who">{{.Name}}</span><span class="org">{{.Unit}}</span>{{if $e.Seeded}}<span class="mark">{{.Seed}}</span>{{end}}</span>{{end}}</div>
+      </div>
+      {{end}}
+    </div>
+    {{else if .Heats}}
     <div class="heats{{if $e.Wide}} wide{{end}}">
       {{range .Heats}}
       <div class="heat">
@@ -82,10 +95,16 @@
   </table>
   {{end}}
   <h3>名单</h3>
+  {{if $.Compact}}
+  <div class="flow" style="{{.FlowStyle}}">
+    <div class="entries">{{range .Roster}}<span class="entry"><span class="bib">{{.Bib}}</span><span class="who">{{.Name}}</span><span class="org">{{.Unit}}</span></span>{{end}}</div>
+  </div>
+  {{else}}
   <table>
     <thead><tr><th class="bib">号码</th><th>姓名</th><th class="org">单位</th></tr></thead>
     <tbody>{{range .Roster}}<tr><td class="bib">{{.Bib}}</td><td>{{.Name}}</td><td class="org">{{.Unit}}</td></tr>{{end}}</tbody>
   </table>
+  {{end}}
 </section>{{end}}
 {{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
 </body>

@@ -63,7 +63,8 @@ func newPerfFixture(t *testing.T, scale perfScale) *perfFixture {
 	}
 	base := time.Date(2026, 11, 12, 8, 0, 0, 0, time.UTC)
 	for i := range scale.events {
-		e := interchange.Event{ID: fmt.Sprintf("e%d", i), Gender: "男", Discipline: "100m", GroupLabel: fmt.Sprintf("组别%d", i),
+		f.Groups = append(f.Groups, interchange.Group{ID: fmt.Sprintf("g%d", i), Name: fmt.Sprintf("组别%d", i), Ordinal: i + 1})
+		e := interchange.Event{ID: fmt.Sprintf("e%d", i), Gender: "男", Discipline: "100m", GroupID: fmt.Sprintf("g%d", i),
 			Kind: "track", StartMode: "lanes", LaneCount: ptr(8), Entries: []interchange.Entry{}}
 		r := interchange.Round{ID: fmt.Sprintf("r%d", i), Stage: "final", Ordinal: 1, Heats: []interchange.Heat{}}
 		for j := 0; j < scale.perEvent; j += 8 {
@@ -195,6 +196,15 @@ func TestPerformanceStress(t *testing.T) {
 				html, err := s.RenderReport(ctx, ReportStartList, f.meet, nil)
 				must(t, err)
 				must(t, os.WriteFile(filepath.Join(dir, scale.name+"-startlist.html"), []byte(html), 0o644))
+				prefs, err := s.MeetSettings(ctx, f.meet)
+				must(t, err)
+				prefs.PrintCompact = true
+				must(t, s.SaveMeetSettings(ctx, ui, f.meet, prefs))
+				html, err = s.RenderReport(ctx, ReportStartList, f.meet, nil)
+				must(t, err)
+				must(t, os.WriteFile(filepath.Join(dir, scale.name+"-startlist-compact.html"), []byte(html), 0o644))
+				prefs.PrintCompact = false
+				must(t, s.SaveMeetSettings(ctx, ui, f.meet, prefs))
 				file, err := os.Create(filepath.Join(dir, scale.name+".cpu.pprof"))
 				must(t, err)
 				must(t, pprof.StartCPUProfile(file))

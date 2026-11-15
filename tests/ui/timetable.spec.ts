@@ -151,6 +151,7 @@ test("赛事设置里的最短休息时间与竞赛日程表", async ({ page }) 
   const setup = page.locator(".narrow");
   await expect(setup.getByRole("button", { name: "最短休息时间", exact: true })).toContainText("只查重叠");
   await expect(setup.getByRole("switch", { name: /竞赛日程表/ })).toHaveAttribute("aria-checked", "true");
+  await expect(setup.getByRole("switch", { name: /秩序册紧凑排版/ })).toHaveAttribute("aria-checked", "false");
 });
 
 test("日期、轮次标题与表头逐层吸顶", async ({ page }) => {

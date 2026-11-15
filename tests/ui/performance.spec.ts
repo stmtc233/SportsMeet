@@ -79,11 +79,12 @@ test("虚拟列表占位高度诊断", async ({ page }) => {
   await record({ operation: "VirtualSpacerDiagnostic", count: 1000, before_scroll_height: before, final_scroll_height: after, reached_end: true });
 });
 
-for (const scale of ["school", "large", "extreme", "wide"]) {
-  test(`真实秩序册分页 ${scale}`, async ({ page }) => {
+for (const scale of ["school", "large", "extreme", "wide"]) for (const variant of ["", "compact"]) {
+  const name = variant ? `${scale}-${variant}` : scale;
+  test(`真实秩序册分页 ${name}`, async ({ page }) => {
     const dir = process.env.SPORTSMEET_PERF_OUTPUT;
     test.skip(!dir, "需要 Go 压测生成的秩序册 HTML");
-    const html = await readFile(join(dir!, `${scale}-startlist.html`), "utf8");
+    const html = await readFile(join(dir!, `${scale}-startlist${variant ? `-${variant}` : ""}.html`), "utf8");
     await installRuntime(page);
     await page.route("**/__perf-report", (route) => route.fulfill({ contentType: "text/html", body: html }));
     await page.addInitScript(() => {
@@ -133,8 +134,8 @@ for (const scale of ["school", "large", "extreme", "wide"]) {
     expect(layout.overflow_pages).toBe(0);
     expect(layout.empty_pages).toBe(0);
     const longestTask = await page.evaluate(() => Math.max(0, ...(globalThis as any).__perfLongTasks));
-    await page.screenshot({ path: join(dir!, `${scale}-preview.png`) });
-    await record({ operation: "ReportPagination", scale, html_bytes: Buffer.byteLength(html), pages, total_ms: totalMS,
+    await page.screenshot({ path: join(dir!, `${name}-preview.png`) });
+    await record({ operation: "ReportPagination", scale, variant: variant || "table", html_bytes: Buffer.byteLength(html), pages, total_ms: totalMS,
       longest_task_ms: longestTask, ...layout, layout_ms: delta("LayoutDuration"), style_ms: delta("RecalcStyleDuration"), task_ms: delta("TaskDuration") });
   });
 }

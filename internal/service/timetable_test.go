@@ -238,6 +238,42 @@ func TestStartListRoster(t *testing.T) {
 	}
 }
 
+func TestCompactStartList(t *testing.T) {
+	tf := newTimetableFixture(t)
+	html, err := tf.svc.RenderReport(tf.ctx, ReportStartList, tf.meet, nil)
+	must(t, err)
+	if strings.Contains(html, `class="heats flow"`) {
+		t.Fatal("compact by default")
+	}
+	prefs, err := tf.svc.MeetSettings(tf.ctx, tf.meet)
+	must(t, err)
+	prefs.PrintCompact = true
+	must(t, tf.svc.SaveMeetSettings(tf.ctx, ui, tf.meet, prefs))
+	html, err = tf.svc.RenderReport(tf.ctx, ReportStartList, tf.meet, nil)
+	must(t, err)
+	// The sprint's heats flow, their athletes side by side without a header,
+	// lined up by the widths the event's texts need.
+	if !strings.Contains(html, `<div class="heats flow" style="--pos:`) ||
+		!strings.Contains(html, `<span class="entry"><span class="num">1</span><span class="bib">001</span><span class="who">选手01</span>`) {
+		t.Fatal("individual heats not side by side")
+	}
+	// The relay keeps its table, the all-around's roster flows.
+	relay := html[strings.Index(html, "<h2>男子4×100m"):]
+	relay = relay[:strings.Index(relay, "</section>")]
+	if strings.Contains(relay, "flow") || !strings.Contains(relay, "<thead>") {
+		t.Fatal("relay heats not in a table")
+	}
+	roster := html[strings.Index(html, "<h3>名单</h3>")+len("<h3>名单</h3>"):]
+	if !strings.HasPrefix(strings.TrimSpace(roster), `<div class="flow" style="--pos:`) {
+		t.Fatal("all-around roster not side by side")
+	}
+	// So does the 代表队名单.
+	if !strings.Contains(html, `<section class="rosters" style="--pos:`) || strings.Contains(html, `<table class="names">`) ||
+		!strings.Contains(html, `<span class="entry"><span class="bib">001</span><span class="who">选手01</span></span>`) {
+		t.Fatal("units' rosters not side by side")
+	}
+}
+
 func TestRosterBook(t *testing.T) {
 	units := []domain.Unit{{ID: "u1", Name: "一班"}, {ID: "u2", Name: "二班"}, {ID: "u3", Name: "三班"}}
 	athletes := []domain.Athlete{

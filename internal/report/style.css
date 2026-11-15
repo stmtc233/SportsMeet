@@ -72,6 +72,29 @@ tbody tr + tr > td { border-top: .3pt solid #c8c8c8; }
 .heats:not(.wide) .org { width: auto; }
 .heats:not(.wide) .num, .heats:not(.wide) .q { width: auto; }
 
+/* A compact 秩序册 (Book.Compact): athletes side by side, as many a row as
+   fit; rules around the list and between its heats, a heat's label beside
+   its athletes. Nothing wraps inside an entry. The --* widths, Go's
+   estimates (report.flowStyle), line the parts up across rows; a longer
+   text widens its own entry and moves it on rather than overlapping. */
+.flow { border-top: 1pt solid #111; border-bottom: 1pt solid #111; }
+.heats.flow { display: block; }
+.heats.flow .heat { display: grid; grid-template-columns: 4.6em 1fr; column-gap: 6pt; padding: 2.5pt 0; }
+.heats.flow .heat + .heat { border-top: .3pt solid #c8c8c8; }
+.heats.flow h4 { display: block; margin: 0; padding-top: 1pt; }
+.heats.flow h4 small { display: block; }
+div.flow:not(.heats) { padding: 2.5pt 0; }
+.entries { display: flex; flex-wrap: wrap; column-gap: 10pt; }
+.entry { display: flex; align-items: baseline; gap: 3pt; padding: 1pt 0; white-space: nowrap; }
+.entry > span { flex: none; width: auto; }
+.entry .num { min-width: var(--pos); margin-right: 1pt; text-align: right; font-weight: 700; }
+.entry .bib { min-width: var(--bib); }
+.entry .who { min-width: var(--name); }
+.entry .org { min-width: var(--unit); font-size: 8pt; color: #444; }
+.entry .mark { min-width: var(--seed); margin-left: 3pt; text-align: right; }
+.rosters .entries { column-gap: 12pt; }
+.rosters .entry .bib { color: #555; }
+
 /* Rosters of the units. */
 .unit { break-inside: avoid; page-break-inside: avoid; }
 .unit > h3 { font-size: 10.5pt; margin: 9pt 0 3pt; }
