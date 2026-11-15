@@ -20,23 +20,23 @@ function stepView(s: OverviewStep): StepView {
   const ratio = `${s.done} / ${s.total}`;
   switch (s.key) {
     case "events":
-      return { title: "项目", tab: "events", value: String(s.total), text: "个项目", progress: false, tags: tag(s.extra, "neutral", "全能") };
+      return { title: "项目", tab: "events", value: String(s.total), text: "", progress: false, tags: tag(s.extra, "neutral", "全能") };
     case "units":
-      return { title: "参赛单位", tab: "entries", value: String(s.total), text: "个单位", progress: false, tags: tag(s.warnings, "warning", "未分组") };
+      return { title: "参赛单位", tab: "entries", value: String(s.total), text: "", progress: false, tags: tag(s.warnings, "warning", "未分组") };
     case "entries":
-      return { title: "报名", tab: "entries", value: ratio, text: "个单位已报名", progress: true, tags: tag(s.warnings, "warning", "超限") };
+      return { title: "报名", tab: "entries", value: ratio, text: "单位已报名", progress: true, tags: tag(s.warnings, "warning", "超限") };
     case "arrange":
-      return { title: "编排", tab: "arrange", value: ratio, text: "个项目已编排", progress: true, tags: [] };
+      return { title: "编排", tab: "arrange", value: ratio, text: "项目已编排", progress: true, tags: [] };
     case "schedule":
-      return { title: "日程", tab: "schedule", value: ratio, text: "个轮次已排时间", progress: true, tags: tag(s.warnings, "warning", "冲突") };
+      return { title: "日程", tab: "schedule", value: ratio, text: "轮次已排时间", progress: true, tags: tag(s.warnings, "warning", "冲突") };
     case "results":
-      return { title: "成绩", tab: "results", value: ratio, text: "个轮次已完成", progress: true, tags: tag(s.extra, "info", "进行中") };
+      return { title: "成绩", tab: "results", value: ratio, text: "轮次已完成", progress: true, tags: tag(s.extra, "info", "进行中") };
     case "advance":
-      return { title: "晋级", tab: "arrange", value: ratio, text: "个轮次已晋级", progress: true, tags: [...tag(s.extra, "info", "待晋级"), ...tag(s.warnings, "warning", "待裁定")] };
+      return { title: "晋级", tab: "arrange", value: ratio, text: "轮次已晋级", progress: true, tags: [...tag(s.extra, "info", "待晋级"), ...tag(s.warnings, "warning", "待裁定")] };
     default:
       return s.state === "off"
         ? { title: "团体总分", tab: "team-scoring", value: "未启用", text: "", progress: false, tags: [] }
-        : { title: "团体总分", tab: "team-scoring", value: ratio, text: "个项目已计分", progress: true, tags: [] };
+        : { title: "团体总分", tab: "team-scoring", value: ratio, text: "项目已计分", progress: true, tags: [] };
   }
 }
 
@@ -106,7 +106,7 @@ export function OverviewPage({ meetId }: { meetId: string }) {
   );
 }
 
-/** A phase: its title with what it prints, then its steps. */
+/** A phase: a card titled with what it prints, its steps a row each. */
 function Phase({ phase, start, current, onStep, onPrint }: {
   phase: OverviewPhase;
   start: number;
@@ -119,40 +119,40 @@ function Phase({ phase, start, current, onStep, onPrint }: {
   const teamOff = phase.steps.some((s) => s.key === "team" && s.state === "off");
   const prints = (p?.prints ?? []).filter((k) => !(k === "team_scores" && teamOff));
   return (
-    <section className="overview-phase">
-      <div className="overview-phase__head">
-        <h2 className="overview-phase__title">{p?.title}</h2>
-        {prints.map((k) => (
-          <StButton key={k} size="small" variant="ghost" icon={<IconPrint size={16} strokeWidth={iconStroke} />} onClick={() => onPrint(k)}>
-            {reportKinds.find((r) => r.value === k)?.label}
-          </StButton>
-        ))}
-      </div>
+    <StSection title={p?.title} padded={false} actions={prints.map((k) => (
+      <StButton key={k} size="small" variant="ghost" icon={<IconPrint size={16} strokeWidth={iconStroke} />} onClick={() => onPrint(k)}>
+        {reportKinds.find((r) => r.value === k)?.label}
+      </StButton>
+    ))}>
       <ol className="overview__steps">
         {phase.steps.map((s, i) => <Step key={s.key} index={start + i + 1} step={s} current={s.key === current} onOpen={() => onStep(s)} />)}
       </ol>
-    </section>
+    </StSection>
   );
 }
 
+/** A step: its number, title and count on one line; what it counts, the next thing and its marks below; then its progress. */
 function Step({ index, step, current, onOpen }: { index: number; step: OverviewStep; current: boolean; onOpen: () => void }) {
   const v = stepView(step);
   const tone = tones[step.state] ?? "neutral";
+  const hint = step.state !== "done" ? step.hint : "";
   return (
     <li>
       <button type="button" className="overview-step" data-state={step.state} data-current={current || undefined} aria-current={current ? "step" : undefined} onClick={onOpen}>
-        <span className="overview-step__head">
-          <span className={`overview-step__index st-tone-${tone}`} aria-hidden>
-            {step.state === "done" ? <IconCheck size={14} strokeWidth={iconStroke + 0.75} /> : index}
-          </span>
+        <span className={`overview-step__index st-tone-${tone}`} aria-hidden>
+          {step.state === "done" ? <IconCheck size={14} strokeWidth={iconStroke + 0.75} /> : index}
+        </span>
+        <span className="overview-step__title">
           {v.title}
           {current && <span className="overview-step__next" aria-hidden>下一步</span>}
         </span>
         <span className="overview-step__value">{v.value}</span>
-        {v.text && <span className="overview-step__text">{v.text}</span>}
-        {step.hint && step.state !== "done" && <span className="overview-step__hint" title={step.hint}>{step.hint}</span>}
-        {v.progress && <StProgress value={step.done} max={step.total} tone={tone} label={`${v.title} ${v.value}`} />}
-        {v.tags.length > 0 && <span className="overview-step__tags">{v.tags.map((t) => <StTag key={t.text} tone={t.tone}>{t.text}</StTag>)}</span>}
+        <span className="overview-step__detail">
+          {v.text && <span className="overview-step__text">{v.text}</span>}
+          {hint && <span className="overview-step__hint" title={hint}>{hint}</span>}
+          {v.tags.map((t) => <StTag key={t.text} tone={t.tone}>{t.text}</StTag>)}
+        </span>
+        {v.progress && <span className="overview-step__bar"><StProgress value={step.done} max={step.total} tone={tone} label={`${v.title} ${v.value}`} /></span>}
       </button>
     </li>
   );
