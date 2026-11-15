@@ -10,6 +10,19 @@ export function useGroupSuggestions(meetId: string) {
   return useData(() => Groups.suggestions(meetId), [meetId], (c) => c.meetId === meetId, `groupSuggestions:${meetId}`);
 }
 
+/**
+ * How many athletes saving the assignments moves into each group with their
+ * unit; newGroup is the id the assignments give a group not saved yet.
+ */
+export function useGroupFollows(meetId: string, assignments: GroupAssignment[], newGroup = "") {
+  const key = JSON.stringify(assignments);
+  return useData(
+    () => (assignments.length ? Groups.follows({ meetId, assignments, newGroup }) : Promise.resolve([])),
+    [meetId, key, newGroup],
+    (c) => c.meetId === meetId,
+  );
+}
+
 export const GroupsController = {
   /** Saves the group, then sets which units belong to it (assignments get the group's id, new or not). */
   save: (meetId: string, id: string, input: GroupInput, assignments?: (groupId: string) => GroupAssignment[]) =>

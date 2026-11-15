@@ -85,4 +85,5 @@
 
 - `0010_meet_groups.sql` 的 `meet_groups(id, meet_id, name, name_key, ordinal)` 保存赛事组别目录，`unit_groups(unit_id, group_id)` 保存单位多组归属；`events`、`combined_events`、`athletes` 的 `group_id` 外键均建完整索引。名称规范化与唯一性由 service 维护。
 - 迁移在同一事务中按赛事和规范化名称将项目、全能的非空 `group_label` 建为目录引用；空组别保持空，运动员年级、单位和报名仅供用户后续整理建议，不自动赋归属。迁移保留所有原始成绩、编排与时间，已有数据库执行前先备份。
+- `0013_athlete_unit_groups.sql` 只改数据：单位缺少其运动员所在的组别时补上，单一组别单位里未分组的运动员归入该组别，使已有数据符合「运动员的组别跟着单位」（[groups.md](groups.md)）。
 - 项目与全能读取按 `group_id` 派生 `groupLabel`，同名列为兼容缓存，写入及目录改名同步维护。单位归属使用同一列表查询聚合读取，不按单位逐次查库。完整领域规则见 [groups.md](groups.md)。

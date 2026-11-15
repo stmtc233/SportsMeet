@@ -40,6 +40,8 @@ async function installGroups(page: Page) {
         case "Groups.Delete": groups = groups.filter((g) => g.id !== args[1]); changed(); return null;
         case "Groups.Suggestions": return [{ kind: "athlete", id: "a0", name: "运动员1", candidates: ["g1"], reason: "年级" }];
         case "Groups.Assign": case "Groups.Change": changed(); return null;
+        // Ticking 一班 for the group not saved yet moves its 24 athletes into it.
+        case "Groups.Follows": return args[0].assignments.length && args[0].newGroup ? [{ groupId: args[0].newGroup, athletes: 24 }] : [];
         case "Units.List": return clone(units);
         case "Entries.Summary": return summary();
         case "TeamScoring.Boards": return groups.slice(0, 2).map(board);
@@ -71,6 +73,7 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     const add = page.getByRole("dialog", { name: "添加组别", exact: true });
     await add.getByLabel("名称", { exact: true }).fill("初三");
     await add.getByRole("checkbox", { name: "一班", exact: true }).check();
+    await expect(add.getByText("24 名运动员将归入「初三」", { exact: true })).toBeVisible();
     await add.getByRole("button", { name: "保存", exact: true }).click();
     expect(await lastCall(page, "Groups.Assign")).toEqual([{ meetId: "meet", assignments: [{ kind: "unit", id: "unit", groupIds: ["g1", "g3"] }] }]);
     const row = (name: string) => page.locator(".roster-tree .st-list-item").filter({ hasText: name });
@@ -85,9 +88,9 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
     const edit = page.getByRole("dialog", { name: "编辑组别", exact: true });
     await expect(edit.getByRole("checkbox", { name: "二班", exact: true })).not.toBeChecked();
     await edit.getByLabel("名称", { exact: true }).fill("九年级"); await edit.getByRole("button", { name: "保存", exact: true }).click();
-    // A group in use can be deleted too; the dialog says what becomes ungrouped.
+    // A group in use can be deleted too; the dialog says what leaves it.
     await menu("初一", "删除组别");
-    await expect(page.getByRole("dialog", { name: "删除「初一」？", exact: true })).toContainText("1 个项目、1 个单位、1 名运动员将改为未分组");
+    await expect(page.getByRole("dialog", { name: "删除「初一」？", exact: true })).toContainText("1 个项目、1 个单位、1 名运动员将移出该组别");
     await page.getByRole("dialog", { name: "删除「初一」？", exact: true }).getByRole("button", { name: "取消", exact: true }).click();
     await menu("九年级", "删除组别");
     await page.getByRole("dialog", { name: "删除「九年级」？", exact: true }).getByRole("button", { name: "删除", exact: true }).click();

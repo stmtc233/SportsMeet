@@ -380,6 +380,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 	}
 	// Units, then athletes; an affiliation without a unit becomes one.
 	unitByName := map[string]string{}
+	fresh := []domain.Unit{} // units the import adds, with their groups
 	for _, u := range ex.Units {
 		unitByName[domain.NormalizeText(u.Name)] = u.ID
 	}
@@ -393,6 +394,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 		}
 		id := newID()
 		unitByName[key] = id
+		fresh = append(fresh, domain.Unit{ID: id, Name: strings.TrimSpace(name)})
 		p.Units.New++
 		add(`INSERT INTO units(id, meet_id, name, short_name) VALUES (?, ?, ?, ?)`, id, meetID, strings.TrimSpace(name), short)
 		return id
@@ -428,12 +430,18 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 				for _, id := range mapped {
 					add(`INSERT INTO unit_groups(unit_id,group_id) VALUES (?,?)`, units[u.ID], id)
 				}
+				for i := range fresh {
+					if fresh[i].ID == units[u.ID] {
+						fresh[i].GroupIDs = mapped
+					}
+				}
 			}
 		}
 	}
 	athletes := map[string]string{}
 	names := map[string]string{}
 	genders := map[string]string{}
+	added := []domain.Athlete{}
 	for _, a := range f.Athletes {
 		names[a.ID], genders[a.ID] = a.Name, a.Gender
 		if id, ok := match.Athletes[a.ID]; ok {
@@ -463,7 +471,17 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 		athletes[a.ID] = n.ID
 		p.Athletes.New++
 		plan.stmts = append(plan.stmts, insertAthlete(n, now))
+		added = append(added, n)
 	}
+	// The units and athletes added keep athletes in their unit's groups.
+	changedUnits, changedAthletes := map[string]bool{}, map[string]bool{}
+	for _, u := range fresh {
+		changedUnits[u.ID] = true
+	}
+	for _, a := range added {
+		changedAthletes[a.ID] = true
+	}
+	plan.stmts = append(plan.stmts, followGroups(nil, append(slices.Clone(ex.Units), fresh...), append(slices.Clone(ex.Athletes), added...), changedUnits, changedAthletes).stmts...)
 	// A new athlete must not take the student number or bib of an athlete
 	// the file did not match (it matched someone else by an earlier field).
 	taken := map[string]string{}

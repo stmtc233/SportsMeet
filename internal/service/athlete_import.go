@@ -221,6 +221,7 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 		byName[domain.NormalizeText(a.Name)] = true
 	}
 	unitIDs := map[string]string{}
+	newUnits := []domain.Unit{}
 	unitGroups := map[string][]string{}
 	ambiguousUnits := map[string]bool{}
 	for _, u := range units {
@@ -400,6 +401,7 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 			key := domain.NormalizeText(name)
 			if unitIDs[key] == "" {
 				unitIDs[key] = newID()
+				newUnits = append(newUnits, domain.Unit{ID: unitIDs[key], Name: name})
 				p.NewUnits = append(p.NewUnits, name)
 				unitStmts = append(unitStmts, store.Stmt(`INSERT INTO units(id, meet_id, name) VALUES (?, ?, ?)`, unitIDs[key], meetID, name))
 			}
@@ -459,6 +461,15 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 		limited = append(limited, importLimitRow{row: len(p.Rows), athleteID: a.ID, unitID: a.UnitID, eventIDs: eventIDs})
 		p.Rows = append(p.Rows, out)
 	}
+
+	// Each athlete saved stays in one of its unit's groups.
+	changed := map[string]bool{}
+	after := slices.Clone(athletes)
+	for id, a := range saved {
+		changed[id] = true
+		after = athletesWith(after, a)
+	}
+	stmts = append(stmts, followGroups(groups, append(slices.Clone(units), newUnits...), after, nil, changed).stmts...)
 
 	var teamStmts []sqlite.Statement
 	var newTeams []importLimitTeam

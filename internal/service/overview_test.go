@@ -50,16 +50,16 @@ func TestOverview(t *testing.T) {
 		t.Fatalf("finished event = %+v", e)
 	}
 
-	// With a group: its branch takes the unit and, once moved, the event
-	// by its name without the group; the rest is 未分组.
+	// With a group: its branch takes the unit with its athletes and, once
+	// moved, the event by its name without the group; the rest is 未分组.
 	g, err := f.svc.SaveGroup(f.ctx, ui, f.meet, "", GroupInput{Name: "高一"})
 	must(t, err)
 	_, err = f.svc.SaveUnit(f.ctx, ui, f.meet, f.units[0], UnitInput{Name: "一班", GroupIDs: []string{g.ID}})
 	must(t, err)
 	o, err = f.svc.Overview(f.ctx, f.meet)
 	must(t, err)
-	if b := o.Structure; len(b) != 2 || b[0].Name != "高一" || len(b[0].Units) != 1 || b[0].Units[0].Athletes != 0 || len(b[0].Events) != 0 ||
-		b[1].GroupID != "" || b[1].Name != "未分组" || len(b[1].Units) != 2 || len(b[1].Events) != 1 {
+	if b := o.Structure; len(b) != 2 || b[0].Name != "高一" || len(b[0].Units) != 1 || b[0].Units[0].Athletes != 2 || len(b[0].Events) != 0 ||
+		b[1].GroupID != "" || b[1].Name != "未分组" || len(b[1].Units) != 1 || len(b[1].Events) != 1 {
 		t.Fatalf("grouped = %+v", b)
 	}
 	if u := overviewStep(o, "units"); u.Warnings != 1 {

@@ -49,7 +49,7 @@ func registerGroups(s *sdk.Server, svc *service.Service) {
 	addTool(s, "apply_group_change", "按已确认预览调整项目组别，数据变化后重新预览。", false, func(ctx context.Context, in groupChangeArg) (any, error) {
 		return svc.ApplyGroupChange(ctx, store.SourceMCP, in.Request, in.PreviewHash, in.Confirmed)
 	})
-	addTool(s, "preview_group_assignments", "预览单位和运动员归属。kind 为 unit（多个 groupIds）或 athlete（至多一个 groupId，空数组清除）；不移动已有报名。", true, func(ctx context.Context, in groupAssignmentsArg) (any, error) {
+	addTool(s, "preview_group_assignments", "预览单位和运动员归属。kind 为 unit（多个 groupIds）或 athlete（至多一个 groupId，空数组清除）。运动员的组别随单位联动：单位只有一个组别时其运动员归入它，单位去掉的组别里的运动员改到剩下的唯一组别或未分组，运动员选单位没有的组别时单位一并加入；changes 与 follows 列出这些联动。不移动已有报名。", true, func(ctx context.Context, in groupAssignmentsArg) (any, error) {
 		return svc.PreviewGroupAssignments(ctx, in.Request)
 	})
 	addTool(s, "apply_group_assignments", "按确认预览保存组别归属，数据变化后重新预览。", false, func(ctx context.Context, in groupAssignmentsArg) (any, error) {

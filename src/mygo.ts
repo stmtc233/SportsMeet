@@ -716,6 +716,25 @@ export interface GroupEntries {
   members: GroupMember[];
 }
 
+/**
+ * GroupFollow is how many athletes a change of their unit's groups moves
+ * into a group ("" = 未分组).
+ */
+export interface GroupFollow {
+  groupId: string;
+  athletes: number;
+}
+
+/**
+ * GroupFollowRequest asks what saving assignments does to the athletes;
+ * NewGroup is the ID the assignments use for a group not saved yet.
+ */
+export interface GroupFollowRequest {
+  meetId: string;
+  assignments: GroupAssignment[];
+  newGroup?: string;
+}
+
 export interface GroupInput {
   name: string;
 }
@@ -2131,6 +2150,13 @@ export const Groups = {
   },
   delete(meetID: string, id: string): Promise<void> {
     return call("Groups.Delete", meetID, id);
+  },
+  /**
+   * Follows is how many athletes saving the assignments moves into each
+   * group with their unit.
+   */
+  follows(req: GroupFollowRequest): Promise<GroupFollow[]> {
+    return call("Groups.Follows", req);
   },
   list(meetID: string): Promise<GroupView[]> {
     return call("Groups.List", meetID);

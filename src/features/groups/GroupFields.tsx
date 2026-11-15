@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { StButton, StCheckbox, StMenu, StMuted, StRow, StSelect, StStack, StTextField } from "../../design";
 import { useViewState } from "../../lib/viewState";
-import type { CompetitionGroup } from "../../mygo";
-import { GroupsController, useGroups } from "./controller";
+import type { CompetitionGroup, GroupAssignment } from "../../mygo";
+import { GroupsController, useGroupFollows, useGroups } from "./controller";
 
 /** Shown for "" everywhere: an event, unit or athlete without a group. */
 export const ungrouped = "未分组";
@@ -38,8 +38,9 @@ const newGroup = "+new";
 /**
  * The one group of an event, combined event or athlete. 「新建组别…」 turns
  * it into a name field right there, so a group is made where it is needed.
+ * required leaves out 未分组: an athlete of a unit of one group is in it.
  */
-export function GroupSelect({ meetId, value, onChange, disabled }: { meetId: string; value: string; onChange: (id: string) => void; disabled?: boolean }) {
+export function GroupSelect({ meetId, value, onChange, disabled, required }: { meetId: string; value: string; onChange: (id: string) => void; disabled?: boolean; required?: boolean }) {
   const { data: groups } = useGroups(meetId);
   const [name, setName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -80,7 +81,23 @@ export function GroupSelect({ meetId, value, onChange, disabled }: { meetId: str
   }
   return (
     <StSelect label="组别" width="fill" value={known ? value : ""} onChange={(v) => (v === newGroup ? setName("") : onChange(v))} disabled={disabled}
-      options={[{ value: "", label: ungrouped }, ...options.map((g) => ({ value: g.id, label: g.name })), { value: newGroup, label: "新建组别…" }]} />
+      options={[...(required ? [] : [{ value: "", label: ungrouped }]), ...options.map((g) => ({ value: g.id, label: g.name })), { value: newGroup, label: "新建组别…" }]} />
+  );
+}
+
+/**
+ * What saving units' groups does to their athletes, said before saving:
+ * 「32 名运动员将归入「初一」」. newGroup names a group not saved yet.
+ */
+export function GroupFollows({ meetId, assignments, newGroup }: { meetId: string; assignments: GroupAssignment[]; newGroup?: { id: string; name: string } }) {
+  const { data: groups } = useGroups(meetId);
+  const { data: follows } = useGroupFollows(meetId, assignments, newGroup?.id);
+  if (!follows?.length) return null;
+  const name = (id: string) => (id === newGroup?.id ? newGroup.name.trim() || "新组别" : groups?.find((g) => g.id === id)?.name ?? "");
+  return (
+    <StMuted>
+      {follows.map((f) => (f.groupId ? `${f.athletes} 名运动员将归入「${name(f.groupId)}」` : `${f.athletes} 名运动员将改为未分组`)).join("，")}
+    </StMuted>
   );
 }
 

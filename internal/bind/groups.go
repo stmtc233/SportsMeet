@@ -30,6 +30,12 @@ func (g Groups) Assign(ctx context.Context, req service.GroupAssignmentsRequest)
 	return g.Svc.AssignGroups(ctx, ui, req)
 }
 
+// Follows is how many athletes saving the assignments moves into each
+// group with their unit.
+func (g Groups) Follows(ctx context.Context, req service.GroupFollowRequest) ([]service.GroupFollow, error) {
+	return g.Svc.GroupAssignmentFollows(ctx, req)
+}
+
 // Change moves events and combined events to a group right away.
 func (g Groups) Change(ctx context.Context, req service.GroupChangeRequest) error {
 	return g.Svc.ChangeGroup(ctx, ui, req)

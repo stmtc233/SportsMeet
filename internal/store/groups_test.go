@@ -66,3 +66,51 @@ func TestGroupMigrationPreservesRecordsAndBacksUpV9(t *testing.T) {
 		t.Fatal(rows, err)
 	}
 }
+
+func TestAthleteUnitGroupMigration(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	s, err := Open(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// u has one group and athletes of none; v lacks the group of one of its
+	// athletes; w has two groups; x none; the athlete without a unit stays.
+	if err := s.Write(ctx,
+		Stmt(`INSERT INTO meets(id,name,start_date,created_at) VALUES ('m','校运会','2026-11-12',1)`),
+		Stmt(`INSERT INTO meet_groups(id,meet_id,name,name_key,ordinal) VALUES ('g1','m','初一','初一',1),('g2','m','初二','初二',2)`),
+		Stmt(`INSERT INTO units(id,meet_id,name) VALUES ('u','m','一中'),('v','m','二中'),('w','m','三中'),('x','m','四中')`),
+		Stmt(`INSERT INTO unit_groups(unit_id,group_id) VALUES ('u','g1'),('v','g1'),('w','g1'),('w','g2')`),
+		Stmt(`INSERT INTO athletes(id,meet_id,name,unit_id,group_id,created_at) VALUES ('a1','m','甲','u',NULL,1),('a2','m','乙','v','g2',2),('a3','m','丙','v',NULL,3),('a4','m','丁','w',NULL,4),('a5','m','戊','x',NULL,5),('a6','m','己',NULL,'g2',6)`),
+	); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	rollback(t, dir, followRollback())
+	s, err = Open(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	rows, err := s.Query(ctx, `SELECT id, group_id FROM athletes ORDER BY id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []any{"g1", "g2", nil, nil, nil, "g2"}
+	for i, r := range rows.Values {
+		if r[1] != want[i] {
+			t.Fatalf("athlete %v group = %v, want %v", r[0], r[1], want[i])
+		}
+	}
+	rows, err = s.Query(ctx, `SELECT unit_id || ':' || group_id FROM unit_groups ORDER BY 1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := []any{}
+	for _, r := range rows.Values {
+		got = append(got, r[0])
+	}
+	if len(got) != 5 || got[1] != "v:g1" || got[2] != "v:g2" {
+		t.Fatal("unit groups", got)
+	}
+}

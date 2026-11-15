@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/plugins/sqlite"
@@ -62,10 +63,49 @@ func (s *Service) SaveUnit(ctx context.Context, src store.Source, meetID, id str
 	for _, gid := range u.GroupIDs {
 		stmts = append(stmts, store.Stmt(`INSERT INTO unit_groups(unit_id,group_id) VALUES (?,?)`, u.ID, gid))
 	}
+	if id != "" {
+		follow, err := s.followUnitGroups(ctx, meetID, unitsWith(units, u))
+		if err != nil {
+			return nil, err
+		}
+		stmts = append(stmts, follow.stmts...)
+	}
 	if err := s.write(ctx, a, Change{Kind: "units", MeetID: meetID}, stmts...); err != nil {
 		return nil, err
 	}
 	return &u, nil
+}
+
+// followUnitGroups moves the athletes of the units whose groups change to
+// the groups units lists for them.
+func (s *Service) followUnitGroups(ctx context.Context, meetID string, units []domain.Unit) (groupFollow, error) {
+	old, err := s.store.ListUnits(ctx, meetID)
+	if err != nil {
+		return groupFollow{}, err
+	}
+	athletes, err := s.store.ListAthletes(ctx, meetID)
+	if err != nil {
+		return groupFollow{}, err
+	}
+	groups, err := s.store.ListGroups(ctx, meetID)
+	if err != nil {
+		return groupFollow{}, err
+	}
+	changed := map[string]bool{}
+	for _, u := range units {
+		i := slices.IndexFunc(old, func(o domain.Unit) bool { return o.ID == u.ID })
+		if i < 0 || !sameGroups(old[i].GroupIDs, u.GroupIDs) {
+			changed[u.ID] = true
+		}
+	}
+	return followGroups(groups, units, athletes, changed, nil), nil
+}
+
+func sameGroups(a, b []string) bool {
+	a, b = slices.Clone(a), slices.Clone(b)
+	slices.Sort(a)
+	slices.Sort(b)
+	return slices.Equal(a, b)
 }
 
 // DeleteUnit removes a unit; its athletes stay, without a unit.

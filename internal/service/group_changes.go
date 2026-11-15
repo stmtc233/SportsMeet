@@ -40,6 +40,8 @@ type GroupReview struct {
 	Before      []TeamScoreBoard  `json:"before"`
 	After       []TeamScoreBoard  `json:"after"`
 	Warnings    []string          `json:"warnings"`
+	// Follows is how many athletes move into each group with their unit.
+	Follows []GroupFollow `json:"follows,omitempty"`
 }
 
 func groupNames(groups []domain.CompetitionGroup, ids []string) []string {
@@ -61,7 +63,8 @@ func groupHash(req any, p *GroupReview) (string, error) {
 		Before   []TeamScoreBoard
 		After    []TeamScoreBoard
 		Warnings []string
-	}{req, p.Changes, p.Before, p.After, p.Warnings})
+		Follows  []GroupFollow
+	}{req, p.Changes, p.Before, p.After, p.Warnings, p.Follows})
 	if err != nil {
 		return "", err
 	}
@@ -328,9 +331,22 @@ func (s *Service) prepareGroupAssignments(ctx context.Context, req GroupAssignme
 			return nil, nil, invalid("参赛单位或运动员不属于本赛事")
 		}
 	}
+	units, athletes := map[string]bool{}, map[string]bool{}
+	for _, a := range req.Assignments {
+		if a.Kind == "unit" {
+			units[a.ID] = true
+		} else {
+			athletes[a.ID] = true
+		}
+	}
+	follow := followGroups(st.groups, st.units, st.combined.athletes, units, athletes)
+	stmts = append(stmts, follow.stmts...)
+	p.Changes = mergeLines(p.Changes, follow.lines)
+	p.Follows = follow.follows
 	p.Warnings = groupEntryWarnings(st, nil)
 	return s.finishGroupReview(st, req.MeetID, req, p, stmts, review)
 }
+
 func (s *Service) PreviewGroupAssignments(ctx context.Context, req GroupAssignmentsRequest) (*GroupReview, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

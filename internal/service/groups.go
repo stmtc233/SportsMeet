@@ -224,10 +224,39 @@ func (s *Service) DeleteGroup(ctx context.Context, src store.Source, meetID, id 
 			return err
 		}
 	}
+	units, err := s.store.ListUnits(ctx, meetID)
+	if err != nil {
+		return err
+	}
+	athletes, err := s.store.ListAthletes(ctx, meetID)
+	if err != nil {
+		return err
+	}
+	left := []domain.CompetitionGroup{}
+	for _, o := range groups {
+		if o.ID != id {
+			left = append(left, o.CompetitionGroup)
+		}
+	}
+	changed := map[string]bool{}
+	for i, u := range units {
+		if slices.Contains(u.GroupIDs, id) {
+			units[i].GroupIDs = slices.DeleteFunc(slices.Clone(u.GroupIDs), func(g string) bool { return g == id })
+			changed[u.ID] = true
+		}
+	}
+	for i := range athletes {
+		if athletes[i].GroupID == id {
+			athletes[i].GroupID = ""
+		}
+	}
+	// The athletes of a unit left with one group go into it.
+	follow := followGroups(left, units, athletes, changed, nil)
 	stmts = append(stmts,
 		store.Stmt(`DELETE FROM unit_groups WHERE group_id=?`, id),
-		store.Stmt(`UPDATE athletes SET group_id=NULL WHERE group_id=?`, id),
-		store.Stmt(`DELETE FROM meet_groups WHERE id=? AND meet_id=?`, id, meetID))
+		store.Stmt(`UPDATE athletes SET group_id=NULL WHERE group_id=?`, id))
+	stmts = append(stmts, follow.stmts...)
+	stmts = append(stmts, store.Stmt(`DELETE FROM meet_groups WHERE id=? AND meet_id=?`, id, meetID))
 	return s.write(ctx, store.Audit{Source: src, Action: "group.deleted", MeetID: meetID, Message: g.Name}, Change{Kind: "groups", MeetID: meetID}, stmts...)
 }
 

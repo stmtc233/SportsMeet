@@ -40,13 +40,25 @@ func TestEntrySummary(t *testing.T) {
 	if want := []row{{2, 2, 1, 1}, {2, 1, 0, 0}}; !reflect.DeepEqual(units, want) || !s.Limited {
 		t.Fatalf("units = %+v", units)
 	}
-	// 一班's 选手03 has no group: 一班 shows under 未分组 too, before 二班.
+	// 一班 joined 高一 with its athletes; 二班 has no group.
 	want := []GroupEntries{
-		{ID: g.ID, Name: "高一", Units: 1, Athletes: 1, Entries: 1, Members: []GroupMember{{f.units[0], 1}}},
-		{Name: "未分组", Units: 1, Athletes: 3, Entries: 2, Members: []GroupMember{{f.units[0], 1}, {f.units[1], 2}}},
+		{ID: g.ID, Name: "高一", Units: 1, Athletes: 2, Entries: 2, Members: []GroupMember{{f.units[0], 2}}},
+		{Name: "未分组", Units: 1, Athletes: 2, Entries: 1, Members: []GroupMember{{f.units[1], 2}}},
 	}
 	if !reflect.DeepEqual(s.Groups, want) {
 		t.Fatalf("groups = %+v", s.Groups)
+	}
+
+	// 一班 in two groups with 选手03 in neither: 一班 shows under 未分组 too, before 二班.
+	g2, err := f.svc.SaveGroup(f.ctx, ui, f.meet, "", GroupInput{Name: "高二"})
+	must(t, err)
+	_, err = f.svc.SaveUnit(f.ctx, ui, f.meet, f.units[0], UnitInput{Name: "一班", GroupIDs: []string{g.ID, g2.ID}})
+	must(t, err)
+	must(t, f.svc.AssignGroups(f.ctx, ui, GroupAssignmentsRequest{MeetID: f.meet, Assignments: []GroupAssignment{{Kind: "athlete", ID: f.athletes[2], GroupIDs: []string{}}}}))
+	s, err = f.svc.EntrySummary(f.ctx, f.meet)
+	must(t, err)
+	if none := s.Groups[2]; len(s.Groups) != 3 || none.Units != 1 || none.Athletes != 3 || !reflect.DeepEqual(none.Members, []GroupMember{{f.units[0], 1}, {f.units[1], 2}}) {
+		t.Fatalf("loose athletes = %+v", s.Groups)
 	}
 
 	// Every unit in a group: 未分组 stays for the athletes of no group alone.
@@ -54,18 +66,14 @@ func TestEntrySummary(t *testing.T) {
 	must(t, err)
 	s, err = f.svc.EntrySummary(f.ctx, f.meet)
 	must(t, err)
-	if none := s.Groups[1]; len(s.Groups) != 2 || none.Units != 0 || none.Athletes != 3 || len(none.Members) != 2 {
-		t.Fatalf("loose athletes = %+v", s.Groups)
+	if none := s.Groups[2]; len(s.Groups) != 3 || none.Units != 0 || none.Athletes != 1 || len(none.Members) != 1 {
+		t.Fatalf("loose athlete = %+v", s.Groups)
 	}
-	for _, id := range f.athletes[1:] {
-		a := map[string]AthleteInput{f.athletes[1]: {Name: "选手02", Gender: "男", Bib: "002", UnitID: f.units[1]}, f.athletes[2]: {Name: "选手03", Gender: "男", Bib: "003", UnitID: f.units[0]}, f.athletes[3]: {Name: "选手04", Gender: "男", Bib: "004", UnitID: f.units[1]}}[id]
-		a.GroupID = g.ID
-		_, err = f.svc.SaveAthlete(f.ctx, ui, f.meet, id, a)
-		must(t, err)
-	}
+	_, err = f.svc.SaveAthlete(f.ctx, ui, f.meet, f.athletes[2], AthleteInput{Name: "选手03", Gender: "男", Bib: "003", UnitID: f.units[0], GroupID: g.ID})
+	must(t, err)
 	s, err = f.svc.EntrySummary(f.ctx, f.meet)
 	must(t, err)
-	if len(s.Groups) != 1 || !reflect.DeepEqual(s.Groups[0].Members, []GroupMember{{f.units[0], 2}, {f.units[1], 2}}) {
+	if len(s.Groups) != 2 || !reflect.DeepEqual(s.Groups[0].Members, []GroupMember{{f.units[0], 2}, {f.units[1], 2}}) {
 		t.Fatalf("all grouped = %+v", s.Groups)
 	}
 }

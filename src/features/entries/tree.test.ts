@@ -7,11 +7,12 @@ const unit = (id: string, name: string, groupIds: string[], athletes = 2): UnitE
 
 const flat: EntrySummary = { units: [unit("u1", "一班", []), unit("u2", "二班", [])], groups: [], limited: false };
 
-// 一班 in 高一 with one athlete of no group; 二班 in no group.
+// 一班 in 高一 and 高二 with one athlete of neither; 二班 in no group.
 const grouped: EntrySummary = {
-  units: [unit("u1", "一班", ["g1"]), unit("u2", "二班", [])],
+  units: [unit("u1", "一班", ["g1", "g2"]), unit("u2", "二班", [])],
   groups: [
     { id: "g1", name: "高一", units: 1, athletes: 1, entries: 0, members: [{ unitId: "u1", athletes: 1 }] },
+    { id: "g2", name: "高二", units: 1, athletes: 0, entries: 0, members: [{ unitId: "u1", athletes: 0 }] },
     { id: "", name: "未分组", units: 1, athletes: 3, entries: 0, members: [{ unitId: "u1", athletes: 1 }, { unitId: "u2", athletes: 2 }] },
   ],
   limited: false,
@@ -25,9 +26,14 @@ test("a meet without groups has its units under 全部", () => {
 
 test("groups list their units with the athletes of that group", () => {
   const rows = treeRows(grouped);
-  expect(rows.map((r) => nodeKey(r.node))).toEqual(["all|", "g1|", "g1|u1", "|", "|u1", "|u2"]);
+  expect(rows.map((r) => nodeKey(r.node))).toEqual(["all|", "g1|", "g1|u1", "g2|", "g2|u1", "|", "|u1", "|u2"]);
   expect(rows[2]).toMatchObject({ athletes: 1, indent: true });
-  expect(rows[4]).toMatchObject({ athletes: 1 });
+  expect(rows[6]).toMatchObject({ athletes: 1 });
+});
+
+test("a unit's athletes of no group show under each of its groups", () => {
+  const rows = treeRows(grouped);
+  expect(rows.map((r) => (r.kind === "unit" ? r.loose : -1))).toEqual([-1, -1, 1, -1, 1, -1, 0, 0]);
 });
 
 test("node keys round-trip and unknown nodes read as 全部", () => {
@@ -51,7 +57,7 @@ test("an athlete is under a node by group and unit", () => {
 
 test("export offers the node's units or groups", () => {
   expect(exportChoices(flat, allNode)).toEqual([{ label: "每个单位一份（2 份）", ids: [], byGroup: false }]);
-  expect(exportChoices(grouped, allNode).map((c) => c.label)).toEqual(["每个单位一份（2 份）", "每个组别一份（2 份）"]);
+  expect(exportChoices(grouped, allNode).map((c) => c.label)).toEqual(["每个单位一份（2 份）", "每个组别一份（3 份）"]);
   expect(exportChoices(grouped, { group: "g1", unit: "u1" })).toEqual([{ label: "「一班」", ids: ["u1"], byGroup: false }]);
   expect(exportChoices(grouped, { group: "g1", unit: "" })).toEqual([
     { label: "每个单位一份（1 份）", ids: ["u1"], byGroup: false },

@@ -29,6 +29,7 @@ export function AthleteDialog({ meetId, open, athlete, units, unitId = "", group
     setForm(athlete ? { name: athlete.name, gender: athlete.gender, bib: athlete.bib, studentNumber: athlete.studentNumber, groupId: athlete.groupId ?? "", unitId: athlete.unitId, className: athlete.className, grade: athlete.grade, birthDate: athlete.birthDate, note: athlete.note } : { ...blank, unitId, groupId });
   }, [open, athlete, unitId, groupId]);
   const set = (patch: Partial<Required<AthleteInput>>) => setForm((f) => ({ ...f, ...patch }));
+  const unitGroups = (id: string) => units.find((u) => u.id === id)?.groupIds ?? [];
   const save = async (another: boolean) => {
     setBusy(true);
     const ok = await AthletesController.save(meetId, athlete?.id ?? "", form);
@@ -58,16 +59,25 @@ export function AthleteDialog({ meetId, open, athlete, units, unitId = "", group
         <StTextField label="号码" value={form.bib} onChange={(bib) => set({ bib })} />
         <StTextField label="学号" value={form.studentNumber} onChange={(studentNumber) => set({ studentNumber })} />
         <div className="span">
-          <StSelect label="参赛单位" width="fill" value={form.unitId} onChange={(unitId) => { const unit = units.find((u) => u.id === unitId); set({ unitId, ...(!form.groupId && unit?.groupIds?.length === 1 ? { groupId: unit.groupIds[0]! } : {}) }); }} placeholder="无"
+          <StSelect label="参赛单位" width="fill" value={form.unitId} onChange={(unitId) => set({ unitId, groupId: groupIn(unitGroups(unitId), form.groupId) })} placeholder="无"
             options={[{ value: "", label: "无" }, ...units.map((u) => ({ value: u.id, label: u.name }))]} />
         </div>
-        <GroupSelect meetId={meetId} value={form.groupId} onChange={(groupId) => set({ groupId })} />
+        <GroupSelect meetId={meetId} value={form.groupId} onChange={(groupId) => set({ groupId })} required={unitGroups(form.unitId).length === 1} />
         <StTextField label="年级" value={form.grade} onChange={(grade) => set({ grade })} />
         <StTextField label="班级" value={form.className} onChange={(className) => set({ className })} />
       </div>
       <EntryChecks options={options} ticked={events} onChange={setTicked} />
     </StDialog>
   );
+}
+
+/**
+ * The group an athlete takes moving into a unit of groups: the unit's one
+ * group, the athlete's while the unit has it, else none.
+ */
+function groupIn(groups: string[], group: string) {
+  if (groups.length === 1) return groups[0]!;
+  return groups.includes(group) ? group : "";
 }
 
 /** 报名项目: the individual events, ticked when entered; one in a heat stays ticked. */

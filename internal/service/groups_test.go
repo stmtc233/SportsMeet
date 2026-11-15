@@ -210,12 +210,105 @@ func TestGroupAssignmentsSuggestionsImportMatchingAndCrossGroup(t *testing.T) {
 	if preview.Errors != 1 {
 		t.Fatal("ambiguous short unit accepted")
 	}
+	// Athletes follow their unit's one group, so none is left to organize.
 	suggestions, err := f.svc.SuggestGroups(f.ctx, f.meet)
 	must(t, err)
-	if !slices.ContainsFunc(suggestions, func(g GroupSuggestion) bool {
-		return g.Kind == "athlete" && g.ID == f.athletes[1] && slices.Contains(g.Candidates, g2)
-	}) {
-		t.Fatal("missing roster suggestion")
+	if len(suggestions) != 0 {
+		t.Fatal("athletes of a unit of one group left ungrouped", suggestions)
+	}
+}
+
+// Athletes stay in their unit's groups whatever is saved: a unit's groups,
+// an athlete's group, a group deleted.
+func TestAthletesFollowUnitGroups(t *testing.T) {
+	f := newFixture(t, 4, EventInput{}) // 一班: athletes 0, 2; 二班: 1, 3
+	g1, g2 := addGroup(t, f, "初一"), addGroup(t, f, "初二")
+	groupOf := func() []string {
+		t.Helper()
+		rows, err := f.svc.ListAthletes(f.ctx, f.meet)
+		must(t, err)
+		byID := map[string]string{}
+		for _, r := range rows {
+			byID[r.Athlete.ID] = r.Athlete.GroupID
+		}
+		out := []string{}
+		for _, id := range f.athletes {
+			out = append(out, byID[id])
+		}
+		return out
+	}
+	unitGroups := func(id string) []string {
+		t.Helper()
+		units, err := f.svc.ListUnits(f.ctx, f.meet)
+		must(t, err)
+		for _, u := range units {
+			if u.ID == id {
+				out := slices.Clone(u.GroupIDs)
+				slices.Sort(out)
+				return out
+			}
+		}
+		return nil
+	}
+	sorted := func(ids ...string) []string { slices.Sort(ids); return ids }
+
+	// The group dialog's count, then the save: both of 一班 go into 初一.
+	req := GroupAssignmentsRequest{MeetID: f.meet, Assignments: []GroupAssignment{{Kind: "unit", ID: f.units[0], GroupIDs: []string{g1}}}}
+	follows, err := f.svc.GroupAssignmentFollows(f.ctx, GroupFollowRequest{MeetID: f.meet, Assignments: req.Assignments})
+	must(t, err)
+	if !slices.Equal(follows, []GroupFollow{{GroupID: g1, Athletes: 2}}) {
+		t.Fatal("follows", follows)
+	}
+	// A group not saved yet counts the same.
+	follows, err = f.svc.GroupAssignmentFollows(f.ctx, GroupFollowRequest{MeetID: f.meet, NewGroup: "new", Assignments: []GroupAssignment{{Kind: "unit", ID: f.units[1], GroupIDs: []string{"new"}}}})
+	must(t, err)
+	if !slices.Equal(follows, []GroupFollow{{GroupID: "new", Athletes: 2}}) {
+		t.Fatal("follows into a new group", follows)
+	}
+	must(t, f.svc.AssignGroups(f.ctx, ui, req))
+	if got := groupOf(); !slices.Equal(got, []string{g1, "", g1, ""}) {
+		t.Fatal("unit joined a group", got)
+	}
+
+	// An athlete into 初二: 一班 joins it; the others stay in 初一.
+	_, err = f.svc.SaveAthlete(f.ctx, ui, f.meet, f.athletes[0], AthleteInput{Name: "选手01", Gender: "男", Bib: "001", UnitID: f.units[0], GroupID: g2})
+	must(t, err)
+	if got := unitGroups(f.units[0]); !slices.Equal(got, sorted(g1, g2)) {
+		t.Fatal("unit lacks its athlete's group", got)
+	}
+	if got := groupOf(); !slices.Equal(got, []string{g2, "", g1, ""}) {
+		t.Fatal("athlete group", got)
+	}
+
+	// 一班 leaves 初二: its athlete there goes to 初一, the one group left.
+	p, err := f.svc.PreviewGroupAssignments(f.ctx, GroupAssignmentsRequest{MeetID: f.meet, Assignments: []GroupAssignment{{Kind: "unit", ID: f.units[0], GroupIDs: []string{g1}}}})
+	must(t, err)
+	if !slices.Equal(p.Follows, []GroupFollow{{GroupID: g1, Athletes: 1}}) || !slices.ContainsFunc(p.Changes, func(c GroupChangeLine) bool { return c.Key == "athlete:"+f.athletes[0] }) {
+		t.Fatal("preview lacks the athlete moved", p.Follows, p.Changes)
+	}
+	_, err = f.svc.SaveUnit(f.ctx, ui, f.meet, f.units[0], UnitInput{Name: "一班", GroupIDs: []string{g1}})
+	must(t, err)
+	if got := groupOf(); !slices.Equal(got, []string{g1, "", g1, ""}) {
+		t.Fatal("unit left a group", got)
+	}
+
+	// A new athlete of 一班 without a group is in 初一.
+	a, err := f.svc.SaveAthlete(f.ctx, ui, f.meet, "", AthleteInput{Name: "新人", Gender: "男", UnitID: f.units[0]})
+	must(t, err)
+	if a.GroupID != g1 {
+		t.Fatal("new athlete group", a.GroupID)
+	}
+
+	// 二班 in both, then 初二 deleted: 二班 is left with 初一, its athletes too.
+	_, err = f.svc.SaveUnit(f.ctx, ui, f.meet, f.units[1], UnitInput{Name: "二班", GroupIDs: []string{g1, g2}})
+	must(t, err)
+	if got := groupOf(); !slices.Equal(got, []string{g1, "", g1, ""}) {
+		t.Fatal("athletes moved with a second group", got)
+	}
+	must(t, f.svc.AssignGroups(f.ctx, ui, GroupAssignmentsRequest{MeetID: f.meet, Assignments: []GroupAssignment{{Kind: "athlete", ID: f.athletes[1], GroupIDs: []string{g2}}}}))
+	must(t, f.svc.DeleteGroup(f.ctx, ui, f.meet, g2))
+	if got := groupOf(); !slices.Equal(got, []string{g1, g1, g1, g1}) {
+		t.Fatal("group deleted", got)
 	}
 }
 
@@ -353,4 +446,24 @@ func TestGroupRulePreviewTracksEntriesAndEmptyFilters(t *testing.T) {
 	}
 	_, err = f.svc.GetTeamScoreBoards(f.ctx, TeamScoreFilter{MeetID: f.meet, GroupID: ptr(""), TargetIDs: []string{"missing"}})
 	wantInvalid(t, err, "不存在")
+}
+
+// An imported athlete of a group its unit lacks adds the group to the unit;
+// one of a new unit makes the unit join its group.
+func TestAthleteImportKeepsUnitGroups(t *testing.T) {
+	f := newFixture(t, 2, EventInput{})
+	g1, g2 := addGroup(t, f, "初一"), addGroup(t, f, "初二")
+	setUnitGroups(t, f, f.units[0], g1)
+	input := AthleteImport{Mapping: []string{ColName, ColGender, ColUnit, ColGroup}, Rows: [][]string{{"甲", "男", "一班", "初二"}, {"乙", "男", "三班", "初二"}}}
+	_, err := f.svc.ImportAthletes(f.ctx, ui, f.meet, input)
+	must(t, err)
+	units, err := f.svc.ListUnits(f.ctx, f.meet)
+	must(t, err)
+	groups := map[string][]string{}
+	for _, u := range units {
+		groups[u.Name] = u.GroupIDs
+	}
+	if !slices.Contains(groups["一班"], g1) || !slices.Contains(groups["一班"], g2) || !slices.Equal(groups["三班"], []string{g2}) {
+		t.Fatal("unit groups after import", groups)
+	}
 }

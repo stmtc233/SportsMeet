@@ -24,21 +24,23 @@ export function parseNode(key: string): RosterNode {
 export type TreeRow =
   | { kind: "all"; node: RosterNode }
   | { kind: "group"; node: RosterNode; group: GroupEntries }
-  | { kind: "unit"; node: RosterNode; unit: UnitEntries; athletes: number; indent: boolean };
+  /** loose: the unit's athletes of no group, shown under each of its groups. */
+  | { kind: "unit"; node: RosterNode; unit: UnitEntries; athletes: number; indent: boolean; loose: number };
 
 /** The tree's rows from top to bottom: 全部, then each group and its units, or the units alone. */
 export function treeRows(s: EntrySummary): TreeRow[] {
   const rows: TreeRow[] = [{ kind: "all", node: allNode }];
   if (s.groups.length === 0) {
-    for (const u of s.units) rows.push({ kind: "unit", node: { group: "all", unit: u.unit.id }, unit: u, athletes: u.athletes, indent: false });
+    for (const u of s.units) rows.push({ kind: "unit", node: { group: "all", unit: u.unit.id }, unit: u, athletes: u.athletes, indent: false, loose: 0 });
     return rows;
   }
   const units = new Map(s.units.map((u) => [u.unit.id, u]));
+  const loose = new Map((s.groups.find((g) => g.id === "")?.members ?? []).map((m) => [m.unitId, m.athletes]));
   for (const g of s.groups) {
     rows.push({ kind: "group", node: { group: g.id, unit: "" }, group: g });
     for (const m of g.members ?? []) {
       const u = units.get(m.unitId);
-      if (u) rows.push({ kind: "unit", node: { group: g.id, unit: m.unitId }, unit: u, athletes: m.athletes, indent: true });
+      if (u) rows.push({ kind: "unit", node: { group: g.id, unit: m.unitId }, unit: u, athletes: m.athletes, indent: true, loose: g.id ? loose.get(m.unitId) ?? 0 : 0 });
     }
   }
   return rows;

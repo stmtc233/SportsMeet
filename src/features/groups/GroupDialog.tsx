@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { StButton, StCheckbox, StDialog, StMuted, StStack, StTextField } from "../../design";
-import type { GroupView, Unit } from "../../mygo";
+import type { GroupAssignment, GroupView, Unit } from "../../mygo";
 import { DeleteDialog } from "../meets/DeleteDialog";
 import { useUnits } from "../units/controller";
 import { GroupsController } from "./controller";
+import { GroupFollows } from "./GroupFields";
+
+// The id the units ticked for a group not saved yet stand in for.
+const unsaved = "new";
 
 /** Adds a group (group undefined) or edits one: its name and the units in it. */
 export function GroupDialog({ meetId, group, onClose }: { meetId: string; group?: GroupView; onClose: () => void }) {
@@ -15,12 +19,13 @@ export function GroupDialog({ meetId, group, onClose }: { meetId: string; group?
   const inGroup = (u: Unit) => !!group && (u.groupIds ?? []).includes(group.id);
   const ticked = picked ?? new Set((units ?? []).filter(inGroup).map((u) => u.id));
 
+  // The units whose groups change, as saved with the group's id.
+  const assignments = (id: string): GroupAssignment[] => (units ?? []).filter((u) => inGroup(u) !== ticked.has(u.id)).map((u) => ({
+    kind: "unit", id: u.id, groupIds: ticked.has(u.id) ? [...(u.groupIds ?? []), id] : (u.groupIds ?? []).filter((g) => g !== id),
+  }));
   const save = async () => {
     setBusy(true);
-    const changed = (units ?? []).filter((u) => inGroup(u) !== ticked.has(u.id));
-    const ok = await GroupsController.save(meetId, group?.id ?? "", { name }, (id) => changed.map((u) => ({
-      kind: "unit", id: u.id, groupIds: ticked.has(u.id) ? [...(u.groupIds ?? []), id] : (u.groupIds ?? []).filter((g) => g !== id),
-    })));
+    const ok = await GroupsController.save(meetId, group?.id ?? "", { name }, assignments);
     setBusy(false);
     if (ok) onClose();
   };
@@ -45,13 +50,14 @@ export function GroupDialog({ meetId, group, onClose }: { meetId: string; group?
           <div className="group-units">
             {units.map((u) => <StCheckbox key={u.id} label={u.name} checked={ticked.has(u.id)} disabled={busy} onChange={(on) => toggle(u.id, on)} />)}
           </div>
+          <GroupFollows meetId={meetId} assignments={assignments(group?.id ?? unsaved)} newGroup={group ? undefined : { id: unsaved, name }} />
         </StStack>
       )}
     </StDialog>
   );
 }
 
-/** Deleting a group: what uses it turns 未分组. */
+/** Deleting a group: what uses it leaves the group. */
 export function GroupDeleteDialog({ meetId, group, onClose }: { meetId: string; group: GroupView | null; onClose: () => void }) {
   return (
     <DeleteDialog open={group !== null} title={`删除「${group?.name ?? ""}」？`} onClose={onClose}
@@ -63,5 +69,5 @@ export function GroupDeleteDialog({ meetId, group, onClose }: { meetId: string; 
 
 function usage(g: GroupView) {
   const parts = [g.events && `${g.events} 个项目`, g.units && `${g.units} 个单位`, g.athletes && `${g.athletes} 名运动员`].filter(Boolean);
-  return parts.length ? `${parts.join("、")}将改为未分组，成绩不变。` : "该组别没有被使用。";
+  return parts.length ? `${parts.join("、")}将移出该组别，成绩不变。` : "该组别没有被使用。";
 }

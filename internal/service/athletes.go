@@ -116,6 +116,35 @@ func identityClash(a domain.Athlete, others []domain.Athlete) error {
 	return nil
 }
 
+// followAthleteGroups keeps a, about to be saved, in one of its unit's
+// groups: a group its unit lacks joins the unit, whose other athletes
+// follow when it had none. a takes the group it ends in.
+func (s *Service) followAthleteGroups(ctx context.Context, meetID string, a *domain.Athlete) (groupFollow, error) {
+	if a.UnitID == "" {
+		return groupFollow{}, nil
+	}
+	units, err := s.store.ListUnits(ctx, meetID)
+	if err != nil {
+		return groupFollow{}, err
+	}
+	athletes, err := s.store.ListAthletes(ctx, meetID)
+	if err != nil {
+		return groupFollow{}, err
+	}
+	groups, err := s.store.ListGroups(ctx, meetID)
+	if err != nil {
+		return groupFollow{}, err
+	}
+	athletes = athletesWith(athletes, *a)
+	follow := followGroups(groups, units, athletes, nil, map[string]bool{a.ID: true})
+	for _, o := range athletes {
+		if o.ID == a.ID {
+			a.GroupID = o.GroupID
+		}
+	}
+	return follow, nil
+}
+
 func insertAthlete(a domain.Athlete, now int64) sqlite.Statement {
 	return store.Stmt(`INSERT INTO athletes(id, meet_id, name, gender, bib, student_number, unit_id, class_name,
 		grade, birth_date, note, created_at, bib_key, student_number_key, name_key, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -168,17 +197,6 @@ func (s *Service) SaveAthlete(ctx context.Context, src store.Source, meetID, id 
 			return nil, invalid("参赛单位不存在或已删除")
 		}
 	}
-	if a.GroupID == "" && id == "" {
-		units, err := s.store.ListUnits(ctx, meetID)
-		if err != nil {
-			return nil, err
-		}
-		for _, u := range units {
-			if u.ID == a.UnitID && len(u.GroupIDs) == 1 {
-				a.GroupID = u.GroupIDs[0]
-			}
-		}
-	}
 	if a.GroupID != "" {
 		if err := s.validateGroupIDs(ctx, meetID, []string{a.GroupID}); err != nil {
 			return nil, err
@@ -188,13 +206,19 @@ func (s *Service) SaveAthlete(ctx context.Context, src store.Source, meetID, id 
 		return nil, err
 	}
 	audit := store.Audit{Source: src, Action: "athlete.updated", MeetID: meetID, Message: a.Name}
-	stmt := updateAthlete(a)
 	if id == "" {
 		a.ID = newID()
 		audit.Action = "athlete.created"
+	}
+	follow, err := s.followAthleteGroups(ctx, meetID, &a)
+	if err != nil {
+		return nil, err
+	}
+	stmt := updateAthlete(a)
+	if id == "" {
 		stmt = insertAthlete(a, s.store.Now())
 	}
-	if err := s.write(ctx, audit, Change{Kind: "athletes", MeetID: meetID}, stmt); err != nil {
+	if err := s.write(ctx, audit, Change{Kind: "athletes", MeetID: meetID}, append([]sqlite.Statement{stmt}, follow.stmts...)...); err != nil {
 		return nil, err
 	}
 	return &a, nil

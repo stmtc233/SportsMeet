@@ -76,7 +76,7 @@ export function RosterTree({ meetId, node, total, onSelect }: {
           trailing={<><Count n={r.group.athletes} />{r.group.id && <More label={`${r.group.name} 更多`} items={groupMenu(r.group.id)} />}</>} />;
       default:
         return <StListItem key={nodeKey(r.node)} title={r.unit.unit.name} indent={r.indent} {...props}
-          trailing={<>{status(r.unit)}<Count n={r.athletes} /><More label={`${r.unit.unit.name} 更多`} items={unitMenu(r.unit.unit)} /></>} />;
+          trailing={<>{r.loose > 0 ? <StTag tone="warning">{r.loose} 人未分组</StTag> : status(r.unit)}<Count n={r.athletes} /><More label={`${r.unit.unit.name} 更多`} items={unitMenu(r.unit.unit)} /></>} />;
     }
   };
 
