@@ -87,6 +87,32 @@ func TestDayText(t *testing.T) {
 	}
 }
 
+func TestShortDayAndMinutes(t *testing.T) {
+	if got := ShortDayText("2026-11-12"); got != "11-12 周四" {
+		t.Errorf("ShortDayText = %q", got)
+	}
+	if got := ShortDayText("x"); got != "x" {
+		t.Errorf("ShortDayText(x) = %q", got)
+	}
+	for _, c := range []struct {
+		at   string
+		want int
+		ok   bool
+	}{
+		{"2026-11-12T09:30", 570, true},
+		{"2026-11-13T00:15", 1455, true},
+		{"2026-11-11T23:00", -60, true},
+		{"", 0, false},
+	} {
+		if got, ok := MinutesInto(c.at, "2026-11-12"); got != c.want || ok != c.ok {
+			t.Errorf("MinutesInto(%q) = %d %v", c.at, got, ok)
+		}
+	}
+	if got := MinuteOf("2026-11-12", 1500); got != "2026-11-13T01:00" {
+		t.Errorf("MinuteOf = %q", got)
+	}
+}
+
 func TestDateRangeText(t *testing.T) {
 	for _, c := range []struct{ start, end, want string }{
 		{"2026-11-12", "", "2026-11-12"},

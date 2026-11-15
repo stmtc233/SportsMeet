@@ -112,7 +112,7 @@ test("总览的「未分组」单位进报名并选中「未分组」", async ({
 });
 
 for (const width of [1280, 800]) {
-  test(`总览显示工作流与待比赛 ${width}`, async ({ page }) => {
+  test(`总览显示工作流与赛程 ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await installRuntime(page, { limits: true, conflicts: true });
     await page.goto("/");
@@ -141,6 +141,18 @@ for (const width of [1280, 800]) {
     await page.locator(".overview__phases").getByRole("button", { name: "检录单", exact: true }).click();
     await expectReport(page, "检录单");
     await page.getByRole("button", { name: "总览", exact: true }).click();
+    // 赛程: an hour a row, now splitting its hour; a day of the meet switches.
+    const chart = page.locator(".timeline");
+    await expect(chart.locator(".timeline__hour")).toHaveText(["08:00", "09:00", "10:00"]);
+    await expect(chart.locator(".timeline__now-text")).toHaveText("09:30");
+    await expect(chart.getByRole("button", { name: /^男子跳远 · 08:30 · 未编排 .*已过开始时间/ })).toContainText("已过开始时间");
+    await expect(chart.getByRole("button", { name: /^男子跳高 .*下一场$/ })).toContainText("下一场");
+    if (width > 900) await expect(chart.locator(".timeline__lane-name")).toHaveText(["径赛", "田赛"]);
+    else await expect(chart.locator(".timeline__row:not(.timeline__head)").first().locator(".timeline__cell-lane:visible")).toHaveText(["田赛"]);
+    await page.getByRole("radio", { name: "11-13 周五" }).click();
+    await expect(chart.getByRole("button", { name: /^跳绳 · 08:30/ })).toBeVisible();
+    await page.getByRole("radio", { name: "11-12 周四" }).click();
+    await expect(page.getByRole("button", { name: "1 个轮次未安排时间" })).toBeVisible();
     // 赛事结构: a unit opens selected in the 报名 tree, an event on its own page.
     const map = page.locator(".mindmap");
     await expect(map.getByRole("button", { name: "二班 0 未报名", exact: true })).toBeVisible();
@@ -151,13 +163,28 @@ for (const width of [1280, 800]) {
     await page.locator(".mindmap").getByRole("button", { name: "男子100m 进行中", exact: true }).click();
     await expect(page.getByRole("radio", { name: "成绩", exact: true })).toHaveAttribute("aria-checked", "true");
     await page.getByRole("button", { name: "返回总览", exact: true }).click();
-    await page.getByText("男子100m 决赛", { exact: true }).click();
+    await page.locator(".timeline").getByRole("button", { name: /^男子100m · 09:00–09:40/ }).click();
     await expect(page.getByRole("radio", { name: "成绩", exact: true })).toHaveAttribute("aria-checked", "true");
     // The event stays under 总览 in the sidebar, and its back button goes there.
     await expect(page.getByRole("navigation").getByRole("button", { name: "总览", exact: true })).toHaveAttribute("aria-current", "true");
     await page.getByRole("radio", { name: "编排", exact: true }).click();
     await page.getByRole("button", { name: "返回总览", exact: true }).click();
     await expect(page.getByRole("heading", { name: "总览", exact: true })).toBeVisible();
+  });
+}
+
+for (const width of [1280, 800]) {
+  test(`赛程在一天排满时每轮写全名称 ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await installRuntime(page, { denseTimeline: true });
+    await page.goto("/");
+    await page.getByText("秋季运动会", { exact: true }).click();
+    const chart = page.locator(".timeline");
+    // Rounds minutes apart each get a line with their time and full name.
+    await expect(chart.getByRole("button", { name: /^男子4×100m 初一组 · / })).toContainText("09:50男子4×100m 初一组");
+    const clipped = await chart.locator(".timeline__name").evaluateAll((list) => list.filter((n) => n.scrollWidth > n.clientWidth).map((n) => n.textContent));
+    expect(clipped).toEqual([]);
+    await noOverflow(page);
   });
 }
 

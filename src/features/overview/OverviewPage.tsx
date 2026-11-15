@@ -1,5 +1,6 @@
-import { IconCheck, IconPrint, StButton, StEmpty, StListItem, StPage, StProgress, StSection, StTag, StToolbar, iconStroke, type Tone } from "../../design";
-import type { OverviewPhase, OverviewRound, OverviewStep } from "../../mygo";
+import { useEffect } from "react";
+import { IconCheck, IconPrint, StButton, StPage, StProgress, StSection, StTag, StToolbar, iconStroke, type Tone } from "../../design";
+import type { OverviewPhase, OverviewStep } from "../../mygo";
 import { useNav, type MeetTab } from "../../app/nav";
 import { remember } from "../../lib/viewState";
 import { nodeKey, rosterDetailKey, rosterNodeKey } from "../entries/tree";
@@ -8,6 +9,7 @@ import { reportKinds, type ReportKind } from "../reports/kinds";
 import { useOpenReport } from "../reports/open";
 import { useOverview } from "./data";
 import { StructureMap } from "./StructureMap";
+import { Timeline } from "./Timeline";
 
 type StepView = { title: string; tab: MeetTab; value: string; text: string; progress: boolean; tags: { tone: Tone; text: string }[] };
 
@@ -47,13 +49,19 @@ const phases: Record<string, { title: string; prints: ReportKind[] }> = {
 
 const tones: Record<string, Tone> = { done: "success", doing: "info", todo: "neutral", off: "neutral" };
 
-/** 总览: the workflow phase by phase, the rounds still to be held, and the meet at a glance. */
+/** 总览: the workflow phase by phase, the 赛程, and the meet at a glance. */
 export function OverviewPage({ meetId }: { meetId: string }) {
   const { go } = useNav();
-  const { data } = useOverview(meetId);
+  const { data, reload } = useOverview(meetId);
   const meet = useMeet(meetId).data;
+  // On a day of the meet, now moves on the 赛程: read again each minute.
+  const live = data?.timeline.live ?? false;
+  useEffect(() => {
+    if (!live) return;
+    const id = window.setInterval(() => void reload(), 60_000);
+    return () => window.clearInterval(id);
+  }, [live, reload]);
 
-  const openRound = (r: OverviewRound) => go({ page: "event", meetId, eventId: r.eventId, tab: r.heats > 0 ? "results" : "arrange" });
   const openStep = (s: OverviewStep) => {
     // Units of no group open selected on 报名, the tree in view.
     if (s.key === "units" && s.warnings > 0) {
@@ -78,29 +86,20 @@ export function OverviewPage({ meetId }: { meetId: string }) {
           <div className="overview__phases">
             {data.phases.map((ph, i) => <Phase key={ph.key} phase={ph} start={starts[i]!} current={data.current} onStep={openStep} onPrint={openReport} />)}
           </div>
+          <Timeline meetId={meetId} timeline={data.timeline} />
           <StSection title="赛事结构">
             <StructureMap meetId={meetId} meetName={meet?.name ?? ""} athletes={data.athletes} branches={data.structure ?? []} />
           </StSection>
-          <div className="overview__columns">
-            <StSection title="待比赛" padded={false}
-              actions={data.nextTotal > data.next.length && <StButton size="small" variant="ghost" onClick={() => go({ page: "meet", meetId, tab: "schedule" })}>全部 {data.nextTotal} 个</StButton>}>
-              {data.next.length === 0 ? <StEmpty>没有待比赛的轮次</StEmpty> : data.next.map((r) => (
-                <StListItem key={`${r.eventId}:${r.roundLabel}`} title={`${r.eventName} ${r.roundLabel}`}
-                  subtitle={r.heats > 0 ? `${r.startText} · ${r.heats} 组` : `${r.startText} · 未编排`}
-                  trailing={r.started ? <StTag tone="info">进行中</StTag> : undefined} onClick={() => openRound(r)} />
-              ))}
-            </StSection>
-            <StSection title="赛事">
-              <dl className="overview__facts">
-                <Fact label="日期" value={meet?.datesText} />
-                <Fact label="地点" value={meet?.location} />
-                <Fact label="参赛单位" value={String(data.units)} />
-                <Fact label="运动员" value={String(data.athletes)} />
-                {data.groups > 0 && <Fact label="组别" value={String(data.groups)} />}
-                <Fact label="报名限制" value={limits || "不限"} />
-              </dl>
-            </StSection>
-          </div>
+          <StSection title="赛事">
+            <dl className="overview__facts">
+              <Fact label="日期" value={meet?.datesText} />
+              <Fact label="地点" value={meet?.location} />
+              <Fact label="参赛单位" value={String(data.units)} />
+              <Fact label="运动员" value={String(data.athletes)} />
+              {data.groups > 0 && <Fact label="组别" value={String(data.groups)} />}
+              <Fact label="报名限制" value={limits || "不限"} />
+            </dl>
+          </StSection>
         </div>
       )}
     </StPage>

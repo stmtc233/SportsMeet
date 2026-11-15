@@ -2,7 +2,7 @@ import { expect, type Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { rejectMeetCreate?: boolean; limits?: boolean; athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean; groups?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { rejectMeetCreate?: boolean; limits?: boolean; athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean; groups?: boolean; denseTimeline?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { updatePrereleases: false, theme: "system" };
@@ -214,8 +214,59 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
             ],
             current: "entries",
             badges: { entries: 1, arrange: 0, schedule: options.conflicts ? 1 : 0, results: 1 },
-            next: [{ eventId: "event", eventName: "男子100m", roundLabel: "决赛", startText: "09:00", heats: 3, started: true }],
-            nextTotal: 1, units: 2, athletes: 24, groups: options.groups ? 1 : 0,
+            timeline: (() => {
+              // What Go returns (service.OverviewTimeline): rows an hour each, now splitting its hour.
+              const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+              type R = { lane: string; start: number; text: string; end?: number; state: string; heats?: number; people?: number; late?: boolean; next?: boolean };
+              let n = 0;
+              const dayOf = (date: string, text: string, list: R[], now?: number) => {
+                const lanes = ["track", "field", "other"].filter((l) => list.some((r) => r.lane === l));
+                const round = (r: R) => ({ eventId: r.text === "男子100m" ? "event" : `e${++n}`, roundId: r.text === "男子100m" ? "round" : `r${n}`, text: r.text,
+                  startText: hhmm(r.start), timeText: r.end ? `${hhmm(r.start)}–${hhmm(r.end)}` : hhmm(r.start), heats: r.heats ?? 2, people: r.people ?? 16,
+                  peopleEntered: (r.heats ?? 2) === 0, state: r.state, late: !!r.late, next: !!r.next });
+                const row = (t: string, rs: R[]) => ({ now: false, text: t, cells: lanes.map((l) => rs.filter((r) => r.lane === l).map(round)) });
+                const rows: unknown[] = [];
+                const sorted = [...list].sort((a, b) => a.start - b.start);
+                for (const hour of [...new Set(sorted.map((r) => Math.floor(r.start / 60)))]) {
+                  const rs = sorted.filter((r) => Math.floor(r.start / 60) === hour);
+                  if (now !== undefined && Math.floor(now / 60) === hour) {
+                    const before = rs.filter((r) => r.start < now);
+                    if (before.length) rows.push(row(hhmm(hour * 60), before));
+                    rows.push({ now: true, text: hhmm(now), cells: [] });
+                    const after = rs.filter((r) => r.start >= now);
+                    if (after.length) rows.push(row(before.length ? "" : hhmm(hour * 60), after));
+                  } else rows.push(row(hhmm(hour * 60), rs));
+                }
+                return { day: date, text, lanes, rows };
+              };
+              if (options.denseTimeline) {
+                // A school meet's day: short track rounds minutes apart, field rounds half an hour each.
+                const track = ["男子100m 初一组 预赛", "女子100m 初一组 预赛", "男子100m 初二组 预赛", "女子100m 初二组 预赛", "男子4×100m 初一组", "女子4×100m 初一组", "男子4×100m 初二组", "女子4×100m 初二组"];
+                const field = ["男子跳远 初一组", "女子跳远 初一组", "男子跳远 初二组", "女子跳远 初二组", "男子铅球 初一组", "女子铅球 初一组", "男子铅球 初二组", "女子铅球 初二组"];
+                const list: R[] = [
+                  ...track.map((t, i) => ({ lane: "track", text: t, start: i < 4 ? 510 + i * 20 : 590 + (i - 4) * 5, state: i < 5 ? "done" : "doing" })),
+                  ...field.map((t, i) => ({ lane: "field", text: t, start: 630 + i * 30, end: 655 + i * 30, state: i === 0 ? "doing" : "arranged", next: i === 1 })),
+                  { lane: "field", text: "男子跳高 初一组", start: 840, state: "todo", heats: 0 }, { lane: "field", text: "女子跳高 初一组", start: 845, state: "arranged", late: false },
+                  ...["男子100m 初一组 决赛", "女子100m 初一组 决赛", "男子100m 初二组 决赛", "女子100m 初二组 决赛"].map((t, i) => ({ lane: "track", text: t, start: 870 + i * 10, state: "arranged" })),
+                  ...["男子一分钟跳绳 初一组", "女子一分钟跳绳 初一组", "男子一分钟跳绳 初二组", "女子一分钟跳绳 初二组"].map((t, i) => ({ lane: "other", text: t, start: 930 + i * 10, state: "todo" })),
+                ];
+                list[7]!.late = true; list[7]!.state = "arranged";
+                return { day: "2026-11-12", live: false, unscheduled: 0, days: [dayOf("2026-11-12", "11-12 周四", list, 642)] };
+              }
+              return {
+                day: "2026-11-12", live: false, unscheduled: 1,
+                days: [
+                  dayOf("2026-11-12", "11-12 周四", [
+                    { lane: "track", text: "男子100m", start: 540, end: 580, state: "doing", heats: 3, people: 24 },
+                    { lane: "field", text: "男子跳远", start: 510, state: "todo", heats: 0, people: 6, late: true },
+                    { lane: "field", text: "女子铅球", start: 525, state: "done", heats: 1, people: 8 },
+                    { lane: "field", text: "男子跳高", start: 600, end: 660, state: "arranged", heats: 1, people: 10, next: true },
+                  ], 570),
+                  dayOf("2026-11-13", "11-13 周五", [{ lane: "other", text: "跳绳", start: 510, state: "todo", heats: 0, people: 0 }]),
+                ],
+              };
+            })(),
+            units: 2, athletes: 24, groups: options.groups ? 1 : 0,
             structure: (() => {
               const one = { id: "unit", name: "一班", athletes: 24, entered: true, over: options.limits ? 2 : 0 };
               const two = { id: "unit2", name: "二班", athletes: 0, entered: false, over: 0 };

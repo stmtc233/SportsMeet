@@ -11,7 +11,7 @@ func TestOverview(t *testing.T) {
 	if got := overviewStates(o); got != "before events:done units:done entries:todo arrange:todo schedule:todo during results:todo after team:off " || o.Current != "entries" {
 		t.Fatalf("blank = %s, current %s", got, o.Current)
 	}
-	if o.Units != 2 || o.Athletes != 4 || len(o.Next) != 0 {
+	if o.Units != 2 || o.Athletes != 4 || len(o.Timeline.Days) != 0 || o.Timeline.Unscheduled != 1 {
 		t.Fatalf("blank = %+v", o)
 	}
 	if b := o.Structure; len(b) != 1 || b[0].GroupID != "" || b[0].Athletes != 4 || len(b[0].Units) != 2 || b[0].Units[1].Name != "二班" || b[0].Units[1].Athletes != 2 ||
@@ -33,8 +33,8 @@ func TestOverview(t *testing.T) {
 	if r := overviewStep(o, "results"); r.Done != 0 || r.Total != 1 || r.Extra != 1 {
 		t.Fatalf("results = %+v", r)
 	}
-	if len(o.Next) != 1 || o.Next[0].StartText != "09:00" || !o.Next[0].Started || o.NextTotal != 1 {
-		t.Fatalf("next = %+v", o.Next)
+	if tl := o.Timeline; tl.Day != "2026-11-12" || len(tl.Days) != 1 || tl.Days[0].Rows[0].Cells[0][0].State != StepDoing || tl.Unscheduled != 0 {
+		t.Fatalf("timeline = %+v", tl)
 	}
 	if u, e := o.Structure[0].Units[0], o.Structure[0].Events[0]; !u.Entered || o.Structure[0].Units[1].Entered || e.State != StepDoing {
 		t.Fatalf("started structure = %+v", o.Structure)
@@ -43,8 +43,8 @@ func TestOverview(t *testing.T) {
 	must(t, f.svc.SaveResults(f.ctx, ui, final.Heats[0].ID, []ResultInput{{Position: 1, Mark: "12.10"}, {Position: 2, Mark: "12.30"}}))
 	o, err = f.svc.Overview(f.ctx, f.meet)
 	must(t, err)
-	if r := overviewStep(o, "results"); r.State != StepDone || r.Done != 1 || r.Extra != 0 || len(o.Next) != 0 {
-		t.Fatalf("finished = %+v, next %+v", r, o.Next)
+	if r := overviewStep(o, "results"); r.State != StepDone || r.Done != 1 || r.Extra != 0 || o.Timeline.Days[0].Rows[0].Cells[0][0].State != StepDone {
+		t.Fatalf("finished = %+v, timeline %+v", r, o.Timeline)
 	}
 	if e := o.Structure[0].Events[0]; e.State != StepDone {
 		t.Fatalf("finished event = %+v", e)

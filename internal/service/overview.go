@@ -11,22 +11,19 @@ import (
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
-// Overview is the 总览 page: where the meet stands in its workflow, the
-// rounds still to be held, and its size.
+// Overview is the 总览 page: where the meet stands in its workflow, its
+// 赛程, and its size.
 type Overview struct {
 	// Phases are the workflow in order: before (赛前), during (比赛) and
 	// after (赛后) the competition.
 	Phases []OverviewPhase `json:"phases"`
 	// Current is the key of the step to work on: the first one neither
 	// done nor off; "" when every step is.
-	Current string `json:"current"`
-	// Next lists the rounds with a planned time that are not finished,
-	// earliest first, at most overviewNext of them.
-	Next      []OverviewRound `json:"next"`
-	NextTotal int             `json:"nextTotal"` // all such rounds
-	Units     int             `json:"units"`
-	Athletes  int             `json:"athletes"`
-	Groups    int             `json:"groups"`
+	Current  string           `json:"current"`
+	Timeline OverviewTimeline `json:"timeline"`
+	Units    int              `json:"units"`
+	Athletes int              `json:"athletes"`
+	Groups   int              `json:"groups"`
 	// Structure is the meet laid out as 组别 → 参赛单位 / 项目: one branch
 	// per group in catalog order, then 未分组 (GroupID "") for the units,
 	// athletes and events of no group. A meet without groups has the one
@@ -122,17 +119,12 @@ func hint(first string, n int, what string) string {
 	return fmt.Sprintf("%s等 %d 个%s", first, n, what)
 }
 
-// OverviewRound is a round still to be held.
-type OverviewRound struct {
-	EventID    string `json:"eventId"`
-	EventName  string `json:"eventName"`
-	RoundLabel string `json:"roundLabel"`
-	StartText  string `json:"startText"`
-	Heats      int    `json:"heats"`
-	Started    bool   `json:"started"` // some result is in
+// openRound is a round still to be scored, for the 成绩 step's hint.
+type openRound struct {
+	name    string
+	heats   int
+	started bool
 }
-
-const overviewNext = 6
 
 // stepState is todo before anything is done, done when all is, doing
 // between.
@@ -217,7 +209,7 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 	if err != nil {
 		return nil, err
 	}
-	out := &Overview{Next: []OverviewRound{}, Units: len(summary.Units), Athletes: len(p.athletes), Groups: len(groups),
+	out := &Overview{Timeline: p.timeline(domain.WallClock(s.store.Now(), s.zone)), Units: len(summary.Units), Athletes: len(p.athletes), Groups: len(groups),
 		Structure: overviewStructure(p, summary, combinedList)}
 
 	events, combineds := 0, map[string]bool{}
@@ -253,12 +245,12 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 	wait := map[string][]string{}
 	// Events with entries whose final is finished, for 团体总分.
 	live, final := map[string]bool{}, map[string]bool{}
-	var next []OverviewRound
+	var next []openRound
 	var nextAt []string
 	// The first of each to name in a step's hint.
 	var toArrange, toSchedule, toSend string
 	// The first round with heats not finished, for a meet without times.
-	var open *OverviewRound
+	var open *openRound
 	toArrangeN, toScheduleN := 0, 0
 	for _, e := range p.events {
 		rs := p.rounds[e.ID]
@@ -310,11 +302,10 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 				}
 			}
 			if !done && len(r.Heats) > 0 && open == nil {
-				open = &OverviewRound{EventName: e.Name, RoundLabel: r.Label(), Heats: len(r.Heats), Started: began}
+				open = &openRound{name: e.Name + " " + r.Label(), heats: len(r.Heats), started: began}
 			}
 			if !done && at != "" {
-				next = append(next, OverviewRound{EventID: e.ID, EventName: e.Name, RoundLabel: r.Label(),
-					StartText: domain.ScheduledText(at, p.meet.StartDate), Heats: len(r.Heats), Started: began})
+				next = append(next, openRound{name: e.Name + " " + r.Label(), heats: len(r.Heats), started: began})
 				nextAt = append(nextAt, at)
 			}
 		}
@@ -334,16 +325,16 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 	}
 	sort.SliceStable(order, func(a, b int) bool { return nextAt[order[a]] < nextAt[order[b]] })
 	for _, i := range order {
-		if next[i].Heats > 0 {
+		if next[i].heats > 0 {
 			open = &next[i]
 			break
 		}
 	}
 	resultsHint := ""
 	if open != nil {
-		resultsHint = open.EventName + " " + open.RoundLabel + " 待录成绩"
-		if open.Started {
-			resultsHint = open.EventName + " " + open.RoundLabel + " 录入中"
+		resultsHint = open.name + " 待录成绩"
+		if open.started {
+			resultsHint = open.name + " 录入中"
 		}
 	}
 	during := []OverviewStep{{Key: "results", State: results, Done: finished, Total: rounds, Extra: started, Hint: resultsHint}}
@@ -377,10 +368,6 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 	}
 
 	out.Badges = OverviewBadges{Entries: len(summary.Units) - entered, Arrange: toArrangeN + waiting, Schedule: conflicts, Results: started}
-	out.NextTotal = len(next)
-	for _, i := range order[:min(len(order), overviewNext)] {
-		out.Next = append(out.Next, next[i])
-	}
 	return out, nil
 }
 

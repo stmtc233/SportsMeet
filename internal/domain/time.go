@@ -103,6 +103,34 @@ func DayText(day string) string {
 	return day + " " + [...]string{"周日", "周一", "周二", "周三", "周四", "周五", "周六"}[t.Weekday()]
 }
 
+// ShortDayText shows a day briefly with its weekday: 11-12 周四.
+// Unreadable values show as they are.
+func ShortDayText(day string) string {
+	t, ok := ParseDate(day)
+	if !ok {
+		return day
+	}
+	return t.Format("01-02") + " " + [...]string{"周日", "周一", "周二", "周三", "周四", "周五", "周六"}[t.Weekday()]
+}
+
+// MinutesInto is how many minutes a planned time is after day's 00:00:
+// past 1440 for the days after; ok is false when either is unreadable.
+func MinutesInto(at, day string) (int, bool) {
+	t, ok := ParseScheduled(at)
+	d, dok := ParseDate(day)
+	if !ok || !dok {
+		return 0, false
+	}
+	return int(t.Sub(d) / time.Minute), true
+}
+
+// MinuteOf is the planned time minutes after day's 00:00; "" when day is
+// unreadable.
+func MinuteOf(day string, minutes int) string {
+	at, _ := ScheduledEnd(day+"T00:00", &minutes)
+	return at
+}
+
 // DateRangeText shows a meet's days: 2026-11-12, or 2026-11-12 – 2026-11-13.
 func DateRangeText(start, end string) string {
 	if end == "" || end == start {

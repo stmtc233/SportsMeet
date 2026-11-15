@@ -1124,8 +1124,8 @@ export interface MeetView {
 }
 
 /**
- * Overview is the 总览 page: where the meet stands in its workflow, the
- * rounds still to be held, and its size.
+ * Overview is the 总览 page: where the meet stands in its workflow, its
+ * 赛程, and its size.
  */
 export interface Overview {
   /**
@@ -1138,13 +1138,7 @@ export interface Overview {
    * done nor off; "" when every step is.
    */
   current: string;
-  /**
-   * Next lists the rounds with a planned time that are not finished,
-   * earliest first, at most overviewNext of them.
-   */
-  next: OverviewRound[];
-  /** all such rounds */
-  nextTotal: number;
+  timeline: OverviewTimeline;
   units: number;
   athletes: number;
   groups: number;
@@ -1205,17 +1199,6 @@ export interface OverviewPhase {
   steps: OverviewStep[];
 }
 
-/** OverviewRound is a round still to be held. */
-export interface OverviewRound {
-  eventId: string;
-  eventName: string;
-  roundLabel: string;
-  startText: string;
-  heats: number;
-  /** some result is in */
-  started: boolean;
-}
-
 /**
  * OverviewStep is one step of the workflow: Done of Total, its state, and
  * what is worth a look (Warnings). Extra carries the counts a step shows
@@ -1234,6 +1217,23 @@ export interface OverviewStep {
    * "" when there is none to name.
    */
   hint: string;
+}
+
+/**
+ * OverviewTimeline is the 赛程 on 总览: each day's rounds hour by hour, in
+ * lanes by event kind, with where each stands and where now is.
+ */
+export interface OverviewTimeline {
+  days: TimelineDay[];
+  /**
+   * Day is the day to open: today when the meet has rounds then, else the
+   * first day with a round not finished, else the first; "" without days.
+   */
+  day: string;
+  /** Live: today is one of the days, so the now row moves. */
+  live: boolean;
+  /** Unscheduled counts the rounds with no planned time. */
+  unscheduled: number;
 }
 
 /**
@@ -1824,6 +1824,64 @@ export interface TieView {
    * of this tie; 0 = it does not touch qualification.
    */
   extra: number;
+}
+
+/**
+ * TimelineDay is one day of the 赛程: a row per hour that has rounds, a
+ * cell per lane in each.
+ */
+export interface TimelineDay {
+  /** YYYY-MM-DD */
+  day: string;
+  /** 11-12 周四 */
+  text: string;
+  /** Lanes are the day's lanes in order; each row has a cell for each. */
+  lanes: string[];
+  rows: TimelineRow[];
+}
+
+/** TimelineRound is a round of the 赛程. */
+export interface TimelineRound {
+  eventId: string;
+  roundId: string;
+  /** 男子100m 预赛, the event alone with one round */
+  text: string;
+  /** 09:00, its earliest planned time */
+  startText: string;
+  /**
+   * TimeText runs to the last heat's planned end when every heat has a
+   * duration: 09:00–09:40; else as StartText.
+   */
+  timeText: string;
+  heats: number;
+  /**
+   * People as on the 日程 page: placed in heats, or entered for a first
+   * round without heats (PeopleEntered).
+   */
+  people: number;
+  peopleEntered: boolean;
+  /** State: todo (no heats), arranged, doing (some result is in), done. */
+  state: string;
+  /** Late: not finished, no result in, and its start has passed. */
+  late: boolean;
+  /** Next: the first round, by time, not begun and not yet due. */
+  next: boolean;
+}
+
+/**
+ * TimelineRow is an hour of the day, or (Now) where now falls among them.
+ * Today, the hour now is in splits at it: rounds starting before now
+ * above the now row, the rest below, the hour named on the first part.
+ */
+export interface TimelineRow {
+  now: boolean;
+  /**
+   * Text is the hour (08:00), "" for the part of an hour after now, or
+   * for the now row the time it is (10:42).
+   */
+  text: string;
+  /** Cells hold each lane's rounds by start; none for the now row. */
+  cells: TimelineRound[][];
 }
 
 /**
