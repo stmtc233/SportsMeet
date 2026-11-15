@@ -75,24 +75,42 @@ function encode(value: unknown) {
 }
 
 const scrolls = new Map<string, number>();
+const anchors = new Map<string, string>();
+
+/**
+ * Opens the scroll container kept under `key` at the element with id `id`
+ * the next time it comes back, instead of where it was left: another page
+ * sends the user to one part of it (a group of settings).
+ */
+export function scrollOnOpen(key: string, id: string) {
+  anchors.set(key, id);
+}
 
 /**
  * Keeps an element's scroll position under a key and puts it back when the
  * element comes back. The content usually arrives after the element, so
  * the position is retried as the content grows, until reached, until the
- * user scrolls, clicks or types, or for at most 1.5 s.
+ * user scrolls, clicks or types, or for at most 1.5 s. A place asked for
+ * with scrollOnOpen is followed the same way, for the whole 1.5 s: content
+ * arriving above it moves it down.
  */
 export function useScrollMemory(ref: RefObject<HTMLElement | null>, key: string | undefined) {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el || !key) return;
+    const anchor = anchors.get(key);
     const target = scrolls.get(key) ?? 0;
-    let restoring = target > 0;
+    let restoring = anchor !== undefined || target > 0;
     const save = () => {
       if (!restoring) scrolls.set(key, el.scrollTop);
     };
     const attempt = () => {
       if (!restoring) return;
+      if (anchor !== undefined) {
+        const place = el.ownerDocument.getElementById(anchor);
+        if (place) el.scrollTop += place.getBoundingClientRect().top - el.getBoundingClientRect().top - parseFloat(getComputedStyle(el).paddingTop);
+        return;
+      }
       el.scrollTop = target;
       if (Math.abs(el.scrollTop - target) < 1) stop();
     };
@@ -104,6 +122,7 @@ export function useScrollMemory(ref: RefObject<HTMLElement | null>, key: string 
     function stop() {
       if (!restoring) return;
       restoring = false;
+      anchors.delete(key!);
       content.disconnect();
       size.disconnect();
       clearTimeout(timer);

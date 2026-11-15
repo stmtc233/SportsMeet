@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { IconPrint, StButton, StCheckbox, StEmpty, StListItem, StMultiSelect, StNavGroup, StNavHeading, StNotice, StPage, StSelect, StToolbar, iconStroke } from "../../design";
+import { IconPrint, IconSetup, StButton, StCheckbox, StEmpty, StListItem, StMultiSelect, StNavGroup, StNavHeading, StNotice, StPage, StSelect, StToolbar, iconStroke } from "../../design";
 import { recall, remember, useScrollMemory, useViewState } from "../../lib/viewState";
 import { useGroups } from "../groups/controller";
 import { ungrouped } from "../groups/GroupFields";
+import { useOpenPrintSettings } from "../setup/open";
 import type { Zoom } from "./paginate";
 import { ReportPreview, type PrintPages } from "./ReportPreview";
 import { checkInRows, checkInSelection } from "./checkin";
@@ -24,6 +25,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   // The report on the sheets shown; printing waits for the newest one.
   const [shown, setShown] = useState<string>();
   const printPages = useRef<PrintPages | null>(null);
+  const openSettings = useOpenPrintSettings(meetId);
   // Books and 报名表: by event.
   const { data: events, error: eventsError } = useReportTargets(meetId);
   // What was unticked stays unticked while the app runs, per meet.
@@ -89,6 +91,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
     <StPage flush
       toolbar={
         <StToolbar title="打印">
+          <StButton icon={<IconSetup size={16} strokeWidth={iconStroke} />} onClick={openSettings}>打印设置</StButton>
           <StButton variant="primary" icon={<IconPrint size={16} strokeWidth={iconStroke} />} disabled={count === 0 || !html || shown !== html} loading={busy} onClick={print}>打印</StButton>
         </StToolbar>
       }>

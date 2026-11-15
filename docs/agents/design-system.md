@@ -36,7 +36,7 @@
 | `StLinkButton` | 按钮外观的导航链接，使用带 `href` 的原生 `<a>`，保留链接语义与键盘操作；应用外部链接经 controller 调用 mygo 在系统浏览器打开 |
 | `StIconButton`(`plain / tonal / filled`) | 图标按钮,必须带无障碍标签 |
 | `StConfirmButton` | 危险操作:第一次点击变红色「再按一次确认」,数秒内再点才执行 |
-| `StCard` / `StSection` | 卡片 / 带标题的分组卡片 |
+| `StCard` / `StSection` | 卡片 / 带标题的分组卡片;`StSection` 的 `id` 供其他页面打开时滚到它(`scrollOnOpen`) |
 | `StRow` / `StStack` / `StEmpty` / `StMuted` | 一行控件(底边对齐)/ 纵向排列 / 空列表占位 / 次要文字 |
 | `StNotice` / `StTag` | 提示条 / 小标签(状态、`Q` / `q` 晋级标记) |
 | `StProgress` | 细进度条(总览的工作流步骤):`value / max` 与语气色,`role=progressbar` 带名称;填充用 `scaleX` 变化 |

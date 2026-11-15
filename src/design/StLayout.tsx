@@ -38,9 +38,10 @@ export function StCard({ children, padded = true }: { children: ReactNode; padde
 }
 
 /** A card with a title row and optional actions. */
-export function StSection({ title, actions, children, padded = true }: { title: ReactNode; actions?: ReactNode; children: ReactNode; padded?: boolean }) {
+/** A titled card; `id` lets another page open the page at it (lib/viewState.ts scrollOnOpen). */
+export function StSection({ id, title, actions, children, padded = true }: { id?: string; title: ReactNode; actions?: ReactNode; children: ReactNode; padded?: boolean }) {
   return (
-    <section className="st-card">
+    <section id={id} className="st-card">
       <div className="st-section__head">
         <h2 className="st-section__title">{title}</h2>
         <div className="st-section__actions">{actions}</div>

@@ -1,6 +1,7 @@
 import { StNotice, StSection, StSelect, StSwitchItem } from "../../design";
 import { useOptimisticMeetSettings } from "../meets/data";
 import { minuteOptions } from "../settings/minutes";
+import { printSettingsId } from "./open";
 
 /** The minimum rest choices; 0 checks overlaps only. */
 const rests = [0, 5, 10, 15, 20, 30, 45, 60];
@@ -27,7 +28,7 @@ export function MeetSettingsSection({ meetId }: { meetId: string }) {
             options={minuteOptions(leads, data.checkInLeadMinutes, "不显示")} />
         </div>
       </StSection>
-      <StSection title="打印" padded={false}>
+      <StSection id={printSettingsId} title="打印" padded={false}>
         <StSwitchItem title="代表队名单" subtitle="印在秩序册的项目之前" checked={data.printRoster} onChange={(printRoster) => save({ printRoster })} />
         <StSwitchItem title="竞赛日程表" subtitle="印在秩序册的项目之前" checked={data.printSchedule} onChange={(printSchedule) => save({ printSchedule })} />
         <StSwitchItem title="秩序册紧凑排版" subtitle="每组名单按行排，页数更少" checked={data.printCompact} onChange={(printCompact) => save({ printCompact })} />

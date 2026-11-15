@@ -154,6 +154,24 @@ test("赛事设置里的最短休息时间与竞赛日程表", async ({ page }) 
   await expect(setup.getByRole("switch", { name: /秩序册紧凑排版/ })).toHaveAttribute("aria-checked", "false");
 });
 
+test("打印页的「打印设置」打开赛事设置的打印一组", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await installRuntime(page);
+  await page.goto("/");
+  await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "打印", exact: true }).click();
+  await page.getByRole("button", { name: "打印设置", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "赛事设置", exact: true })).toBeVisible();
+  const print = page.locator("#setup-print");
+  await expect(print.getByRole("switch", { name: /秩序册紧凑排版/ })).toBeInViewport();
+  // The group's top sits where the page's first card would.
+  await expect.poll(async () => {
+    const body = (await page.locator(".st-page__body").boundingBox())!;
+    const card = (await print.boundingBox())!;
+    return Math.round(card.y - body.y);
+  }).toBeLessThan(40);
+});
+
 test("日期、轮次标题与表头逐层吸顶", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 420 });
   await openTimetable(page);
