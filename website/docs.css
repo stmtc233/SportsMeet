@@ -1,0 +1,112 @@
+/* 使用文档页的样式,在 styles.css 之后加载,沿用同一组颜色变量。 */
+:root {
+  --code-bg: #eef1f5;
+  --tip-bg: #eaf3ff;
+  --tip-line: #1677ff;
+  --warn-bg: #fff6e5;
+  --warn-line: #d48806;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --code-bg: #232733;
+    --tip-bg: #14233a;
+    --tip-line: #4c93ff;
+    --warn-bg: #2d2412;
+    --warn-line: #e3a73a;
+  }
+}
+
+.nav nav a[aria-current="page"] { background: var(--hover); font-weight: 600; }
+
+.docs {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 56px;
+  padding-block: 40px 80px;
+}
+
+/* 目录 */
+.toc { position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 96px); overflow-y: auto; overscroll-behavior: contain; }
+.toc summary { display: none; }
+.toc ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
+.toc .group { margin-top: 16px; color: var(--muted); font-size: 13px; font-weight: 600; padding: 0 10px 4px; }
+.toc .group:first-child { margin-top: 0; }
+.toc a {
+  display: block; padding: 5px 10px; border-radius: 8px;
+  color: var(--muted); font-size: 14px; line-height: 1.5;
+}
+.toc a:hover { background: var(--hover); color: var(--text); text-decoration: none; }
+.toc a[aria-current="true"] { color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); font-weight: 600; }
+
+/* 正文 */
+.doc { max-width: 780px; min-width: 0; }
+.doc > header h1 { font-size: clamp(30px, 4.4vw, 42px); }
+.doc > header .lead { margin-top: 12px; }
+.doc section { padding-top: 48px; scroll-margin-top: 72px; }
+.doc h2 { font-size: clamp(22px, 2.8vw, 28px); padding-bottom: 10px; border-bottom: 1px solid var(--outline); }
+.doc h3 { font-size: 18px; margin-top: 32px; scroll-margin-top: 72px; }
+.doc p, .doc ul, .doc ol, .doc table, .doc pre, .doc .note-box, .doc details { margin-top: 14px; }
+.doc ul, .doc ol { padding-left: 1.4em; display: grid; gap: 6px; }
+.doc li > ul { margin-top: 6px; }
+.doc strong { font-weight: 650; }
+
+.doc code, .doc kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em; background: var(--code-bg); border-radius: 6px; padding: 1px 6px;
+}
+.doc kbd { border: 1px solid var(--outline); border-bottom-width: 2px; background: var(--surface); white-space: nowrap; }
+.doc pre {
+  background: var(--code-bg); border-radius: 12px; padding: 14px 16px; overflow-x: auto;
+  font-size: 14px; line-height: 1.6;
+}
+.doc pre code { background: none; padding: 0; font-size: inherit; }
+
+/* 表格:窄屏横向滚动,不撑开页面 */
+.table { overflow-x: auto; margin-top: 14px; border: 1px solid var(--outline); border-radius: 12px; background: var(--surface); }
+.table table { margin: 0; }
+.doc table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.doc th, .doc td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--outline); }
+.doc tr:last-child td { border-bottom: 0; }
+.doc th { font-weight: 600; color: var(--muted); font-size: 14px; white-space: nowrap; background: color-mix(in srgb, var(--surface) 94%, var(--text)); }
+.doc td:first-child { white-space: nowrap; font-weight: 550; }
+
+/* 步骤 */
+.steps { counter-reset: step; list-style: none; padding-left: 0 !important; gap: 12px !important; }
+.steps li {
+  counter-increment: step; position: relative; padding: 14px 16px 14px 56px;
+  background: var(--surface); border: 1px solid var(--outline); border-radius: 12px;
+}
+.steps li::before {
+  content: counter(step); position: absolute; left: 16px; top: 14px;
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--primary); color: var(--on-primary); font-size: 14px; font-weight: 700; line-height: 1;
+}
+.steps b { display: block; }
+.steps span { color: var(--muted); font-size: 15px; }
+
+/* 提示框 */
+.note-box { border-left: 3px solid var(--tip-line); background: var(--tip-bg); border-radius: 0 10px 10px 0; padding: 12px 16px; font-size: 15px; }
+.note-box.warn { border-left-color: var(--warn-line); background: var(--warn-bg); }
+.note-box p:first-child { margin-top: 0; }
+
+/* 常见问题 */
+.doc details { background: var(--surface); border: 1px solid var(--outline); border-radius: 12px; padding: 0 16px; }
+.doc details + details { margin-top: 8px; }
+.doc details summary { cursor: pointer; padding: 12px 0; font-weight: 600; list-style-position: outside; margin-left: 1em; }
+.doc details[open] summary { border-bottom: 1px solid var(--outline); }
+.doc details > p, .doc details > ul { margin: 12px 0 14px; color: var(--muted); font-size: 15px; }
+
+.pill { display: inline-block; padding: 0 8px; border-radius: 999px; background: var(--hover); font-size: 13px; line-height: 22px; white-space: nowrap; }
+
+@media (max-width: 860px) {
+  .docs { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-top: 24px; }
+  .toc { position: static; max-height: none; overflow: visible; background: var(--surface); border: 1px solid var(--outline); border-radius: 12px; padding: 0 12px; }
+  .toc summary { display: block; cursor: pointer; padding: 12px 4px; font-weight: 600; }
+  .toc[open] summary { border-bottom: 1px solid var(--outline); margin-bottom: 8px; }
+  .toc ol { padding-bottom: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .toc .group { grid-column: 1 / -1; }
+  .doc td:first-child { white-space: normal; }
+}
+@media (max-width: 420px) {
+  .toc ol { grid-template-columns: minmax(0, 1fr); }
+}

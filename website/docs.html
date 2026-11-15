@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>使用文档 — SportsMeet</title>
+<meta name="description" content="SportsMeet 使用文档：安装、报名、编排、日程、成绩录入、团体总分、打印、赛事文件与本机 AI 助手。">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="index.html"><img src="assets/icon.png" alt="" width="28" height="28">SportsMeet</a>
+    <nav aria-label="页面导航">
+      <a href="index.html#features">功能</a>
+      <a href="index.html#download">下载</a>
+      <a class="docs-link" href="docs.html" aria-current="page">文档</a>
+      <a class="gh" href="https://github.com/stmtc233/SportsMeet" rel="noopener">
+        <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.34c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.72 1.22 1.88.87 2.33.66.07-.52.28-.87.5-1.07-1.77-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.11 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.91.08 2.11.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 0 0 8 0Z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap docs">
+
+<details class="toc" open>
+  <summary>目录</summary>
+  <nav aria-label="文档目录">
+    <ol>
+      <li class="group">入门</li>
+      <li><a href="#start">快速开始</a></li>
+      <li><a href="#install">安装与更新</a></li>
+      <li><a href="#data">数据与备份</a></li>
+      <li><a href="#flow">界面与流程</a></li>
+      <li class="group">赛前</li>
+      <li><a href="#meet">赛事设置</a></li>
+      <li><a href="#groups">组别与参赛单位</a></li>
+      <li><a href="#events">项目</a></li>
+      <li><a href="#entries">报名</a></li>
+      <li><a href="#arrange">编排</a></li>
+      <li><a href="#schedule">日程与时间</a></li>
+      <li class="group">比赛与赛后</li>
+      <li><a href="#results">录入成绩</a></li>
+      <li><a href="#combined">全能</a></li>
+      <li><a href="#team">团体总分</a></li>
+      <li><a href="#print">打印</a></li>
+      <li class="group">更多</li>
+      <li><a href="#file">赛事文件</a></li>
+      <li><a href="#ai">AI 助手（MCP）</a></li>
+      <li><a href="#log">操作日志与设置</a></li>
+      <li><a href="#faq">常见问题</a></li>
+      <li><a href="#dev">参与开发</a></li>
+    </ol>
+  </nav>
+</details>
+
+<article class="doc">
+
+<header>
+  <h1>使用文档</h1>
+  <p class="lead">从安装到打印成绩册，一场运动会的完整操作。</p>
+</header>
+
+<!-- ───────────────────────── 入门 ───────────────────────── -->
+
+<section id="start">
+  <h2>快速开始</h2>
+  <p>按下面的顺序走一遍，就能办完一场运动会。每一步在后文都有详细说明。</p>
+  <ol class="steps">
+    <li><b>新建赛事</b><span>在「全部赛事」点「新建赛事」，填赛事名称、日期与地点。</span></li>
+    <li><b>添加项目</b><span>在「项目」点「添加项目」，从「常用项目」选一个，再按需修改性别、组别与赛制。</span></li>
+    <li><b>报名</b><span>在「报名」添加参赛单位与运动员；也可以「导入名单」从表格粘贴，或下发报名登记表再收回导入。</span></li>
+    <li><b>编排</b><span>在「编排」勾选要编排的轮次，点「自动编排」，预览后提交；再进项目里拖动微调。</span></li>
+    <li><b>排时间</b><span>在「日程」点「排时间…」，给轮次排上时间，顺便检查运动员的时间冲突。</span></li>
+    <li><b>打印秩序册</b><span>在「打印」选「秩序册」，预览就是纸上的样子，确认后打印。</span></li>
+    <li><b>比赛日录成绩</b><span>在「成绩」按时间找到当前轮次，逐组录入并保存，名次与晋级自动算出。</span></li>
+    <li><b>打印成绩册</b><span>全部录完后在「打印」选「成绩册」；启用了团体总分时一并附上团体总分表。</span></li>
+  </ol>
+  <div class="note-box">
+    <p>进入赛事后的第一页是「总览」：按赛前、比赛、赛后列出每一步的进度，带「下一步」的那张卡就是接下来要做的事，点卡片直接进入对应页面。</p>
+  </div>
+</section>
+
+<section id="install">
+  <h2>安装与更新</h2>
+  <p>在<a href="index.html#download">下载区</a>选择你的系统。每个系统都有安装包和便携版，便携版解压即用。</p>
+  <div class="table">
+    <table>
+      <thead><tr><th>系统</th><th>要求</th><th>安装包</th><th>便携版</th></tr></thead>
+      <tbody>
+        <tr><td>Windows</td><td>Windows 10 / 11，64 位</td><td><code>sportsmeet-setup-….exe</code></td><td><code>…-windows-amd64-portable.zip</code></td></tr>
+        <tr><td>macOS</td><td>macOS 12 及以上，Intel 与 Apple 芯片通用</td><td><code>.dmg</code>，拖进「应用程序」</td><td><code>…-darwin-universal-portable.zip</code></td></tr>
+        <tr><td>Linux</td><td>x86-64</td><td><code>.deb</code> 或 <code>.rpm</code></td><td><code>…-linux-amd64.tar.gz</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note-box warn">
+    <p>安装包暂未做系统签名。macOS 第一次打开如果提示无法验证开发者，到「系统设置 → 隐私与安全性」点「仍要打开」；Windows 出现 SmartScreen 提示时，点「更多信息」再点「仍要运行」。</p>
+  </div>
+
+  <h3 id="update">更新</h3>
+  <ul>
+    <li>应用启动后和每天各在后台检查一次新版本，有新版本时弹出更新窗口，可以安装、稍后提醒或跳过。</li>
+    <li>「设置 → 关于」里可以手动「检查更新」。</li>
+    <li>想提前试用新功能，在「关于」打开「接收测试版」；关掉后只等下一个正式版，不会降级。</li>
+    <li>当前安装方式不能自动更新时，「关于」提供「查看发布」，到发布页下载新版安装即可，数据不受影响。</li>
+  </ul>
+  <p>检查更新是应用唯一的联网操作，赛事数据不会上传。</p>
+</section>
+
+<section id="data">
+  <h2>数据与备份</h2>
+  <p>所有赛事都存在本机的一个 SQLite 文件 <code>sportsmeet.db</code> 里，安装版和便携版共用同一个位置：</p>
+  <div class="table">
+    <table>
+      <thead><tr><th>系统</th><th>数据目录</th></tr></thead>
+      <tbody>
+        <tr><td>Windows</td><td><code>%AppData%\SportsMeet\</code></td></tr>
+        <tr><td>macOS</td><td><code>~/Library/Application Support/SportsMeet/</code></td></tr>
+        <tr><td>Linux</td><td><code>~/.config/SportsMeet/</code>（设置了 <code>XDG_CONFIG_HOME</code> 时在它下面）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul>
+    <li><strong>升级前自动备份。</strong>新版本第一次启动、需要更新数据结构时，先把数据库复制到同目录的 <code>backups/</code>，保留最近 5 份。复制不成功就不升级数据，原数据保持不动。</li>
+    <li><strong>打不开时会说明原因。</strong>数据目录不可用或数据库损坏时，应用弹窗写明数据目录与原因后退出。可以把 <code>backups/</code> 里最近的一份复制回来、改名为 <code>sportsmeet.db</code> 恢复。</li>
+    <li><strong>平时备份</strong>：退出应用后复制整个数据目录；或者按赛事「导出赛事文件」（见<a href="#file">赛事文件</a>），单个文件更方便存档和换电脑。</li>
+  </ul>
+</section>
+
+<section id="flow">
+  <h2>界面与流程</h2>
+  <p>打开应用先看到「全部赛事」。进入一个赛事后，左侧是按阶段分组的侧栏：</p>
+  <div class="table">
+    <table>
+      <thead><tr><th>分组</th><th>页面</th><th>做什么</th></tr></thead>
+      <tbody>
+        <tr><td>—</td><td>总览</td><td>工作流进度、下一步、待比赛的轮次、赛事结构图</td></tr>
+        <tr><td>赛前</td><td>赛事设置</td><td>赛事信息、报名限制、团体总分、编排与打印选项、赛事文件</td></tr>
+        <tr><td></td><td>项目</td><td>添加和管理项目与全能</td></tr>
+        <tr><td></td><td>报名</td><td>组别、参赛单位、运动员、报名登记表与报名进度</td></tr>
+        <tr><td></td><td>编排</td><td>全赛事的轮次表，批量自动编排</td></tr>
+        <tr><td></td><td>日程</td><td>按天查看全部轮次与组，排时间，查看冲突</td></tr>
+        <tr><td>比赛</td><td>成绩</td><td>按时间排列的轮次，进入录成绩</td></tr>
+        <tr><td></td><td>团体总分</td><td>按组别列出各单位的团体得分与名次</td></tr>
+        <tr><td>输出</td><td>打印</td><td>报名表、秩序册、检录单、成绩记录表、成绩册、团体总分表</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>侧栏入口旁的数字是待处理的数量：「报名」是还没报名的单位数，「编排」是待编排的项目与可以晋级的轮次，「日程」是时间冲突数，「成绩」是已开始但没录完的轮次。没有待办时不显示。</p>
+  <p>侧栏底部是「AI/MCP」「设置」和「全部赛事」。离开有未保存改动的页面时，应用会先确认。</p>
+
+  <h3>几个名词</h3>
+  <div class="table">
+    <table>
+      <thead><tr><th>名词</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td>赛事</td><td>一次运动会。</td></tr>
+        <tr><td>参赛单位</td><td>学校、班级或代表队，运动员的所属。</td></tr>
+        <tr><td>组别</td><td>赛事内的参赛分类，常用于年级，如「初一」「初二」。</td></tr>
+        <tr><td>项目</td><td>一个单项 = 性别 + 项目名 + 可选的组别，如「男子100m 初一」。</td></tr>
+        <tr><td>轮次</td><td>预赛、次赛、半决赛、决赛；直接决赛的项目只有一个轮次。</td></tr>
+        <tr><td>组</td><td>轮次里一起比赛的一组人：径赛一组一次起跑，田赛一组一起比。</td></tr>
+        <tr><td>位置</td><td>组内的道次（分道项目）或顺序（不分道项目与田赛）。</td></tr>
+        <tr><td>编排</td><td>把报名的人排进组和位置。</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ───────────────────────── 赛前 ───────────────────────── -->
+
+<section id="meet">
+  <h2>赛事设置</h2>
+  <p>在「全部赛事」点「新建赛事」，填赛事名称、开始与结束日期、地点。之后的设置都在赛事侧栏的「赛事设置」，一页从上到下分为几组：</p>
+  <div class="table">
+    <table>
+      <thead><tr><th>分组</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td>赛事信息</td><td>名称、日期、地点。</td></tr>
+        <tr><td>报名限制</td><td>每人限报项数、单位每项限报人数、单位每项限报队数，空着为不限。</td></tr>
+        <tr><td>团体总分</td><td>启用开关与「计分规则」，见<a href="#team">团体总分</a>。</td></tr>
+        <tr><td>编排</td><td>「同单位分散」「均衡人数」是自动编排的默认选项；「最短休息时间」用于冲突检查；「检录提前时间」决定检录单上的检录时间，默认 20 分钟。</td></tr>
+        <tr><td>打印</td><td>秩序册印不印代表队名单与竞赛日程表、紧凑排版，成绩册印不印团体总分表与成绩时间，每个项目另起一页，检录单与成绩记录表的分页方式。</td></tr>
+        <tr><td>赛事文件</td><td>导出赛事文件、导入到本赛事，见<a href="#file">赛事文件</a>。</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note-box">
+    <p>报名限制<strong>只提示，不拦截</strong>：超出限制的报名照常保存，并在报名对话框、报名表和运动员列表里标出。规程之外常有特批，是否取消由你决定。个人项目与全能各算一项，接力等队伍项目不计入个人项数。</p>
+  </div>
+</section>
+
+<section id="groups">
+  <h2>组别与参赛单位</h2>
+  <p>组别和参赛单位都在「报名」页左侧的树里管理，树按「全部 → 组别 → 参赛单位」排列。不需要分年级比赛的运动会可以不建组别。</p>
+  <ul>
+    <li><strong>组别</strong>：点树底部「添加组别」，填名称并勾选包含的单位。组别可以改名、上移下移和删除。各处的组别下拉框最后一项「新建组别…」可以就地新建。</li>
+    <li><strong>参赛单位</strong>：点「添加单位」，填全称与简称。选中某个组别时添加的单位默认属于它。一个单位可以属于多个组别，例如一所学校的多个年级。</li>
+    <li><strong>运动员的组别跟着单位</strong>：单位只有一个组别时，它的运动员自动归入该组别；给运动员选了单位没有的组别时，单位也一并加入这个组别。</li>
+    <li><strong>项目与全能</strong>可以指定组别，名称自动带上组别，如「男子100m 初一」。</li>
+    <li>改组别、删除组别<strong>只改归属和名称</strong>，报名、编排和成绩都不变。删除组别后，引用它的项目、单位与运动员变成「未分组」。</li>
+    <li>有还没归属的单位或运动员时，树标题旁出现「整理归属」：根据已有报名、年级文字与组别名称给出建议，你确认后保存。</li>
+  </ul>
+</section>
+
+<section id="events">
+  <h2>项目</h2>
+  <p>在「项目」点「添加项目」。<strong>一个项目只是一个单项</strong>：男子和女子、100m 和 200m、不同组别都要分成不同的项目，这样分组、排名和团体计分才不会混在一起。</p>
+
+  <h3>常用项目</h3>
+  <p>「常用项目」提供 35 个预设，覆盖短跑、中长跑、跨栏与障碍、接力、跳跃、投掷。选择后带出项目名、类型、起跑方式和尝试次数等，可以继续修改；也可以完全自定义，比如校园趣味项目。</p>
+
+  <h3>项目类型</h3>
+  <div class="table">
+    <table>
+      <thead><tr><th>类型</th><th>例子</th><th>成绩与排名</th></tr></thead>
+      <tbody>
+        <tr><td>径赛</td><td>100m、800m、跨栏</td><td>计时，用时少者优先</td></tr>
+        <tr><td>接力</td><td>4×100m</td><td>按队计时，成员按棒次排列</td></tr>
+        <tr><td>远度</td><td>跳远、三级跳、铅球、实心球</td><td>逐次记录，取最好一次；分跳跃和投掷</td></tr>
+        <tr><td>高度</td><td>跳高、撑竿跳高</td><td>逐高度记录试跳，取最后成功的高度</td></tr>
+        <tr><td>计次</td><td>跳绳、仰卧起坐</td><td>次数，可设一次、取最好或求和</td></tr>
+        <tr><td>计分</td><td>评分类项目</td><td>按设定的小数位记分，可设高分或低分优先</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>起跑方式</h3>
+  <ul>
+    <li><strong>分道</strong>：位置是起跑道次，每组人数不超过道数，可「好成绩排中间道」。</li>
+    <li><strong>不分道</strong>：位置是出发顺序，每组人数不受道数限制。</li>
+    <li><strong>分道后抢道</strong>：按分道排道次，例如 800m。</li>
+  </ul>
+
+  <h3>赛制与晋级</h3>
+  <p>「赛制」可选直接决赛、预赛 + 决赛、预赛 + 半决赛 + 决赛、预赛 + 次赛 + 半决赛 + 决赛。决赛之前的每个轮次填两个晋级人数：<strong>各组前 N 名</strong>按名次晋级，标 <span class="q">Q</span>；<strong>其余成绩最好的 M 名</strong>按成绩晋级，标 <span class="q">q</span>。</p>
+
+  <h3>队伍项目</h3>
+  <p>接力固定按队参赛；计时、计次、计分的项目也可以设为按队参赛，作为集体项目。可以设建议棒数或建议人数，人数不符只提示。</p>
+
+  <div class="note-box warn">
+    <p>项目有了成绩之后，不能再改项目类型、小数位、排名方向等会改变成绩含义的设置；有位置之后，不能在分道与不分道之间切换。要改须先移出或清除。</p>
+  </div>
+  <p>项目列表按比赛时间排列：先按日子，再按最早的计划时间。点一行进入项目工作区，里面有「报名」「编排」「成绩」三个标签。</p>
+</section>
+
+<section id="entries">
+  <h2>报名</h2>
+  <p>运动员属于赛事，各项目共用；报名决定一名运动员（或一支队伍）进入哪个项目。报名有四种方式，可以混用。</p>
+
+  <h3>逐个添加</h3>
+  <p>在「报名」页点「添加运动员」，填姓名、性别、号码、学号、参赛单位等。对话框下方的「报名项目」列出性别与组别相符的个人项目，勾选即报名。号码和学号在赛事内不能重复；同名只提示，不拦截。</p>
+  <p>在项目工作区的「报名」或编排名单底部「从赛事添加」，可以一次给一个项目添加多人。</p>
+
+  <h3 id="import">从表格导入</h3>
+  <p>点「导入名单」，从 Excel、WPS 里复制整张表粘贴进来（也可以用 CSV 文件），给每一列选好对应的字段，预览没问题再导入。</p>
+  <pre><code>姓名	性别	学号	参赛单位	报名项目
+王五	男	1002	初一(1)班	100m、跳远
+李四	女	1003	初一(2)班	800m</code></pre>
+  <ul>
+    <li>可识别的列：姓名、性别、号码、学号、参赛单位、班级、年级、参赛组别、出生日期、备注、报名项目。表头写这些名字会自动对上，「学校」「代表队」也认作参赛单位。</li>
+    <li>「报名项目」一格写多个项目，用 <code>、</code> <code>,</code> <code>;</code> <code>/</code> 分隔。可以写项目全名，也可以只写项目名，在同性别的项目里自动找到唯一的那个。</li>
+    <li>有学号按学号、没有学号按号码找已有运动员，找到就更新（空单元格不覆盖原值），找不到就新建。表里出现的新单位自动创建。</li>
+    <li>任何一行有问题，整批都不导入，预览的「说明」列写明原因。</li>
+  </ul>
+
+  <h3 id="entryform">报名登记表</h3>
+  <p>适合把报名交给各参赛单位自己填。格式固定，交回后直接导入，不用对列。</p>
+  <ol>
+    <li><strong>下发</strong>：在「报名」页点「导出登记表」，选文件夹后每个单位生成一份 xlsx。有组别时也可以每个组别一份，适合一个年级一张表。</li>
+    <li><strong>填写</strong>：「个人项目」页每行一名运动员，在要报的项目格里打 <code>√</code>，空着即不报。「接力与集体」页每队一行，格子依次写第 1 棒（第 1 人）起的队员姓名或学号；报两队就写两行。</li>
+    <li><strong>回收</strong>：点「导入登记表」，可以一次选多份，按单位预览每行的结果，没问题再导入。</li>
+  </ol>
+  <ul>
+    <li>同一份表导入两次不会重复建人；改过再交回的表只补上新增的人、报名和队伍。表里删掉的报名不会自动取消，要在软件里取消。</li>
+    <li>单位在某个队伍项目已经有队伍时，登记表不改它；换人到项目工作区的「管理队伍」里改。</li>
+    <li>格式不对、手写拍照或别的格式的报名表，可以交给 AI 助手整理后写入，见<a href="#ai">AI 助手</a>。</li>
+  </ul>
+
+  <h3>队伍与接力</h3>
+  <p>在项目工作区的「报名」或编排名单底部点「管理队伍」：「添加队伍」，填队名、参赛单位，按棒次添加成员，然后勾选队伍报名。同一项目里一人只能在一支队伍；队伍一旦有了比赛成绩，名单就锁定。</p>
+
+  <h3>报名进度</h3>
+  <p>「报名」页的树上每个单位写人数，没交回的标「未报名」，超出报名限制的标「超限 N」。选中树上的组别或单位，右侧只列这部分运动员，可以搜索、多选后「调整组别」或删除。</p>
+  <p>已经排进组的运动员要先在编排里移出，才能取消报名或删除。</p>
+</section>
+
+<section id="arrange">
+  <h2>编排</h2>
+
+  <h3>批量自动编排</h3>
+  <p>侧栏「编排」列出全赛事的轮次，默认只显示可以编排的。勾选多个轮次，点「自动编排 N 个」，选好选项后先「预览」查看每个轮次的组数与人数，再提交。</p>
+
+  <h3>自动编排的选项</h3>
+  <div class="table">
+    <table>
+      <thead><tr><th>选项</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>每组人数</td><td>分道项目默认等于道数，不分道项目默认 12 人。批量编排时各项目用自己的默认值。</td></tr>
+        <tr><td>排列顺序</td><td>按报名成绩：蛇形分配，各组强弱相当，没有报名成绩的排最后；或随机。</td></tr>
+        <tr><td>位置分配</td><td>分道项目可选「好成绩排中间道」、依次或随机；不分道项目与田赛为依次或随机。</td></tr>
+        <tr><td>同单位分散</td><td>同一单位的人尽量不在同一组。</td></tr>
+        <tr><td>均衡人数</td><td>各组人数尽量相等。</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>自动编排<strong>只排还没分组的人、只追加新组</strong>，已经排好的组不会被打乱。</p>
+
+  <h3>手动调整</h3>
+  <p>在项目的「编排」标签里，左边是还没分组的名单，右边是各组：</p>
+  <ul>
+    <li>把名单里的人拖到位置上；或者先点选人，再点「放到这里」。</li>
+    <li>拖到有人的位置即互换；拖回名单即移出。</li>
+    <li>组卡片的「⋯」里可以「编辑组…」（名称、单独的时间与预计用时）、上移下移和删除。</li>
+    <li>所有改动先留在本页，点「保存」一次保存；「放弃」撤回全部改动。</li>
+  </ul>
+  <div class="table">
+    <table>
+      <thead><tr><th>快捷键</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>保存（Mac 为 <kbd>⌘</kbd> + <kbd>S</kbd>）</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>撤销，最多 100 步</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> 或 <kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>重做</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>取消点选</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>已比赛的组</h3>
+  <p>组里有了成绩就会锁定：不能删除，也不会被自动编排覆盖。确实要调整时，在组卡片「⋯」里「解锁位置…」，换位置时成绩跟着人走。「⋯ → 全部重置…」会删除该项目的组与成绩，需要输入项目名称确认。</p>
+
+  <h3>晋级下一轮</h3>
+  <p>上一轮次全部录完后，成绩页排名旁出现「编排决赛」这样的按钮，点它打开下一轮次的自动编排，来源选上一轮次的晋级者，以上一轮成绩为种子编排。</p>
+</section>
+
+<section id="schedule">
+  <h2>日程与时间</h2>
+  <ul>
+    <li><strong>轮次开始时间</strong>：在编排页轮次旁、或日程页轮次标题上的时钟按钮设置。组没有单独时间时沿用它。</li>
+    <li><strong>组的时间</strong>：在「编辑组…」里单独指定计划时间和预计用时；留空即沿用轮次。</li>
+    <li><strong>批量排时间</strong>：在「日程」点「排时间…」，勾选轮次，调整先后顺序，填首组日期与时间、组间隔和轮次间隔，先「预览」再「保存」。组间隔同时作为每组的预计用时；已有成绩的组跳过，不占时间。编排页「⋯ → 排时间…」只排当前轮次。</li>
+    <li><strong>实际开赛时间</strong>：一组第一次录入成绩时自动记下当时的时刻，在成绩页组的「开赛时间」按钮里可以修改或清除，成绩册会印出。</li>
+    <li><strong>检录时间</strong> = 计划时间 − 检录提前时间，只印在检录单上。</li>
+  </ul>
+
+  <h3>时间冲突</h3>
+  <p>同一运动员的两个组时间重叠，或间隔短于「赛事设置」里的「最短休息时间」，就是冲突。接力队员和全能分项一并检查。冲突列在「日程」页顶部，每处旁有「编排」按钮直达；编排页的组卡片也会标出「冲突 N」，没保存的改动同样算在内。</p>
+  <div class="note-box">
+    <p>冲突和「时间不在赛事日期内」都<strong>只提示，不拦截</strong>保存。</p>
+  </div>
+  <p>「日程」页按天列出每个轮次的开始时间、组数和人数，以及各组的时间、预计用时与预计结束；还没有时间的轮次收在最后的「未安排时间」里。</p>
+</section>
+
+<!-- ───────────────────────── 比赛与赛后 ───────────────────────── -->
+
+<section id="results">
+  <h2>录入成绩</h2>
+  <p>比赛日打开侧栏「成绩」：按日子列出全部轮次，默认打开今天，每行写时间、项目、组数和录入进度。点一行进入该项目的成绩，录完后用工具栏的「下一场」到下一个轮次。</p>
+  <p>每组单独录入，录完点该组的「保存」；「放弃」恢复成已保存的内容。保存后立即重算名次。</p>
+
+  <h3>成绩写法</h3>
+  <div class="table">
+    <table>
+      <thead><tr><th>类型</th><th>写法</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>径赛、接力</td><td><code>12.34</code> <code>1:05.67</code> <code>1:02:03.4</code></td><td>秒、分:秒、时:分:秒；显示到 0.01 秒，不足进位</td></tr>
+        <tr><td>远度</td><td><code>6.52</code> <code>X</code> <code>-</code></td><td>每次一格：米（最多 3 位小数）、<code>X</code> 犯规、<code>-</code> 免跳；投掷也可写「免投」</td></tr>
+        <tr><td>高度</td><td><code>O</code> <code>X</code> <code>-</code></td><td>每个高度依次记成功、失败、免跳，见下文</td></tr>
+        <tr><td>计次</td><td><code>128</code></td><td>非负整数，0 也是有效成绩</td></tr>
+        <tr><td>计分</td><td><code>9.25</code></td><td>按项目设置的小数位</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>径赛与远度的成绩后面带 <code>s</code>、<code>秒</code>、<code>m</code>、<code>米</code> 也能识别，中文的冒号和句号同样可以。</p>
+  <p>特殊情况在行末「⋯」里设置：<span class="pill">弃权 DNS</span> <span class="pill">未完成 DNF</span> <span class="pill">犯规取消 DQ</span> <span class="pill">无成绩 NM</span>。这些人不排名，排在有效成绩之后。整行清空即删除该成绩。</p>
+
+  <h3>高度项目</h3>
+  <p>高度按试跳格录入，每按一次键记一次试跳，光标留在本格，方便照着纸质记录逐人补录：</p>
+  <div class="table">
+    <table>
+      <thead><tr><th>按键</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>O</kbd> 或 <kbd>0</kbd></td><td>成功</td></tr>
+        <tr><td><kbd>X</kbd></td><td>失败</td></tr>
+        <tr><td><kbd>-</kbd></td><td>免跳</td></tr>
+        <tr><td><kbd>Backspace</kbd> / <kbd>Delete</kbd></td><td>撤销本格最后一次</td></tr>
+        <tr><td>方向键</td><td>在格子间移动，跳过弃权等行</td></tr>
+        <tr><td><kbd>Enter</kbd> / <kbd>F2</kbd> / 双击</td><td>进入文字编辑，直接键入整格记录</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul>
+    <li>表头的新高度框默认是上次的升幅，按 <kbd>Enter</kbd> 或点「+」添加；点高度可以修改或移除。</li>
+    <li>应用按规则提示下一跳是谁、谁已经淘汰（连续三次失败）。</li>
+    <li>比赛进行中点「保存」保存过程；整组比完点<strong>「结束录入」</strong>确认。全部位置确认后才显示最终名次和计算晋级。</li>
+  </ul>
+
+  <h3>名次与晋级</h3>
+  <ul>
+    <li>名次由应用按成绩计算：并列同名次，下一名顺延（两人并列第 2，下一名是第 4）。田赛同成绩按规则比较次好成绩、高度比较失败次数。</li>
+    <li>轮次<strong>全部录完</strong>后才标出 <span class="q">Q</span> 与 <span class="q">q</span>。卡在最后一个晋级名额上的并列者全部晋级。</li>
+    <li>有并列时，排名标题旁出现「裁定并列」：给每人选「第 N 名」，同名次即保持并列。裁定同时决定组内名次、晋级和团体总分；改了成绩，裁定失效，需要重新裁定。</li>
+  </ul>
+</section>
+
+<section id="combined">
+  <h2>全能</h2>
+  <p>全能是统一报名、按计分表汇总多个分项积分的比赛，例如校园三项全能。</p>
+  <ol>
+    <li>在「项目」点「添加全能」，填名称、性别与组别，添加至少两个个人分项。</li>
+    <li>为每个分项填计分表：两列「成绩、积分」，可以从表格直接粘贴；成绩达到某一档就得该档积分，不插值，没达到最低档得 0 分。弃权等状态可设为该项零分或不列总排名。</li>
+    <li>在全能工作区统一报名，报名者自动进入全部分项。</li>
+    <li>各分项和普通项目一样编排、录成绩。</li>
+    <li>全能工作区的「总成绩」显示每人的逐项成绩、积分、总分与名次；没录完时为暂列排名。</li>
+  </ol>
+  <p>修改计分表时先预览原、新积分与名次，确认后才生效，原始成绩不变。打印秩序册或成绩册时选中全能，即包含全部分项与总成绩表。</p>
+</section>
+
+<section id="team">
+  <h2>团体总分</h2>
+  <p>按各项目的最终名次给参赛单位计分并汇总。在「团体总分」页点「启用团体计分」即可开始，「赛事设置」里也有同一开关与「计分规则」。</p>
+  <div class="table">
+    <table>
+      <thead><tr><th>规则</th><th>默认值</th></tr></thead>
+      <tbody>
+        <tr><td>名次分值</td><td>第 1–8 名依次 9、7、6、5、4、3、2、1 分</td></tr>
+        <tr><td>名次并列</td><td>分值均分：两人并列第 2，各得 (7 + 6) ÷ 2 = 6.5 分；也可选「各得全分」</td></tr>
+        <tr><td>接力倍数</td><td>2 倍，其他项目 1 倍；可以给每个项目单独设倍数，0 为不计分</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul>
+    <li>只按<strong>决赛的总排名</strong>和<strong>全能的总排名</strong>计分；决赛全部录完才计入，全能分项不重复计分。</li>
+    <li>接力按队计一次，算在队伍的参赛单位。弃权、犯规等没有名次，不得分。</li>
+    <li>有组别时按组别分别出榜；单位总分相同直接并列。</li>
+    <li>还有项目没录完时显示「暂列排名」与已计分的项目数，全部计入后为「正式排名」。点单位行可以查看得分明细。</li>
+  </ul>
+</section>
+
+<section id="print">
+  <h2>打印</h2>
+  <p>在「打印」左上选报表，左侧勾选范围（项目、轮次、日期或组别），右侧就是排到 A4 纸上的预览。点「打印」调出系统打印对话框，也可以在对话框里另存为 PDF。</p>
+  <div class="table">
+    <table>
+      <thead><tr><th>阶段</th><th>报表</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td>赛前</td><td>报名表</td><td>按项目列出全部报名者，没编排也能打印</td></tr>
+        <tr><td></td><td>秩序册</td><td>代表队名单（按单位、性别、号码）、竞赛日程表、各项目的组与道次</td></tr>
+        <tr><td>比赛</td><td>检录单</td><td>每组一张：检录时间、道次 / 顺序、号码、姓名、单位，带「到」「缺」方框和签名栏</td></tr>
+        <tr><td></td><td>成绩记录表</td><td>每组一张空白表，供裁判现场手写，栏目按项目类型给出</td></tr>
+        <tr><td>赛后</td><td>成绩册</td><td>各组成绩与名次、逐次成绩、实际开赛时间，可附团体总分表</td></tr>
+        <tr><td></td><td>团体总分</td><td>单独的单位总分表</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul>
+    <li><strong>印出来就是预览的样子</strong>：页码「第 N 页 / 共 M 页」、第二页起的页眉，以及表格跨页时的「续下页」和「（续）」都随纸面印出。</li>
+    <li>工具栏的「打印设置」直达「赛事设置」的打印选项。<strong>秩序册紧凑排版</strong>让个人项目的运动员并排排列，1,000 人规模的秩序册约从 72 页减到 31 页。</li>
+    <li>在「成绩」页的行末「打印」菜单里，可以只打印该轮次的检录单或成绩记录表。</li>
+  </ul>
+  <p>号码布打印还在开发中。</p>
+</section>
+
+<!-- ───────────────────────── 更多 ───────────────────────── -->
+
+<section id="file">
+  <h2>赛事文件</h2>
+  <p>一场赛事可以导出为一个 <code>.meet.json</code> 文件，包含参赛单位、运动员、项目、报名、编排和成绩，适合存档、换电脑或交给别人查看。</p>
+  <ul>
+    <li><strong>导出</strong>：「赛事设置 → 赛事文件」点「导出赛事文件」。</li>
+    <li><strong>导入为新赛事</strong>：在「全部赛事」点「导入赛事文件」。</li>
+    <li><strong>导入到本赛事</strong>：在「赛事设置 → 赛事文件」点「导入到本赛事」，把文件内容合并进当前赛事。项目按性别、项目名与组别对应，运动员按学号、号码或姓名加单位对应，先预览新建、复用与覆盖的数量，确认后才写入。</li>
+  </ul>
+  <p>赛事设置（编排与打印选项）不随文件导出，导入的赛事使用默认设置。文件格式是公开的，见<a href="https://github.com/stmtc233/SportsMeet/blob/main/docs/interchange-format.md" rel="noopener">交换格式规范</a>，其他程序可以读写。</p>
+</section>
+
+<section id="ai">
+  <h2>AI 助手（MCP）</h2>
+  <p>SportsMeet 在本机提供 MCP 服务，让你电脑上的 AI 客户端读取和修改赛事：整理各种格式的报名表、批量报名、编排、排时间、录成绩。应用本身不带 AI 模型，也不会把数据发到任何地方；用哪个 AI、数据给不给它，由你的客户端决定。</p>
+
+  <h3>连接</h3>
+  <ol>
+    <li>打开侧栏底部的「AI/MCP」。服务默认开启，入口显示「已开启」。</li>
+    <li>点「复制连接信息」，得到地址与令牌，类似：</li>
+  </ol>
+  <pre><code>{
+  "mcpServers": {
+    "sportsmeet": {
+      "url": "http://127.0.0.1:18765/mcp",
+      "headers": { "Authorization": "Bearer 你的令牌" }
+    }
+  }
+}</code></pre>
+  <ol start="3">
+    <li>把它填进支持 Streamable HTTP 的客户端的 MCP 配置。各客户端的字段名略有不同，例如 Codex 用 <code>http_headers</code>，Qwen Code 与 Gemini CLI 用 <code>httpUrl</code>。Claude Code 可以直接运行：</li>
+  </ol>
+  <pre><code>claude mcp add --transport http sportsmeet http://127.0.0.1:18765/mcp --header "Authorization: Bearer 你的令牌"</code></pre>
+  <p>页面下方列出支持的客户端：TRAE、Qoder、CodeBuddy、WorkBuddy、Qwen Code、Kimi Code、Claude Code、Codex、Cursor、Gemini CLI、Google Antigravity、Cline，以及其他支持自定义请求头的 MCP 客户端。</p>
+
+  <h3>可以这样说</h3>
+  <ul>
+    <li>「把这份 Excel 报名表导入到 2026 秋季运动会，参赛单位是各班。」</li>
+    <li>「列出所有还没编排的项目，按报名成绩自动编排，先给我看预览。」</li>
+    <li>「把第一天上午的径赛从 8:30 开始连排，每组间隔 5 分钟。」</li>
+    <li>「这是男子100m 决赛的成绩照片，帮我录进去。」</li>
+    <li>「哪些运动员的比赛时间有冲突？」</li>
+  </ul>
+
+  <h3>安全边界</h3>
+  <ul>
+    <li>只接受本机连接，使用独立令牌；网页脚本无法借浏览器调用。「AI/MCP」页可以轮换令牌，旧令牌立即失效；也可以随时关闭服务，端口随之释放。默认端口 18765，可以修改。</li>
+    <li><strong>批量改动和删除先预览</strong>：AI 先拿到预览给你看，你确认后它才能提交；期间数据变了要重新预览。</li>
+    <li>空位可以直接录成绩；<strong>覆盖已有成绩</strong>必须先预览「原成绩 → 新成绩」并经你确认。名次与晋级由应用计算，AI 不能直接指定。</li>
+    <li>有成绩的赛事、项目、组和运动员，AI 不能删除，只能在界面上删。并列裁定只能在界面上做。</li>
+    <li>AI 接触不到应用设置、令牌、你的文件和网络。每次改动都记入操作日志，来源记为「MCP」。</li>
+  </ul>
+</section>
+
+<section id="log">
+  <h2>操作日志与设置</h2>
+  <ul>
+    <li><strong>操作日志</strong>：「设置 → 操作日志」记录每一次改动的时间、来源（界面、MCP、系统）和内容，可以按赛事与来源筛选。改成绩的记录里保留原成绩和新成绩，录错了能查到改回。</li>
+    <li><strong>外观</strong>：「设置 → 通用」可选跟随系统、浅色或深色。</li>
+    <li><strong>关于</strong>：版本号、检查更新、接收测试版、开源许可与项目仓库。</li>
+  </ul>
+</section>
+
+<section id="faq">
+  <h2>常见问题</h2>
+  <details>
+    <summary>几台电脑能同时用同一场赛事吗？</summary>
+    <p>SportsMeet 是单机软件，数据只在本机。需要分工时，可以在另一台电脑录入后「导出赛事文件」，再在主电脑「导入到本赛事」合并；已有组的位置与文件一致时写入其中的成绩。</p>
+  </details>
+  <details>
+    <summary>报名超过限制为什么还能保存？</summary>
+    <p>报名限制只提示，不拦截。超出的报名会在报名表和运动员列表里标出，是否取消由你决定。</p>
+  </details>
+  <details>
+    <summary>再点一次自动编排，会打乱已经排好的组吗？</summary>
+    <p>不会。自动编排只排还没分组的人，只追加新组。要重新编排，先删除没有成绩的组；已有成绩的组要「解锁位置」或「全部重置」。</p>
+  </details>
+  <details>
+    <summary>为什么还没有出现 Q / q？</summary>
+    <p>晋级标记在轮次全部位置都录完后才标出。高度项目还需要每组点「结束录入」。</p>
+  </details>
+  <details>
+    <summary>时间冲突的安排能保存吗？</summary>
+    <p>可以。冲突只是提示，比如同一人连续两项时，由你决定是否调整。</p>
+  </details>
+  <details>
+    <summary>成绩录错了怎么办？</summary>
+    <p>直接改掉再保存，名次和晋级会重新计算。操作日志里保留了原来的成绩。</p>
+  </details>
+  <details>
+    <summary>怎么把数据搬到另一台电脑？</summary>
+    <p>每场赛事「导出赛事文件」，在新电脑上「导入赛事文件」。也可以退出应用后，把整个数据目录复制到新电脑的同一位置，见<a href="#data">数据与备份</a>。</p>
+  </details>
+  <details>
+    <summary>能打印号码布吗？</summary>
+    <p>还在开发中，计划按参赛单位分段自动编号并打印。</p>
+  </details>
+  <details>
+    <summary>遇到问题去哪里反馈？</summary>
+    <p>在 GitHub 上<a href="https://github.com/stmtc233/SportsMeet/issues" rel="noopener">提交 Issue</a>，写清系统、版本（「设置 → 关于」）和操作步骤。</p>
+  </details>
+</section>
+
+<section id="dev">
+  <h2>参与开发</h2>
+  <p>SportsMeet 以 <a href="https://github.com/stmtc233/SportsMeet/blob/main/LICENSE" rel="noopener">MIT 协议</a>开源，基于 <a href="https://github.com/egoist/mygo" rel="noopener">mygo</a>：业务逻辑全部在 Go，界面是 React + TypeScript，运行在系统自带的 WebView 里，数据用 SQLite。需要 Go（版本见 <code>go.mod</code>，本机较旧时会自动下载）与 Bun。</p>
+  <pre><code>bun install
+bun run dev      # 打开应用窗口并热更新
+bun run check    # 提交前检查：go vet、单测、类型检查、前端单测
+bun run build    # 打包，产物在 build/&lt;平台&gt;/</code></pre>
+  <ul>
+    <li><a href="https://github.com/stmtc233/SportsMeet/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a>：项目结构、术语与关键规则，人和 AI 协作工具都从这里开始。</li>
+    <li><a href="https://github.com/stmtc233/SportsMeet/tree/main/docs/agents" rel="noopener">docs/agents/</a>：领域模型、编排、存储、前端、设计系统、MCP 等专题细则。</li>
+    <li><a href="https://github.com/stmtc233/SportsMeet/blob/main/docs/interchange-format.md" rel="noopener">交换格式规范</a>与 JSON Schema。</li>
+    <li><a href="https://github.com/stmtc233/SportsMeet/blob/main/docs/verification.md" rel="noopener">验证范围</a>：自动测试覆盖什么、哪些需要实机验证。</li>
+  </ul>
+</section>
+
+</article>
+</div>
+
+<footer class="wrap foot">
+  <span>SportsMeet · MIT 协议</span>
+  <a href="index.html">首页</a>
+  <a href="https://github.com/stmtc233/SportsMeet" rel="noopener">GitHub</a>
+  <a href="https://github.com/stmtc233/SportsMeet/issues" rel="noopener">反馈问题</a>
+</footer>
+
+<script>
+  // 窄屏把目录收起;滚动时高亮当前章节。没有脚本时目录照常展开、可点。
+  (() => {
+    const toc = document.querySelector(".toc");
+    const narrow = matchMedia("(max-width: 860px)");
+    const sync = () => { toc.open = !narrow.matches; };
+    sync();
+    narrow.addEventListener("change", sync);
+    toc.addEventListener("click", (e) => { if (narrow.matches && e.target.closest("a")) toc.open = false; });
+
+    const links = new Map([...toc.querySelectorAll("a")].map((a) => [a.hash.slice(1), a]));
+    const sections = [...document.querySelectorAll(".doc section")].filter((s) => links.has(s.id));
+    let current = null;
+    const mark = () => {
+      let id = sections[0].id;
+      for (const s of sections) if (s.getBoundingClientRect().top < innerHeight / 3) id = s.id;
+      if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) id = sections.at(-1).id;
+      if (id === current) return;
+      links.get(current)?.removeAttribute("aria-current");
+      links.get(id).setAttribute("aria-current", "true");
+      current = id;
+    };
+    addEventListener("scroll", mark, { passive: true });
+    mark();
+  })();
+</script>
+
+</body>
+</html>

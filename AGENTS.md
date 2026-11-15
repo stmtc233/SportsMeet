@@ -86,7 +86,7 @@ SportsMeet/
 ├── scripts/check-design-system.sh   ← 前端棘轮检查(设计系统 + 绑定引用);基线 design-system-baseline.txt
 ├── scripts/generate-brand.mjs       ← 从品牌母版导出资源,同步应用与官网图标
 ├── scripts/website-downloads.mjs    ← 生成要发布的官网:复制 website/,把下载区换成最新 release 的链接
-├── website/                 ← 静态官网(index.html + styles.css,无构建;下载区在发布时替换);assets/ 里是应用界面截图(浅色 / 深色各一张)与图标
+├── website/                 ← 静态官网(index.html + styles.css,无构建;下载区在发布时替换)与使用文档 docs.html + docs.css;assets/ 里是应用界面截图(浅色 / 深色各一张)与图标
 ├── .github/workflows/check.yml      ← CI:`bun run check`、绑定生成物比对、页面冒烟测试
 ├── .github/workflows/release.yml    ← 发布 release 后打三个系统的安装包、便携包与签名的更新文件,上传到该 release
 ├── .github/workflows/pages.yml      ← 发布工作流成功后或官网有改动时,把官网发布到 GitHub Pages
@@ -279,6 +279,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 1. 改术语或实体层级 → §2 与 domain.md。
 2. 改交换格式 → interchange-format.md、JSON Schema、示例与 `testdata/interchange/` 黄金文件。
 3. 新增 / 废弃 / 修改不变量 → 在对应细则写完整规则,并在 §5 加 / 改**一句话摘要**;新主题建新细则并登记到 §5.0 路由表。
+4. 改用户能看到的操作、按钮名称、默认值或页面 → `website/docs.html` 使用文档的对应章节。
 
 写作约定(文档与代码注释都适用):
 

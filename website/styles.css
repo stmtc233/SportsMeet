@@ -169,7 +169,7 @@ h1, h2, h3 { line-height: 1.25; text-wrap: balance; }
   .feature, .feature.flip { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .feature.flip .copy { order: 0; }
   .grid { grid-template-columns: minmax(0, 1fr); }
-  .nav nav a:not(.gh) { display: none; }
+  .nav nav a:not(.gh):not(.docs-link) { display: none; }
   .hero .lead br { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
