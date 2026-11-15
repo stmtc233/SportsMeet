@@ -10,13 +10,17 @@ CGO_ENABLED=0 go test ./...
 go vet ./...
 bunx mygo vet .
 bun run test:web
+bun run test:scripts
 bun run typecheck
 scripts/check-design-system.sh
 bun run test:ui
 bunx mygo build -skip-dmg -skip-notarize -skip-installer
 ```
 
-`bun run check` 依次执行 `go vet ./...`、`go test ./...`、`bun run typecheck`、`bun run test:web`、`scripts/check-design-system.sh`,提交前跑它即可;CI(`.github/workflows/check.yml`,macOS)在此之外比对 `src/mygo.ts` 与重新生成的结果,并跑页面冒烟测试。其余命令按改动范围另跑。
+`bun run check` 依次执行 `go vet ./...`、`go test ./...`、`bun run typecheck`、`bun run test:web`、`bun run test:scripts`、`scripts/check-design-system.sh`,提交前跑它即可;CI(`.github/workflows/check.yml`,macOS)在此之外比对 `src/mygo.ts` 与重新生成的结果,并跑页面冒烟测试。其余命令按改动范围另跑。
+
+- 官网发布脚本测试覆盖 Linux x86-64 / ARM64 的 `.deb`、`.rpm` 与便携包匹配、ARM64 文件排在前面时仍选对架构、没有 ARM64 文件的 release 继续发布，以及 ARM64 包不齐时拒绝发布。
+- Linux 支持 `bunx mygo build -platform linux/amd64,linux/arm64` 交叉打包。arm64 在 macOS 完成编译并生成 `.deb`、`.rpm` 与便携包，主程序与 SQLite 库的 ELF 架构须为 AArch64；原生 Linux 窗口、安装与更新仍需实机验证。
 
 页面测试先安装浏览器:
 

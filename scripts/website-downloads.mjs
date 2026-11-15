@@ -41,17 +41,32 @@ function asset(pattern) {
 
 // What mygo build and .github/workflows/release.yml name the files.
 const platforms = [
-  { name: "macOS", needs: "macOS 12 及以上", main: ["下载安装包", /\.dmg$/], alt: [["便携版", /-darwin-universal-portable\.zip$/]] },
-  { name: "Windows", needs: "Windows 10 / 11", main: ["下载安装包", /^sportsmeet-setup-.*\.exe$/], alt: [["便携版", /-windows-amd64-portable\.zip$/]] },
-  { name: "Linux", needs: "x86-64", main: ["下载 .deb", /\.deb$/], alt: [[".rpm", /\.rpm$/], ["便携版", /-linux-amd64\.tar\.gz$/]] },
+  { name: "macOS", builds: [
+    { needs: "macOS 12 及以上", main: ["下载安装包", /\.dmg$/], alt: [["便携版", /-darwin-universal-portable\.zip$/]] },
+  ] },
+  { name: "Windows", builds: [
+    { needs: "Windows 10 / 11", main: ["下载安装包", /^sportsmeet-setup-.*\.exe$/], alt: [["便携版", /-windows-amd64-portable\.zip$/]] },
+  ] },
+  { name: "Linux", builds: [
+    { needs: "x86-64", main: ["下载 .deb", /_amd64\.deb$/], alt: [[".rpm", /\.x86_64\.rpm$/], ["便携版", /-linux-amd64\.tar\.gz$/]] },
+    { needs: "ARM64", optional: true, main: ["下载 .deb", /_arm64\.deb$/], alt: [[".rpm", /\.aarch64\.rpm$/], ["便携版", /-linux-arm64\.tar\.gz$/]] },
+  ] },
 ];
+
+// Releases without ARM64 files remain publishable; a partial set is an error.
+function buildLinks(platform, build) {
+  const links = [build.main, ...build.alt];
+  if (build.optional && !links.some(([, pattern]) => release.assets.some((a) => pattern.test(a.name)))) return "";
+  const link = ([label, pattern], className = "") => `<a${className ? ` class="${className}"` : ""} href="${asset(pattern)}" aria-label="${escape(`${platform} ${build.needs} ${label}`)}">${label}</a>`;
+  return `      <p>${build.needs}</p>
+      ${link(build.main, "tag")}
+      <div class="alt">${build.alt.map((a) => link(a)).join("")}</div>`;
+}
 
 const version = escape(release.tag_name.replace(/^v/, ""));
 const cards = platforms.map((p) => `    <div class="card platform">
       <h3>${p.name}</h3>
-      <p>${p.needs}</p>
-      <a class="tag" href="${asset(p.main[1])}">${p.main[0]}</a>
-      <div class="alt">${p.alt.map(([label, pattern]) => `<a href="${asset(pattern)}">${label}</a>`).join("")}</div>
+${p.builds.map((b) => buildLinks(p.name, b)).filter(Boolean).join("\n")}
     </div>`).join("\n");
 
 const block = `<p class="lead">${release.prerelease ? "测试版" : "最新版本"} ${version}</p>

@@ -14,7 +14,7 @@ SportsMeet 是一款开源的**单机离线**田径与校园运动会编排软�
 - **技术栈**:Go(版本以 `go.mod` 为准,本机较旧时 Go 自动下载对应工具链;业务全部在 Go)+ Bun + Vite + TypeScript + React 前端(跑在系统 WebView 中)。mygo 版本见 `go.mod` 与 `package.json`(`mygo-cli` / `mygo-runtime` 同版本)。
 - **Go 模块**:`github.com/stmtc233/sportsmeet`;应用标识 `io.github.stmtc233.sportsmeet`。
 - mygo 自带的 agent 技能在 `.agents/skills/`(`mygo install-skills` 更新),改 mygo 相关代码前可参考。
-- **平台**:macOS 12+、Windows 10/11、Linux。
+- **平台**:macOS 12+、Windows 10/11、Linux(amd64 / arm64)。
 - **定位边界**(用户要求):只做单机;**唯一的对外接口是 MCP**(仅本机)。出网只有 mygo 自动更新。导入导出使用开放的交换格式([docs/interchange-format.md](docs/interchange-format.md))。
 
 ## 2. 术语 —— 必须严格区分,不得自创同义词
@@ -86,7 +86,7 @@ SportsMeet/
 ├── playwright.config.ts      ← 宽窄窗口与浅深色页面验证
 ├── scripts/check-design-system.sh   ← 前端棘轮检查(设计系统 + 绑定引用);基线 design-system-baseline.txt
 ├── scripts/generate-brand.mjs       ← 从品牌母版导出资源,同步应用与官网图标
-├── scripts/website-downloads.mjs    ← 生成要发布的官网:复制 website/,把下载区换成最新 release 的链接
+├── scripts/website-downloads.mjs    ← 生成要发布的官网:复制 website/,把下载区换成最新 release 的链接;同名测试验证 Linux 架构匹配
 ├── website/                 ← 静态官网(index.html + styles.css,无构建;下载区在发布时替换)与使用文档 docs.html + docs.css;assets/ 里是应用界面截图(浅色 / 深色各一张,README 同样引用)与图标
 ├── .github/workflows/check.yml      ← CI:`bun run check`、绑定生成物比对、页面冒烟测试
 ├── .github/workflows/release.yml    ← 发布 release 后打三个系统的安装包、便携包与签名的更新文件,上传到该 release
@@ -117,11 +117,11 @@ bun run dev                          # mygo dev,打开应用窗口并热更新
 bun run build                        # mygo build,产物在 build/<平台>/
 bun run generate                     # 改了 Go 绑定后更新 src/mygo.ts
 bun run brand:generate               # 从矢量母版导出品牌资源与应用 / 官网图标
-bun run check                        # 提交前跑这一条:go vet、Go 单测、类型检查、前端单测、前端棘轮
+bun run check                        # 提交前跑这一条:go vet、Go 单测、类型检查、前端与脚本单测、前端棘轮
 bun run test:ui                      # 先 bunx playwright install chromium
 ```
 
-`bun run check` 里的各项也可单独跑:`go test ./...`(含真实 SQLite)、`bun run test:web`、`bun run typecheck`、`scripts/check-design-system.sh`。CI 在此之外还比对 `src/mygo.ts` 与重新生成的结果,并跑页面冒烟测试。
+`bun run check` 里的各项也可单独跑:`go test ./...`(含真实 SQLite)、`bun run test:web`、`bun run test:scripts`(官网发布脚本)、`bun run typecheck`、`scripts/check-design-system.sh`。CI 在此之外还比对 `src/mygo.ts` 与重新生成的结果,并跑页面冒烟测试。
 
 本地只需验证能否打包时用 `bunx mygo build -skip-dmg -skip-notarize -skip-installer`。
 
@@ -132,6 +132,7 @@ bun run test:ui                      # 先 bunx playwright install chromium
 | macOS(通用) | `.dmg` | `-darwin-universal-portable.zip`(内含 `.app`) |
 | Windows(amd64) | `sportsmeet-setup-….exe` | `-windows-amd64-portable.zip` |
 | Linux(amd64) | `.deb`、`.rpm` | `-linux-amd64.tar.gz` |
+| Linux(arm64) | `…_arm64.deb`、`….aarch64.rpm` | `-linux-arm64.tar.gz` |
 
 同一次打包还上传各平台的更新文件:`update-<平台>.json`、`sportsmeet-<版本>-<平台>.tar.gz`、增量包、`install.sh` 与 `SHA256SUMS`。已安装的应用从最新 release 读 `update-<平台>.json`,所以 mygo 生成的文件不改名、不从 release 里删。
 
@@ -142,6 +143,8 @@ bun run test:ui                      # 先 bunx playwright install chromium
 `resources/brand/` 是设计资料,经 `resourcesExclude` 不进安装包。
 
 官网:`release.yml` 成功后,`pages.yml` 把 `website/` 发布到 GitHub Pages,下载区(`index.html` 里 `downloads:start` 与 `downloads:end` 之间)换成最新正式版的链接,还没有正式版时用最新的测试版;仓库里的 `index.html` 保持「即将发布」。链接按文件名匹配,改 `release.yml` 的文件名时同步改 `scripts/website-downloads.mjs`。本地预览:`gh api repos/stmtc233/SportsMeet/releases > /tmp/r.json && node scripts/website-downloads.mjs /tmp/r.json /tmp/site`。
+
+Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 ARM64 文件时只列 x86-64,有任一 ARM64 文件时要求三种包齐全。Linux 两种架构可在本机交叉打包:`bunx mygo build -platform linux/amd64,linux/arm64`。
 
 ---
 

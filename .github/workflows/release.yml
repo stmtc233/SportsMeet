@@ -44,6 +44,9 @@ jobs:
           - os: ubuntu-latest
             platform: linux/amd64
             dir: linux-amd64
+          - os: ubuntu-latest
+            platform: linux/arm64
+            dir: linux-arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

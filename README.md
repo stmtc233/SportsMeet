@@ -125,6 +125,7 @@
 | Windows 10 / 11 | `sportsmeet-setup-<版本>-amd64.exe` | `…-windows-amd64-portable.zip` |
 | macOS 12 及以上（Intel 与 Apple 芯片） | `sportsmeet-<版本>.dmg` | `…-darwin-universal-portable.zip` |
 | Linux x86-64 | `.deb`、`.rpm` | `…-linux-amd64.tar.gz` |
+| Linux ARM64（aarch64） | `…_arm64.deb`、`….aarch64.rpm` | `…-linux-arm64.tar.gz` |
 
 已安装的应用会在有新版本时提示更新，更新文件经过签名校验。
 
@@ -163,7 +164,7 @@ SportsMeet 内置本机 [MCP](https://modelcontextprotocol.io) 服务，默认�
 bun install
 bun run dev        # 打开应用窗口并热更新
 bun run build      # 打包，产物在 build/<平台>/
-bun run check      # 提交前检查：go vet、Go 单测、类型检查、前端单测、设计系统检查
+bun run check      # 提交前检查：go vet、Go 单测、类型检查、前端与脚本单测、设计系统检查
 ```
 
 页面冒烟测试需先 `bunx playwright install chromium`，再运行 `bun run test:ui`。完整检查命令与跨平台验证范围见[验证范围](docs/verification.md)。
