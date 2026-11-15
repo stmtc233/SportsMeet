@@ -24,7 +24,7 @@ export function CombinedWorkspace({ meetId, combinedId, returnTo }: { meetId: st
     {error && <StNotice tone="danger">{error}</StNotice>}
     {detail && <>
       <div className="subbar"><StSegmented aria-label="全能页面" value={tab} onChange={setTab} options={[{ value: "components", label: "分项" }, { value: "entries", label: "报名" }, { value: "results", label: "总成绩" }]} /><span className="subbar__spacer" /><StTag>{detail.complete ? "正式排名" : "暂列排名"}</StTag></div>
-      {tab === "components" && <div className="table-card view-enter"><StTable<CombinedComponentView> fill scrollKey={`combined:components:${combinedId}`} rows={detail.components} rowKey={(c) => c.event.id} columns={[
+      {tab === "components" && <div className="table-card table-card--top view-enter"><StTable<CombinedComponentView> fill scrollKey={`combined:components:${combinedId}`} rows={detail.components} rowKey={(c) => c.event.id} columns={[
         { key: "order", title: "顺序", width: "72px", render: (c) => c.ordinal },
         { key: "name", title: "分项", render: (c) => c.event.discipline },
         { key: "kind", title: "类型", render: (c) => kindLabels[c.event.kind] },
@@ -33,7 +33,7 @@ export function CombinedWorkspace({ meetId, combinedId, returnTo }: { meetId: st
       {tab === "entries" && <div className="split__main view-enter"><StSection title={`${detail.athleteIds.length} 人报名`} padded={false} actions={<StButton variant="primary" onClick={() => setEntries(true)}>管理报名</StButton>}>
         <StTable<CombinedRow> rows={detail.rows} rowKey={(r) => r.athleteId} dense empty={<StEmpty>还没有报名</StEmpty>} columns={[{ key: "bib", title: "号码", render: (r) => r.bib }, { key: "name", title: "姓名", render: (r) => <>{r.name}{r.groupMismatch && <StTag tone="warning">跨组报名</StTag>}{r.genderMismatch && <StTag tone="warning">性别不符</StTag>}</> }, { key: "unit", title: "单位", render: (r) => r.unitName }]} />
       </StSection></div>}
-      {tab === "results" && <div className="table-card view-enter"><StTable<CombinedRow> fill scrollKey={`combined:results:${combinedId}`} rows={detail.rows} rowKey={(r) => r.athleteId} dense empty={<StEmpty>还没有报名</StEmpty>} columns={[
+      {tab === "results" && <div className="table-card table-card--top view-enter"><StTable<CombinedRow> fill scrollKey={`combined:results:${combinedId}`} rows={detail.rows} rowKey={(r) => r.athleteId} dense empty={<StEmpty>还没有报名</StEmpty>} columns={[
         { key: "rank", title: "名次", width: "56px", align: "end", render: (r) => r.excluded ? "—" : r.rank ?? "" },
         { key: "name", title: "姓名", width: "96px", render: (r) => r.name },
         { key: "total", title: "总分", width: "80px", align: "end", render: (r) => r.total },
