@@ -21,6 +21,10 @@ type empty struct{}
 type meetArg struct {
 	MeetID string `json:"meetId"`
 }
+type createMeetArg struct {
+	Input service.MeetInput `json:"input"`
+	confirmation
+}
 type eventArg struct {
 	EventID string `json:"eventId"`
 }
@@ -52,12 +56,20 @@ func NewServer(svc *service.Service) *sdk.Server {
 	addTool(s, "get_schedule", "读取一个赛事的竞赛日程：days 按天、按生效时间列出各项目的轮次与组（startText / effectiveAt / endAt / durationText，scheduleInherited 表示沿用轮次开始时间，keepReason 非空表示已比赛；startedAt / startedText / startDeltaText 是实际开赛时间及与计划的差），unscheduled 是没有任何计划时间的轮次，conflicts 是全部运动员时间冲突。只读。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.Schedule(ctx, in.MeetID) })
 	addTool(s, "list_conflicts", "列出一个赛事的运动员时间冲突：同一运动员（队伍展开为队员，含全能分项）的两个组时间重叠，或前一组预计结束到后一组开始不足设置里的最短休息时间。没有预计用时的组按时间点计，没有计划时间的组不参与。只提示，不拦截任何保存。只读。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.MeetConflicts(ctx, in.MeetID) })
 	addTool(s, "export_meet", "返回一个赛事的完整交换格式对象，含成绩。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.ExportMeet(ctx, in.MeetID) })
-	addTool(s, "create_meet", "创建赛事。entryLimits 是报名限制（0 = 不限，0–99）：athleteEvents 每人限报项数（个人项目各计一项，全能计一项，队伍项目不计），unitAthletes 每单位每个个人项目或全能限报人数，unitTeams 每单位每个队伍项目限报队数；超出只提示、不拦截报名。", false, func(ctx context.Context, in struct {
-		Input service.MeetInput `json:"input"`
-	}) (any, error) {
-		return svc.CreateMeet(ctx, store.SourceMCP, in.Input)
+	addTool(s, "preview_create_meet", "预览沿用已有赛事的项目与赛制新建赛事。input.sourceMeetId 必填，返回新赛事资料及将沿用的组别、项目、轮次、全能与计分规则，不写入；展示预览并取得用户确认后才能 create_meet。", true, func(ctx context.Context, in createMeetArg) (any, error) {
+		return svc.PreviewMutation(ctx, service.Mutation{Action: "create_meet", MeetInput: &in.Input})
 	})
-	addTool(s, "update_meet", "更新一个赛事。input 是全部字段，省略的可选字段会清空；entryLimits 省略时保持不变。entryLimits 是报名限制（0 = 不限，0–99）：athleteEvents 每人限报项数（个人项目各计一项，全能计一项，队伍项目不计），unitAthletes 每单位每个个人项目或全能限报人数，unitTeams 每单位每个队伍项目限报队数；超出只提示、不拦截报名。", false, func(ctx context.Context, in struct {
+	addTool(s, "create_meet", "创建赛事。input.sourceMeetId 非空时必须先 preview_create_meet，向用户展示并取得确认，再携带相同 input、previewHash 与 confirmed=true 提交；留空创建空赛事可直接提交。input.sourceMeetId 可选，沿用该赛事的组别、项目配置、轮次与晋级规则、全能分项及计分表、团体计分规则；所有引用独立新建，不含单位、运动员、队伍、报名、编排、成绩及项目日期和计划时间。赛事资料与报名限制使用 input，编排与打印设置使用默认值。entryLimits 是报名限制（0 = 不限，0–99）：athleteEvents 每人限报项数（个人项目各计一项，全能计一项，队伍项目不计），unitAthletes 每单位每个个人项目或全能限报人数，unitTeams 每单位每个队伍项目限报队数；超出只提示、不拦截报名。", false, func(ctx context.Context, in createMeetArg) (any, error) {
+		if in.Input.SourceMeetID == "" {
+			return svc.CreateMeet(ctx, store.SourceMCP, in.Input)
+		}
+		p, err := svc.ApplyMutation(ctx, service.Mutation{Action: "create_meet", MeetInput: &in.Input}, in.PreviewHash, in.Confirmed)
+		if err != nil {
+			return nil, err
+		}
+		return p.Result.(*service.MeetCreationPlan).Meet, nil
+	})
+	addTool(s, "update_meet", "更新一个赛事。sourceMeetId 仅供新建赛事，更新时不能指定。input 是全部字段，省略的可选字段会清空；entryLimits 省略时保持不变。entryLimits 是报名限制（0 = 不限，0–99）：athleteEvents 每人限报项数（个人项目各计一项，全能计一项，队伍项目不计），unitAthletes 每单位每个个人项目或全能限报人数，unitTeams 每单位每个队伍项目限报队数；超出只提示、不拦截报名。", false, func(ctx context.Context, in struct {
 		MeetID string            `json:"meetId"`
 		Input  service.MeetInput `json:"input"`
 	}) (any, error) {

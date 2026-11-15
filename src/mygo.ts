@@ -1040,6 +1040,8 @@ export interface MeetCounts {
 
 /** MeetInput creates or updates a meet. */
 export interface MeetInput {
+  /** SourceMeetID copies project definitions into a new meet, without participants or schedules. */
+  sourceMeetId?: string;
   name: string;
   startDate: string;
   endDate?: string;

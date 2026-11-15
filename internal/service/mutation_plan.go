@@ -11,6 +11,9 @@ import (
 func (s *Service) planMutation(ctx context.Context, in Mutation, before any) (any, bool, error) {
 	const src = store.SourceMCP
 	switch in.Action {
+	case "create_meet":
+		m, err := s.CreateMeet(ctx, src, *in.MeetInput)
+		return &MeetCreationPlan{Meet: m, Projects: before.(*meetCreationState).Projects}, false, err
 	case "delete_group":
 		return in.ID, false, s.DeleteGroup(ctx, src, in.MeetID, in.ID)
 	case "reorder_groups":

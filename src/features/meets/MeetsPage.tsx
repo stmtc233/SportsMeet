@@ -58,7 +58,7 @@ export function MeetsPage() {
           ))}
         </StCard>
       </div>
-      <MeetDialog open={editing !== null} meet={editing?.meet} onClose={() => setEditing(null)} onSaved={editing?.meet ? undefined : open} />
+      <MeetDialog open={editing !== null} meet={editing?.meet} sources={meets ?? []} onClose={() => setEditing(null)} onSaved={editing?.meet ? undefined : open} />
       <DeleteDialog open={deleting !== null} title={`删除「${deleting?.meet.name ?? ""}」？`} onClose={() => setDeleting(null)} onDelete={() => MeetsController.remove(deleting!.meet.id)}>
         将删除 {deleting?.counts.events} 个项目、{deleting?.counts.athletes} 名运动员与 {deleting?.counts.results} 条成绩，无法撤销。
       </DeleteDialog>

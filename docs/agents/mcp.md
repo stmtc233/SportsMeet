@@ -82,7 +82,8 @@
 | `list_event_presets` | 读取常用项目初始 `input`，可调整后交给 `save_event` |
 | `list_units` / `list_athletes` / `list_events` | 按赛事读取基础数据与进度;项目按日期与计划时间排序,见 [domain.md](domain.md)「时间」 |
 | `get_event` | 队伍名单、报名、轮次(含开始时间)、组、位置、成绩、总排名与晋级;组给出单独时间 `scheduledAt`、生效时间 `effectiveAt`、`scheduleInherited`、预计用时 `durationMinutes`、结束时间 `endAt`,以及实际开赛时间 `startedAt` / `startedText` 与差值 `startDeltaText` |
-| `create_meet` / `update_meet` | 创建 / 更新一个赛事,含报名限制 `entryLimits`(更新时省略即保持原值) |
+| `create_meet` / `update_meet` | 创建 / 更新一个赛事,含报名限制 `entryLimits`(更新时省略即保持原值)；创建传 `input.sourceMeetId` 沿用时须先 `preview_create_meet` 并确认，规则见 [domain.md](domain.md)「沿用项目与赛制新建赛事」；更新拒绝该非空字段 |
+| `preview_create_meet` → `create_meet` | 沿用已有赛事的项目与赛制；预览 `result.meet` 为新赛事资料、`result.projects` 为来源的组别／项目／轮次／全能与计分规则定义，不含参赛数据与时间；确认携带同一 `input`、`previewHash` 与 `confirmed=true`，定义或赛事列表变化后重预览，同一确认只能新建一次 |
 | `save_unit` / `save_athlete` / `save_event` | 创建 / 更新单条数据;`id` 留空创建 |
 | `save_team` | 创建 / 更新一个队伍及完整成员名单;规则见 [domain.md](domain.md)「队伍与接力」 |
 | `set_seed` | 更新一个报名成绩;个人传 `athleteId`,接力传 `teamId` |

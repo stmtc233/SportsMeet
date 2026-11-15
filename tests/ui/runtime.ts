@@ -2,13 +2,14 @@ import { expect, type Page } from "@playwright/test";
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { limits?: boolean; athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean; groups?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { rejectMeetCreate?: boolean; limits?: boolean; athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean; groups?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { updatePrereleases: false, theme: "system" };
     let meetSettings = { separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, printCompact: false, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false, printTeamScores: true };
     let mcp = { enabled: true, running: true, port: 18765, address: "http://127.0.0.1:18765/mcp", error: "" };
     const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12", entryLimits: { athleteEvents: options.limits ? 2 : 0, unitAthletes: 0, unitTeams: 0 } };
+    const createdMeets: typeof meet[] = [];
     const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0, participantMode: "athlete", teamSize: 0, scoreDecimals: 0, rankDirection: "", attemptMode: "" };
     const athletes = Array.from({ length: options.athleteCount ?? 24 }, (_, i) => ({ id: `a${i}`, meetId: "meet", name: `运动员${i + 1}`, gender: "男", bib: String(100 + i), studentNumber: "", unitId: "unit", groupId: options.groups ? "g1" : "", className: "一班", grade: "", birthDate: "", note: "", createdAt: 1 }));
     const entries = athletes.map((a) => ({ athleteId: a.id, competitorId: a.id, name: a.name, gender: "男", bib: a.bib, unitId: "unit", unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" }));
@@ -184,8 +185,16 @@ export async function installRuntime(page: Page, options: { limits?: boolean; at
             (globalThis as any).__updateChecks = [...((globalThis as any).__updateChecks ?? []), { prereleases: prefs.updatePrereleases, selfUpdate: options.selfUpdate !== false }];
             return null;
           case "App.OpenRepository": (globalThis as any).__repositoryOpened = true; return null;
-          case "Meets.List": return [meet];
-          case "Meets.Get": return meet;
+          case "Meets.List": return [meet, ...createdMeets];
+          case "Meets.Get": return createdMeets.find((m) => m.id === args[0]) ?? meet;
+          case "Meets.Create": {
+            const calls = (globalThis as any).__meetCreateCalls = [...((globalThis as any).__meetCreateCalls ?? []), structuredClone(args[0])];
+            if (options.rejectMeetCreate && calls.length === 1) return error("来源赛事不存在或已删除");
+            const created = { ...meet, ...args[0], id: `meet${createdMeets.length + 1}`, datesText: args[0].startDate };
+            createdMeets.push(created);
+            changed("meets", created.id);
+            return created;
+          }
           case "Meets.Settings": return { ...meetSettings };
           case "Meets.SaveSettings": meetSettings = { ...args[1] }; changed("meets", args[0]); return null;
           case "Meets.Overview": return {

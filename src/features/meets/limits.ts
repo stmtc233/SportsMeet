@@ -14,12 +14,12 @@ export function limitValue(text: string): number {
 
 /** A meet as its form edits it; no meet is a blank one. */
 export function formOf(meet?: Meet): Required<MeetInput> {
-  if (!meet) return { name: "", startDate: "", endDate: "", location: "", note: "", entryLimits: noLimits };
-  return { name: meet.name, startDate: meet.startDate, endDate: meet.endDate, location: meet.location, note: meet.note, entryLimits: meet.entryLimits ?? noLimits };
+  if (!meet) return { sourceMeetId: "", name: "", startDate: "", endDate: "", location: "", note: "", entryLimits: noLimits };
+  return { sourceMeetId: "", name: meet.name, startDate: meet.startDate, endDate: meet.endDate, location: meet.location, note: meet.note, entryLimits: meet.entryLimits ?? noLimits };
 }
 
 /** Whether two forms would save the same meet. */
 export function sameForm(a: Required<MeetInput>, b: Required<MeetInput>): boolean {
-  return a.name === b.name && a.startDate === b.startDate && a.endDate === b.endDate && a.location === b.location && a.note === b.note
+  return a.sourceMeetId === b.sourceMeetId && a.name === b.name && a.startDate === b.startDate && a.endDate === b.endDate && a.location === b.location && a.note === b.note
     && a.entryLimits.athleteEvents === b.entryLimits.athleteEvents && a.entryLimits.unitAthletes === b.entryLimits.unitAthletes && a.entryLimits.unitTeams === b.entryLimits.unitTeams;
 }

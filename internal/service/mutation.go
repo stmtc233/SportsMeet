@@ -12,6 +12,7 @@ import (
 
 // Mutation is an internal union used by the MCP adapters. Each tool exposes only its own fields.
 type Mutation struct {
+	MeetInput  *MeetInput    `json:"meetInput,omitempty"`
 	CombinedID string        `json:"combinedId,omitempty"`
 	Combined   CombinedInput `json:"combined,omitempty"`
 	Action     string        `json:"action"`
@@ -108,6 +109,20 @@ func (s *Service) ApplyMutation(ctx context.Context, in Mutation, hash string, c
 }
 
 func (s *Service) mutationSnapshot(ctx context.Context, in Mutation) (any, error) {
+	if in.Action == "create_meet" {
+		if in.MeetInput == nil || in.MeetInput.SourceMeetID == "" {
+			return nil, invalid("请选择来源赛事")
+		}
+		projects, err := s.meetProjects(ctx, in.MeetInput.SourceMeetID)
+		if err != nil {
+			return nil, err
+		}
+		meets, err := s.ListMeets(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &meetCreationState{Projects: projects, Meets: meets}, nil
+	}
 	meetID := in.MeetID
 	if in.CombinedID != "" {
 		d, err := s.GetCombined(ctx, in.CombinedID)

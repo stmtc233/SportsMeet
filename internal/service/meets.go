@@ -4,17 +4,20 @@ import (
 	"context"
 	"strings"
 
+	"github.com/egoist/mygo/plugins/sqlite"
 	"github.com/stmtc233/sportsmeet/internal/domain"
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
 // MeetInput creates or updates a meet.
 type MeetInput struct {
-	Name      string `json:"name"`
-	StartDate string `json:"startDate"`
-	EndDate   string `json:"endDate,omitempty"`
-	Location  string `json:"location,omitempty"`
-	Note      string `json:"note,omitempty"`
+	// SourceMeetID copies project definitions into a new meet, without participants or schedules.
+	SourceMeetID string `json:"sourceMeetId,omitempty"`
+	Name         string `json:"name"`
+	StartDate    string `json:"startDate"`
+	EndDate      string `json:"endDate,omitempty"`
+	Location     string `json:"location,omitempty"`
+	Note         string `json:"note,omitempty"`
 	// EntryLimits are the 报名限制; nil keeps the meet's (none for a new one).
 	EntryLimits *domain.EntryLimits `json:"entryLimits,omitempty"`
 }
@@ -103,10 +106,18 @@ func (s *Service) CreateMeet(ctx context.Context, src store.Source, in MeetInput
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	m.CreatedAt = s.store.Now()
+	stmts := []sqlite.Statement{store.InsertMeet(m)}
+	if in.SourceMeetID != "" {
+		definitions, err := s.copyMeetProjects(ctx, in.SourceMeetID, m)
+		if err != nil {
+			return nil, err
+		}
+		stmts = append(stmts, definitions...)
+	}
 	err = s.write(ctx,
-		store.Audit{Source: src, Action: "meet.created", MeetID: m.ID, Message: m.Name},
+		store.Audit{Source: src, Action: "meet.created", MeetID: m.ID, Message: m.Name, Detail: in},
 		Change{Kind: "meets", MeetID: m.ID},
-		store.InsertMeet(m))
+		stmts...)
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +126,9 @@ func (s *Service) CreateMeet(ctx context.Context, src store.Source, in MeetInput
 
 // UpdateMeet changes a meet's fields.
 func (s *Service) UpdateMeet(ctx context.Context, src store.Source, id string, in MeetInput) error {
+	if in.SourceMeetID != "" {
+		return invalid("仅新建赛事可沿用项目与赛制")
+	}
 	m, err := in.meet()
 	if err != nil {
 		return err

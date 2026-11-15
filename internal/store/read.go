@@ -152,13 +152,38 @@ func (s *Store) LoadPlanRounds(ctx context.Context, sc Scope) (map[string][]doma
 	return s.loadRounds(ctx, sc, false)
 }
 
-func (s *Store) loadRounds(ctx context.Context, sc Scope, details bool) (map[string][]domain.Round, error) {
+// ListRounds reads only round definitions, without heats, participants or results.
+func (s *Store) ListRounds(ctx context.Context, sc Scope) (map[string][]domain.Round, error) {
 	cond, arg := sc.events("event_id")
 	rr, err := s.Query(ctx, `SELECT id, event_id, stage, ordinal, name, advance_by_place, advance_by_mark, scheduled_at
 		FROM rounds WHERE `+cond+` ORDER BY ordinal`, arg)
 	if err != nil {
 		return nil, err
 	}
+	out := map[string][]domain.Round{}
+	for _, r := range rr.Values {
+		round := domain.Round{ID: str(r[0]), EventID: str(r[1]), Stage: domain.Stage(str(r[2])),
+			Ordinal: int(i64(r[3])), Name: str(r[4]), ScheduledAt: str(r[7]), Heats: []domain.Heat{}}
+		if p, m := optInt(r[5]), optInt(r[6]); p != nil || m != nil {
+			round.Advance = &domain.Advance{}
+			if p != nil {
+				round.Advance.ByPlace = *p
+			}
+			if m != nil {
+				round.Advance.ByMark = *m
+			}
+		}
+		out[round.EventID] = append(out[round.EventID], round)
+	}
+	return out, nil
+}
+
+func (s *Store) loadRounds(ctx context.Context, sc Scope, details bool) (map[string][]domain.Round, error) {
+	out, err := s.ListRounds(ctx, sc)
+	if err != nil {
+		return nil, err
+	}
+	cond, arg := sc.events("event_id")
 	inRounds := "round_id IN (SELECT id FROM rounds WHERE " + cond + ")"
 	hr, err := s.Query(ctx, `SELECT id, round_id, ordinal, name, scheduled_at, wind, duration_minutes, started_at FROM heats
 		WHERE `+inRounds+` ORDER BY ordinal`, arg)
@@ -228,25 +253,12 @@ func (s *Store) loadRounds(ctx context.Context, sc Scope, details bool) (map[str
 		}
 		heats[h.RoundID] = append(heats[h.RoundID], h)
 	}
-	out := map[string][]domain.Round{}
-	for _, r := range rr.Values {
-		round := domain.Round{ID: str(r[0]), EventID: str(r[1]), Stage: domain.Stage(str(r[2])),
-			Ordinal: int(i64(r[3])), Name: str(r[4]), ScheduledAt: str(r[7]), Heats: heats[str(r[0])]}
-		if round.Heats == nil {
-			round.Heats = []domain.Heat{}
-		}
-		if p, m := optInt(r[5]), optInt(r[6]); p != nil || m != nil {
-			round.Advance = &domain.Advance{}
-			if p != nil {
-				round.Advance.ByPlace = *p
-			}
-			if m != nil {
-				round.Advance.ByMark = *m
-			}
-		}
-		out[round.EventID] = append(out[round.EventID], round)
-	}
 	for _, list := range out {
+		for i := range list {
+			if h := heats[list[i].ID]; h != nil {
+				list[i].Heats = h
+			}
+		}
 		sort.SliceStable(list, func(i, j int) bool { return list[i].Ordinal < list[j].Ordinal })
 	}
 	return out, nil
