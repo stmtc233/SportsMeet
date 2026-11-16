@@ -122,13 +122,13 @@ for (const width of [1280, 800]) {
     // Three phases, the steps numbered on through them, the first not done marked.
     const phases = page.locator(".overview__phases");
     await expect(phases.getByRole("heading", { level: 2 })).toHaveText(["赛前", "比赛", "赛后"]);
-    await expect(phases.locator(".overview-step__index")).toHaveText(["", "", "3", "", "5", "6", "7", "8"]);
+    await expect(phases.locator(".overview-step__index")).toHaveText(["", "", "3", "4", "", "6", "7", "8"]);
     const current = phases.locator("[aria-current=step]");
     await expect(current).toHaveCount(1);
     await expect(current).toContainText("报名");
     await expect(phases.getByText("超限 2", { exact: true })).toBeVisible();
     await expect(phases.getByText("冲突 1", { exact: true })).toBeVisible();
-    await expect(phases.getByText("待晋级 1", { exact: true })).toBeVisible();
+    await expect(phases.getByText("待编排 1", { exact: true })).toBeVisible();
     await expect(phases.getByText("待裁定 1", { exact: true })).toBeVisible();
     await expect(phases.getByText("未启用", { exact: true })).toBeVisible();
     // 团体总分 prints only once enabled.

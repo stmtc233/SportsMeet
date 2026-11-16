@@ -17,8 +17,8 @@ test("排时间选项按日程顺序，未安排的在后，取第一个未比�
       { day: "2026-11-13", rounds: [round("b", [])] }],
     unscheduled: [round("c", [heat("c1", "")])] };
   expect(scheduleOptions(t)).toEqual([
-    { eventId: "e-a", roundId: "a", label: "项目a 决赛", firstAt: "2026-11-12T09:05", minutes: 6 },
-    { eventId: "e-b", roundId: "b", label: "项目b 决赛", firstAt: "", minutes: null },
-    { eventId: "e-c", roundId: "c", label: "项目c 决赛", firstAt: "", minutes: null },
+    { eventId: "e-a", roundId: "a", label: "项目a 决赛", roundAt: "", firstAt: "2026-11-12T09:05", minutes: 6 },
+    { eventId: "e-b", roundId: "b", label: "项目b 决赛", roundAt: "", firstAt: "", minutes: null },
+    { eventId: "e-c", roundId: "c", label: "项目c 决赛", roundAt: "", firstAt: "", minutes: null },
   ]);
 });

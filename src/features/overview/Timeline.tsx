@@ -36,7 +36,11 @@ export function Timeline({ meetId, timeline }: { meetId: string; timeline: Overv
     remember(`event:round:${r.eventId}`, r.roundId);
     go({ page: "event", meetId, eventId: r.eventId, tab: r.heats > 0 ? "results" : "arrange" });
   };
-  const schedule = () => go({ page: "meet", meetId, tab: "schedule" });
+  const schedule = (pending = false) => {
+    remember(`schedule:filter:${meetId}`, pending ? "pending" : "all");
+    if (pending) remember(`schedule:unfolded:${meetId}`, true, true);
+    go({ page: "meet", meetId, tab: "schedule" });
+  };
   const options = days.map((d) => ({ value: d.day, label: d.text }));
 
   return (
@@ -44,14 +48,14 @@ export function Timeline({ meetId, timeline }: { meetId: string; timeline: Overv
       {days.length > 1 && (days.length <= 5
         ? <StSegmented size="small" aria-label="日子" value={day!.day} options={options} onChange={setDay} />
         : <StSelect size="small" aria-label="日子" value={day!.day} options={options} onChange={setDay} />)}
-      <StButton size="small" variant="ghost" onClick={schedule}>全部日程</StButton>
+      <StButton size="small" variant="ghost" onClick={() => schedule()}>全部日程</StButton>
     </>}>
       {!day ? <StEmpty>还没有安排时间</StEmpty> : <>
         <Table day={day} onOpen={open} />
       </>}
       {timeline.unscheduled > 0 && (
         <div className="timeline__more">
-          <StButton size="small" variant="ghost" onClick={schedule}>{timeline.unscheduled} 个轮次未安排时间</StButton>
+          <StButton size="small" variant="ghost" onClick={() => schedule(true)}>{timeline.unscheduled} 个轮次未安排时间</StButton>
         </div>
       )}
     </StSection>

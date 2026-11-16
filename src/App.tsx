@@ -26,7 +26,7 @@ import { TeamScoringPage } from "./features/team-scoring/TeamScoringPage";
 // before the meet, what happens on the day, and what is printed.
 const sections: { title?: string; tabs: { tab: MeetTab; icon: typeof IconEvent }[] }[] = [
   { tabs: [{ tab: "overview", icon: IconOverview }] },
-  { title: "赛前", tabs: [{ tab: "setup", icon: IconSetup }, { tab: "events", icon: IconEvent }, { tab: "entries", icon: IconEntries }, { tab: "arrange", icon: IconArrange }, { tab: "schedule", icon: IconTime }] },
+  { title: "赛前", tabs: [{ tab: "setup", icon: IconSetup }, { tab: "events", icon: IconEvent }, { tab: "entries", icon: IconEntries }, { tab: "schedule", icon: IconTime }, { tab: "arrange", icon: IconArrange }] },
   { title: "比赛", tabs: [{ tab: "results", icon: IconResults }, { tab: "team-scoring", icon: IconMeet }] },
   { title: "输出", tabs: [{ tab: "reports", icon: IconPrint }] },
 ];
@@ -39,10 +39,18 @@ function MeetNav({ meetId, current }: { meetId: string; current: MeetTab }) {
   const { go } = useNav();
   const badges = useOverview(meetId).data?.badges;
   const badge = (tab: MeetTab) => {
+    if (tab === "schedule") {
+      return badges && (badges.schedule > 0 || badges.conflicts > 0) ? (
+        <span className="app__schedule-badges" aria-hidden>
+          {badges.schedule > 0 && <StTag>待排 {badges.schedule}</StTag>}
+          {badges.conflicts > 0 && <StTag tone="warning">冲突 {badges.conflicts}</StTag>}
+        </span>
+      ) : undefined;
+    }
     const key = badgeOf[tab];
     const n = key && badges ? badges[key] : 0;
     // Not part of the page's name: the count is on 总览 and the page itself.
-    return n ? <span aria-hidden><StTag tone={tab === "schedule" ? "warning" : "neutral"}>{n}</StTag></span> : undefined;
+    return n ? <span aria-hidden><StTag>{n}</StTag></span> : undefined;
   };
   return (
     <StNavGroup>

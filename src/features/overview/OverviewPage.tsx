@@ -26,13 +26,13 @@ function stepView(s: OverviewStep): StepView {
     case "entries":
       return { title: "报名", tab: "entries", value: ratio, text: "单位已报名", progress: true, tags: tag(s.warnings, "warning", "超限") };
     case "arrange":
-      return { title: "编排", tab: "arrange", value: ratio, text: "项目已编排", progress: true, tags: [] };
+      return { title: "首轮编排", tab: "arrange", value: ratio, text: "项目首轮已编排", progress: true, tags: [] };
     case "schedule":
       return { title: "日程", tab: "schedule", value: ratio, text: "轮次已排时间", progress: true, tags: tag(s.warnings, "warning", "冲突") };
     case "results":
       return { title: "成绩", tab: "results", value: ratio, text: "轮次已完成", progress: true, tags: tag(s.extra, "info", "进行中") };
     case "advance":
-      return { title: "晋级", tab: "arrange", value: ratio, text: "轮次已晋级", progress: true, tags: [...tag(s.extra, "info", "待晋级"), ...tag(s.warnings, "warning", "待裁定")] };
+      return { title: "晋级编排", tab: "arrange", value: ratio, text: "轮次已完成晋级编排", progress: true, tags: [...tag(s.extra, "info", "待编排"), ...tag(s.warnings, "warning", "待裁定")] };
     default:
       return s.state === "off"
         ? { title: "团体总分", tab: "team-scoring", value: "未启用", text: "", progress: false, tags: [] }
@@ -63,6 +63,11 @@ export function OverviewPage({ meetId }: { meetId: string }) {
   }, [live, reload]);
 
   const openStep = (s: OverviewStep) => {
+    if (s.key === "schedule") {
+      remember(`schedule:filter:${meetId}`, s.done < s.total ? "pending" : "all");
+      remember(`schedule:unfolded:${meetId}`, true, true);
+    }
+    if (s.key === "arrange" || s.key === "advance") remember(`arrange:filter:${meetId}`, "ready");
     // Units of no group open selected on 报名, the tree in view.
     if (s.key === "units" && s.warnings > 0) {
       remember(rosterNodeKey(meetId), nodeKey({ group: "", unit: "" }));

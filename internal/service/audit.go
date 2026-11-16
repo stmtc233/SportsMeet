@@ -56,6 +56,7 @@ var auditActions = map[string]string{
 	"board.batch_arranged": "批量自动编排",
 	"heats.scheduled":      "排时间",
 	"round.scheduled":      "修改轮次开始时间",
+	"rounds.scheduled":     "安排轮次开始时间",
 	"results.saved":        "录入成绩",
 	"results.imported":     "导入成绩",
 	"heat.started":         "修改实际开赛时间",

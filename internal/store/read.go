@@ -146,8 +146,8 @@ func (s *Store) LoadRounds(ctx context.Context, sc Scope) (map[string][]domain.R
 	return s.loadRounds(ctx, sc, true)
 }
 
-// LoadPlanRounds reads positions and result presence, without marks or attempt
-// records. Consumers may count Results, but must not score or write these values.
+// LoadPlanRounds reads positions, result presence and Q/q, without marks or
+// attempt records. Consumers may count Results, but must not score or write them.
 func (s *Store) LoadPlanRounds(ctx context.Context, sc Scope) (map[string][]domain.Round, error) {
 	return s.loadRounds(ctx, sc, false)
 }
@@ -194,7 +194,7 @@ func (s *Store) loadRounds(ctx context.Context, sc Scope, details bool) (map[str
 	slotSQL := `SELECT heat_id, position, athlete_id, team_id FROM slots WHERE ` + inHeats + ` ORDER BY position`
 	if !details {
 		slotSQL = `SELECT sl.heat_id, sl.position, sl.athlete_id, sl.team_id, res.updated_at,
- COALESCE(json_extract(res.detail_json, '$.heightPending'), 0)
+ COALESCE(json_extract(res.detail_json, '$.heightPending'), 0), res.qualify
  FROM slots sl LEFT JOIN results res ON res.heat_id=sl.heat_id AND res.position=sl.position
  WHERE sl.` + inHeats + ` ORDER BY sl.position`
 	}
@@ -217,9 +217,9 @@ func (s *Store) loadRounds(ctx context.Context, sc Scope, details bool) (map[str
 	}
 	results := make(map[slotKey]*domain.Result, len(resultRows))
 	updated := map[string]int64{}
-	// Without details a slot's result only says it is there, and whether
-	// it is a height draft.
+	// Lightweight results share immutable summaries, including qualification.
 	present, pending := &domain.Result{}, &domain.Result{HeightPending: true}
+	qualified, byMark := &domain.Result{Qualify: "Q"}, &domain.Result{Qualify: "q"}
 	for _, r := range resultRows {
 		updated[str(r[0])] = max(updated[str(r[0])], i64(r[9]))
 		v := &domain.Result{Status: domain.Status(str(r[2])), Mark: optI64(r[3]), Rank: optInt(r[4]),
@@ -239,6 +239,10 @@ func (s *Store) loadRounds(ctx context.Context, sc Scope, details bool) (map[str
 			result = present
 			if i64(r[5]) != 0 {
 				result = pending
+			} else if str(r[6]) == "Q" {
+				result = qualified
+			} else if str(r[6]) == "q" {
+				result = byMark
 			}
 			updated[h] = max(updated[h], i64(r[4]))
 		}

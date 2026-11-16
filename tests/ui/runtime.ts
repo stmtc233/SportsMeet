@@ -6,7 +6,7 @@ const paramRules = JSON.parse(readFileSync("testdata/print/param-rules.json", "u
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { rejectMeetCreate?: boolean; limits?: boolean; athleteCount?: number; schedule?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean; groups?: boolean; denseTimeline?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { rejectMeetCreate?: boolean; limits?: boolean; athleteCount?: number; schedule?: boolean; planning?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean; groups?: boolean; denseTimeline?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { updatePrereleases: false, theme: "system" };
@@ -114,6 +114,7 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
     (globalThis as any).__scheduleExternalChange = () => changed("heats", "meet", "event");
     const schedulePreview = {
       previewHash: "schedule-hash", errors: [] as string[], warnings: ["1 组不在赛事日期内"],
+      roundChanges: [] as any[],
       changes: [
         { heatId: "heat", label: "第1组", before: "2026-11-12T09:00", after: "2026-11-12T23:58", beforeMinutes: null, afterMinutes: 3, beforeText: "2026-11-12 09:00", afterText: "2026-11-12 23:58 · 3 分钟" },
         { heatId: "later", label: "第3组", before: "", after: "2026-11-13T00:01", beforeMinutes: null, afterMinutes: 3, beforeText: "未安排", afterText: "2026-11-13 00:01 · 3 分钟" },
@@ -142,19 +143,38 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
       const day2 = row({ eventId: "relay", eventName: "男子4×100m", text: "男子4×100m", roundId: "relay-final", startAt: "2026-11-13T09:00", startText: "09:00", timeText: "2026-11-13 09:00", heats: 1, heatsDone: 1, results: "done", team: true });
       return { rounds: [final, jump, day2], days: [{ day: "2026-11-12", text: "2026-11-12 周四", rounds: [final, jump] }, { day: "2026-11-13", text: "2026-11-13 周五", rounds: [day2] }], unscheduled: [], day: "2026-11-12" };
     };
+    const roundStarts: Record<string, string> = {};
     const timetable = () => {
       const r = detail.rounds[0]!;
       const heats = r.heats.map(timetableHeat);
       const startAt = heats.map((h) => h.effectiveAt).filter(Boolean).sort()[0] ?? "";
       const sprint = { eventId: event.id, eventName: event.name, roundId: r.id, roundLabel: r.label, day: startAt.slice(0, 10), scheduledAt: r.scheduledAt, scheduledText: r.scheduledText,
-        startAt, startText: startAt ? shown(startAt) : "", heatCount: heats.length, people: heats.reduce((n, h) => n + h.people, 0), peopleEntered: false, heats };
+        startAt, startText: startAt ? shown(startAt) : "", heatCount: heats.length, people: heats.reduce((n, h) => n + h.people, 0), peopleEntered: false, heats,
+        timeState: heats.every((h) => h.effectiveAt) ? "done" : heats.some((h) => h.effectiveAt) ? "doing" : "todo",
+        arrange: "arranged", prevLabel: "", canArrange: false, unplaced: 0, peopleText: `${heats.length} 组 · ${heats.reduce((n, h) => n + h.people, 0)} 人`, conflictPending: false };
       const jumpHeat = { id: "jump-heat", label: "第1组", name: "", base: "jump-base", scheduledAt: "", durationMinutes: 30, effectiveAt: "2026-11-12T09:00", scheduleInherited: true, scheduledText: "09:00",
         durationText: "30 分钟", endAt: "2026-11-12T09:30", endText: "09:30", ...unstarted, keepReason: "", people: 1, conflicts: heatConflicts("jump-heat") };
       const jump = { eventId: "jump", eventName: "男子跳远", roundId: "jump-round", roundLabel: "决赛", day: "2026-11-12", scheduledAt: "2026-11-12T09:00", scheduledText: "09:00",
-        startAt: "2026-11-12T09:00", startText: "09:00", heatCount: 1, people: 1, peopleEntered: false, heats: [jumpHeat] };
-      const high = { eventId: "high", eventName: "男子跳高", roundId: "high-round", roundLabel: "决赛", day: "", scheduledAt: "", scheduledText: "", startAt: "", startText: "", heatCount: 0, people: 12, peopleEntered: true, heats: [] };
-      const day = [sprint, jump].filter((x) => x.day).sort((a, b) => a.startAt.localeCompare(b.startAt));
-      return { minRestMinutes: meetSettings.minRestMinutes, days: [{ day: "2026-11-12", rounds: day }], unscheduled: sprint.day ? [high] : [sprint, high], conflicts: conflicts() };
+        startAt: "2026-11-12T09:00", startText: "09:00", heatCount: 1, people: 1, peopleEntered: false, heats: [jumpHeat], timeState: "done", arrange: "arranged", prevLabel: "", canArrange: false, unplaced: 0, peopleText: "1 组 · 1 人", conflictPending: false };
+      const high = { eventId: "high", eventName: options.planning ? "男子200m" : "男子跳高", roundId: "high-round", roundLabel: "决赛", day: "", scheduledAt: "", scheduledText: "", startAt: "", startText: "", heatCount: 0, people: options.planning ? 0 : 12, peopleEntered: !options.planning, heats: [],
+        timeState: "todo", arrange: options.planning ? "waiting" : "todo", prevLabel: options.planning ? "预赛" : "", canArrange: !options.planning, unplaced: 0, peopleText: options.planning ? "名单待定" : "报名 12 人", conflictPending: true };
+      const all = [sprint, jump, high].map((row) => {
+        const at = roundStarts[row.roundId];
+        return at ? { ...row, scheduledAt: at, scheduledText: shown(at), startAt: at, startText: shown(at), day: at.slice(0, 10), timeState: "done" } : row;
+      });
+      const days = [...new Set(all.map((x) => x.day).filter(Boolean))].sort().map((day) => ({ day, rounds: all.filter((x) => x.day === day).sort((a, b) => a.startAt.localeCompare(b.startAt)) }));
+      return { minRestMinutes: meetSettings.minRestMinutes, pending: all.filter((r) => r.timeState !== "done").length, days, unscheduled: all.filter((x) => !x.day), conflicts: conflicts() };
+    };
+    const roundPreview = (request: any) => {
+      const tt = timetable();
+      const all = [...tt.days.flatMap((d) => d.rounds), ...tt.unscheduled];
+      const p = { previewHash: "rounds-hash", errors: [], warnings: ["名单未定，冲突待检查"], changes: [], roundChanges: [] as any[], skipped: [], conflicts: [] };
+      for (const [i, ref] of request.rounds.entries()) {
+        const r = all.find((r) => r.roundId === ref.roundId)!;
+        const after = new Date(Date.parse(request.startAt + ":00Z") + i * request.intervalMinutes * 60000).toISOString().slice(0, 16);
+        if (r.scheduledAt !== after) p.roundChanges.push({ eventId: r.eventId, roundId: r.roundId, round: `${r.eventName} ${r.roundLabel}`, before: r.scheduledAt, after, beforeText: r.scheduledAt ? shown(r.scheduledAt) : "未安排", afterText: shown(after) });
+      }
+      return p;
     };
     const error = (message: string) => { const e = new Error(message); e.name = "CallError"; throw e; };
     (globalThis as any).mygo = {
@@ -207,8 +227,8 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
                 { key: "events", state: "done", done: 1, total: 1, warnings: 0, extra: 0 },
                 { key: "units", state: "done", done: 2, total: 2, warnings: options.groups ? 1 : 0, extra: 0 },
                 { key: "entries", state: "doing", done: 1, total: 2, warnings: options.limits ? 2 : 0, extra: 0, hint: "二班未报名" },
-                { key: "arrange", state: "done", done: 1, total: 1, warnings: 0, extra: 0 },
                 { key: "schedule", state: "doing", done: 1, total: 2, warnings: options.conflicts ? 1 : 0, extra: 0 },
+                { key: "arrange", state: "done", done: 1, total: 1, warnings: 0, extra: 0 },
               ] },
               { key: "during", steps: [
                 { key: "results", state: "doing", done: 0, total: 2, warnings: 0, extra: 1 },
@@ -217,7 +237,7 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
               { key: "after", steps: [{ key: "team", state: "off", done: 0, total: 0, warnings: 0, extra: 0 }] },
             ],
             current: "entries",
-            badges: { entries: 1, arrange: 0, schedule: options.conflicts ? 1 : 0, results: 1 },
+            badges: { entries: 1, arrange: 0, schedule: timetable().pending, conflicts: options.conflicts ? 1 : 0, results: 1 },
             timeline: (() => {
               // What Go returns (service.OverviewTimeline): rows an hour each, now splitting its hour.
               const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -468,7 +488,8 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
           case "Arrange.PreviewSchedule": {
             (globalThis as any).__scheduleCalls.preview++;
             (globalThis as any).__scheduleCalls.request = structuredClone(args[0]);
-            if (options.scheduleErrors) return { previewHash: "", changes: [], skipped: [], warnings: [], conflicts: [], errors: ["间隔须为 1–1440 分钟"] };
+            if (options.scheduleErrors) return { previewHash: "", changes: [], roundChanges: [], skipped: [], warnings: [], conflicts: [], errors: ["间隔须为 1–1440 分钟"] };
+            if (args[0].mode === "rounds") return roundPreview(args[0]);
             const p = structuredClone(schedulePreview);
             if (args[0].rounds) {
               p.changes = p.changes.map((c: any) => ({ ...c, eventId: event.id, roundId: "round", round: `${event.name} 决赛` }));
@@ -508,6 +529,18 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
           case "Arrange.Schedule":
             (globalThis as any).__scheduleCalls.save++;
             if (staleSchedule) { staleSchedule = false; return error("E_STALE"); }
+            if (args[0].mode === "rounds") {
+              const p = roundPreview(args[0]);
+              for (const c of p.roundChanges) {
+                const r = detail.rounds.find((r) => r.id === c.roundId);
+                if (r) {
+                  Object.assign(r, { scheduledAt: c.after, scheduledText: shown(c.after) });
+                  r.heats = r.heats.map((h) => ({ ...h, ...times(c.after, h.scheduledAt, h.durationMinutes) }));
+                } else roundStarts[c.roundId] = c.after;
+              }
+              changed("heats", "meet", "");
+              return p;
+            }
             for (const change of schedulePreview.changes) {
               const heat = detail.rounds[0]!.heats.find((h) => h.id === change.heatId)!;
               Object.assign(heat, times(detail.rounds[0]!.scheduledAt, change.after, change.afterMinutes));

@@ -98,13 +98,14 @@ type OverviewStep struct {
 }
 
 // OverviewBadges are the counts the sidebar shows by its pages: units not
-// entered, rounds to arrange now, athlete time conflicts, rounds being
-// scored.
+// entered, rounds to arrange now, rounds missing times, athlete time conflicts,
+// and rounds being scored. Schedule and Conflicts are separate reminders.
 type OverviewBadges struct {
-	Entries  int `json:"entries"`
-	Arrange  int `json:"arrange"`
-	Schedule int `json:"schedule"`
-	Results  int `json:"results"`
+	Entries   int `json:"entries"`
+	Arrange   int `json:"arrange"`
+	Schedule  int `json:"schedule"`
+	Conflicts int `json:"conflicts"`
+	Results   int `json:"results"`
 }
 
 // hint names the first of n things and how many there are: 二班未报名,
@@ -238,10 +239,10 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 	}
 
 	arranged, withEntries := 0, 0
-	timed, rounds := 0, 0
+	timed, scheduledRounds, rounds := 0, 0, 0
 	finished, started := 0, 0
 	sending, advanced, waiting := 0, 0, 0
-	// Finished rounds whose next round has no heats yet, by event.
+	// Finished rounds with qualifiers still missing from the next round, by event.
 	wait := map[string][]string{}
 	// Events with entries whose final is finished, for 团体总分.
 	live, final := map[string]bool{}, map[string]bool{}
@@ -254,6 +255,17 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 	toArrangeN, toScheduleN := 0, 0
 	for _, e := range p.events {
 		rs := p.rounds[e.ID]
+		for _, r := range rs {
+			scheduledRounds++
+			if roundTimeState(r) == StepDone {
+				timed++
+			} else {
+				if toScheduleN == 0 {
+					toSchedule = roundText(e, len(rs), r)
+				}
+				toScheduleN++
+			}
+		}
 		if p.entered[e.ID] == 0 && (len(rs) == 0 || len(rs[0].Heats) == 0) {
 			continue
 		}
@@ -270,14 +282,6 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 		for i, r := range rs {
 			rounds++
 			at := domain.EarliestScheduled([]domain.Round{r})
-			if at != "" {
-				timed++
-			} else {
-				if toScheduleN == 0 {
-					toSchedule = roundText(e, len(rs), r)
-				}
-				toScheduleN++
-			}
 			done, began := roundFinished(r)
 			switch {
 			case done:
@@ -290,12 +294,18 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 			}
 			if i < len(rs)-1 {
 				sending++
-				switch {
-				case len(rs[i+1].Heats) > 0:
-					advanced++
-				case done:
+				if done && r.Advance != nil {
+					_, unplaced := qualifierProgress(r, rs[i+1])
+					if unplaced == 0 {
+						advanced++
+						continue
+					}
 					if waiting == 0 {
-						toSend = e.Name + " 编排" + rs[i+1].Label()
+						unit := "人"
+						if e.IsTeam() {
+							unit = "队"
+						}
+						toSend = fmt.Sprintf("%s %s待编排 %d %s", e.Name, rs[i+1].Label(), unplaced, unit)
 					}
 					waiting++
 					wait[e.ID] = append(wait[e.ID], r.ID)
@@ -353,8 +363,8 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 				Hint: hint(firstUngrouped, ungrouped, "未分组")},
 			{Key: "entries", State: stepState(entered, len(summary.Units)), Done: entered, Total: len(summary.Units), Warnings: over,
 				Hint: hint(firstIdle, len(summary.Units)-entered, "未报名")},
+			{Key: "schedule", State: stepState(timed, scheduledRounds), Done: timed, Total: scheduledRounds, Warnings: conflicts, Hint: hint(toSchedule, toScheduleN, "未排时间")},
 			{Key: "arrange", State: stepState(arranged, withEntries), Done: arranged, Total: withEntries, Hint: hint(toArrange, toArrangeN, "待编排")},
-			{Key: "schedule", State: stepState(timed, rounds), Done: timed, Total: rounds, Warnings: conflicts, Hint: hint(toSchedule, toScheduleN, "未排时间")},
 		}},
 		{Key: "during", Steps: during},
 		{Key: "after", Steps: []OverviewStep{team}},
@@ -366,8 +376,11 @@ func (s *Service) Overview(ctx context.Context, meetID string) (*Overview, error
 			}
 		}
 	}
+	if out.Current == "results" && resultsHint == "" && waiting > 0 {
+		out.Current = "advance"
+	}
 
-	out.Badges = OverviewBadges{Entries: len(summary.Units) - entered, Arrange: toArrangeN + waiting, Schedule: conflicts, Results: started}
+	out.Badges = OverviewBadges{Entries: len(summary.Units) - entered, Arrange: toArrangeN + waiting, Schedule: toScheduleN, Conflicts: conflicts, Results: started}
 	return out, nil
 }
 

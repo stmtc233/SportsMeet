@@ -1216,13 +1216,14 @@ export interface Overview {
 
 /**
  * OverviewBadges are the counts the sidebar shows by its pages: units not
- * entered, rounds to arrange now, athlete time conflicts, rounds being
- * scored.
+ * entered, rounds to arrange now, rounds missing times, athlete time conflicts,
+ * and rounds being scored. Schedule and Conflicts are separate reminders.
  */
 export interface OverviewBadges {
   entries: number;
   arrange: number;
   schedule: number;
+  conflicts: number;
   results: number;
 }
 
@@ -1294,7 +1295,7 @@ export interface OverviewTimeline {
   day: string;
   /** Live: today is one of the days, so the now row moves. */
   live: boolean;
-  /** Unscheduled counts the rounds with no planned time. */
+  /** Unscheduled counts rounds whose effective times are not all set. */
   unscheduled: number;
 }
 
@@ -1728,6 +1729,17 @@ export interface RoundSave {
   deleted: HeatRef[];
 }
 
+/** RoundScheduleChange changes only a round start; heat overrides are retained. */
+export interface RoundScheduleChange {
+  eventId: string;
+  roundId: string;
+  round: string;
+  before: string;
+  after: string;
+  beforeText: string;
+  afterText: string;
+}
+
 /**
  * RoundStart sets when a round starts; ScheduledAt "" clears it. Heats
  * without their own time start then.
@@ -1806,6 +1818,7 @@ export interface SchedulePreview {
   /** shown, never blocking */
   warnings: string[];
   changes: ScheduleChange[];
+  roundChanges: RoundScheduleChange[];
   skipped: ScheduleSkip[];
   /**
    * Conflicts are the athlete time conflicts that involve a changed heat
@@ -1815,11 +1828,11 @@ export interface SchedulePreview {
 }
 
 /**
- * ScheduleRequest assigns local wall-clock times to the unscored heats of
- * one round, or of several rounds one after another (docs/agents/arrange.md
- * 「排时间」).
+ * ScheduleRequest assigns round starts, or times to unscored heats (the default
+ * kept for existing clients). All time arithmetic stays in Go.
  */
 export interface ScheduleRequest {
+  mode?: string;
   eventId?: string;
   roundId?: string;
   rounds?: RoundRef[];
@@ -2139,6 +2152,8 @@ export interface TimelineRow {
  */
 export interface Timetable {
   minRestMinutes: number;
+  /** rounds without complete effective times */
+  pending: number;
   days: TimetableDay[];
   unscheduled: TimetableRound[];
   conflicts: ConflictView[];
@@ -2211,6 +2226,16 @@ export interface TimetableRound {
   startAt: string;
   startText: string;
   heatCount: number;
+  /** TimeState and Arrange describe independent parts of the plan. */
+  timeState: string;
+  arrange: string;
+  prevLabel: string;
+  canArrange: boolean;
+  /** qualified competitors still to place */
+  unplaced: number;
+  peopleText: string;
+  /** not all competitors are known and placed */
+  conflictPending: boolean;
   /**
    * People is how many athletes the round has, a team counting its
    * members: those placed in its heats once it has heats; for an event's

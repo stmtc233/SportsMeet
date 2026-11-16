@@ -2,7 +2,7 @@ import { StTag } from "../../design";
 import type { RoundRow } from "../../mygo";
 
 /** Where a round stands for 编排. */
-export function ArrangeState({ row: r }: { row: RoundRow }) {
+export function ArrangeState({ row: r }: { row: Pick<RoundRow, "arrange" | "prevLabel" | "canArrange" | "unplaced"> }) {
   switch (r.arrange) {
     case "empty":
       return <StTag>无报名</StTag>;
@@ -11,7 +11,7 @@ export function ArrangeState({ row: r }: { row: RoundRow }) {
     case "waiting":
       return <StTag>等{r.prevLabel}</StTag>;
     case "ready":
-      return <StTag tone="info">可从{r.prevLabel}晋级</StTag>;
+      return r.canArrange ? <StTag tone="info">可从{r.prevLabel}晋级</StTag> : <StTag>无晋级者</StTag>;
   }
   return (
     <span className="round-state">

@@ -16,6 +16,58 @@ async function openTimetable(page: Page) {
 
 for (const width of [1280, 800]) {
   for (const colorScheme of ["light", "dark"] as const) {
+    test(`决赛名单未定也能排赛程 ${width} ${colorScheme}`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+      await installRuntime(page, { schedule: true, conflicts: true, planning: true });
+      await page.goto("/");
+      await page.getByText("秋季运动会", { exact: true }).click();
+      const nav = page.locator(".app__side");
+      const schedule = nav.getByRole("button", { name: "日程", exact: true });
+      await expect(schedule).toContainText("待排 2");
+      await expect(schedule).toContainText("冲突 1");
+      expect(await schedule.locator(".st-list-item__title").evaluate((el) => el.clientWidth >= el.scrollWidth)).toBe(true);
+      const phases = page.locator(".overview__phases");
+      await expect(phases.getByText("首轮编排", { exact: true })).toBeVisible();
+      await expect(phases.getByText("晋级编排", { exact: true })).toBeVisible();
+      await phases.getByRole("button", { name: /^日程/ }).click();
+      await expect(page.getByRole("radio", { name: "待排时间 2", exact: true })).toBeChecked();
+      await expect(page.getByText("男子跳远 决赛", { exact: true })).toHaveCount(0);
+      const final = page.locator(".st-card").filter({ hasText: "男子200m 决赛" });
+      await expect(final.getByText("未排时间", { exact: true })).toBeVisible();
+      await expect(final.getByText("名单待定", { exact: true })).toBeVisible();
+      await expect(final.getByText("等预赛", { exact: true })).toBeVisible();
+      await expect(final.getByText("冲突待检查", { exact: true })).toBeVisible();
+      await final.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath("pending-final.png"), fullPage: true });
+      await page.getByRole("button", { name: "排时间…", exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: "排时间", exact: true });
+      await expect(dialog.getByRole("radio", { name: "轮次开始时间", exact: true })).toBeChecked();
+      await dialog.getByRole("checkbox", { name: "男子100m 初中组 决赛", exact: true }).check();
+      await dialog.getByRole("checkbox", { name: "男子200m 决赛", exact: true }).check();
+      await dialog.getByLabel("首轮时间", { exact: true }).fill("09:00");
+      await dialog.getByLabel("间隔", { exact: true }).fill("120");
+      await dialog.getByRole("button", { name: "预览", exact: true }).click();
+      await expect(dialog.getByRole("heading", { name: "修改 2 个轮次", exact: true })).toBeVisible();
+      await expect(dialog.getByText("名单未定，冲突待检查", { exact: true })).toBeVisible();
+      await dialog.getByRole("button", { name: "保存", exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(schedule).not.toContainText("待排");
+      await expect(schedule).toContainText("冲突 1");
+      await expect(page.getByText("全部轮次已排时间", { exact: true })).toBeVisible();
+      await page.getByRole("radio", { name: "全部", exact: true }).check();
+      await expect(final.getByText("已排时间", { exact: true })).toBeVisible();
+      await expect(final.getByRole("button", { name: "11:00", exact: true })).toBeVisible();
+      await expect(final.getByText("名单待定", { exact: true })).toBeVisible();
+      await noOverflow(page);
+      await final.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath("planned-final.png"), fullPage: true });
+    });
+  }
+}
+
+for (const width of [1280, 800]) {
+  for (const colorScheme of ["light", "dark"] as const) {
     test(`日程页按天列出与冲突 ${width} ${colorScheme}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
       await page.emulateMedia({ colorScheme });
@@ -25,10 +77,8 @@ for (const width of [1280, 800]) {
       const day = page.getByRole("region", { name: "2026-11-12", exact: true });
       await expect(day.getByText("男子100m 初中组 决赛", { exact: true })).toBeVisible();
       await expect(day.getByText("男子跳远 决赛", { exact: true })).toBeVisible();
-      // Unscheduled rounds are folded, the count in the title.
+      // Missing times are visible on first opening; folding remains available.
       const unscheduled = page.getByRole("region", { name: "未安排时间", exact: true });
-      await expect(unscheduled.getByText("男子跳高 决赛", { exact: true })).toHaveCount(0);
-      await unscheduled.getByRole("button", { name: "展开", exact: true }).click();
       await expect(unscheduled.getByText("男子跳高 决赛", { exact: true })).toBeVisible();
       await expect(unscheduled.getByText("报名 12 人", { exact: true })).toBeVisible();
       await unscheduled.getByRole("button", { name: "收起", exact: true }).click();
@@ -85,6 +135,7 @@ test("多轮次排时间预览冲突后保存", async ({ page }) => {
   await openTimetable(page);
   await page.getByRole("button", { name: "排时间…", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "排时间", exact: true });
+  await dialog.getByRole("radio", { name: "逐组排时间", exact: true }).click();
   await expect(dialog.getByRole("button", { name: "预览", exact: true })).toBeDisabled();
   await dialog.getByText("男子100m 初中组 决赛", { exact: true }).click();
   await dialog.getByText("男子跳远 决赛", { exact: true }).click();
@@ -176,7 +227,7 @@ test("日期、轮次标题与表头逐层吸顶", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 420 });
   await openTimetable(page);
   const body = page.locator(".st-page__body");
-  await body.evaluate((el) => { el.scrollTop = 260; });
+  await body.evaluate((el) => { el.scrollTop = 340; });
   const day = page.getByRole("region", { name: "2026-11-12", exact: true });
   const round = day.locator(".st-card").first();
   const box = async (l: ReturnType<Page["locator"]>) => (await l.boundingBox())!;

@@ -252,6 +252,7 @@ func (s *Service) MeetConflicts(ctx context.Context, meetID string) (*ConflictLi
 // effective time, those with no time at all apart, and every conflict.
 type Timetable struct {
 	MinRestMinutes int              `json:"minRestMinutes"`
+	Pending        int              `json:"pending"` // rounds without complete effective times
 	Days           []TimetableDay   `json:"days"`
 	Unscheduled    []TimetableRound `json:"unscheduled"`
 	Conflicts      []ConflictView   `json:"conflicts"`
@@ -280,6 +281,14 @@ type TimetableRound struct {
 	StartAt   string `json:"startAt"`
 	StartText string `json:"startText"`
 	HeatCount int    `json:"heatCount"`
+	// TimeState and Arrange describe independent parts of the plan.
+	TimeState       string `json:"timeState"` // todo | doing | done
+	Arrange         string `json:"arrange"`
+	PrevLabel       string `json:"prevLabel"`
+	CanArrange      bool   `json:"canArrange"`
+	Unplaced        int    `json:"unplaced"` // qualified competitors still to place
+	PeopleText      string `json:"peopleText"`
+	ConflictPending bool   `json:"conflictPending"` // not all competitors are known and placed
 	// People is how many athletes the round has, a team counting its
 	// members: those placed in its heats once it has heats; for an event's
 	// first round without heats, those entered (PeopleEntered); else 0.
@@ -348,7 +357,10 @@ func (p *meetPlan) timetable(only map[string]bool) *Timetable {
 			day := domain.ScheduledDay(start)
 			tr := TimetableRound{EventID: e.ID, EventName: e.Name, RoundID: r.ID, RoundLabel: r.Label(), Day: day,
 				ScheduledAt: r.ScheduledAt, ScheduledText: domain.ScheduledText(r.ScheduledAt, day),
-				StartAt: start, StartText: domain.ScheduledText(start, day), HeatCount: len(r.Heats), Heats: []TimetableHeat{}}
+				StartAt: start, StartText: domain.ScheduledText(start, day), HeatCount: len(r.Heats), Heats: []TimetableHeat{}, TimeState: roundTimeState(r)}
+			if tr.TimeState != StepDone {
+				t.Pending++
+			}
 			for _, h := range r.Heats {
 				times := HeatTimesOf(r.ScheduledAt, h.ScheduledAt, h.DurationMinutes, day)
 				people := len(p.people(h))
@@ -362,6 +374,43 @@ func (p *meetPlan) timetable(only map[string]bool) *Timetable {
 			if len(r.Heats) == 0 && ri == 0 {
 				tr.People, tr.PeopleEntered = p.entered[e.ID], true
 			}
+			tr.PeopleText = fmt.Sprintf("%d 组 · %d 人", tr.HeatCount, tr.People)
+			tr.Arrange = RoundArranged
+			if ri == 0 {
+				if len(r.Heats) == 0 {
+					tr.Arrange, tr.CanArrange = RoundTodo, p.entered[e.ID] > 0
+					tr.PeopleText = fmt.Sprintf("报名 %d 人", tr.People)
+					if !tr.CanArrange {
+						tr.Arrange = RoundEmpty
+					}
+				}
+			} else {
+				prev := p.rounds[e.ID][ri-1]
+				tr.PrevLabel = prev.Label()
+				done, _ := roundFinished(prev)
+				if done && prev.Advance != nil {
+					_, tr.Unplaced = qualifierProgress(prev, r)
+					tr.CanArrange = tr.Unplaced > 0
+					if len(r.Heats) == 0 {
+						tr.Arrange = RoundReady
+					}
+				} else if len(r.Heats) == 0 {
+					tr.Arrange = RoundWaiting
+				}
+				if len(r.Heats) == 0 {
+					tr.PeopleText = "名单待定"
+					if tr.CanArrange {
+						unit := "人"
+						if e.IsTeam() {
+							unit = "队"
+						}
+						tr.PeopleText = fmt.Sprintf("待编排 %d %s", tr.Unplaced, unit)
+					} else if done && prev.Advance != nil {
+						tr.PeopleText = "" // ArrangeState already says there are no qualifiers.
+					}
+				}
+			}
+			tr.ConflictPending = (tr.People == 0 || tr.CanArrange || tr.Arrange == RoundWaiting) && !(tr.Arrange == RoundReady && !tr.CanArrange)
 			if day == "" {
 				t.Unscheduled = append(t.Unscheduled, tr)
 				continue

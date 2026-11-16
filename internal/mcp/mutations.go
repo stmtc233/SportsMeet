@@ -114,7 +114,7 @@ func registerMutations(s *sdk.Server, svc *service.Service) {
 	}) (any, error) {
 		return svc.SetHeatStarted(ctx, store.SourceMCP, in.Input)
 	})
-	addTool(s, "preview_schedule", "预览批量计划时间：一个轮次（request.eventId / roundId），或按 request.rounds 顺序连排同一赛事的多个轮次，轮次之间另留 roundGapMinutes。每个轮次按组序号排列，已有成绩的组跳过且不占间隔，已有计划时间可覆盖；间隔同时写为每个被排组的预计用时（durationMinutes）。返回 changes（原时间与用时 beforeText、新 afterText、所属轮次 round）、skipped、errors、warnings（如不在赛事日期内、排完后的时间冲突，只提示不拦截）、conflicts 和 previewHash。向用户展示变化与提示后取得明确确认。", true, func(ctx context.Context, in scheduleArg) (any, error) {
+	addTool(s, "preview_schedule", "预览批量计划时间：request.mode=rounds 按 rounds 顺序安排轮次开始时间，无需已有组或晋级名单，intervalMinutes 为相邻轮次开始时间间隔，返回 roundChanges；不改组的单独时间、预计用时、位置和成绩，roundGapMinutes 须为 0。mode 留空或 heats 则逐组排时间：一个轮次（eventId / roundId），或按 rounds 顺序连排多个轮次，另留 roundGapMinutes；按组序号排，跳过已比赛的组，间隔同时写为预计用时，返回 changes 与 skipped。两种模式均返回 errors、warnings（日期外、名单未定、时间冲突，只提示不拦截）、conflicts 和 previewHash。向用户展示变化与提示后取得明确确认。", true, func(ctx context.Context, in scheduleArg) (any, error) {
 		return svc.PreviewSchedule(ctx, in.Request)
 	})
 	addTool(s, "schedule_heats", "提交批量计划时间。必须先 preview_schedule 并获得用户确认，携带相同 request、previewHash 和 confirmed=true；任何目标轮次数据变化后必须重新预览。", false, func(ctx context.Context, in scheduleArg) (any, error) {

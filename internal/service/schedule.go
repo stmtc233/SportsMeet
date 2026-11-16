@@ -17,15 +17,15 @@ import (
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
-// ScheduleRequest assigns local wall-clock times to the unscored heats of
-// one round, or of several rounds one after another (docs/agents/arrange.md
-// 「排时间」).
+// ScheduleRequest assigns round starts, or times to unscored heats (the default
+// kept for existing clients). All time arithmetic stays in Go.
 type ScheduleRequest struct {
+	Mode            string     `json:"mode,omitempty" jsonschema:"rounds 为轮次开始时间（无需已有组），heats 或留空为逐组排时间"`
 	EventID         string     `json:"eventId,omitempty" jsonschema:"单个轮次时的项目 ID；填了 rounds 时不用"`
 	RoundID         string     `json:"roundId,omitempty" jsonschema:"单个轮次时的轮次 ID；填了 rounds 时不用"`
 	Rounds          []RoundRef `json:"rounds,omitempty" jsonschema:"按顺序连排的多个轮次，须属于同一赛事；不填时只排 eventId / roundId 这一个轮次"`
-	StartAt         string     `json:"startAt" jsonschema:"首个未比赛组的本地时间，YYYY-MM-DDTHH:mm，无时区"`
-	IntervalMinutes int        `json:"intervalMinutes" jsonschema:"相邻未比赛组的间隔，1 至 1440 分钟，同时写为每个被排组的预计用时；已比赛的组不占间隔"`
+	StartAt         string     `json:"startAt" jsonschema:"首个轮次或未比赛组的本地时间，YYYY-MM-DDTHH:mm，无时区"`
+	IntervalMinutes int        `json:"intervalMinutes" jsonschema:"相邻轮次开始时间或未比赛组的间隔，1 至 1440 分钟；逐组模式同时写为预计用时，已比赛的组不占间隔"`
 	RoundGapMinutes int        `json:"roundGapMinutes,omitempty" jsonschema:"连排时上一轮次最后一组结束到下一轮次第一组开始之间另留的分钟数，0 至 1440"`
 }
 
@@ -69,12 +69,24 @@ type ScheduleSkip struct {
 	Reason  string `json:"reason"`
 }
 
+// RoundScheduleChange changes only a round start; heat overrides are retained.
+type RoundScheduleChange struct {
+	EventID    string `json:"eventId"`
+	RoundID    string `json:"roundId"`
+	Round      string `json:"round"`
+	Before     string `json:"before"`
+	After      string `json:"after"`
+	BeforeText string `json:"beforeText"`
+	AfterText  string `json:"afterText"`
+}
+
 type SchedulePreview struct {
-	PreviewHash string           `json:"previewHash"`
-	Errors      []string         `json:"errors"`
-	Warnings    []string         `json:"warnings"` // shown, never blocking
-	Changes     []ScheduleChange `json:"changes"`
-	Skipped     []ScheduleSkip   `json:"skipped"`
+	PreviewHash  string                `json:"previewHash"`
+	Errors       []string              `json:"errors"`
+	Warnings     []string              `json:"warnings"` // shown, never blocking
+	Changes      []ScheduleChange      `json:"changes"`
+	RoundChanges []RoundScheduleChange `json:"roundChanges"`
+	Skipped      []ScheduleSkip        `json:"skipped"`
 	// Conflicts are the athlete time conflicts that involve a changed heat
 	// once the plan is applied; warnings only.
 	Conflicts []ConflictView `json:"conflicts"`
@@ -106,16 +118,24 @@ func (s *Service) ApplySchedule(ctx context.Context, src store.Source, in Schedu
 	if p.PreviewHash != hash {
 		return nil, ErrStale
 	}
-	if len(p.Changes) == 0 {
+	if len(p.Changes) == 0 && len(p.RoundChanges) == 0 {
 		return p, nil
 	}
-	stmts := make([]sqlite.Statement, 0, len(p.Changes))
+	stmts := make([]sqlite.Statement, 0, len(p.Changes)+len(p.RoundChanges))
 	for _, c := range p.Changes {
 		stmts = append(stmts, store.Stmt(`UPDATE heats SET scheduled_at = ?, duration_minutes = ? WHERE id = ? AND round_id = ?`,
 			c.After, c.AfterMinutes, c.HeatID, c.RoundID))
 	}
+	for _, c := range p.RoundChanges {
+		stmts = append(stmts, store.Stmt(`UPDATE rounds SET scheduled_at = ? WHERE id = ? AND event_id = ?`, c.After, c.RoundID, c.EventID))
+	}
 	targets := in.targets()
-	eventID, message := targets[0].EventID, p.Changes[0].Round
+	eventID, message, action := targets[0].EventID, "", "heats.scheduled"
+	if len(p.RoundChanges) > 0 {
+		message, action = p.RoundChanges[0].Round, "rounds.scheduled"
+	} else {
+		message = p.Changes[0].Round
+	}
 	for _, t := range targets[1:] {
 		if t.EventID != eventID {
 			eventID = ""
@@ -127,11 +147,12 @@ func (s *Service) ApplySchedule(ctx context.Context, src store.Source, in Schedu
 			message = plan.eventBy[eventID].Name + " " + message
 		}
 	}
-	err = s.write(ctx, store.Audit{Source: src, Action: "heats.scheduled", MeetID: plan.meet.ID, EventID: eventID,
+	err = s.write(ctx, store.Audit{Source: src, Action: action, MeetID: plan.meet.ID, EventID: eventID,
 		Message: message, Detail: struct {
-			Request ScheduleRequest  `json:"request"`
-			Changes []ScheduleChange `json:"changes"`
-		}{in, p.Changes}},
+			Request      ScheduleRequest       `json:"request"`
+			Changes      []ScheduleChange      `json:"changes"`
+			RoundChanges []RoundScheduleChange `json:"roundChanges"`
+		}{in, p.Changes, p.RoundChanges}},
 		Change{Kind: "heats", MeetID: plan.meet.ID, EventID: eventID}, stmts...)
 	if err != nil {
 		return nil, err
@@ -140,11 +161,13 @@ func (s *Service) ApplySchedule(ctx context.Context, src store.Source, in Schedu
 }
 
 // planSchedule reads without writing. Its caller holds the service write
-// lock. Rounds follow one another: the next round's first unscored heat
-// starts one interval after the previous round's last scheduled heat, plus
-// the round gap.
+// lock. Round starts follow the requested interval; in heat mode, the next
+// round's first unscored heat follows the preceding heat's end plus the gap.
 func (s *Service) planSchedule(ctx context.Context, in ScheduleRequest) (*SchedulePreview, *meetPlan, error) {
-	p := &SchedulePreview{Errors: []string{}, Warnings: []string{}, Changes: []ScheduleChange{}, Skipped: []ScheduleSkip{}, Conflicts: []ConflictView{}}
+	p := &SchedulePreview{Errors: []string{}, Warnings: []string{}, Changes: []ScheduleChange{}, RoundChanges: []RoundScheduleChange{}, Skipped: []ScheduleSkip{}, Conflicts: []ConflictView{}}
+	if in.Mode != "" && in.Mode != "heats" && in.Mode != "rounds" {
+		p.Errors = append(p.Errors, "请选择有效的排时间方式")
+	}
 	start, ok := domain.ParseScheduled(in.StartAt)
 	if !ok {
 		p.Errors = append(p.Errors, "请填写有效的日期与时间")
@@ -154,6 +177,9 @@ func (s *Service) planSchedule(ctx context.Context, in ScheduleRequest) (*Schedu
 	}
 	if in.RoundGapMinutes < 0 || in.RoundGapMinutes > domain.MaxDurationMinutes {
 		p.Errors = append(p.Errors, fmt.Sprintf("轮次间隔须为 0–%d 分钟", domain.MaxDurationMinutes))
+	}
+	if in.Mode == "rounds" && in.RoundGapMinutes != 0 {
+		p.Errors = append(p.Errors, "轮次开始时间请只填写间隔")
 	}
 	if len(p.Errors) > 0 {
 		return p, nil, nil
@@ -213,8 +239,34 @@ func (s *Service) planSchedule(ctx context.Context, in ScheduleRequest) (*Schedu
 	placed := false // an earlier round scheduled a heat
 	outside := 0
 	changed := map[string]planned{}
+	roundOutside, pendingPeople := 0, 0
 	for _, t := range list {
 		name := t.event.Name + " " + t.round.Label()
+		if in.Mode == "rounds" {
+			after, valid := domain.FormatScheduled(next)
+			if !valid {
+				p.Errors = append(p.Errors, "计划时间超出日期范围")
+				p.RoundChanges = []RoundScheduleChange{}
+				return p, plan, nil
+			}
+			if t.round.ScheduledAt != after {
+				p.RoundChanges = append(p.RoundChanges, RoundScheduleChange{EventID: t.event.ID, RoundID: t.round.ID, Round: name,
+					Before: t.round.ScheduledAt, After: after, BeforeText: planText(t.round.ScheduledAt, false, nil), AfterText: planText(after, false, nil)})
+				for _, h := range t.round.Heats {
+					if h.ScheduledAt == "" {
+						changed[h.ID] = planned{after, h.DurationMinutes}
+					}
+				}
+				if domain.OutsideMeet(after, plan.meet) {
+					roundOutside++
+				}
+			}
+			if len(t.round.Heats) == 0 {
+				pendingPeople++
+			}
+			next = next.Add(step)
+			continue
+		}
 		heats := append([]domain.Heat(nil), t.round.Heats...)
 		sort.Slice(heats, func(i, j int) bool {
 			if heats[i].Ordinal != heats[j].Ordinal {
@@ -254,6 +306,12 @@ func (s *Service) planSchedule(ctx context.Context, in ScheduleRequest) (*Schedu
 	}
 	if outside > 0 {
 		p.Warnings = append(p.Warnings, fmt.Sprintf("%d 组%s", outside, outsideMeetWarning))
+	}
+	if roundOutside > 0 {
+		p.Warnings = append(p.Warnings, fmt.Sprintf("%d 轮次%s", roundOutside, outsideMeetWarning))
+	}
+	if pendingPeople > 0 {
+		p.Warnings = append(p.Warnings, "名单未定，冲突待检查")
 	}
 	if len(changed) > 0 {
 		var touching []arrange.Conflict

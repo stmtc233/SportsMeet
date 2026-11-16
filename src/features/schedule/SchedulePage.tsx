@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useNav } from "../../app/nav";
-import { useViewState } from "../../lib/viewState";
-import { IconEdit, IconTime, StButton, StEmpty, StEnterScope, StIconButton, StMuted, StPage, StSection, StTable, StTag, StToolbar, iconStroke, useEnter } from "../../design";
+import { remember, useViewState } from "../../lib/viewState";
+import { IconEdit, IconTime, StButton, StEmpty, StEnterScope, StIconButton, StMuted, StPage, StSection, StSegmented, StTable, StTag, StToolbar, iconStroke, useEnter } from "../../design";
 import type { ScheduleHeatRef, Timetable, TimetableHeat, TimetableRound } from "../../mygo";
 import { ConflictList } from "../arrange/ConflictList";
 import { ConflictTag } from "../arrange/HeatCard";
@@ -11,6 +11,7 @@ import { ScheduleDialog } from "../arrange/ScheduleDialog";
 import { HeatStarted } from "../event/HeatStarted";
 import { HeatTime } from "../event/HeatTime";
 import { useMeet } from "../meets/data";
+import { ArrangeState } from "../rounds/states";
 import { ScheduleController, useTimetable } from "./controller";
 import { scheduleOptions } from "./options";
 
@@ -24,11 +25,15 @@ export function SchedulePage({ meetId }: { meetId: string }) {
   const data = useTimetable(meetId).data ?? undefined;
   const meet = useMeet(meetId).data;
   const [chaining, setChaining] = useState(false);
-  const [unfolded, setUnfolded] = useViewState("schedule:unfolded", false, true);
+  const [unfolded, setUnfolded] = useViewState(`schedule:unfolded:${meetId}`, true, true);
+  const [filter, setFilter] = useViewState<"all" | "pending">(`schedule:filter:${meetId}`, "all");
   const [starting, setStarting] = useState<TimetableRound | null>(null);
   const [editing, setEditing] = useState<{ round: TimetableRound; heat: TimetableHeat } | null>(null);
   const defaultDay = data?.days[0]?.day || meet?.startDate || "";
   const empty = data !== undefined && data.days.length === 0 && data.unscheduled.length === 0;
+  const keep = (r: TimetableRound) => filter === "all" || r.timeState !== "done";
+  const days = data?.days.map((d) => ({ ...d, rounds: d.rounds.filter(keep) })).filter((d) => d.rounds.length > 0);
+  const unscheduled = data?.unscheduled.filter(keep) ?? [];
   const edit = (round: TimetableRound, heat: TimetableHeat) => setEditing({ round, heat });
   return (
     <StPage scrollKey={`schedule:${meetId}`}
@@ -39,13 +44,19 @@ export function SchedulePage({ meetId }: { meetId: string }) {
       }>
       <StEnterScope>
         <div className="narrow timetable">
+          <div className="filters">
+            <StSegmented aria-label="日程范围" value={filter} onChange={setFilter} options={[
+              { value: "all", label: "全部" }, { value: "pending", label: `待排时间 ${data?.pending ?? 0}` },
+            ]} />
+          </div>
           {empty && <StEmpty>还没有项目</StEmpty>}
           {data && !empty && data.days.length === 0 && <StEmpty>还没有安排时间</StEmpty>}
           {data && data.conflicts.length > 0 && <Conflicts meetId={meetId} data={data} />}
-          {data?.days.map((d) => <Day key={d.day} title={d.day} rounds={d.rounds} meetId={meetId} onStart={setStarting} onEdit={edit} />)}
-          {data && data.unscheduled.length > 0 && (
-            <Day title="未安排时间" count={data.unscheduled.length} folded={!unfolded} onFold={() => setUnfolded(!unfolded)}
-              rounds={data.unscheduled} meetId={meetId} onStart={setStarting} onEdit={edit} />
+          {data && !empty && filter === "pending" && data.pending === 0 && <StEmpty>全部轮次已排时间</StEmpty>}
+          {days?.map((d) => <Day key={d.day} title={d.day} rounds={d.rounds} meetId={meetId} onStart={setStarting} onEdit={edit} />)}
+          {unscheduled.length > 0 && (
+            <Day title="未安排时间" count={unscheduled.length} folded={!unfolded} onFold={() => setUnfolded(!unfolded)}
+              rounds={unscheduled} meetId={meetId} onStart={setStarting} onEdit={edit} />
           )}
         </div>
       </StEnterScope>
@@ -68,7 +79,10 @@ export function SchedulePage({ meetId }: { meetId: string }) {
 
 function Conflicts({ meetId, data }: { meetId: string; data: Timetable }) {
   const { go } = useNav();
-  const open = (ref: ScheduleHeatRef) => go({ page: "event", meetId, eventId: ref.eventId, tab: "arrange" });
+  const open = (ref: ScheduleHeatRef) => {
+    remember(`event:round:${ref.eventId}`, ref.roundId);
+    go({ page: "event", meetId, eventId: ref.eventId, tab: "arrange" });
+  };
   return (
     <StSection padded={false} title={<>时间冲突 <StTag tone="danger">{data.conflicts.length}</StTag></>}
       actions={data.minRestMinutes > 0 ? <StMuted>最短休息 {data.minRestMinutes} 分钟</StMuted> : undefined}>
@@ -108,7 +122,6 @@ function Day({ title, count, folded = false, onFold, rounds, meetId, onStart, on
             <span className="timetable__round">
               <span className="timetable__time">{r.startText}</span>
               <span className="timetable__name" title={`${r.eventName} ${r.roundLabel}`}>{r.eventName} {r.roundLabel}</span>
-              <StMuted>{r.peopleEntered ? `报名 ${r.people} 人` : `${r.heatCount} 组 · ${r.people} 人`}</StMuted>
             </span>
           }
           actions={
@@ -116,9 +129,20 @@ function Day({ title, count, folded = false, onFold, rounds, meetId, onStart, on
               <StButton size="small" variant="ghost" icon={<IconTime size={16} strokeWidth={iconStroke} />} title="轮次开始时间" onClick={() => onStart(r)}>
                 {r.scheduledText || "开始时间"}
               </StButton>
-              <StButton size="small" variant="ghost" onClick={() => go({ page: "event", meetId, eventId: r.eventId, tab: "arrange" })}>编排</StButton>
+              <StButton size="small" variant="ghost" onClick={() => {
+                remember(`event:round:${r.eventId}`, r.roundId);
+                go({ page: "event", meetId, eventId: r.eventId, tab: "arrange" });
+              }}>编排</StButton>
             </>
           }>
+          <div className="timetable__planning">
+            <StTag tone={r.timeState === "done" ? "success" : "warning"}>
+              {r.timeState === "done" ? "已排时间" : r.timeState === "doing" ? "部分组未排时间" : "未排时间"}
+            </StTag>
+            <ArrangeState row={r} />
+            <StMuted>{r.peopleText}</StMuted>
+            {r.conflictPending && <StMuted>冲突待检查</StMuted>}
+          </div>
           {r.heats.length > 0 && (
             <StTable<TimetableHeat> dense rows={r.heats} rowKey={(h) => h.id} columns={[
               { key: "time", title: "时间", width: "minmax(132px, 2.5fr)", render: (h) => (

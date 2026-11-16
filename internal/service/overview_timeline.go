@@ -15,7 +15,7 @@ type OverviewTimeline struct {
 	Day string `json:"day"`
 	// Live: today is one of the days, so the now row moves.
 	Live bool `json:"live"`
-	// Unscheduled counts the rounds with no planned time.
+	// Unscheduled counts rounds whose effective times are not all set.
 	Unscheduled int `json:"unscheduled"`
 }
 
@@ -98,9 +98,11 @@ func (p *meetPlan) timeline(now string) OverviewTimeline {
 	for _, e := range p.events {
 		rs := p.rounds[e.ID]
 		for i, r := range rs {
+			if roundTimeState(r) != StepDone {
+				out.Unscheduled++
+			}
 			at := domain.EarliestScheduled([]domain.Round{r})
 			if at == "" {
-				out.Unscheduled++
 				continue
 			}
 			day := domain.ScheduledDay(at)

@@ -5,6 +5,6 @@ import type { ScheduleOption } from "../arrange/ScheduleDialog";
 export function scheduleOptions(t: Timetable): ScheduleOption[] {
   return [...t.days.flatMap((d) => d.rounds), ...t.unscheduled].map((r) => {
     const open = r.heats.find((h) => !h.keepReason);
-    return { eventId: r.eventId, roundId: r.roundId, label: `${r.eventName} ${r.roundLabel}`, firstAt: open?.effectiveAt ?? "", minutes: open?.durationMinutes ?? null };
+    return { eventId: r.eventId, roundId: r.roundId, label: `${r.eventName} ${r.roundLabel}`, roundAt: r.scheduledAt, firstAt: open?.effectiveAt ?? "", minutes: open?.durationMinutes ?? null };
   });
 }
