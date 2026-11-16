@@ -501,6 +501,45 @@ func (x *Exchange) Import(ctx context.Context, path, meetID, hash string) (*serv
 	return x.Svc.ImportMeet(ctx, ui, data, meetID, hash)
 }
 
+var resultsFilter = []mygo.FileFilter{{Name: "成绩文件", Extensions: []string{"json"}}}
+
+// PickResults asks for a results file (docs/results-format.md) and
+// remembers its content; Path is "" when the user canceled.
+func (x *Exchange) PickResults(ctx context.Context) (PickedFile, error) {
+	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: mygo.CallerWindow(ctx), Filters: resultsFilter})
+	if err != nil || len(paths) == 0 {
+		return PickedFile{}, ignoreCancel(err)
+	}
+	data, err := readFile(paths[0])
+	if err != nil {
+		return PickedFile{}, err
+	}
+	x.mu.Lock()
+	x.picked = map[string][]byte{paths[0]: data}
+	x.mu.Unlock()
+	return PickedFile{Path: paths[0], Name: filepath.Base(paths[0])}, nil
+}
+
+// PreviewResults reports what importing the picked results file into
+// meetID would do.
+func (x *Exchange) PreviewResults(ctx context.Context, path, meetID string) (*service.ResultsImportPreview, error) {
+	data, err := x.data(path)
+	if err != nil {
+		return nil, err
+	}
+	return x.Svc.PreviewResultsImport(ctx, data, meetID)
+}
+
+// ImportResults imports the picked results file as previewed (hash is
+// the preview's).
+func (x *Exchange) ImportResults(ctx context.Context, path, meetID, hash string) (*service.ResultsImportPreview, error) {
+	data, err := x.data(path)
+	if err != nil {
+		return nil, err
+	}
+	return x.Svc.ImportResults(ctx, ui, data, meetID, hash)
+}
+
 // Marks parses and formats marks; the page never does it itself.
 type Marks struct{}
 

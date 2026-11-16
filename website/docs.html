@@ -193,7 +193,7 @@
         <tr><td>团体总分</td><td>启用开关与「计分规则」，见<a href="#team">团体总分</a>。</td></tr>
         <tr><td>编排</td><td>「同单位分散」「均衡人数」是自动编排的默认选项；「最短休息时间」用于冲突检查；「检录提前时间」决定检录单上的检录时间，默认 20 分钟。</td></tr>
         <tr><td>打印</td><td>秩序册印不印代表队名单与竞赛日程表、紧凑排版，成绩册印不印团体总分表与成绩时间，每个项目另起一页，检录单与成绩记录表的分页方式。</td></tr>
-        <tr><td>赛事文件</td><td>导出赛事文件、导入到本赛事，见<a href="#file">赛事文件</a>。</td></tr>
+        <tr><td>赛事文件</td><td>导出赛事文件、导入到本赛事、导入成绩文件，见<a href="#file">赛事文件</a>。</td></tr>
       </tbody>
     </table>
   </div>
@@ -482,6 +482,7 @@
     <li><strong>导出</strong>：「赛事设置 → 赛事文件」点「导出赛事文件」。</li>
     <li><strong>导入为新赛事</strong>：在「全部赛事」点「导入赛事文件」。</li>
     <li><strong>导入到本赛事</strong>：在「赛事设置 → 赛事文件」点「导入到本赛事」，把文件内容合并进当前赛事。项目按性别、项目名与组别对应，运动员按学号、号码或姓名加单位对应，先预览新建、复用与覆盖的数量，确认后才写入。</li>
+    <li><strong>导入成绩文件</strong>：计时系统（如 SyncTrack）比完后导出的 <code>.results.json</code>，在「赛事设置 → 赛事文件」点「导入成绩文件」写回成绩，名次与晋级随之重算；覆盖已有成绩时先列出原成绩与新成绩，确认后才写入。格式见<a href="https://github.com/stmtc233/SportsMeet/blob/main/docs/results-format.md" rel="noopener">成绩交换格式规范</a>。</li>
   </ul>
   <p>赛事设置（编排与打印选项）不随文件导出，导入的赛事使用默认设置。文件格式是公开的，见<a href="https://github.com/stmtc233/SportsMeet/blob/main/docs/interchange-format.md" rel="noopener">交换格式规范</a>，其他程序可以读写。</p>
 </section>

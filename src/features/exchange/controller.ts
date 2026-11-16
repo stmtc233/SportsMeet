@@ -6,4 +6,7 @@ export const ExchangeController = {
   pick: () => act(() => Exchange.pick()),
   preview: (path: string, meetId: string) => act(() => Exchange.preview(path, meetId)),
   import: (path: string, meetId: string, hash: string) => act(() => Exchange.import(path, meetId, hash), "已导入"),
+  pickResults: () => act(() => Exchange.pickResults()),
+  previewResults: (path: string, meetId: string) => act(() => Exchange.previewResults(path, meetId)),
+  importResults: (path: string, meetId: string, hash: string) => act(() => Exchange.importResults(path, meetId, hash), "已导入"),
 };

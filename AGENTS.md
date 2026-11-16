@@ -15,7 +15,7 @@ SportsMeet 是一款开源的**单机离线**田径与校园运动会编排软�
 - **Go 模块**:`github.com/stmtc233/sportsmeet`;应用标识 `io.github.stmtc233.sportsmeet`。
 - mygo 自带的 agent 技能在 `.agents/skills/`(`mygo install-skills` 更新),改 mygo 相关代码前可参考。
 - **平台**:macOS 12+、Windows 10/11、Linux(amd64 / arm64)。
-- **定位边界**(用户要求):只做单机;**唯一的对外接口是 MCP**(仅本机)。出网只有 mygo 自动更新。导入导出使用开放的交换格式([docs/interchange-format.md](docs/interchange-format.md))。
+- **定位边界**(用户要求):只做单机;**唯一的对外接口是 MCP**(仅本机)。出网只有 mygo 自动更新。导入导出使用开放的交换格式([docs/interchange-format.md](docs/interchange-format.md));其他系统(如计时系统)写回成绩用成绩交换格式([docs/results-format.md](docs/results-format.md))。
 
 ## 2. 术语 —— 必须严格区分,不得自创同义词
 
@@ -64,7 +64,7 @@ SportsMeet/
 │   │   └── overview.go      ← 项目计数、报名人数、报名限制计数与运动员索引查询
 │   ├── arrange/             ← 自动编排(deal.go 快速选组、排道)、组序号、组指纹、晋级判定、运动员时间冲突检查;纯函数
 │   ├── scoring/             ← 成绩解析与格式化、逐次汇总、排名、全能积分与总排名、团体计分与单位排名
-│   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配;encode.go 逐记录输出 JSON,复用 scoring 校验逐次汇总
+│   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配;encode.go 逐记录输出 JSON,复用 scoring 校验逐次汇总;results.go 成绩交换格式的解码与校验
 │   ├── entryform/           ← 报名登记表 xlsx 的生成与读取(纯计算,不碰 mygo)
 │   ├── report/              ← 报名表 / 秩序册(含代表队名单、竞赛日程表)/ 成绩册(含团体总分表)/ 检录单 / 成绩记录表(HTML 模板);号码布待实现
 │   ├── service/             ← 唯一写入口:写锁、校验、操作日志(写入与只读查询)、变更通知;含项目预设、全能与计分规则、表格导入、报名限制提示、按运动员报名、报名登记表的导出与导入、各单位与组别的报名进度、总览的工作流汇总与侧栏角标、赛事设置、全赛事轮次表与批量自动编排、编排保存、排时间(单轮次 / 多轮次)、竞赛日程与冲突、成绩、并列裁定与实际开赛时间、检录单、成绩记录表、导入导出
@@ -94,6 +94,7 @@ SportsMeet/
 ├── docs/
 │   ├── brand-guidelines.md             ←「跑道 S」品牌设计规范与资源索引
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
+│   ├── results-format.md              ← 成绩交换格式规范(事实源),schema/results-v1.schema.json · examples/sample-results.json
 │   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json · interchange-v6.schema.json · interchange-v7.schema.json · interchange-v8.schema.json · interchange-v9.schema.json · interchange-v10.schema.json
 │   ├── examples/sample-meet.json
 │   ├── performance.md · performance-results.json · performance-optimized-results.json ← 优化与压测对比
@@ -162,7 +163,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 | 赛事组别、归属、按年级分榜、`internal/service/group*.go`、`src/features/groups/` | [groups.md](docs/agents/groups.md) + [domain.md](docs/agents/domain.md) |
 | 团体总分、按单位计分、`src/features/team-scoring/`、`internal/service/team_scoring*.go` | [team-scoring.md](docs/agents/team-scoring.md) + [domain.md](docs/agents/domain.md) |
 | `internal/mcp/` | [mcp.md](docs/agents/mcp.md) |
-| `internal/interchange/`、导入导出 | [interchange-format.md](docs/interchange-format.md) + [mcp.md](docs/agents/mcp.md)「导入」 |
+| `internal/interchange/`、导入导出、成绩文件导入(`service/results_import.go`) | [interchange-format.md](docs/interchange-format.md) + [results-format.md](docs/results-format.md) + [mcp.md](docs/agents/mcp.md)「导入」 |
 | `internal/store/`、迁移、查询性能 | [storage.md](docs/agents/storage.md) |
 | `src/` 代码结构、事件刷新、设置页、`internal/report/` 打印 | [frontend.md](docs/agents/frontend.md) |
 | `src/design/`、新增或改写任何页面 UI、`scripts/check-design-system.sh` | [design-system.md](docs/agents/design-system.md) |
@@ -242,6 +243,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 - 已有数据的数据库在迁移前先复制到 `backups/`,复制失败就不迁移。
 - 外键所在的列都建完整索引；运动员的规范化检索键按 `domain.NormalizeText` 维护，号码布 / 学号的唯一性只由 service 校验，不建唯一索引。
 - 交换格式改字段即 bump `version`;读取方能读所有已发布版本,写出总是最新版本。
+- 成绩交换格式按组 ID 与运动员 / 队伍 ID 写回计时项目成绩,ID 不在组内时按学号 → 号码布 → 姓名在组内核对;文件不带名次与晋级,写完按界面录入的同一套规则重算涉及的轮次,只增改不删成绩;版本号与交换格式各自独立(→ results-format.md)。
 
 ### 5.5 文案与提交 → [copywriting.md](docs/agents/copywriting.md)
 
@@ -284,7 +286,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 
 1. 增删 / 重命名包、重要文件、顶层目录、构建配置 → §3 / §4。
 1. 改术语或实体层级 → §2 与 domain.md。
-2. 改交换格式 → interchange-format.md、JSON Schema、示例与 `testdata/interchange/` 黄金文件。
+2. 改交换格式 → interchange-format.md、JSON Schema、示例与 `testdata/interchange/` 黄金文件;改成绩交换格式 → results-format.md、`results-v1` Schema 与示例,并通知写出方(SyncTrack 服务端 `internal/sportsmeet/export.go`)。
 3. 新增 / 废弃 / 修改不变量 → 在对应细则写完整规则,并在 §5 加 / 改**一句话摘要**;新主题建新细则并登记到 §5.0 路由表。
 4. 改用户能看到的操作、按钮名称、默认值或页面 → `website/docs.html` 使用文档的对应章节。
 

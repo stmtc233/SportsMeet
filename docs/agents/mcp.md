@@ -53,6 +53,7 @@
 - 导入在单个 SQLite 事务里完成,失败不留半成品。
 - 运动员按交换格式 §7 识别新建 / 复用。
 - 导出 `export_meet` 输出完整交换格式文件(含成绩)。
+- `preview_import_results` / `import_results` 导入成绩交换格式文件([results-format.md](../results-format.md)):`meetId` 必填且须与文件一致,与界面「导入成绩文件」走同一组 service 方法(`PreviewResultsImport` / `ImportResults`),总是先预览、确认后带 previewHash 提交;预览列出新增、覆盖(逐条「原成绩 → 新成绩」)、未变的条数与警告。
 
 ## 监听与设置一致性
 
@@ -94,6 +95,7 @@
 | `preview_delete_team` → `delete_team` | 传 `eventId` 与 `id`,删除未排进组的队伍及其报名 |
 | `preview_athletes` → `import_athletes` | 表格运动员、单位与报名导入;各单位交回的报名登记表(或任意格式的报名表)由 AI 读出后整理成表格行,队伍再逐个 `save_team` 并报名。登记表文件导入只在界面 |
 | `preview_import` → `import_meet` | 交换格式导入 |
+| `preview_import_results` → `import_results` | 成绩交换格式导入 |
 | `preview_arrange` → `auto_arrange` | 只追加新组,排除已保存的排位 |
 | `preview_advance` → `advance` | 根据上一轮 Q / q 生成下一轮组 |
 | `get_schedule` | 赛事竞赛日程(只读):按天、按生效时间的轮次与组,未安排时间的轮次,全部冲突 |

@@ -1392,6 +1392,22 @@ export interface ResultView {
   note: string;
 }
 
+/**
+ * ResultsImportPreview is what importing a results file
+ * (docs/results-format.md) into a meet would do.
+ */
+export interface ResultsImportPreview {
+  meetName: string;
+  heats: number;
+  resultsNew: number;
+  resultsOverwritten: number;
+  resultsUnchanged: number;
+  overwrites: ResultChange[];
+  warnings: string[];
+  errors: string[];
+  hash: string;
+}
+
 /** RoundDay is one day's rounds. */
 export interface RoundDay {
   /** YYYY-MM-DD */
@@ -2424,6 +2440,13 @@ export const Exchange = {
     return call("Exchange.Import", path, meetID, hash);
   },
   /**
+   * ImportResults imports the picked results file as previewed (hash is
+   * the preview's).
+   */
+  importResults(path: string, meetID: string, hash: string): Promise<ResultsImportPreview | null> {
+    return call("Exchange.ImportResults", path, meetID, hash);
+  },
+  /**
    * Pick asks for an interchange file and remembers its content; Path is ""
    * when the user canceled.
    */
@@ -2431,11 +2454,25 @@ export const Exchange = {
     return call("Exchange.Pick");
   },
   /**
+   * PickResults asks for a results file (docs/results-format.md) and
+   * remembers its content; Path is "" when the user canceled.
+   */
+  pickResults(): Promise<PickedFile> {
+    return call("Exchange.PickResults");
+  },
+  /**
    * Preview reports what importing the picked file into meetID ("" = as a
    * new meet) would do.
    */
   preview(path: string, meetID: string): Promise<ImportPreview | null> {
     return call("Exchange.Preview", path, meetID);
+  },
+  /**
+   * PreviewResults reports what importing the picked results file into
+   * meetID would do.
+   */
+  previewResults(path: string, meetID: string): Promise<ResultsImportPreview | null> {
+    return call("Exchange.PreviewResults", path, meetID);
   },
 } as const;
 

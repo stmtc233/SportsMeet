@@ -67,6 +67,16 @@ func (s *Service) planMutation(ctx context.Context, in Mutation, before any) (an
 		}
 		imported, err := s.ImportMeet(ctx, src, []byte(in.Data), in.MeetID, p.Hash)
 		return imported, false, err
+	case "import_results":
+		p, err := s.PreviewResultsImport(ctx, []byte(in.Data), in.MeetID)
+		if err != nil {
+			return nil, false, err
+		}
+		if len(p.Errors) > 0 {
+			return p, false, invalid("文件有误，无法导入")
+		}
+		imported, err := s.ImportResults(ctx, src, []byte(in.Data), in.MeetID, p.Hash)
+		return imported, false, err
 	case "auto_arrange", "advance":
 		return s.prepareArrangement(ctx, in)
 	case "set_results":

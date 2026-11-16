@@ -37,6 +37,11 @@ type importArg struct {
 	Data   string `json:"data" jsonschema:"完整交换格式 JSON 文本，包含 format、version、meet、units、athletes、events"`
 	confirmation
 }
+type resultsImportArg struct {
+	MeetID string `json:"meetId" jsonschema:"目标赛事 ID，须与文件的 meetId 一致"`
+	Data   string `json:"data" jsonschema:"完整成绩交换格式 JSON 文本，包含 format、version、meetId、heats"`
+	confirmation
+}
 type tableArg struct {
 	MeetID string                `json:"meetId"`
 	Table  service.AthleteImport `json:"table"`
@@ -87,6 +92,9 @@ func registerMutations(s *sdk.Server, svc *service.Service) {
 	})
 	mutationPair(s, svc, "preview_import", "import_meet", "导入交换格式赛事，含接力队伍与棒次；成绩覆盖时展示原成绩与新成绩", func(in importArg) (service.Mutation, confirmation) {
 		return service.Mutation{Action: "import_meet", MeetID: in.MeetID, Data: in.Data}, in.confirmation
+	})
+	mutationPair(s, svc, "preview_import_results", "import_results", "导入成绩交换格式文件（sportsmeet-results），按组 ID 与运动员 ID 写回计时项目成绩并重算名次与晋级；覆盖已有成绩时展示原成绩与新成绩", func(in resultsImportArg) (service.Mutation, confirmation) {
+		return service.Mutation{Action: "import_results", MeetID: in.MeetID, Data: in.Data}, in.confirmation
 	})
 	mutationPair(s, svc, "preview_athletes", "import_athletes", "批量导入表格运动员、所属单位与报名；先 parse_table 获取 rows 和 mapping", func(in tableArg) (service.Mutation, confirmation) {
 		return service.Mutation{Action: "import_athletes", MeetID: in.MeetID, Table: in.Table}, in.confirmation

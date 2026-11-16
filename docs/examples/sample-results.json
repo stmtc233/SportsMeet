@@ -1,0 +1,18 @@
+{
+  "format": "sportsmeet-results",
+  "version": 1,
+  "exportedAt": "2026-11-16T15:20:00+08:00",
+  "generator": { "name": "SyncTrack", "version": "0.5.5" },
+  "meetId": "m1",
+  "heats": [
+    {
+      "heatId": "h1",
+      "label": "男子100m 初中组 预赛 第1组",
+      "startedAt": "2026-11-16T09:32",
+      "results": [
+        { "position": 3, "athleteId": "a1", "check": { "name": "张三", "studentNumber": "2023001", "bib": "105" }, "status": "OK", "mark": 12340 },
+        { "position": 4, "athleteId": "a2", "check": { "name": "李四", "studentNumber": "2023002", "bib": "106" }, "status": "DNS", "mark": null }
+      ]
+    }
+  ]
+}

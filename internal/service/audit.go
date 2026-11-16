@@ -45,6 +45,7 @@ var auditActions = map[string]string{
 	"heats.scheduled":      "排时间",
 	"round.scheduled":      "修改轮次开始时间",
 	"results.saved":        "录入成绩",
+	"results.imported":     "导入成绩",
 	"heat.started":         "修改实际开赛时间",
 	"results.tie":          "裁定并列",
 	"settings.preferences": "修改设置",
