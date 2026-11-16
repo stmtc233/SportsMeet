@@ -5,10 +5,18 @@ import type { TeamScoreBoard, TeamScoreLine, TeamScoreSource, UnitStanding } fro
 import { useViewState } from "../../lib/viewState";
 import { useGroups } from "../groups/controller";
 import { GroupFilter, useGroupFilter } from "../groups/GroupFields";
-import { TeamScoringController, toInput, useTeamBoards } from "./controller";
+import { TeamScoringController, isMedals, toInput, useTeamBoards } from "./controller";
 import { TeamScoringRulesDialog } from "./TeamScoringRulesDialog";
 
 type Gender = "" | "男" | "女" | "混合";
+
+const MEDALS = { 金: { icon: "🥇", name: "金牌" }, 银: { icon: "🥈", name: "银牌" }, 铜: { icon: "🥉", name: "铜牌" } } as const;
+
+/** The medal as its emoji; the name stays for screen readers. */
+function Medal({ medal }: { medal: string }) {
+  const m = MEDALS[medal as keyof typeof MEDALS];
+  return m ? <span role="img" aria-label={m.name}>{m.icon}</span> : null;
+}
 
 export function TeamScoringPage({ meetId }: { meetId: string }) {
   const [gender, setGender] = useViewState<Gender>(`teamScores:gender:${meetId}`, "");
@@ -35,7 +43,7 @@ export function TeamScoringPage({ meetId }: { meetId: string }) {
   return (
     <StPage scrollKey={`teamScores:${meetId}`}
       toolbar={
-        <StToolbar title="团体总分">
+        <StToolbar title={isMedals(detail?.rules) ? "奖牌榜" : "团体总分"}>
           <StButton disabled={!detail} onClick={() => setEditing(true)}>计分规则</StButton>
         </StToolbar>
       }>
@@ -61,12 +69,12 @@ export function TeamScoringPage({ meetId }: { meetId: string }) {
       )}
       {unit && (
         <StDialog open title={unit.unitName} size="large" onClose={() => setUnit(null)}>
-          <ScoreLines meetId={meetId} lines={unit.lines} />
+          <ScoreLines meetId={meetId} lines={unit.lines} medals={isMedals(detail?.rules)} />
         </StDialog>
       )}
       {sources?.detail && (
         <StDialog open title={sources.groupName ? `${sources.groupName}计分项目` : "计分项目"} size="large" onClose={() => setSources(null)}>
-          <SourceList meetId={meetId} sources={sources.detail.sources} />
+          <SourceList meetId={meetId} sources={sources.detail.sources} medals={isMedals(sources.detail.rules)} />
         </StDialog>
       )}
       {editing && detail && <TeamScoringRulesDialog meetId={meetId} detail={detail} onClose={() => setEditing(false)} />}
@@ -76,24 +84,36 @@ export function TeamScoringPage({ meetId }: { meetId: string }) {
 
 function Board({ board, titled, gender, onUnit, onSources }: { board: TeamScoreBoard; titled: boolean; gender: Gender; onUnit: (u: UnitStanding) => void; onSources: () => void }) {
   const data = board.detail!;
+  const medals = isMedals(data.rules);
+  const byGender: StColumn<UnitStanding>[] = gender === ""
+    ? [
+        { key: "male", title: "男子", width: "80px", align: "end", render: (r) => r.male.text },
+        { key: "female", title: "女子", width: "80px", align: "end", render: (r) => r.female.text },
+        { key: "mixed", title: "混合", width: "80px", align: "end", render: (r) => r.mixed.text },
+      ]
+    : [];
+  const score: StColumn<UnitStanding>[] = medals
+    ? [
+        { key: "gold", title: <Medal medal="金" />, width: "64px", align: "center", render: (r) => r.gold },
+        { key: "silver", title: <Medal medal="银" />, width: "64px", align: "center", render: (r) => r.silver },
+        { key: "bronze", title: <Medal medal="铜" />, width: "64px", align: "center", render: (r) => r.bronze },
+        { key: "medals", title: "总数", width: "72px", align: "center", render: (r) => <strong>{r.medals}</strong> },
+      ]
+    : [
+        // With one gender chosen the other columns are all 0.
+        ...byGender,
+        { key: "total", title: "总分", width: "88px", align: "end", render: (r) => <strong>{r.total.text}</strong> },
+      ];
   const columns: StColumn<UnitStanding>[] = [
     { key: "rank", title: "名次", width: "56px", align: "end", render: (r) => r.rank ?? "" },
     { key: "unit", title: "参赛单位", width: "minmax(140px, 1fr)", render: (r) => <span className="cell-strong">{r.unitName}</span> },
-    // With one gender chosen the other columns are all 0.
-    ...(gender === ""
-      ? [
-          { key: "male", title: "男子", width: "80px", align: "end" as const, render: (r: UnitStanding) => r.male.text },
-          { key: "female", title: "女子", width: "80px", align: "end" as const, render: (r: UnitStanding) => r.female.text },
-          { key: "mixed", title: "混合", width: "80px", align: "end" as const, render: (r: UnitStanding) => r.mixed.text },
-        ]
-      : []),
-    { key: "total", title: "总分", width: "88px", align: "end", render: (r) => <strong>{r.total.text}</strong> },
+    ...score,
   ];
   return (
     <StStack gap={12}>
       {data.warnings.map((w) => <StNotice key={w} tone="warning">{w}</StNotice>)}
       <StSection padded={false}
-        title={<>{titled ? board.groupName : "单位排名"} <StTag tone={data.complete ? "success" : "neutral"}>{data.state}</StTag></>}
+        title={<>{titled ? board.groupName : medals ? "奖牌榜" : "单位排名"} <StTag tone={data.complete ? "success" : "neutral"}>{data.state}</StTag></>}
         actions={<StButton size="small" variant="ghost" onClick={onSources}>已计分 {data.counted} / {data.total} 项</StButton>}>
         <div className="team-score-table">
           <StTable<UnitStanding> rows={data.rows} rowKey={(r) => r.unitId} actionColumn="unit" onRowClick={onUnit} empty="还没有参赛单位" columns={columns} />
@@ -101,14 +121,14 @@ function Board({ board, titled, gender, onUnit, onSources }: { board: TeamScoreB
       </StSection>
       {data.unassigned.length > 0 && (
         <StSection title="无参赛单位" padded={false}>
-          <ScoreLines lines={data.unassigned} />
+          <ScoreLines lines={data.unassigned} medals={medals} />
         </StSection>
       )}
     </StStack>
   );
 }
 
-function SourceList({ meetId, sources }: { meetId: string; sources: TeamScoreSource[] }) {
+function SourceList({ meetId, sources, medals }: { meetId: string; sources: TeamScoreSource[]; medals: boolean }) {
   const { go } = useNav();
   return (
     <div className="preview-table">
@@ -116,14 +136,14 @@ function SourceList({ meetId, sources }: { meetId: string; sources: TeamScoreSou
         onRowClick={(r) => go(r.combinedId ? { page: "combined", meetId, combinedId: r.combinedId } : { page: "event", meetId, eventId: r.eventId, tab: "results" })}
         columns={[
           { key: "name", title: "项目", width: "minmax(180px, 1fr)", render: (r) => r.name },
-          { key: "multiplier", title: "倍数", width: "64px", align: "end", render: (r) => r.multiplier },
+          ...(medals ? [] : [{ key: "multiplier", title: "倍数", width: "64px", align: "end" as const, render: (r: TeamScoreSource) => r.multiplier }]),
           { key: "state", title: "状态", width: "96px", render: (r) => <StTag tone={r.complete ? "success" : "neutral"}>{r.state}</StTag> },
         ]} />
     </div>
   );
 }
 
-function ScoreLines({ meetId, lines }: { meetId?: string; lines: TeamScoreLine[] }) {
+function ScoreLines({ meetId, lines, medals }: { meetId?: string; lines: TeamScoreLine[]; medals: boolean }) {
   const { go } = useNav();
   return (
     <div className="team-score-table">
@@ -133,8 +153,12 @@ function ScoreLines({ meetId, lines }: { meetId?: string; lines: TeamScoreLine[]
           { key: "event", title: "项目", width: "minmax(160px, 1fr)", render: (r) => r.eventName },
           { key: "name", title: "运动员 / 队伍", width: "minmax(96px, 0.6fr)", render: (r) => r.name },
           { key: "rank", title: "名次", width: "56px", align: "end", render: (r) => r.rank ?? "" },
-          { key: "base", title: "名次分", width: "72px", align: "end", render: (r) => <StMuted>{r.multiplier === 1 ? r.base.text : `${r.base.text} × ${r.multiplier}`}</StMuted> },
-          { key: "score", title: "得分", width: "72px", align: "end", render: (r) => <strong>{r.score.text}</strong> },
+          ...(medals
+            ? [{ key: "medal", title: "奖牌", width: "72px", align: "center" as const, render: (r: TeamScoreLine) => <Medal medal={r.medal} /> }]
+            : [
+                { key: "base", title: "名次分", width: "72px", align: "end" as const, render: (r: TeamScoreLine) => <StMuted>{r.multiplier === 1 ? r.base.text : `${r.base.text} × ${r.multiplier}`}</StMuted> },
+                { key: "score", title: "得分", width: "72px", align: "end" as const, render: (r: TeamScoreLine) => <strong>{r.score.text}</strong> },
+              ]),
         ]} />
     </div>
   );

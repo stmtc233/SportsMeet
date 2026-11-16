@@ -116,7 +116,7 @@ func (s *Service) groupedBook(ctx context.Context, req GroupReportRequest) (*ass
 				if err != nil {
 					return nil, err
 				}
-				table := &report.TeamScoreTable{State: d.State, Counted: d.Counted, Total: d.Total, Scope: "全部项目", Rows: []report.TeamScoreRow{}}
+				table := &report.TeamScoreTable{Medals: st.rules.Medals(), State: d.State, Counted: d.Counted, Total: d.Total, Scope: "全部项目", Rows: []report.TeamScoreRow{}}
 				if len(req.EventIDs) > 0 {
 					table.Scope = "所选项目"
 					for _, src := range d.Sources {
@@ -126,7 +126,7 @@ func (s *Service) groupedBook(ctx context.Context, req GroupReportRequest) (*ass
 					}
 				}
 				for _, r := range d.Rows {
-					row := report.TeamScoreRow{Unit: r.UnitName, Male: r.Male.Text, Female: r.Female.Text, Mixed: r.Mixed.Text, Total: r.Total.Text}
+					row := report.TeamScoreRow{Unit: r.UnitName, Male: r.Male.Text, Female: r.Female.Text, Mixed: r.Mixed.Text, Total: r.Total.Text, Gold: strconv.Itoa(r.Gold), Silver: strconv.Itoa(r.Silver), Bronze: strconv.Itoa(r.Bronze), Medals: strconv.Itoa(r.Medals)}
 					// A column of zeros says nothing; the mixed one is printed only when some unit scored.
 					table.Mixed = table.Mixed || r.Mixed.Text != "" && r.Mixed.Text != "0"
 					if r.Rank != nil {

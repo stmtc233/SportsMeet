@@ -17,15 +17,16 @@ async function installTeamScoring(page: Page, disabled = false) {
     const clone = (v: any) => structuredClone(v);
     const error = (message: string) => { const e = new Error(message); e.name = "CallError"; throw e; };
     let edited = false;
-    let rules = { enabled: !disabled, places: [9, 7, 6, 5, 4, 3, 2, 1], tiePolicy: "average", relayMultiplier: 2, overrides: [] as any[] };
+    let rules: any = { enabled: !disabled, places: [9, 7, 6, 5, 4, 3, 2, 1], tiePolicy: "average", relayMultiplier: 2, overrides: [] as any[] };
     const targets = [{ eventId: "event", combinedId: "", name: "男子100m 初中组", gender: "男", groupLabel: "初中组", relay: false }, { eventId: "relay", combinedId: "", name: "混合4×100m 初中组", gender: "混合", groupLabel: "初中组", relay: true }];
     const detail = (next = rules, filter: any = {}) => {
       const sources = targets.filter((t) => (!filter.gender || t.gender === filter.gender) && (filter.groupLabel === undefined || t.groupLabel === filter.groupLabel)).map((t) => ({ ...t, complete: true, multiplier: t.relay ? 2 : 1, state: next.enabled ? "已计分" : "不计分" }));
       const active = next.enabled && sources.length > 0;
       const isEdited = edited;
       const rows = ["一班", "二班"].map((unitName, i) => ({ unitId: `u${i}`, unitName, rank: active ? (isEdited ? i + 1 : 1) : null,
+        gold: active && i === 0 ? 1 : 0, silver: active && i === 1 ? 1 : 0, bronze: 0, medals: active ? 1 : 0,
         male: value(active ? (i === 0 ? 9 : 7) : 0), female: value(0), mixed: value(active ? (i === 0 ? 7 : 9) : 0), total: value(active ? (isEdited ? (i === 0 ? 20 : 10) : 16) : 0),
-        lines: active ? [{ eventId: "event", combinedId: "", eventName: "男子100m 初中组", competitorId: `a${i}`, athleteId: `a${i}`, teamId: "", unitId: `u${i}`, name: `运动员${i + 1}`, markText: "12.34", rank: i + 1, gender: "男", groupLabel: "初中组", base: value(9), multiplier: 1, score: value(9) }] : [] }));
+        lines: active ? [{ eventId: "event", combinedId: "", eventName: "男子100m 初中组", competitorId: `a${i}`, athleteId: `a${i}`, teamId: "", unitId: `u${i}`, name: `运动员${i + 1}`, markText: "12.34", rank: i + 1, gender: "男", groupLabel: "初中组", base: value(9), multiplier: 1, score: value(9), medal: i === 0 ? "金" : "银" }] : [] }));
       return { rules: clone(next), targets, groups: ["初中组"], rows, sources, unassigned: [], warnings: [], counted: active ? sources.length : 0, total: next.enabled ? sources.length : 0, complete: active, state: !next.enabled ? "未启用" : active ? "正式排名" : "暂列排名" };
     };
     (globalThis as any).__teamScoreCalls = [];
@@ -37,8 +38,8 @@ async function installTeamScoring(page: Page, disabled = false) {
         case "TeamScoring.Get": return clone(detail(rules, args[0]));
         case "TeamScoring.Save": {
           const input = args[1];
-          if (!input.places.trim() || input.places.includes("x")) return error("分值和倍数须为非负整数");
-          rules = { enabled: input.enabled, places: input.places.split(/[、,\s]+/).map(Number), tiePolicy: input.tiePolicy, relayMultiplier: Number(input.relayMultiplier), overrides: input.overrides.map((o: any) => ({ ...o, multiplier: Number(o.multiplier) })) };
+          if (input.mode !== "medals" && (!input.places.trim() || input.places.includes("x"))) return error("分值和倍数须为非负整数");
+          rules = { enabled: input.enabled, ...(input.mode ? { mode: input.mode } : {}), ...(input.medalOrder ? { medalOrder: input.medalOrder } : {}), places: input.places.trim() ? input.places.split(/[、,\s]+/).map(Number) : [9, 7, 6, 5, 4, 3, 2, 1], tiePolicy: input.tiePolicy, relayMultiplier: Number(input.relayMultiplier), overrides: input.overrides.map((o: any) => ({ ...o, multiplier: Number(o.multiplier) })) };
           edited = input.places.startsWith("10"); changed();
           return clone(rules);
         }
@@ -133,4 +134,38 @@ test("一键启用计分，校验错误保留输入", async ({ page }) => {
   await expect(page.getByText("分值和倍数须为非负整数", { exact: true })).toBeVisible();
   await expect(rules).toBeVisible();
   await expect(rules.getByLabel("名次分值", { exact: true })).toHaveValue("x");
+});
+
+test("计分方式切换为奖牌榜", async ({ page }) => {
+  await installTeamScoring(page);
+  await page.goto("/");
+  await page.getByText("秋季运动会", { exact: true }).click();
+  await page.getByRole("button", { name: "项目", exact: true }).click();
+  await page.getByRole("button", { name: "团体总分", exact: true }).click();
+  await page.getByRole("button", { name: "计分规则", exact: true }).click();
+  const rules = page.getByRole("dialog", { name: "计分规则", exact: true });
+  await rules.getByRole("radio", { name: "奖牌", exact: true }).click();
+  await expect(rules.getByLabel("名次分值", { exact: true })).toHaveCount(0);
+  await expect(rules.getByLabel("男子100m 初中组的倍数", { exact: true })).toHaveCount(0);
+  await rules.getByRole("radio", { name: "奖牌总数优先", exact: true }).click();
+  await rules.getByRole("checkbox", { name: "混合4×100m 初中组计入奖牌", exact: true }).uncheck();
+  await rules.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(rules).not.toBeVisible();
+  const save = (await calls(page)).findLast((c: any) => c.method === "TeamScoring.Save").args[1];
+  expect(save).toMatchObject({ mode: "medals", medalOrder: "total", overrides: [{ eventId: "relay", multiplier: "0" }] });
+  await expect(page.getByRole("heading", { name: "奖牌榜", exact: true }).first()).toBeVisible();
+  for (const name of ["金牌", "银牌", "铜牌", "总数"]) await expect(page.getByRole("columnheader", { name, exact: true })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "总分", exact: true })).toHaveCount(0);
+  // Each medal column's header and numbers share one centre line.
+  const table = page.getByRole("table").first();
+  const centres = await table.evaluate((el) => {
+    const mid = (node: Element) => { const r = document.createRange(); r.selectNodeContents(node); const b = r.getBoundingClientRect(); return b.x + b.width / 2; };
+    const heads = [...el.querySelectorAll('[role="columnheader"]')].slice(2);
+    const cells = [...el.querySelectorAll('[role="row"]')[1].querySelectorAll('[role="cell"]')].slice(2);
+    return heads.map((h, i) => [mid(h), mid(cells[i])]);
+  });
+  for (const [head, cell] of centres) expect(Math.abs(head - cell)).toBeLessThan(1.5);
+  await table.getByText("一班", { exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "一班", exact: true }).getByRole("img", { name: "金牌", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

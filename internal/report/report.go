@@ -360,6 +360,9 @@ type TeamScoreTable struct {
 	Total   int      `json:"total"`
 	Targets []string `json:"targets"`
 	Mixed   bool     `json:"mixed"` // some unit has mixed points; otherwise the column is left out
+	// Medals is the 奖牌榜: units are ranked by medals and the rows carry
+	// Gold, Silver, Bronze and Medals instead of the points columns.
+	Medals bool `json:"medals"`
 	// Standalone is the 团体总分表 printed on its own: no heading of its own.
 	Standalone bool           `json:"standalone"`
 	Rows       []TeamScoreRow `json:"rows"`
@@ -371,4 +374,8 @@ type TeamScoreRow struct {
 	Female string `json:"female"`
 	Mixed  string `json:"mixed"`
 	Total  string `json:"total"`
+	Gold   string `json:"gold"`
+	Silver string `json:"silver"`
+	Bronze string `json:"bronze"`
+	Medals string `json:"medals"` // medal total
 }

@@ -10,6 +10,8 @@ import (
 // TeamScoringInput keeps editable numeric text intact until Go validates it.
 type TeamScoringInput struct {
 	Enabled         bool                     `json:"enabled"`
+	Mode            string                   `json:"mode"`
+	MedalOrder      string                   `json:"medalOrder"`
 	Places          string                   `json:"places"`
 	TiePolicy       string                   `json:"tiePolicy"`
 	RelayMultiplier string                   `json:"relayMultiplier"`
@@ -22,7 +24,7 @@ type TeamScoreOverrideInput struct {
 }
 
 func ParseTeamScoringInput(in TeamScoringInput) (domain.TeamScoringRules, error) {
-	r := domain.TeamScoringRules{Enabled: in.Enabled, TiePolicy: in.TiePolicy, Places: []int64{}, Overrides: []domain.TeamScoreOverride{}}
+	r := domain.TeamScoringRules{Enabled: in.Enabled, Mode: in.Mode, MedalOrder: in.MedalOrder, TiePolicy: in.TiePolicy, Places: []int64{}, Overrides: []domain.TeamScoreOverride{}}
 	parse := func(s string) (int64, error) {
 		v, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64)
 		if err != nil || v < 0 {
@@ -38,7 +40,10 @@ func ParseTeamScoringInput(in TeamScoringInput) (domain.TeamScoringRules, error)
 		r.Places = append(r.Places, v)
 	}
 	var err error
-	if r.RelayMultiplier, err = parse(in.RelayMultiplier); err != nil {
+	// Medals mode hides the points fields; blank ones keep the defaults.
+	if in.Mode == domain.TeamModeMedals && strings.TrimSpace(in.RelayMultiplier) == "" {
+		r.RelayMultiplier = domain.DefaultTeamScoringRules().RelayMultiplier
+	} else if r.RelayMultiplier, err = parse(in.RelayMultiplier); err != nil {
 		return r, err
 	}
 	for _, o := range in.Overrides {
@@ -48,6 +53,7 @@ func ParseTeamScoringInput(in TeamScoringInput) (domain.TeamScoringRules, error)
 		}
 		r.Overrides = append(r.Overrides, domain.TeamScoreOverride{EventID: o.EventID, CombinedID: o.CombinedID, Multiplier: v})
 	}
+	r = r.Canonical()
 	if err := r.Validate(); err != nil {
 		return r, invalid("%s", err)
 	}

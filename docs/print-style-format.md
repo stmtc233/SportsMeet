@@ -89,7 +89,7 @@ SportsMeet 打印样式的文件格式，以及写样式的人（通常是经 MC
 | `Schedule` / `schedule` | 竞赛日程表，按日；只有秩序册填 |
 | `Events` / `events` | 项目；每项含 `Rounds`（轮次）→ `Heats`（组）→ `Lines`（位置上的人或队） |
 | `Combineds` / `combineds` | 全能：分项、统一名单、各分项成绩与积分表 |
-| `TeamScores` / `teamScores` | 团体总分表，未启用或不印为空 |
+| `TeamScores` / `teamScores` | 团体总分表，未启用或不印为空；`Medals` / `medals` 为真时是奖牌榜，行用 `Gold` `Silver` `Bronze` `Medals`（金银铜与总数）代替各类别得分与 `Total` |
 | `GroupName` `GroupBooks` / `groupName` `groupBooks` | 按组别分榜时每个组别一本（成绩册、团体总分表），各自另起页 |
 | `HideBib` `HideUnit` `HideSeed` `RosterColumns` | 来自 `params` 的栏目开关与名单每行人数；模板自己决定是否遵守 |
 | `Compact` `NewPage` | 来自赛事设置的「秩序册紧凑排版」「每个项目另起一页」 |

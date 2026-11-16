@@ -343,3 +343,54 @@ func TestTeamScoringSaveParsesInputDirectly(t *testing.T) {
 	_, err = f.svc.SaveTeamScoring(f.ctx, ui, f.meet, TeamScoringInput{Enabled: true, Places: "1、x", TiePolicy: "average", RelayMultiplier: "2"})
 	wantInvalid(t, err, "非负整数")
 }
+
+func TestTeamScoringMedalsMode(t *testing.T) {
+	f := newFixture(t, 4, track())
+	f.addHeat(0, f.athletes...)
+	h := f.detail().Rounds[0].Heats[0].ID
+	must(t, f.svc.SaveResults(f.ctx, ui, h, []ResultInput{{Position: 1, Mark: "10"}, {Position: 2, Mark: "11"}, {Position: 3, Mark: "12"}, {Position: 4, Mark: "13"}}))
+	// Points the typed way: nothing needs filling in medals mode.
+	in, err := ParseTeamScoringInput(TeamScoringInput{Enabled: true, Mode: "medals", MedalOrder: "gold"})
+	must(t, err)
+	if in.Mode != domain.TeamModeMedals || in.MedalOrder != "" || len(in.Places) == 0 || in.TiePolicy != "average" {
+		t.Fatalf("canonical medal rules: %+v", in)
+	}
+	_, err = ParseTeamScoringInput(TeamScoringInput{Mode: "x", Places: "9", TiePolicy: "average", RelayMultiplier: "2"})
+	wantInvalid(t, err, "计分方式")
+	_, err = ParseTeamScoringInput(TeamScoringInput{Mode: "points", TiePolicy: "average", RelayMultiplier: "2"})
+	wantInvalid(t, err, "名次分值")
+
+	enableTeamScores(t, f, domain.TeamScoringRules{Mode: domain.TeamModeMedals})
+	d := teamScores(t, f)
+	a, b := unitScore(t, d, f.units[0]), unitScore(t, d, f.units[1])
+	if !d.Complete || !d.Rules.Medals() || d.Rules.Mode != "medals" || a.Gold != 1 || a.Bronze != 1 || a.Medals != 2 || b.Silver != 1 || b.Medals != 1 || a.Total.Text != "0" || *a.Rank != 1 || *b.Rank != 2 || len(b.Lines) != 1 || b.Lines[0].Medal != "银" {
+		t.Fatalf("medal board: %+v", d.Rows)
+	}
+	// Saving the same rules again changes nothing; the order is stored canonically.
+	rules := d.Rules
+	rules.MedalOrder = domain.MedalOrderTotal
+	p := enableTeamScores(t, f, rules)
+	if !p.Changed || teamScores(t, f).Rules.MedalOrder != "total" {
+		t.Fatal("order not saved")
+	}
+	if p = enableTeamScores(t, f, rules); p.Changed {
+		t.Fatal("same rules changed")
+	}
+	// Only a zero override matters; a project can be left out of the medals.
+	rules.Overrides = []domain.TeamScoreOverride{{EventID: f.event, Multiplier: 3}}
+	enableTeamScores(t, f, rules)
+	if d := teamScores(t, f); len(d.Rules.Overrides) != 0 || d.Counted != 1 {
+		t.Fatalf("non-zero override kept: %+v", d.Rules.Overrides)
+	}
+	rules.Overrides = []domain.TeamScoreOverride{{EventID: f.event, Multiplier: 0}}
+	enableTeamScores(t, f, rules)
+	if d := teamScores(t, f); d.Total != 0 || d.Sources[0].State != "不计分" || unitScore(t, d, f.units[0]).Medals != 0 {
+		t.Fatal("excluded event gave medals")
+	}
+	// Back to points, the saved places count again.
+	rules.Mode, rules.Overrides = "", nil
+	enableTeamScores(t, f, rules)
+	if d := teamScores(t, f); unitScore(t, d, f.units[0]).Total.Text != "15" || d.Rules.MedalOrder != "" {
+		t.Fatalf("points after medals: %+v", d.Rows)
+	}
+}

@@ -180,7 +180,7 @@
 ## 团体总分
 
 - `get_team_scores` 接受 `{meetId, gender?, groupLabel?, targetIds?}`；`groupLabel` 省略为全部、空字符串为无组别；`targetIds` 为普通项目或全能 ID。查询结果包含规则、排名、单位明细、无单位明细与计分进度，`ScoreValue.exact` 为精确分数，`text` 为显示值。
-- `preview_team_scoring` 与 `apply_team_scoring` 接受 `request: {meetId, rules: {enabled, places, tiePolicy, relayMultiplier, overrides}}`，确认提交携带 `previewHash` 与 `confirmed=true`。规则、完成口径、指纹范围、导入兼容与同分并列要求见 [team-scoring.md](team-scoring.md)。
+- `preview_team_scoring` 与 `apply_team_scoring` 接受 `request: {meetId, rules: {enabled, mode?, medalOrder?, places, tiePolicy, relayMultiplier, overrides}}`（`mode=medals` 为奖牌榜，见 team-scoring.md「奖牌榜」；`get_team_scores` 的单位带 `gold / silver / bronze / medals`），确认提交携带 `previewHash` 与 `confirmed=true`。规则、完成口径、指纹范围、导入兼容与同分并列要求见 [team-scoring.md](team-scoring.md)。
 - `render_report` 的 `kind=team_scores` 返回团体总分表 HTML(`{html, warnings}`)，`eventIds` 沿用普通项目与全能的选择；不调用系统打印窗口。
 
 ## 赛事组别

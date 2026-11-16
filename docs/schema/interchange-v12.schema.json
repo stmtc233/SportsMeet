@@ -976,6 +976,18 @@
         "enabled": {
           "type": "boolean"
         },
+        "mode": {
+          "enum": [
+            "points",
+            "medals"
+          ]
+        },
+        "medalOrder": {
+          "enum": [
+            "gold",
+            "total"
+          ]
+        },
         "places": {
           "type": "array",
           "minItems": 1,

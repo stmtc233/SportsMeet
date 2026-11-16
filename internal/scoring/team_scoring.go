@@ -69,6 +69,7 @@ type TeamScoreLine struct {
 	Base       ScoreValue               `json:"base"`
 	Multiplier int64                    `json:"multiplier"`
 	Score      ScoreValue               `json:"score"`
+	Medal      string                   `json:"medal"` // 金 | 银 | 铜 | "" (not a medal place)
 }
 
 type UnitStanding struct {
@@ -79,6 +80,10 @@ type UnitStanding struct {
 	Female   ScoreValue      `json:"female"`
 	Mixed    ScoreValue      `json:"mixed"`
 	Total    ScoreValue      `json:"total"`
+	Gold     int             `json:"gold"`
+	Silver   int             `json:"silver"`
+	Bronze   int             `json:"bronze"`
+	Medals   int             `json:"medals"`
 	Lines    []TeamScoreLine `json:"lines"`
 }
 
@@ -92,15 +97,33 @@ type TeamScores struct {
 	State      string            `json:"state"`
 }
 
+// medalOf is the medal of a final place: first, second and third, so tied
+// competitors share one and the places after a tie follow the usual skip.
+func medalOf(place int) string {
+	switch place {
+	case 1:
+		return "金"
+	case 2:
+		return "银"
+	case 3:
+		return "铜"
+	}
+	return ""
+}
+
 // TeamRank consumes final rankings, including competitors without a unit.
 // Those competitors occupy places and participate in ties but earn no unit points.
 // Unit totals tie directly; no countback or intermediate rounding is performed.
+// Medals are counted in every mode; in medals mode only they are listed and
+// they rank the units, by gold first or by the medal total (rules.MedalOrder),
+// and units with the same counts tie.
 func TeamRank(rules domain.TeamScoringRules, units []domain.Unit, sources []TeamScoreSource) TeamScores {
 	out := TeamScores{Rows: []UnitStanding{}, Sources: []TeamScoreSource{}, Unassigned: []TeamScoreLine{}, State: "未启用"}
 	type total struct {
 		row     UnitStanding
 		genders map[domain.CompetitionGender]*big.Rat
 		sum     *big.Rat
+		medals  [3]int // gold, silver, bronze
 	}
 	rows := make([]*total, 0, len(units))
 	byUnit := map[string]*total{}
@@ -134,20 +157,28 @@ func TeamRank(rules domain.TeamScoringRules, units []domain.Unit, sources []Team
 				continue
 			}
 			place := *c.Rank
+			medal := medalOf(place)
 			base := new(big.Rat)
-			count := 1
-			if rules.TiePolicy == "average" {
-				count = ties[place]
+			if !rules.Medals() {
+				count := 1
+				if rules.TiePolicy == "average" {
+					count = ties[place]
+				}
+				for i := 0; i < count && place-1+i < len(rules.Places); i++ {
+					base.Add(base, new(big.Rat).SetInt64(rules.Places[place-1+i]))
+				}
+				base.Quo(base, new(big.Rat).SetInt64(int64(count)))
+			} else if medal == "" {
+				continue
 			}
-			for i := 0; i < count && place-1+i < len(rules.Places); i++ {
-				base.Add(base, new(big.Rat).SetInt64(rules.Places[place-1+i]))
-			}
-			base.Quo(base, new(big.Rat).SetInt64(int64(count)))
 			points := new(big.Rat).Mul(base, new(big.Rat).SetInt64(src.Multiplier))
-			line := TeamScoreLine{TeamScoreCompetitor: c, EventID: src.EventID, CombinedID: src.CombinedID, EventName: src.Name, Gender: src.Gender, GroupLabel: src.GroupLabel, Base: scoreValue(base), Multiplier: src.Multiplier, Score: scoreValue(points)}
+			line := TeamScoreLine{TeamScoreCompetitor: c, EventID: src.EventID, CombinedID: src.CombinedID, EventName: src.Name, Gender: src.Gender, GroupLabel: src.GroupLabel, Base: scoreValue(base), Multiplier: src.Multiplier, Score: scoreValue(points), Medal: medal}
 			if row := byUnit[c.UnitID]; row != nil {
 				row.sum.Add(row.sum, points)
 				row.genders[src.Gender].Add(row.genders[src.Gender], points)
+				if place <= 3 {
+					row.medals[place-1]++
+				}
 				row.row.Lines = append(row.row.Lines, line)
 			} else {
 				out.Unassigned = append(out.Unassigned, line)
@@ -161,10 +192,27 @@ func TeamRank(rules domain.TeamScoringRules, units []domain.Unit, sources []Team
 	if out.Complete {
 		out.State = "正式排名"
 	}
-	sort.SliceStable(rows, func(i, j int) bool { return rows[i].sum.Cmp(rows[j].sum) > 0 })
+	// compare orders units best first: negative when a ranks ahead of b.
+	compare := func(a, b *total) int {
+		if !rules.Medals() {
+			return b.sum.Cmp(a.sum)
+		}
+		if rules.MedalOrder == domain.MedalOrderTotal {
+			if d := b.medals[0] + b.medals[1] + b.medals[2] - a.medals[0] - a.medals[1] - a.medals[2]; d != 0 {
+				return d
+			}
+		}
+		for i := range a.medals {
+			if d := b.medals[i] - a.medals[i]; d != 0 {
+				return d
+			}
+		}
+		return 0
+	}
+	sort.SliceStable(rows, func(i, j int) bool { return compare(rows[i], rows[j]) < 0 })
 	rank := 0
 	for i, r := range rows {
-		if i == 0 || r.sum.Cmp(rows[i-1].sum) != 0 {
+		if i == 0 || compare(r, rows[i-1]) != 0 {
 			rank = i + 1
 		}
 		if out.Counted > 0 {
@@ -175,6 +223,8 @@ func TeamRank(rules domain.TeamScoringRules, units []domain.Unit, sources []Team
 		r.row.Female = scoreValue(r.genders[domain.GenderFemale])
 		r.row.Mixed = scoreValue(r.genders[domain.GenderMixed])
 		r.row.Total = scoreValue(r.sum)
+		r.row.Gold, r.row.Silver, r.row.Bronze = r.medals[0], r.medals[1], r.medals[2]
+		r.row.Medals = r.medals[0] + r.medals[1] + r.medals[2]
 		out.Rows = append(out.Rows, r.row)
 	}
 	return out

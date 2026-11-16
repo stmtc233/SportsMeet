@@ -88,3 +88,42 @@ func TestV7TeamScoringAndLegacyUnknownFields(t *testing.T) {
 		}
 	}
 }
+
+func TestTeamScoringMedalsModeFields(t *testing.T) {
+	load := func(name string, version int, mode string) []byte {
+		data, err := os.ReadFile("../../testdata/interchange/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc map[string]any
+		if err := json.Unmarshal(data, &doc); err != nil {
+			t.Fatal(err)
+		}
+		rules := doc["meet"].(map[string]any)["teamScoring"].(map[string]any)
+		rules["mode"], rules["medalOrder"] = mode, "total"
+		out, err := json.Marshal(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	f, err := Decode(load("sample-meet-v12.json", 12, "medals"))
+	if err != nil || !f.Meet.TeamScoring.Medals() || f.Meet.TeamScoring.MedalOrder != domain.MedalOrderTotal {
+		t.Fatal("v12 medals rules", err)
+	}
+	encoded, err := Encode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again, err := Decode(encoded); err != nil || !reflect.DeepEqual(f, again) {
+		t.Fatal("medals roundtrip", err)
+	}
+	if _, err := Decode(load("sample-meet-v12.json", 12, "stars")); err == nil {
+		t.Fatal("unknown mode accepted")
+	}
+	// Earlier versions do not know the fields: they are ignored, never an error.
+	old, err := Decode(load("sample-meet-v11.json", 11, "stars"))
+	if err != nil || old.Meet.TeamScoring.Mode != "" || old.Meet.TeamScoring.MedalOrder != "" {
+		t.Fatal("v11 should ignore mode", err)
+	}
+}

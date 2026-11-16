@@ -442,3 +442,22 @@ func TestRowsOfIsBounded(t *testing.T) {
 		t.Errorf("RowsOf(0) = %v", rows)
 	}
 }
+
+func TestTeamScoresMedalsTable(t *testing.T) {
+	b := SampleBook()
+	ts := *b.TeamScores
+	ts.Medals = true
+	b.TeamScores = &ts
+	html, warns, err := TeamScores(b, Style{})
+	if err != nil || len(warns) > 0 {
+		t.Fatal(err, warns)
+	}
+	for _, want := range []string{"金牌", "银牌", "铜牌", "奖牌总数"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("missing %s", want)
+		}
+	}
+	if strings.Contains(html, "男子得分") || strings.Contains(html, "总分</th>") {
+		t.Fatal("points columns in the medal table")
+	}
+}

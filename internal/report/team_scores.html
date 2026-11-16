@@ -1,8 +1,8 @@
 {{define "teamScores"}}{{if .}}
 <section class="event team-scores">
 {{if .Standalone}}<p class="scope">{{.Scope}} · 已计分 {{.Counted}} / {{.Total}} 项 · {{.State}}</p>{{else}}<h2>团体总分表<small>{{.Scope}} · 已计分 {{.Counted}} / {{.Total}} 项 · {{.State}}</small></h2>{{end}}
-<table><thead><tr><th class="num">名次</th><th>参赛单位</th><th class="mark">男子得分</th><th class="mark">女子得分</th>{{if .Mixed}}<th class="mark">混合得分</th>{{end}}<th class="mark">总分</th></tr></thead>
-<tbody>{{$mixed := .Mixed}}{{range .Rows}}<tr><td class="num">{{.Rank}}</td><td>{{.Unit}}</td><td class="mark">{{.Male}}</td><td class="mark">{{.Female}}</td>{{if $mixed}}<td class="mark">{{.Mixed}}</td>{{end}}<td class="mark total">{{.Total}}</td></tr>{{end}}</tbody></table>
+<table><thead><tr><th class="num">名次</th><th>参赛单位</th>{{if .Medals}}<th class="mark">🥇 金牌</th><th class="mark">🥈 银牌</th><th class="mark">🥉 铜牌</th><th class="mark">奖牌总数</th>{{else}}<th class="mark">男子得分</th><th class="mark">女子得分</th>{{if .Mixed}}<th class="mark">混合得分</th>{{end}}<th class="mark">总分</th>{{end}}</tr></thead>
+<tbody>{{$mixed := .Mixed}}{{$medals := .Medals}}{{range .Rows}}<tr><td class="num">{{.Rank}}</td><td>{{.Unit}}</td>{{if $medals}}<td class="mark">{{.Gold}}</td><td class="mark">{{.Silver}}</td><td class="mark">{{.Bronze}}</td><td class="mark total">{{.Medals}}</td>{{else}}<td class="mark">{{.Male}}</td><td class="mark">{{.Female}}</td>{{if $mixed}}<td class="mark">{{.Mixed}}</td>{{end}}<td class="mark total">{{.Total}}</td>{{end}}</tr>{{end}}</tbody></table>
 {{if .Targets}}<p class="note">统计项目：{{range $i,$t := .Targets}}{{if $i}}、{{end}}{{$t}}{{end}}</p>{{end}}
 </section>
 {{end}}{{end}}

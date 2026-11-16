@@ -25,7 +25,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 
 - `format` 固定,不符即拒绝读取。
 - `version` 为正整数。增删字段、改字段含义、改单位、改枚举取值均须 +1。
-- 写出方总是写 v12；读取方支持 v1–v12。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；v1–v6 不解释赛事的团体计分规则 `meet.teamScoring`；v1–v7 不解释赛事组别目录 `groups` 与各实体的 `groupId` / `groupIds`；v1–v8 不解释赛事的报名限制 `meet.entryLimits`；v1–v9 不解释并列裁定 `result.tieBreak`；v1–v10 不解释前置页 `frontPages` 与赛事图片 `assets`；v1–v11 不解释运动员 `competitionGender` 与 `genderIdentity`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
+- 写出方总是写 v12；读取方支持 v1–v12。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；v1–v6 不解释赛事的团体计分规则 `meet.teamScoring`；v1–v7 不解释赛事组别目录 `groups` 与各实体的 `groupId` / `groupIds`；v1–v8 不解释赛事的报名限制 `meet.entryLimits`；v1–v9 不解释并列裁定 `result.tieBreak`；v1–v10 不解释前置页 `frontPages` 与赛事图片 `assets`；v1–v11 不解释运动员 `competitionGender` 与 `genderIdentity`以及团体计分规则的 `mode` 与 `medalOrder`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
 - 读取方必须能读所有已发布版本;遇到比自己新的版本直接拒绝,并提示升级软件(不尝试猜测读取)。
 
 ## 3. 基本约定
@@ -284,6 +284,8 @@ v12 的个人认同与参赛类别分别保存，不互相推断。`不愿透露
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|:---:|---|
 | `enabled` | boolean | ✓ | 是否启用团体计分 |
+| `mode` | string | | `points` 按积分排名（缺省）/ `medals` 按奖牌排名（奖牌榜） |
+| `medalOrder` | string | | 仅奖牌榜：`gold` 金牌 → 银牌 → 铜牌（缺省）/ `total` 奖牌总数优先，再比金银铜 |
 | `places` | integer[] | ✓ | 从第一名起的分值，至少一项，非负且非递增；名额外为 0 |
 | `tiePolicy` | string | ✓ | `average` 并列占用名次分值均分 / `same` 各得该名次分值 |
 | `relayMultiplier` | integer | ✓ | 接力默认倍数，非负，0 不计分 |
@@ -291,7 +293,9 @@ v12 的个人认同与参赛类别分别保存，不互相推断。`不愿透露
 
 例外为 `{eventId, multiplier}` 或 `{combinedId, multiplier}`，目标字段二选一，引用本文件内普通项目或全能，不能引用全能分项；同一目标不能重复。分值和倍数均为 0–9007199254740991 的整数。省略整个规则时使用未启用、前八名 9／7／6／5／4／3／2／1、并列均分、接力两倍、其余一倍、无例外。
 
-文件保存规则与原始成绩，不保存派生的单位总分与排名。导入新赛事映射例外中的项目／全能 ID；v1–v6 的新赛事默认未启用，导入已有赛事保留目标规则。完整计分、并列、全能和单位归属规则见 [团体总分细则](agents/team-scoring.md)。
+奖牌榜（`mode=medals`）按已完成项目的最终名次发奖牌：第一、二、三名为金、银、铜牌，并列者同得该牌；`places`、`tiePolicy`、`relayMultiplier` 不参与计算但仍须填写，例外倍数只有 0（不计入）有意义。
+
+文件保存规则与原始成绩，不保存派生的单位总分、奖牌数与排名。导入新赛事映射例外中的项目／全能 ID；v1–v6 的新赛事默认未启用，导入已有赛事保留目标规则。完整计分、并列、全能和单位归属规则见 [团体总分细则](agents/team-scoring.md)。
 
 ### 5.13 赛事组别 `groups[]`
 

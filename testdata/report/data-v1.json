@@ -530,6 +530,7 @@
         "男子跳远"
       ],
       "mixed": true,
+      "medals": false,
       "standalone": false,
       "rows": [
         {
@@ -538,7 +539,11 @@
           "male": "16",
           "female": "9",
           "mixed": "2",
-          "total": "27"
+          "total": "27",
+          "gold": "2",
+          "silver": "1",
+          "bronze": "0",
+          "medals": "3"
         }
       ]
     },

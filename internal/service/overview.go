@@ -429,7 +429,7 @@ func teamProgress(p *meetPlan, combineds []store.CombinedData, rules domain.Team
 	}
 	for _, e := range p.events {
 		base := int64(1)
-		if e.Kind == domain.KindRelay {
+		if e.Kind == domain.KindRelay && !rules.Medals() {
 			base = rules.RelayMultiplier
 		}
 		if e.CombinedID != "" || !live[e.ID] || multiplier(e.ID, "", base) <= 0 {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { IconChevronRight, StListItem, StSection, StSwitchItem, iconStroke } from "../../design";
-import { TeamScoringController, toInput, useTeamDetail } from "./controller";
+import { TeamScoringController, isMedals, toInput, useTeamDetail } from "./controller";
 import { TeamScoringRulesDialog } from "./TeamScoringRulesDialog";
 
 /** 团体总分 in 赛事设置: whether units are scored, and by which rules. */

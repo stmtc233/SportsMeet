@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StButton, StDialog, StSegmented, StStack, StSwitchItem, StTable, StTextField } from "../../design";
+import { StButton, StCheckbox, StDialog, StSegmented, StStack, StSwitchItem, StTable, StTextField } from "../../design";
 import type { TeamScoreDetail, TeamScoreTarget, TeamScoringInput } from "../../mygo";
 import { TeamScoringController, toInput } from "./controller";
 
@@ -14,6 +14,11 @@ export function TeamScoringRulesDialog({ meetId, detail, onClose }: { meetId: st
   // Empty follows the default multiplier, so it is not stored.
   const setMultiplier = (t: TeamScoreTarget, value: string) =>
     set({ overrides: [...input.overrides.filter((o) => !sameTarget(o, t)), ...(value.trim() === "" ? [] : [{ eventId: t.eventId, combinedId: t.combinedId, multiplier: value }])] });
+
+  const medals = input.mode === "medals";
+  // In medals mode a project counts unless its multiplier is 0.
+  const counts = (t: TeamScoreTarget) => multiplier(t) !== "0";
+  const setCounts = (t: TeamScoreTarget, on: boolean) => setMultiplier(t, on ? "" : "0");
 
   const save = async () => {
     setBusy(true);
@@ -32,21 +37,30 @@ export function TeamScoringRulesDialog({ meetId, detail, onClose }: { meetId: st
       }>
       <StStack gap={16}>
         <StSwitchItem title="启用团体计分" checked={input.enabled} onChange={(enabled) => set({ enabled })} />
-        <div className="form-grid">
-          <div className="span">
-            <StTextField label="名次分值" hint="从第一名起，用顿号分隔" width="fill" value={input.places} onChange={(places) => set({ places })} />
+        <StSegmented label="计分方式" value={medals ? "medals" : ""} onChange={(mode) => set({ mode })}
+          options={[{ value: "", label: "积分" }, { value: "medals", label: "奖牌" }]} />
+        {medals ? (
+          <StSegmented label="单位排序" value={input.medalOrder} onChange={(medalOrder) => set({ medalOrder })}
+            options={[{ value: "", label: "金牌优先" }, { value: "total", label: "奖牌总数优先" }]} />
+        ) : (
+          <div className="form-grid">
+            <div className="span">
+              <StTextField label="名次分值" hint="从第一名起，用顿号分隔" width="fill" value={input.places} onChange={(places) => set({ places })} />
+            </div>
+            <StTextField label="接力倍数" width="fill" inputMode="numeric" value={input.relayMultiplier} onChange={(relayMultiplier) => set({ relayMultiplier })} />
+            <StSegmented label="名次并列" value={input.tiePolicy} onChange={(tiePolicy) => set({ tiePolicy })}
+              options={[{ value: "average", label: "分值均分" }, { value: "same", label: "各得全分" }]} />
           </div>
-          <StTextField label="接力倍数" width="fill" inputMode="numeric" value={input.relayMultiplier} onChange={(relayMultiplier) => set({ relayMultiplier })} />
-          <StSegmented label="名次并列" value={input.tiePolicy} onChange={(tiePolicy) => set({ tiePolicy })}
-            options={[{ value: "average", label: "分值均分" }, { value: "same", label: "各得全分" }]} />
-        </div>
+        )}
         <div className="preview-table">
           <StTable<TeamScoreTarget> rows={detail.targets} rowKey={(r) => r.eventId || r.combinedId} empty="还没有项目" columns={[
             { key: "name", title: "项目", width: "minmax(180px, 1fr)", render: (r) => r.name },
-            { key: "multiplier", title: "倍数", width: "120px", render: (r) => (
-              <StTextField aria-label={`${r.name}的倍数`} width="fill" inputMode="numeric" align="end" placeholder={r.relay ? input.relayMultiplier : "1"}
-                value={multiplier(r)} onChange={(v) => setMultiplier(r, v)} />
-            ) },
+            medals
+              ? { key: "counts", title: "计入", width: "120px", render: (r: TeamScoreTarget) => <StCheckbox aria-label={`${r.name}计入奖牌`} checked={counts(r)} onChange={(on) => setCounts(r, on)} /> }
+              : { key: "multiplier", title: "倍数", width: "120px", render: (r: TeamScoreTarget) => (
+                  <StTextField aria-label={`${r.name}的倍数`} width="fill" inputMode="numeric" align="end" placeholder={r.relay ? input.relayMultiplier : "1"}
+                    value={multiplier(r)} onChange={(v) => setMultiplier(r, v)} />
+                ) },
           ]} />
         </div>
       </StStack>

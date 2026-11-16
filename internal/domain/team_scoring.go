@@ -2,14 +2,54 @@ package domain
 
 import "errors"
 
+// Team scoring modes. The empty Mode is TeamModePoints and the empty
+// MedalOrder is MedalOrderGold, so rules written before medals existed read
+// the same and canonical rules omit both.
+const (
+	TeamModePoints  = "points"
+	TeamModeMedals  = "medals"
+	MedalOrderGold  = "gold"  // gold, then silver, then bronze
+	MedalOrderTotal = "total" // medal total, then gold, silver, bronze
+)
+
 // TeamScoringRules belongs to a meet. Multipliers of zero exclude a target.
 // Component events never have their own rule: their combined is the target.
+// In medals mode places, tie policy and multipliers play no part: a target
+// counts once, and only a zero override excludes it.
 type TeamScoringRules struct {
 	Enabled         bool                `json:"enabled"`
+	Mode            string              `json:"mode,omitempty"`       // points | medals
+	MedalOrder      string              `json:"medalOrder,omitempty"` // gold | total, medals mode only
 	Places          []int64             `json:"places"`
 	TiePolicy       string              `json:"tiePolicy"` // average | same
 	RelayMultiplier int64               `json:"relayMultiplier"`
 	Overrides       []TeamScoreOverride `json:"overrides"`
+}
+
+// Medals reports whether units are ranked by medals instead of points.
+func (r TeamScoringRules) Medals() bool { return r.Mode == TeamModeMedals }
+
+// Canonical writes the rules in their one stored form: the default mode and
+// order are left empty, the order only exists in medals mode, and a medals
+// rule that never typed places or a tie policy keeps the defaults, so
+// switching back to points finds usable values.
+func (r TeamScoringRules) Canonical() TeamScoringRules {
+	if r.Mode == TeamModePoints {
+		r.Mode = ""
+	}
+	if !r.Medals() || r.MedalOrder == MedalOrderGold {
+		r.MedalOrder = ""
+	}
+	if r.Medals() {
+		d := DefaultTeamScoringRules()
+		if len(r.Places) == 0 {
+			r.Places = d.Places
+		}
+		if r.TiePolicy == "" {
+			r.TiePolicy = d.TiePolicy
+		}
+	}
+	return r
 }
 
 type TeamScoreOverride struct {
@@ -23,6 +63,12 @@ func DefaultTeamScoringRules() TeamScoringRules {
 }
 
 func (r TeamScoringRules) Validate() error {
+	if r.Mode != "" && r.Mode != TeamModePoints && r.Mode != TeamModeMedals {
+		return errors.New("请选择计分方式")
+	}
+	if r.MedalOrder != "" && r.MedalOrder != MedalOrderGold && r.MedalOrder != MedalOrderTotal {
+		return errors.New("请选择奖牌排序方式")
+	}
 	if len(r.Places) == 0 {
 		return errors.New("请填写名次分值")
 	}

@@ -2001,6 +2001,8 @@ export interface TeamScoreLine {
   base: ScoreValue;
   multiplier: number;
   score: ScoreValue;
+  /** 金 | 银 | 铜 | "" (not a medal place) */
+  medal: string;
 }
 
 export interface TeamScoreOverride {
@@ -2039,6 +2041,8 @@ export interface TeamScoreTarget {
 /** TeamScoringInput keeps editable numeric text intact until Go validates it. */
 export interface TeamScoringInput {
   enabled: boolean;
+  mode: string;
+  medalOrder: string;
   places: string;
   tiePolicy: string;
   relayMultiplier: string;
@@ -2048,9 +2052,15 @@ export interface TeamScoringInput {
 /**
  * TeamScoringRules belongs to a meet. Multipliers of zero exclude a target.
  * Component events never have their own rule: their combined is the target.
+ * In medals mode places, tie policy and multipliers play no part: a target
+ * counts once, and only a zero override excludes it.
  */
 export interface TeamScoringRules {
   enabled: boolean;
+  /** points | medals */
+  mode?: string;
+  /** gold | total, medals mode only */
+  medalOrder?: string;
   places: number[];
   /** average | same */
   tiePolicy: string;
@@ -2307,6 +2317,10 @@ export interface UnitStanding {
   female: ScoreValue;
   mixed: ScoreValue;
   total: ScoreValue;
+  gold: number;
+  silver: number;
+  bronze: number;
+  medals: number;
   lines: TeamScoreLine[];
 }
 

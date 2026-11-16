@@ -88,7 +88,7 @@ func SampleBook() Book {
 		}},
 		TeamScores: &TeamScoreTable{
 			State: "已完成", Scope: "全部项目", Counted: 4, Total: 5, Targets: []string{"男子100m", "男子跳远"}, Mixed: true,
-			Rows: []TeamScoreRow{{Rank: "1", Unit: "初一（1）班", Male: "16", Female: "9", Mixed: "2", Total: "27"}},
+			Rows: []TeamScoreRow{{Rank: "1", Unit: "初一（1）班", Male: "16", Female: "9", Mixed: "2", Total: "27", Gold: "2", Silver: "1", Bronze: "0", Medals: "3"}},
 		},
 	}
 }

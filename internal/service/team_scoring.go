@@ -123,6 +123,7 @@ func (s *Service) loadTeamScoreState(ctx context.Context, meetID string) (*teamS
 }
 
 func (st *teamScoreState) normalizeRules(r domain.TeamScoringRules) (domain.TeamScoringRules, error) {
+	r = r.Canonical()
 	if err := r.Validate(); err != nil {
 		return r, invalid("%s", err)
 	}
@@ -132,11 +133,12 @@ func (st *teamScoreState) normalizeRules(r domain.TeamScoringRules) (domain.Team
 		for _, t := range st.targets {
 			if o.EventID == t.EventID && o.CombinedID == t.CombinedID {
 				found = true
+				// A target counts once in medals mode, so only 0 differs.
 				base := int64(1)
-				if t.Relay {
+				if t.Relay && !r.Medals() {
 					base = r.RelayMultiplier
 				}
-				if o.Multiplier != base {
+				if o.Multiplier != base && (!r.Medals() || o.Multiplier == 0) {
 					overrides = append(overrides, o)
 				}
 				break
@@ -203,7 +205,7 @@ func (st *teamScoreState) detail(filter TeamScoreFilter, rules domain.TeamScorin
 			continue
 		}
 		src := scoring.TeamScoreSource{EventID: t.EventID, CombinedID: t.CombinedID, Name: t.Name, Gender: t.Gender, GroupLabel: t.GroupLabel, Multiplier: 1, Competitors: []scoring.TeamScoreCompetitor{}}
-		if t.Relay {
+		if t.Relay && !rules.Medals() {
 			src.Multiplier = rules.RelayMultiplier
 		}
 		for _, o := range rules.Overrides {

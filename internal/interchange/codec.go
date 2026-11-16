@@ -125,6 +125,14 @@ func withoutNewerFields(data []byte, version int) ([]byte, error) {
 			}
 		}
 	}
+	if version < 12 {
+		if meet, ok := doc["meet"].(map[string]any); ok {
+			if rules, ok := meet["teamScoring"].(map[string]any); ok {
+				delete(rules, "mode")
+				delete(rules, "medalOrder")
+			}
+		}
+	}
 	if version < 11 {
 		delete(doc, "frontPages")
 		delete(doc, "assets")

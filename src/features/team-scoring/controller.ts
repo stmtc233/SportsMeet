@@ -17,12 +17,17 @@ export function useTeamDetail(meetId: string) {
 export function toInput(rules: TeamScoringRules, enabled = rules.enabled): TeamScoringInput {
   return {
     enabled,
+    mode: rules.mode ?? "",
+    medalOrder: rules.medalOrder ?? "",
     places: rules.places.join("、"),
     tiePolicy: rules.tiePolicy,
     relayMultiplier: String(rules.relayMultiplier),
     overrides: rules.overrides.map((o) => ({ eventId: o.eventId ?? "", combinedId: o.combinedId ?? "", multiplier: String(o.multiplier) })),
   };
 }
+
+/** A meet ranks units by medals (奖牌榜) instead of points. */
+export const isMedals = (rules?: TeamScoringRules) => rules?.mode === "medals";
 
 export const TeamScoringController = {
   save: (meetId: string, input: TeamScoringInput, done = "已保存") => act(() => TeamScoring.save(meetId, input), done),
