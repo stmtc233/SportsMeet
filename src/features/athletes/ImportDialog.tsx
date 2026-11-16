@@ -6,7 +6,9 @@ import { AthletesController } from "./controller";
 const columns: StOption<string>[] = [
   { value: "", label: "不导入" },
   { value: "name", label: "姓名" },
-  { value: "gender", label: "性别" },
+  { value: "competitionGender", label: "参赛类别" },
+  { value: "gender", label: "参赛类别（旧列）" },
+  { value: "genderIdentity", label: "性别认同" },
   { value: "bib", label: "号码" },
   { value: "studentNumber", label: "学号" },
   { value: "unit", label: "参赛单位" },
@@ -94,7 +96,7 @@ export function ImportDialog({ meetId, open, onClose }: { meetId: string; open: 
           </>
         )
       }>
-      {!table && <StTextArea label="从表格复制后粘贴到这里" value={text} onChange={setText} rows={12} placeholder={"姓名\t性别\t学号\t班级\t报名项目\n王五\t男\t1002\t初一(1)班\t100m、跳远"} />}
+      {!table && <StTextArea label="从表格复制后粘贴到这里" value={text} onChange={setText} rows={12} placeholder={"姓名\t参赛类别\t学号\t班级\t报名项目\n王五\t男子\t1002\t初一(1)班\t100m、跳远"} />}
       {table && (
         <>
           <StRow>
@@ -122,6 +124,8 @@ export function ImportDialog({ meetId, open, onClose }: { meetId: string; open: 
                     { key: "line", title: "行", width: "56px", align: "end", render: (r) => r.line },
                     { key: "action", title: "操作", width: "72px", render: (r) => <StTag tone={actions[r.action]?.tone}>{actions[r.action]?.text}</StTag> },
                     { key: "name", title: "姓名", width: "160px", render: (r) => r.name },
+                    { key: "competitionGender", title: "参赛类别", width: "96px", render: (r) => r.competitionGenderText },
+                    { key: "genderIdentity", title: "性别认同", width: "96px", render: (r) => r.genderIdentity },
                     { key: "message", title: "说明", render: (r) => r.message },
                   ]} />
               </div>

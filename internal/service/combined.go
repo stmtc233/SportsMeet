@@ -188,7 +188,7 @@ func (st *combinedMeetState) detail(p store.CombinedData, rules map[string]domai
 	}
 	for _, r := range rows {
 		a := athletes[r.AthleteID]
-		d.Rows = append(d.Rows, CombinedRow{GroupMismatch: p.Combined.GroupID != "" && a.GroupID != "" && p.Combined.GroupID != a.GroupID, CombinedStanding: r, GenderMismatch: a.Gender != "" && p.Combined.Gender != domain.GenderMixed && a.Gender != p.Combined.Gender, Name: a.Name, Bib: a.Bib, UnitName: st.units[a.UnitID]})
+		d.Rows = append(d.Rows, CombinedRow{GroupMismatch: p.Combined.GroupID != "" && a.GroupID != "" && p.Combined.GroupID != a.GroupID, CombinedStanding: r, GenderMismatch: a.CompetitionGender != "" && p.Combined.Gender != domain.GenderMixed && a.CompetitionGender != p.Combined.Gender, Name: a.Name, Bib: a.Bib, UnitName: st.units[a.UnitID]})
 	}
 	return d, nil
 }
@@ -241,7 +241,7 @@ func (s *Service) SaveCombined(ctx context.Context, src store.Source, meetID, id
 	}
 	gender, ok := domain.NormalizeEventGender(in.Gender)
 	if !ok {
-		return nil, invalid("请选择性别")
+		return nil, invalid("请选择参赛类别")
 	}
 	c := domain.Combined{ID: id, MeetID: meetID, Name: strings.TrimSpace(in.Name), Gender: gender, GroupLabel: strings.TrimSpace(in.GroupLabel), Note: strings.TrimSpace(in.Note), RuleVersion: 1}
 	if c.Name == "" {

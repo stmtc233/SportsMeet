@@ -13,10 +13,6 @@ func TestV11FrontPagesAndAssets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	example, err := os.ReadFile("../../docs/examples/sample-meet.json")
-	if err != nil || string(example) != string(data) {
-		t.Fatal("documented example differs from v11 golden")
-	}
 	f, err := Decode(data)
 	if err != nil {
 		t.Fatal(err)

@@ -4,14 +4,14 @@ import "errors"
 
 // Combined owns independently arranged component events and one shared roster.
 type Combined struct {
-	GroupID     string `json:"groupId"`
-	ID          string `json:"id"`
-	MeetID      string `json:"meetId"`
-	Name        string `json:"name"`
-	Gender      Gender `json:"gender"`
-	GroupLabel  string `json:"groupLabel"`
-	Note        string `json:"note"`
-	RuleVersion int    `json:"ruleVersion"`
+	GroupID     string            `json:"groupId"`
+	ID          string            `json:"id"`
+	MeetID      string            `json:"meetId"`
+	Name        string            `json:"name"`
+	Gender      CompetitionGender `json:"gender"`
+	GroupLabel  string            `json:"groupLabel"`
+	Note        string            `json:"note"`
+	RuleVersion int               `json:"ruleVersion"`
 }
 type PointBand struct {
 	Mark   int64 `json:"mark"`
@@ -62,6 +62,6 @@ type CombinedComponent struct {
 	Rule       PointRule `json:"rule"`
 }
 
-func CombinedKey(g Gender, name, group string) string {
+func CombinedKey(g CompetitionGender, name, group string) string {
 	return string(g) + "|" + NormalizeText(name) + "|" + NormalizeText(group)
 }

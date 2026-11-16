@@ -137,7 +137,7 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 		f.Units = append(f.Units, interchange.Unit{GroupIDs: append([]string{}, u.GroupIDs...), ID: u.ID, Name: u.Name, ShortName: u.ShortName})
 	}
 	for _, a := range athletes {
-		f.Athletes = append(f.Athletes, interchange.Athlete{GroupID: a.GroupID, ID: a.ID, Name: a.Name, Gender: string(a.Gender), Bib: a.Bib,
+		f.Athletes = append(f.Athletes, interchange.Athlete{GroupID: a.GroupID, ID: a.ID, Name: a.Name, CompetitionGender: string(a.CompetitionGender), GenderIdentity: string(a.GenderIdentity), Bib: a.Bib,
 			StudentNumber: a.StudentNumber, UnitID: optStr(a.UnitID), Affiliation: unitNames[a.UnitID],
 			ClassName: a.ClassName, Grade: a.Grade, BirthDate: optStr(a.BirthDate), Note: a.Note})
 	}
@@ -460,7 +460,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 	genders := map[string]string{}
 	added := []domain.Athlete{}
 	for _, a := range f.Athletes {
-		names[a.ID], genders[a.ID] = a.Name, a.Gender
+		names[a.ID], genders[a.ID] = a.Name, a.CompetitionGender
 		if id, ok := match.Athletes[a.ID]; ok {
 			athletes[a.ID] = id
 			p.Athletes.Reused++
@@ -474,7 +474,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 			}
 			continue
 		}
-		n := domain.Athlete{ID: newID(), MeetID: meetID, Name: strings.TrimSpace(a.Name), Gender: domain.Gender(a.Gender),
+		n := domain.Athlete{ID: newID(), MeetID: meetID, Name: strings.TrimSpace(a.Name), CompetitionGender: domain.CompetitionGender(a.CompetitionGender), GenderIdentity: domain.GenderIdentity(a.GenderIdentity),
 			Bib: strings.TrimSpace(a.Bib), StudentNumber: strings.TrimSpace(a.StudentNumber),
 			GroupID: groupIDs[a.GroupID], ClassName: a.ClassName, Grade: a.Grade, Note: a.Note}
 		if a.UnitID != nil {
@@ -528,13 +528,13 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 			id := newID()
 			combinedIDs[c.ID] = id
 			p.Combineds.New++
-			plan.stmts = append(plan.stmts, insertCombined(domain.Combined{ID: id, MeetID: meetID, Name: c.Name, Gender: domain.Gender(c.Gender), GroupID: groupByName[domain.NormalizeText(c.GroupLabel)], GroupLabel: c.GroupLabel, Note: c.Note, RuleVersion: c.RuleVersion}))
+			plan.stmts = append(plan.stmts, insertCombined(domain.Combined{ID: id, MeetID: meetID, Name: c.Name, Gender: domain.CompetitionGender(c.Gender), GroupID: groupByName[domain.NormalizeText(c.GroupLabel)], GroupLabel: c.GroupLabel, Note: c.Note, RuleVersion: c.RuleVersion}))
 		}
 	}
 	entries := map[string]bool{}
 	for _, e := range f.Events {
 		kind := domain.EventKind(e.Kind)
-		gender := domain.Gender(e.Gender)
+		gender := domain.CompetitionGender(e.Gender)
 		name := strings.TrimSpace(e.Name)
 		if name == "" {
 			name = domain.ComposeEventName(gender, e.Discipline, e.GroupLabel)
@@ -606,7 +606,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 				mappedMembers[athletes[m]] = true
 				members = append(members, athletes[m])
 				if g := genders[m]; g != "" && gender != domain.GenderMixed && g != string(gender) {
-					p.Warnings = append(p.Warnings, fmt.Sprintf("「%s」的性别与「%s」不符", names[m], name))
+					p.Warnings = append(p.Warnings, fmt.Sprintf("「%s」的参赛类别与「%s」不符", names[m], name))
 				}
 			}
 			unit := ""
@@ -656,7 +656,7 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 				id = teams[en.TeamID]
 			}
 			if g := genders[en.AthleteID]; g != "" && gender != domain.GenderMixed && g != string(gender) {
-				p.Warnings = append(p.Warnings, fmt.Sprintf("「%s」的性别与「%s」不符", names[en.AthleteID], name))
+				p.Warnings = append(p.Warnings, fmt.Sprintf("「%s」的参赛类别与「%s」不符", names[en.AthleteID], name))
 			}
 			if k := eventID + "|" + id; !entered[k] && !entries[k] {
 				entries[k] = true

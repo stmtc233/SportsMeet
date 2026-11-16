@@ -91,7 +91,7 @@ func TestExportImportFrontPagesAndAssets(t *testing.T) {
 	must(t, err)
 	file, err := f.svc.ExportMeet(ctx, f.meet)
 	must(t, err)
-	if file.Version != 11 || len(file.FrontPages) != 2 || file.FrontPages[1].Reports[0] != "startlist" || len(file.Assets) != 1 || file.Assets[0].MIME != "image/png" {
+	if file.Version != interchange.Version || len(file.FrontPages) != 2 || file.FrontPages[1].Reports[0] != "startlist" || len(file.Assets) != 1 || file.Assets[0].MIME != "image/png" {
 		t.Fatalf("export = %+v %+v", file.FrontPages, file.Assets)
 	}
 	data, err := interchange.Encode(file)

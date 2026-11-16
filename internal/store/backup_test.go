@@ -45,9 +45,9 @@ func startedRollback() []sqlite.Statement {
 
 // printStyleRollback undoes migration 0014.
 func printStyleRollback() []sqlite.Statement {
-	return []sqlite.Statement{Stmt("DELETE FROM schema_migrations WHERE version = 14"),
+	return append(genderRollback(), Stmt("DELETE FROM schema_migrations WHERE version = 14"),
 		Stmt("DROP INDEX idx_meet_front_pages_meet"), Stmt("DROP TABLE meet_front_pages"), Stmt("DROP TABLE meet_assets"),
-		Stmt("DROP TABLE print_style_versions"), Stmt("DROP TABLE print_style_assets"), Stmt("DROP TABLE print_styles")}
+		Stmt("DROP TABLE print_style_versions"), Stmt("DROP TABLE print_style_assets"), Stmt("DROP TABLE print_styles"))
 }
 
 // followRollback undoes migrations 0014 and 0013 (which changes data only).
@@ -209,4 +209,9 @@ func TestMeetSettingsStartFromPreferences(t *testing.T) {
 	if got, err := s.MeetSettings(ctx, "m1"); err != nil || got != `{"minRestMinutes":15}` {
 		t.Fatalf("settings = %q, %v", got, err)
 	}
+}
+
+// genderRollback restores the v14 athlete columns for real upgrade tests.
+func genderRollback() []sqlite.Statement {
+	return []sqlite.Statement{Stmt("DELETE FROM schema_migrations WHERE version = 15"), Stmt("ALTER TABLE athletes DROP COLUMN gender_identity"), Stmt("ALTER TABLE athletes RENAME COLUMN competition_gender TO gender")}
 }

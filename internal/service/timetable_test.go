@@ -277,13 +277,13 @@ func TestCompactStartList(t *testing.T) {
 func TestRosterBook(t *testing.T) {
 	units := []domain.Unit{{ID: "u1", Name: "一班"}, {ID: "u2", Name: "二班"}, {ID: "u3", Name: "三班"}}
 	athletes := []domain.Athlete{
-		{ID: "a", Name: "甲", Gender: domain.GenderFemale, Bib: "12", UnitID: "u1"},
-		{ID: "b", Name: "乙", Gender: domain.GenderMale, Bib: "101", UnitID: "u1"},
-		{ID: "c", Name: "丙", Gender: domain.GenderMale, Bib: "9", UnitID: "u1"},
-		{ID: "d", Name: "丁", Gender: domain.GenderMale, Bib: "", UnitID: "u1"},
-		{ID: "e", Name: "戊", Gender: domain.GenderMale, Bib: "A1", UnitID: "u1"},
+		{ID: "a", Name: "甲", CompetitionGender: domain.GenderFemale, Bib: "12", UnitID: "u1"},
+		{ID: "b", Name: "乙", CompetitionGender: domain.GenderMale, Bib: "101", UnitID: "u1"},
+		{ID: "c", Name: "丙", CompetitionGender: domain.GenderMale, Bib: "9", UnitID: "u1"},
+		{ID: "d", Name: "丁", CompetitionGender: domain.GenderMale, Bib: "", UnitID: "u1"},
+		{ID: "e", Name: "戊", CompetitionGender: domain.GenderMale, Bib: "A1", UnitID: "u1"},
 		{ID: "f", Name: "己", UnitID: "u2"},
-		{ID: "g", Name: "庚", Gender: domain.GenderMale, UnitID: "gone"},
+		{ID: "g", Name: "庚", CompetitionGender: domain.GenderMale, UnitID: "gone"},
 	}
 	got := rosterBook(units, athletes, nil)
 	if len(got) != 3 || got[0].Name != "一班" || got[0].Count != 5 || got[2].Name != "无参赛单位" {

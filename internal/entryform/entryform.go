@@ -33,7 +33,7 @@ const (
 )
 
 // athleteColumns come before the event columns of the athlete sheet.
-var athleteColumns = []string{"姓名", "性别", "学号"}
+var athleteColumns = []string{"姓名", "参赛类别", "学号"}
 
 // ticks are what an event cell may hold to enter the athlete.
 var ticks = map[string]bool{Tick: true, "✓": true, "✔": true}
@@ -72,12 +72,14 @@ type Form struct {
 
 // FormAthlete is one filled row of the athlete sheet.
 type FormAthlete struct {
-	Line          int      `json:"line"` // the sheet's row number
-	Name          string   `json:"name"`
-	Gender        string   `json:"gender"`
-	StudentNumber string   `json:"studentNumber"`
-	Unit          string   `json:"unit,omitempty"` // on a group's form
-	Events        []string `json:"events"`         // ticked events, by full name
+	Line                    int      `json:"line"` // the sheet's row number
+	Name                    string   `json:"name"`
+	CompetitionGender       string   `json:"competitionGender"`
+	GenderIdentity          string   `json:"genderIdentity,omitempty"`
+	LegacyCompetitionGender string   `json:"legacyCompetitionGender,omitempty"` // only when both old and new columns are supplied
+	StudentNumber           string   `json:"studentNumber"`
+	Unit                    string   `json:"unit,omitempty"` // on a group's form
+	Events                  []string `json:"events"`         // ticked events, by full name
 	// Problem is a cell the row cannot be read with; "" = none.
 	Problem string `json:"problem,omitempty"`
 }
@@ -193,7 +195,7 @@ func buildAthletes(f *excelize.File, spec Spec) error {
 				TopLeftCell: cellName(len(columns)+1, headRow+1), ActivePane: "bottomRight"})
 		},
 		func() error {
-			return addList(f, sh, cellName(2, headRow+1)+":"+cellName(2, headRow+BlankRows), []string{"男", "女"})
+			return addList(f, sh, cellName(2, headRow+1)+":"+cellName(2, headRow+BlankRows), []string{"男子", "女子"})
 		},
 	}
 	if len(spec.Units) > 0 {
@@ -390,7 +392,7 @@ func Parse(data []byte) (*Form, error) {
 		c = clean(c)
 		switch {
 		case c == "":
-		case slices.Contains(athleteColumns, c) || c == LabelUnit:
+		case slices.Contains(athleteColumns, c) || c == LabelUnit || c == "性别" || c == "性别认同":
 			columns[c] = j
 		default:
 			events = append(events, eventCol{j, c})
@@ -410,8 +412,19 @@ func Parse(data []byte) (*Form, error) {
 		if j, ok := columns["姓名"]; ok {
 			a.Name = at(j)
 		}
+		if j, ok := columns["参赛类别"]; ok {
+			a.CompetitionGender = at(j)
+		}
 		if j, ok := columns["性别"]; ok {
-			a.Gender = at(j)
+			legacy := at(j)
+			if a.CompetitionGender == "" {
+				a.CompetitionGender = legacy
+			} else if legacy != "" {
+				a.LegacyCompetitionGender = legacy
+			}
+		}
+		if j, ok := columns["性别认同"]; ok {
+			a.GenderIdentity = at(j)
 		}
 		if j, ok := columns["学号"]; ok {
 			a.StudentNumber = at(j)

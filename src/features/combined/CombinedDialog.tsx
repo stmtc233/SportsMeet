@@ -27,7 +27,7 @@ export function CombinedDialog({ meetId, detail, initialGroupId = "", onClose }:
     <div className="form-grid" inert={busy}>
       <StTextField label="全能名称" value={name} onChange={setName} autoFocus />
       <GroupSelect meetId={meetId} value={groupId} onChange={setGroupId} />
-      <StSegmented label="性别" value={gender} onChange={setGender} options={[{ value: "男", label: "男", disabled: locked }, { value: "女", label: "女", disabled: locked }, { value: "混合", label: "混合", disabled: locked }]} />
+      <StSegmented label="参赛类别" value={gender} onChange={setGender} options={[{ value: "男", label: "男子", disabled: locked }, { value: "女", label: "女子", disabled: locked }, { value: "混合", label: "混合", disabled: locked }]} />
     </div>
     {detail && <StNotice>计分表请在「计分规则」中修改</StNotice>}
     {parts.map((part, i) => <StSection key={i} title={`分项 ${i + 1}`} actions={<StButton size="small" disabled={busy || locked || parts.length <= 2} onClick={() => setParts((old) => old.filter((_, n) => n !== i))}>移除</StButton>}>

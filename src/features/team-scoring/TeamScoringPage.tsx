@@ -48,7 +48,7 @@ export function TeamScoringPage({ meetId }: { meetId: string }) {
       {detail && enabled && (
         <StStack gap={24}>
           <StRow>
-            <StSegmented aria-label="性别" value={gender} onChange={setGender}
+            <StSegmented aria-label="参赛类别" value={gender} onChange={setGender}
               options={[{ value: "", label: "全部" }, { value: "男", label: "男子" }, { value: "女", label: "女子" }, { value: "混合", label: "混合" }]} />
             {!!groups?.length && <GroupFilter meetId={meetId} value={group} onChange={setGroup} />}
           </StRow>

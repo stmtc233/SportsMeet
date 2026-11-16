@@ -1,6 +1,6 @@
 {
   "format": "sportsmeet-interchange",
-  "version": 11,
+  "version": 12,
   "exportedAt": "2026-11-12T18:05:31+08:00",
   "generator": {
     "name": "SportsMeet",
@@ -66,62 +66,63 @@
     {
       "id": "a1",
       "name": "张三",
-      "gender": "男",
       "bib": "1001",
       "studentNumber": "20240101",
       "unitId": "u1",
       "affiliation": "初二(1)班",
       "className": "初二(1)班",
       "grade": "初二",
-      "groupId": "g1"
+      "groupId": "g1",
+      "competitionGender": "男",
+      "genderIdentity": "非二元"
     },
     {
       "id": "a2",
       "name": "李四",
-      "gender": "男",
       "bib": "1002",
       "studentNumber": "20240102",
       "unitId": "u1",
       "affiliation": "初二(1)班",
       "className": "初二(1)班",
       "grade": "初二",
-      "groupId": "g1"
+      "groupId": "g1",
+      "competitionGender": "男"
     },
     {
       "id": "a3",
       "name": "王五",
-      "gender": "男",
       "bib": "2001",
       "studentNumber": "20240201",
       "unitId": "u2",
       "affiliation": "初二(2)班",
       "className": "初二(2)班",
       "grade": "初二",
-      "groupId": "g1"
+      "groupId": "g1",
+      "competitionGender": "男"
     },
     {
       "id": "a4",
       "name": "赵六",
-      "gender": "女",
       "bib": "2002",
       "studentNumber": "20240202",
       "unitId": "u2",
       "affiliation": "初二(2)班",
       "className": "初二(2)班",
       "grade": "初二",
-      "groupId": "g1"
+      "groupId": "g1",
+      "competitionGender": "女"
     },
     {
       "id": "a5",
       "name": "孙七",
-      "gender": "女",
       "bib": "1003",
       "studentNumber": "20240103",
       "unitId": "u1",
       "affiliation": "初二(1)班",
       "className": "初二(1)班",
       "grade": "初二",
-      "groupId": "g1"
+      "groupId": "g1",
+      "competitionGender": "女"
     }
   ],
   "events": [

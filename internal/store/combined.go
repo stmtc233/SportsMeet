@@ -42,7 +42,7 @@ func (s *Store) ListCombined(ctx context.Context, meetID string) ([]CombinedData
 	out := make([]CombinedData, 0, len(rr.Values))
 	for _, r := range rr.Values {
 		id := str(r[0])
-		out = append(out, CombinedData{Combined: domain.Combined{ID: id, MeetID: str(r[1]), Name: str(r[2]), Gender: domain.Gender(str(r[3])), GroupLabel: str(r[4]), Note: str(r[5]), RuleVersion: int(i64(r[6])), GroupID: str(r[7])}, Components: components[id], AthleteIDs: athletes[id]})
+		out = append(out, CombinedData{Combined: domain.Combined{ID: id, MeetID: str(r[1]), Name: str(r[2]), Gender: domain.CompetitionGender(str(r[3])), GroupLabel: str(r[4]), Note: str(r[5]), RuleVersion: int(i64(r[6])), GroupID: str(r[7])}, Components: components[id], AthleteIDs: athletes[id]})
 	}
 	return out, nil
 }

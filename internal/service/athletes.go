@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/egoist/mygo/plugins/sqlite"
@@ -11,25 +12,47 @@ import (
 
 // AthleteInput creates or updates an athlete.
 type AthleteInput struct {
-	GroupID       string `json:"groupId,omitempty"`
-	Name          string `json:"name"`
-	Gender        string `json:"gender,omitempty"`
-	Bib           string `json:"bib,omitempty"`
-	StudentNumber string `json:"studentNumber,omitempty"`
-	UnitID        string `json:"unitId,omitempty"`
-	ClassName     string `json:"className,omitempty"`
-	Grade         string `json:"grade,omitempty"`
-	BirthDate     string `json:"birthDate,omitempty"`
-	Note          string `json:"note,omitempty"`
+	legacyGenderProvided bool
+	GroupID              string `json:"groupId,omitempty"`
+	Name                 string `json:"name"`
+	// Gender is the legacy competition category, never a gender identity.
+	Gender            string  `json:"gender,omitempty"`
+	CompetitionGender *string `json:"competitionGender,omitempty"`
+	GenderIdentity    *string `json:"genderIdentity,omitempty"`
+	Bib               string  `json:"bib,omitempty"`
+	StudentNumber     string  `json:"studentNumber,omitempty"`
+	UnitID            string  `json:"unitId,omitempty"`
+	ClassName         string  `json:"className,omitempty"`
+	Grade             string  `json:"grade,omitempty"`
+	BirthDate         string  `json:"birthDate,omitempty"`
+	Note              string  `json:"note,omitempty"`
+}
+
+// UnmarshalJSON preserves whether a legacy client explicitly cleared its category.
+func (in *AthleteInput) UnmarshalJSON(data []byte) error {
+	type plain AthleteInput
+	*in = AthleteInput{}
+	wire := struct {
+		*plain
+		Gender *string `json:"gender"`
+	}{plain: (*plain)(in)}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	if wire.Gender != nil {
+		in.Gender, in.legacyGenderProvided = *wire.Gender, true
+	}
+	return nil
 }
 
 // AthleteRow is an athlete in the meet's list.
 type AthleteRow struct {
-	TeamMember bool           `json:"teamMember"`
-	Athlete    domain.Athlete `json:"athlete"`
-	UnitName   string         `json:"unitName"`
-	Entries    int            `json:"entries"` // events entered
-	Placed     bool           `json:"placed"`  // occupies a slot somewhere
+	CompetitionGenderText string         `json:"competitionGenderText"`
+	TeamMember            bool           `json:"teamMember"`
+	Athlete               domain.Athlete `json:"athlete"`
+	UnitName              string         `json:"unitName"`
+	Entries               int            `json:"entries"` // events entered
+	Placed                bool           `json:"placed"`  // occupies a slot somewhere
 	// OverLimit: enters more events than the meet's 每人限报项数.
 	OverLimit bool `json:"overLimit"`
 }
@@ -68,7 +91,7 @@ func (s *Service) ListAthletes(ctx context.Context, meetID string) ([]AthleteRow
 	}
 	out := make([]AthleteRow, len(athletes))
 	for i, a := range athletes {
-		out[i] = AthleteRow{TeamMember: members[a.ID], Athlete: a, UnitName: names[a.UnitID], Entries: entries[a.ID], Placed: slots[a.ID] > 0, OverLimit: over[a.ID] > 0}
+		out[i] = AthleteRow{CompetitionGenderText: domain.CompetitionGenderText(a.CompetitionGender), TeamMember: members[a.ID], Athlete: a, UnitName: names[a.UnitID], Entries: entries[a.ID], Placed: slots[a.ID] > 0, OverLimit: over[a.ID] > 0}
 	}
 	return out, nil
 }
@@ -85,16 +108,33 @@ func (in AthleteInput) athlete() (domain.Athlete, error) {
 		BirthDate:     strings.TrimSpace(in.BirthDate),
 		Note:          strings.TrimSpace(in.Note),
 	}
-	g, ok := domain.NormalizeAthleteGender(in.Gender)
+	category := in.Gender
+	if in.CompetitionGender != nil {
+		category = *in.CompetitionGender
+	}
+	g, ok := domain.NormalizeAthleteCompetitionGender(category)
+	if (in.legacyGenderProvided || in.Gender != "") && in.CompetitionGender != nil {
+		legacy, valid := domain.NormalizeAthleteCompetitionGender(in.Gender)
+		if !valid || legacy != g {
+			return a, invalid("参赛类别与旧性别字段不一致")
+		}
+	}
+	if in.GenderIdentity != nil {
+		identity, valid := domain.NormalizeGenderIdentity(*in.GenderIdentity)
+		if !valid {
+			return a, invalid("请选择参赛类别认同")
+		}
+		a.GenderIdentity = identity
+	}
 	switch {
 	case a.Name == "":
 		return a, invalid("请填写姓名")
 	case !ok:
-		return a, invalid("性别只能为男或女")
+		return a, invalid("参赛类别只能为男子或女子")
 	case a.BirthDate != "" && !domain.ValidDate(a.BirthDate):
 		return a, invalid("出生日期格式不正确")
 	}
-	a.Gender = g
+	a.CompetitionGender = g
 	return a, nil
 }
 
@@ -146,17 +186,17 @@ func (s *Service) followAthleteGroups(ctx context.Context, meetID string, a *dom
 }
 
 func insertAthlete(a domain.Athlete, now int64) sqlite.Statement {
-	return store.Stmt(`INSERT INTO athletes(id, meet_id, name, gender, bib, student_number, unit_id, class_name,
-		grade, birth_date, note, created_at, bib_key, student_number_key, name_key, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		a.ID, a.MeetID, a.Name, string(a.Gender), a.Bib, a.StudentNumber, nullable(a.UnitID), a.ClassName,
-		a.Grade, a.BirthDate, a.Note, now, domain.NormalizeText(a.Bib), domain.NormalizeText(a.StudentNumber), domain.NormalizeText(a.Name), nullable(a.GroupID))
+	return store.Stmt(`INSERT INTO athletes(id, meet_id, name, competition_gender, bib, student_number, unit_id, class_name,
+		grade, birth_date, note, created_at, bib_key, student_number_key, name_key, group_id, gender_identity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.ID, a.MeetID, a.Name, string(a.CompetitionGender), a.Bib, a.StudentNumber, nullable(a.UnitID), a.ClassName,
+		a.Grade, a.BirthDate, a.Note, now, domain.NormalizeText(a.Bib), domain.NormalizeText(a.StudentNumber), domain.NormalizeText(a.Name), nullable(a.GroupID), string(a.GenderIdentity))
 }
 
 func updateAthlete(a domain.Athlete) sqlite.Statement {
-	return store.Stmt(`UPDATE athletes SET name = ?, gender = ?, bib = ?, student_number = ?, unit_id = ?,
-		class_name = ?, grade = ?, birth_date = ?, note = ?, bib_key=?, student_number_key=?, name_key=?, group_id=? WHERE id = ?`,
-		a.Name, string(a.Gender), a.Bib, a.StudentNumber, nullable(a.UnitID), a.ClassName, a.Grade, a.BirthDate, a.Note,
-		domain.NormalizeText(a.Bib), domain.NormalizeText(a.StudentNumber), domain.NormalizeText(a.Name), nullable(a.GroupID), a.ID)
+	return store.Stmt(`UPDATE athletes SET name = ?, competition_gender = ?, bib = ?, student_number = ?, unit_id = ?,
+		class_name = ?, grade = ?, birth_date = ?, note = ?, bib_key=?, student_number_key=?, name_key=?, group_id=?, gender_identity=? WHERE id = ?`,
+		a.Name, string(a.CompetitionGender), a.Bib, a.StudentNumber, nullable(a.UnitID), a.ClassName, a.Grade, a.BirthDate, a.Note,
+		domain.NormalizeText(a.Bib), domain.NormalizeText(a.StudentNumber), domain.NormalizeText(a.Name), nullable(a.GroupID), string(a.GenderIdentity), a.ID)
 }
 
 // SaveAthlete creates an athlete (id "") or updates one.
@@ -176,12 +216,18 @@ func (s *Service) SaveAthlete(ctx context.Context, src store.Source, meetID, id 
 		return nil, err
 	}
 	if id != "" {
-		exists, err := s.store.AthleteExists(ctx, meetID, id)
+		previous, err := s.store.GetAthlete(ctx, meetID, id)
 		if err != nil {
 			return nil, err
 		}
-		if !exists {
+		if previous == nil {
 			return nil, invalid("运动员不存在或已删除")
+		}
+		if in.CompetitionGender == nil && in.Gender == "" && !in.legacyGenderProvided {
+			a.CompetitionGender = previous.CompetitionGender
+		}
+		if in.GenderIdentity == nil {
+			a.GenderIdentity = previous.GenderIdentity
 		}
 	}
 	if a.UnitID != "" {

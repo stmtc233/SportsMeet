@@ -526,9 +526,9 @@ func rosterBook(units []domain.Unit, athletes []domain.Athlete, listed map[strin
 		}
 	}
 	genders := []struct {
-		gender domain.Gender
+		gender domain.CompetitionGender
 		label  string
-	}{{domain.GenderMale, "男子"}, {domain.GenderFemale, "女子"}, {domain.GenderUnknown, "其他"}}
+	}{{domain.GenderMale, "男子"}, {domain.GenderFemale, "女子"}, {domain.GenderUnknown, "未指定"}}
 	var out []report.UnitRoster
 	add := func(name string, list []domain.Athlete) {
 		if len(list) == 0 {
@@ -547,8 +547,8 @@ func rosterBook(units []domain.Unit, athletes []domain.Athlete, listed map[strin
 		for _, g := range genders {
 			group := report.RosterGroup{Label: g.label}
 			for _, a := range list {
-				known := a.Gender == domain.GenderMale || a.Gender == domain.GenderFemale
-				if a.Gender == g.gender || !known && g.gender == domain.GenderUnknown {
+				known := a.CompetitionGender == domain.GenderMale || a.CompetitionGender == domain.GenderFemale
+				if a.CompetitionGender == g.gender || !known && g.gender == domain.GenderUnknown {
 					group.Athletes = append(group.Athletes, report.Line{Bib: a.Bib, Name: a.Name})
 				}
 			}
@@ -557,7 +557,7 @@ func rosterBook(units []domain.Unit, athletes []domain.Athlete, listed map[strin
 			}
 		}
 		// One group of unknown gender needs no heading.
-		if len(u.Groups) == 1 && u.Groups[0].Label == "其他" {
+		if len(u.Groups) == 1 && u.Groups[0].Label == "未指定" {
 			u.Groups[0].Label = ""
 		}
 		out = append(out, u)

@@ -11,6 +11,7 @@ import (
 // AthleteEntryOption is an individual event as the athlete dialog offers
 // it: whether the athlete is in it, and whether that can be undone there.
 type AthleteEntryOption struct {
+	Matches bool   `json:"matches"` // category and competition group match
 	EventID string `json:"eventId"`
 	Name    string `json:"name"`
 	Entered bool   `json:"entered"`
@@ -22,7 +23,7 @@ type AthleteEntryOption struct {
 // combined components) an athlete of this gender and group can enter, in
 // the 项目 page's order, and those they are already in. athleteID is ""
 // for an athlete not saved yet.
-func (s *Service) AthleteEntryOptions(ctx context.Context, meetID, athleteID string, gender domain.Gender, groupID string) ([]AthleteEntryOption, error) {
+func (s *Service) AthleteEntryOptions(ctx context.Context, meetID, athleteID string, gender domain.CompetitionGender, groupID string, all ...bool) ([]AthleteEntryOption, error) {
 	p, err := s.loadMeetPlan(ctx, meetID)
 	if err != nil {
 		return nil, err
@@ -37,10 +38,10 @@ func (s *Service) AthleteEntryOptions(ctx context.Context, meetID, athleteID str
 			continue
 		}
 		fits := (e.Gender == domain.GenderMixed || gender == domain.GenderUnknown || e.Gender == gender) && (e.GroupID == "" || e.GroupID == groupID)
-		if !fits && !entered[e.ID] {
+		if !fits && !entered[e.ID] && !(len(all) > 0 && all[0]) {
 			continue
 		}
-		out = append(out, AthleteEntryOption{EventID: e.ID, Name: e.Name, Entered: entered[e.ID], Placed: placedIn(p.rounds[e.ID], athleteID)})
+		out = append(out, AthleteEntryOption{Matches: fits, EventID: e.ID, Name: e.Name, Entered: entered[e.ID], Placed: placedIn(p.rounds[e.ID], athleteID)})
 	}
 	return out, nil
 }

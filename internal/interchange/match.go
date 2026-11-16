@@ -96,7 +96,7 @@ func MatchExisting(f *File, ex Existing) Match {
 		combineds[domain.CombinedKey(c.Gender, c.Name, c.GroupLabel)] = c.ID
 	}
 	for _, c := range f.Combineds {
-		if id, ok := combineds[domain.CombinedKey(domain.Gender(c.Gender), c.Name, c.GroupLabel)]; ok {
+		if id, ok := combineds[domain.CombinedKey(domain.CompetitionGender(c.Gender), c.Name, c.GroupLabel)]; ok {
 			m.Combineds[c.ID] = id
 		}
 	}
@@ -108,7 +108,7 @@ func MatchExisting(f *File, ex Existing) Match {
 		if e.CombinedID != "" && m.Combineds[e.CombinedID] == "" {
 			continue
 		}
-		if id, ok := events[m.Combineds[e.CombinedID]+"|"+domain.EventKey(domain.Gender(e.Gender), e.Discipline, e.GroupLabel)]; ok {
+		if id, ok := events[m.Combineds[e.CombinedID]+"|"+domain.EventKey(domain.CompetitionGender(e.Gender), e.Discipline, e.GroupLabel)]; ok {
 			m.Events[e.ID] = id
 		}
 	}

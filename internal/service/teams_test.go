@@ -308,12 +308,12 @@ func TestRelayImportMemberConflictsAndGender(t *testing.T) {
 	}
 	file, err := f.svc.ExportMeet(f.ctx, f.meet)
 	must(t, err)
-	file.Athletes[0].Gender = "女"
+	file.Athletes[0].CompetitionGender = "女"
 	data, err := interchange.Encode(file)
 	must(t, err)
 	p, err := f.svc.PreviewImport(f.ctx, data, "")
 	must(t, err)
-	if len(p.Errors) > 0 || !strings.Contains(strings.Join(p.Warnings, ""), "性别") {
+	if len(p.Errors) > 0 || !strings.Contains(strings.Join(p.Warnings, ""), "参赛类别") {
 		t.Fatalf("UI gender warning: %+v", p)
 	}
 	mp, err := f.svc.PreviewMutation(f.ctx, Mutation{Action: "import_meet", Data: string(data)})

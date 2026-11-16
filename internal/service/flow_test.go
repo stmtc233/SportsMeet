@@ -110,7 +110,7 @@ func TestAthleteIdentityAndDelete(t *testing.T) {
 	_, err := f.svc.SaveAthlete(f.ctx, ui, f.meet, "", AthleteInput{Name: "新人", Bib: "001"})
 	wantInvalid(t, err, "改为更新")
 	_, err = f.svc.SaveAthlete(f.ctx, ui, f.meet, "", AthleteInput{Name: "新人", Gender: "x"})
-	wantInvalid(t, err, "性别")
+	wantInvalid(t, err, "参赛类别")
 	_, err = f.svc.SaveAthlete(f.ctx, ui, f.meet, f.athletes[0], AthleteInput{Name: "改名", Bib: "001", StudentNumber: "S1", UnitID: f.units[0]})
 	must(t, err) // keeping its own bib is not a clash
 	_, err = f.svc.SaveAthlete(f.ctx, ui, f.meet, f.athletes[1], AthleteInput{Name: "选手02", StudentNumber: " s1 "})
@@ -131,7 +131,7 @@ func TestEventRules(t *testing.T) {
 	_, err := f.svc.SaveEvent(f.ctx, ui, f.meet, "", EventInput{Gender: "男子", Discipline: "100 米", Kind: "track"})
 	wantInvalid(t, err, "已有相同的项目")
 	_, err = f.svc.SaveEvent(f.ctx, ui, f.meet, "", EventInput{Discipline: "100m", Kind: "track"})
-	wantInvalid(t, err, "性别")
+	wantInvalid(t, err, "参赛类别")
 
 	d := f.detail()
 	if d.Event.Name != "男子100m" || len(d.Rounds) != 1 || d.Rounds[0].Stage != domain.StageFinal {

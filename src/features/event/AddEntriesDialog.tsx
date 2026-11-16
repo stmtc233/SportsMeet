@@ -32,10 +32,10 @@ function AddAthletesDialog({ open, detail, meetId, onClose }: Props) {
     const entered = new Set(detail.entries.map((e) => e.athleteId));
     const q = query.trim().toLowerCase();
     return (athletes ?? []).filter((r) => !entered.has(r.athlete.id) && (unit === "" || r.athlete.unitId === unit)
-      && (!sameGroup || !detail.event.groupId || r.athlete.groupId === detail.event.groupId)
-      && (!sameGender || gender === "混合" || r.athlete.gender === gender)
+      && (!sameGroup || !detail.event.groupId || r.athlete.groupId === detail.event.groupId || selected.has(r.athlete.id))
+      && (!sameGender || gender === "混合" || r.athlete.competitionGender === "" || r.athlete.competitionGender === gender || selected.has(r.athlete.id))
       && (q === "" || [r.athlete.name, r.athlete.bib, r.athlete.studentNumber].some((v) => v.toLowerCase().includes(q))));
-  }, [athletes, detail.entries, query, unit, sameGender, gender, sameGroup, detail.event.groupId]);
+  }, [athletes, detail.entries, query, unit, sameGender, gender, sameGroup, detail.event.groupId, selected]);
   const picked = useMemo(() => [...selected], [selected]);
   const warnings = useEntryLimitWarnings(detail.event.id, open ? picked : []);
   const add = async () => {
@@ -58,7 +58,7 @@ function AddAthletesDialog({ open, detail, meetId, onClose }: Props) {
         <StSearchField value={query} onChange={setQuery} placeholder="搜索姓名、号码" />
         <StSelect value={unit} onChange={setUnit} placeholder="全部单位" options={[{ value: "", label: "全部单位" }, ...(units ?? []).map((u) => ({ value: u.id, label: u.name }))]} />
         {detail.event.groupId && <StCheckbox checked={sameGroup} onChange={setSameGroup} label="只看同组别" />}
-        {gender !== "混合" && <StCheckbox checked={sameGender} onChange={setSameGender} label={`只看${gender}生`} />}
+        {gender !== "混合" && <StCheckbox checked={sameGender} onChange={setSameGender} label="只看同类别" />}
       </StRow>
       <LimitNotice warnings={warnings} />
       <div className="preview-table">
@@ -72,7 +72,7 @@ function AddAthletesDialog({ open, detail, meetId, onClose }: Props) {
           columns={[
             { key: "bib", title: "号码", width: "80px", render: (r) => r.athlete.bib },
             { key: "name", title: "姓名", render: (r) => r.athlete.name },
-            { key: "gender", title: "性别", width: "64px", render: (r) => r.athlete.gender },
+            { key: "gender", title: "参赛类别", width: "96px", render: (r) => r.competitionGenderText },
             { key: "unit", title: "参赛单位", render: (r) => r.unitName },
           ]} />
       </div>

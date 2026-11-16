@@ -8,19 +8,20 @@ import (
 	"strings"
 )
 
-// Gender of an athlete ("" = unknown) or of an event (男 / 女 / 混合).
-type Gender string
+// CompetitionGender is a competition category, independent of gender identity.
+// Athletes use 男 / 女 / empty; events also allow 混合.
+type CompetitionGender string
 
 const (
-	GenderMale    Gender = "男"
-	GenderFemale  Gender = "女"
-	GenderMixed   Gender = "混合"
-	GenderUnknown Gender = ""
+	GenderMale    CompetitionGender = "男"
+	GenderFemale  CompetitionGender = "女"
+	GenderMixed   CompetitionGender = "混合"
+	GenderUnknown CompetitionGender = ""
 )
 
 // NormalizeEventGender accepts common spellings and returns the canonical
 // event gender; ok is false when s is not one of them.
-func NormalizeEventGender(s string) (g Gender, ok bool) {
+func NormalizeEventGender(s string) (g CompetitionGender, ok bool) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "男", "男子", "男性", "m", "male", "men", "boys":
 		return GenderMale, true
@@ -112,7 +113,7 @@ func (s Status) Valid() bool {
 
 // ComposeEventName builds 「男子100m 初中组」 from the item fields; the only
 // implementation, the frontend preview calls it too.
-func ComposeEventName(g Gender, discipline, group string) string {
+func ComposeEventName(g CompetitionGender, discipline, group string) string {
 	prefix := ""
 	switch g {
 	case GenderMale:
@@ -166,9 +167,9 @@ func HeatLabel(ordinal int, name string) string {
 	return "第" + strconv.Itoa(ordinal) + "组"
 }
 
-// NormalizeAthleteGender accepts common spellings; ok is false for
-// anything that is neither a gender nor blank.
-func NormalizeAthleteGender(s string) (Gender, bool) {
+// NormalizeAthleteCompetitionGender accepts a male/female category or blank.
+// Personal gender identity is parsed independently.
+func NormalizeAthleteCompetitionGender(s string) (CompetitionGender, bool) {
 	if strings.TrimSpace(s) == "" {
 		return GenderUnknown, true
 	}
@@ -181,7 +182,7 @@ func NormalizeAthleteGender(s string) (Gender, bool) {
 
 // EventKey identifies an item inside a meet: gender + discipline + group,
 // disciplines compared loosely.
-func EventKey(g Gender, discipline, group string) string {
+func EventKey(g CompetitionGender, discipline, group string) string {
 	return string(g) + "|" + DisciplineKey(discipline) + "|" + NormalizeText(group)
 }
 

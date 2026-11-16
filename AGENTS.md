@@ -25,7 +25,9 @@ SportsMeet 是一款开源的**单机离线**田径与校园运动会编排软�
 | **参赛单位** | `unit` | 学校 / 班级 / 代表队,运动员的所属 |
 | **运动员** | `athlete` | 属于赛事,各项目共用 |
 | **组别** | `CompetitionGroup` / `groupId` | 赛事内统一管理的参赛分类，常用于年级；单位可多组，运动员默认一组 |
-| **项目** | `event` | 一个单项 = 性别(男 / 女 / 混合)+ 项目名(`discipline`)+ 可选组别引用(`groupId`) |
+| **性别认同** | `GenderIdentity` / `genderIdentity` | 可选个人资料：男 / 女 / 非二元 / 其他 / 不愿透露；未填与不愿透露分开，不决定参赛资格 |
+| **参赛类别** | `CompetitionGender` / `competitionGender` | 运动员的默认报名类别（男子 / 女子 / 未指定）；项目与全能为男子 / 女子 / 混合，兼容字段仍叫 `gender` |
+| **项目** | `event` | 一个单项 = 参赛类别(男子 / 女子 / 混合)+ 项目名(`discipline`)+ 可选组别引用(`groupId`) |
 | **项目类型** | `EventKind` | `track` 径赛计时 / `relay` 接力 / `distance` 远度 / `height` 高度 / `count` 计次 / `score` 计分 |
 | **队伍** | `team` | 属于一个队伍项目；接力队成员按棒次（`leg`）顺序排列 |
 | **全能** | `combined` | 统一报名、汇总多个个人分项积分的比赛 |
@@ -56,7 +58,7 @@ SportsMeet/
 │   ├── icon.png             ← 1024×1024「跑道 S」应用图标
 │   └── brand/               ← 品牌矢量母版、SVG / PNG / WebP / JPG / PDF / ICO / ICNS、视觉规范与交付包
 ├── internal/
-│   ├── domain/              ← 实体、枚举、项目配置与全能规则、报名限制计数、时间规则与项目排序(纯数据 + 校验,无 IO)
+│   ├── domain/              ← 实体、枚举、项目配置与全能规则、报名限制计数、独立的性别认同与参赛类别、时间规则与项目排序(纯数据 + 校验,无 IO)
 │   ├── store/               ← SQLite 访问(mygo sqlite 插件,库文件 sportsmeet.db 在 mygo.PathUserData,迁移前的副本在同目录 backups/)
 │   │   ├── migrations/      ← NNNN_名称.sql,嵌入二进制,启动时按序执行
 │   │   ├── schema.sql       ← 当前完整结构快照
@@ -106,7 +108,7 @@ SportsMeet/
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
 │   ├── results-format.md              ← 成绩交换格式规范(事实源),schema/results-v1.schema.json · results-v2.schema.json · examples/sample-results.json · examples/sample-results-v2.json
 │   ├── print-style-format.md          ← 打印样式文件、报表数据与排版约定规范(事实源),schema/print-style-v1.schema.json · examples/sample-print-style.smstyle.json
-│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json · interchange-v6.schema.json · interchange-v7.schema.json · interchange-v8.schema.json · interchange-v9.schema.json · interchange-v10.schema.json · interchange-v11.schema.json
+│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json · interchange-v6.schema.json · interchange-v7.schema.json · interchange-v8.schema.json · interchange-v9.schema.json · interchange-v10.schema.json · interchange-v11.schema.json · interchange-v12.schema.json
 │   ├── examples/sample-meet.json
 │   ├── performance.md · performance-results.json · performance-optimized-results.json ← 优化与压测对比
 │   └── agents/                        ← 专题细则(§5)
@@ -211,7 +213,8 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 
 - 新建赛事可沿用已有赛事的组别、项目配置、轮次与晋级规则、全能及计分规则，全部引用独立新建，不带参赛数据和时间；选用的打印样式、前置页与赛事图片一并沿用（→ domain.md「沿用项目与赛制新建赛事」）。
 - 前置页（Markdown）与赛事图片属于赛事、不属于样式，换样式不丢；赛事选用的样式只由 `SetMeetPrintStyle` 改，`SaveMeetSettings` 不碰它；使用中的样式被删除时赛事读作默认样式（→ print-style.md）。
-- 项目 = 一个单项,必带性别与项目名、必属于赛事;男女、不同距离不得混在一个项目。
+- 项目 = 一个单项,必带参赛类别与项目名、必属于赛事;男女、不同距离不得混在一个项目。
+- 运动员的性别认同与参赛类别独立，所有报名匹配和提示只看参赛类别；改任一字段不动已有报名、编排与成绩。旧性别迁移为参赛类别，性别认同留空；默认打印与成绩交换不输出性别认同，完整赛事交换 v12 保留两字段（→ domain.md）。
 - 运动员属于赛事,经报名进项目;排进位置即自动报名,取消报名不动已排位置;运动员对话框可一次设定其个人项目报名;学号 / 号码布赛事内唯一。
 - 报名登记表每单位一份 xlsx(有组别时可每组别一份,每行填参赛单位)、格式固定:个人项目写全名只打 √,接力与集体项目按队填;导入不用对应列,同一张表重复导入不新建,单位已有的队伍不改;入口是侧栏「报名」页,同页的树按组别与单位列出报名进度;只在界面导入,AI 读文件后经 MCP 写入(→ domain.md「报名登记表」)。
 - 报名限制(每人限报项数、单位每项限报人数 / 队数)只提示不拦截;个人项目与全能各计一项,队伍项目不计个人项数,计数是 `domain` 纯函数(→ domain.md「报名限制」)。
@@ -231,7 +234,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 - 轮次开始时间直接写入、不进组指纹与草稿;时间不在赛事日期内只提示不拦截,判断只在 service,界面与 MCP 共用。
 - 组的实际开赛时间在第一次写入成绩时自动记录,可手动修改或清除;不进组指纹、不影响锁定,清空成绩不清它(→ domain.md「时间」)。
 - 报名表按项目列出全部报名者，未编排也可打印；队伍含有序成员，全能只印统一名单（→ frontend.md「打印」）。
-- 秩序册的代表队名单按参赛单位、性别、号码列出运动员,只打印部分项目时只列这些项目的参赛者(→ frontend.md「打印」)。
+- 秩序册的代表队名单按参赛单位、参赛类别、号码列出运动员,只打印部分项目时只列这些项目的参赛者(→ frontend.md「打印」)。
 - 秩序册可选紧凑排版:个人项目的运动员并排、一行排到放不下为止,每人一块不换行,栏宽由 Go 估算对齐,队伍项目仍用表格(→ frontend.md「打印」)。
 - 检录时间 = 生效计划时间 − 检录提前时间(赛事设置,默认 20 分钟,0 不显示),不存储,只印在检录单上。
 - 成绩记录表每组一张空白表供裁判手写,栏目由项目类型与已保存的配置决定,不印已录入的成绩(→ frontend.md「打印」)。
@@ -262,7 +265,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 - 迁移只追加,已发布的迁移文件不再修改;同步 `schema.sql`。
 - 已有数据的数据库在迁移前先复制到 `backups/`,复制失败就不迁移。
 - 外键所在的列都建完整索引；运动员的规范化检索键按 `domain.NormalizeText` 维护，号码布 / 学号的唯一性只由 service 校验，不建唯一索引。
-- 交换格式改字段即 bump `version`;读取方能读所有已发布版本,写出总是最新版本。v11 起带前置页与赛事图片,打印样式本身不进交换格式、有自己的样式文件与版本(→ print-style-format.md)。
+- 交换格式改字段即 bump `version`;读取方能读所有已发布版本,写出总是最新版本。v12 拆分运动员参赛类别与性别认同，兼容读取 v1–v11 的旧性别；v11 起带前置页与赛事图片,打印样式本身不进交换格式、有自己的样式文件与版本(→ print-style-format.md)。
 - 图片以 BLOB 存在 `print_style_assets` 与 `meet_assets`;列表查询只读名称、类型、大小与指纹,不读数据,渲染才读且仅当内容引用了 `asset:`(→ storage.md)。
 - 成绩交换格式按组 ID 与运动员 / 队伍 ID 写回计时项目成绩,ID 不在组内时按学号 → 号码布 → 姓名在组内核对;成绩文件 v2 可附已有下一轮的晋级编排，复用轮次与稳定组 ID、不同编排拒绝覆盖；名次与晋级标记仍按界面录入的同一套规则重算涉及的轮次,只增改不删成绩;版本号与交换格式各自独立(→ results-format.md)。
 

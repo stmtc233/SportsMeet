@@ -15,8 +15,8 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
     const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12", entryLimits: { athleteEvents: options.limits ? 2 : 0, unitAthletes: 0, unitTeams: 0 } };
     const createdMeets: typeof meet[] = [];
     const event = { id: "event", meetId: "meet", name: "男子100m 初中组", gender: "男", discipline: "100m", groupLabel: "初中组", kind: "track", date: "", laneCount: 8, attemptCount: 3, note: "", startMode: "lanes", distanceMode: "", relayLegCount: 0, participantMode: "athlete", teamSize: 0, scoreDecimals: 0, rankDirection: "", attemptMode: "" };
-    const athletes = Array.from({ length: options.athleteCount ?? 24 }, (_, i) => ({ id: `a${i}`, meetId: "meet", name: `运动员${i + 1}`, gender: "男", bib: String(100 + i), studentNumber: "", unitId: "unit", groupId: options.groups ? "g1" : "", className: "一班", grade: "", birthDate: "", note: "", createdAt: 1 }));
-    const entries = athletes.map((a) => ({ athleteId: a.id, competitorId: a.id, name: a.name, gender: "男", bib: a.bib, unitId: "unit", unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" }));
+    const athletes = Array.from({ length: options.athleteCount ?? 24 }, (_, i) => ({ id: `a${i}`, meetId: "meet", name: `运动员${i + 1}`, competitionGender: "男", genderIdentity: "", bib: String(100 + i), studentNumber: "", unitId: "unit", groupId: options.groups ? "g1" : "", className: "一班", grade: "", birthDate: "", note: "", createdAt: 1 }));
+    const entries = athletes.map((a) => ({ athleteId: a.id, competitorId: a.id, name: a.name, competitionGender: "男", competitionGenderText: "男子", bib: a.bib, unitId: "unit", unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" }));
     const rules = { timed: true, usesLanes: true, positionLabel: "道次", attemptLabel: "", startLabel: "分道", defaultPerHeat: 8, team: false, multipleAttempts: false, markLabel: "成绩", unit: "" };
     // What Go returns with a heat's times (service.HeatTimes): the own time, else the round's start.
     const shown = (at: string) => (at.startsWith("2026-11-12") ? at.slice(11) : at.replace("T", " "));
@@ -331,13 +331,14 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
             const errors = forms.filter((f: any) => f.problem).length;
             return { forms, creates: 1, updates: 0, entries: 1, teams: 1, errors };
           }
-          case "Athletes.List": return athletes.map((athlete) => ({ athlete, unitName: "一班", entries: 1, placed: true }));
+          case "Athletes.List": return athletes.map((athlete) => ({ athlete, competitionGenderText: "男子", unitName: "一班", entries: 1, placed: true }));
           case "Athletes.Save":
             (globalThis as any).__athleteSaves = [...((globalThis as any).__athleteSaves ?? []), structuredClone(args)];
             return { athlete: { ...(athletes.find((a) => a.id === args[1]) ?? {}), ...args[2], id: args[1] || "new-athlete" }, warnings: [] };
           case "Entries.AthleteOptions": return [
-            { eventId: "event", name: "男子100m", entered: args[1] !== "", placed: args[1] !== "" },
-            { eventId: "high", name: "混合跳高", entered: false, placed: false },
+            { eventId: "event", name: "男子100m", matches: args[2] === "男" || args[2] === "", entered: args[1] !== "", placed: args[1] !== "" },
+            { eventId: "high", name: "混合跳高", matches: true, entered: false, placed: false },
+            { eventId: "female", name: "女子100m", matches: args[2] === "女" || args[2] === "", entered: false, placed: false },
           ];
           case "Entries.SetAthlete":
             (globalThis as any).__athleteEntries = structuredClone(args);
@@ -378,7 +379,7 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
             (globalThis as any).__relayCalls.push({ method, args });
             for (const en of args[1].filter((en: any) => en.athleteId)) {
               const a = athletes.find((a) => a.id === en.athleteId)!;
-              detail.entries.push({ athleteId: a.id, competitorId: a.id, name: a.name, gender: "男", bib: a.bib, unitId: "unit", unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" });
+              detail.entries.push({ athleteId: a.id, competitorId: a.id, name: a.name, competitionGender: "男", competitionGenderText: "男子", bib: a.bib, unitId: "unit", unitName: "一班", seedMark: null, seedText: "", placed: false, warning: "" });
             }
             for (const en of args[1].filter((en: any) => en.teamId)) {
               const team = detail.teams.find((t) => t.id === en.teamId)!;

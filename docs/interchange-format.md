@@ -1,8 +1,8 @@
-# 交换格式规范 v11
+# 交换格式规范 v12
 
 SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的完整快照**:参赛单位、运动员、项目、报名、轮次、组、成绩。
 
-- 机器可读定义：[v11](schema/interchange-v11.schema.json)；兼容读取 [v10](schema/interchange-v10.schema.json)、[v9](schema/interchange-v9.schema.json)、[v8](schema/interchange-v8.schema.json)、[v7](schema/interchange-v7.schema.json)、[v6](schema/interchange-v6.schema.json)、[v5](schema/interchange-v5.schema.json)、[v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
+- 机器可读定义：[v12](schema/interchange-v12.schema.json)；兼容读取 [v11](schema/interchange-v11.schema.json)、[v10](schema/interchange-v10.schema.json)、[v9](schema/interchange-v9.schema.json)、[v8](schema/interchange-v8.schema.json)、[v7](schema/interchange-v7.schema.json)、[v6](schema/interchange-v6.schema.json)、[v5](schema/interchange-v5.schema.json)、[v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
 - 示例:[examples/sample-meet.json](examples/sample-meet.json)
 
 ## 1. 文件
@@ -20,12 +20,12 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ## 2. 版本
 
 ```json
-{ "format": "sportsmeet-interchange", "version": 11 }
+{ "format": "sportsmeet-interchange", "version": 12 }
 ```
 
 - `format` 固定,不符即拒绝读取。
 - `version` 为正整数。增删字段、改字段含义、改单位、改枚举取值均须 +1。
-- 写出方总是写 v11；读取方支持 v1–v11。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；v1–v6 不解释赛事的团体计分规则 `meet.teamScoring`；v1–v7 不解释赛事组别目录 `groups` 与各实体的 `groupId` / `groupIds`；v1–v8 不解释赛事的报名限制 `meet.entryLimits`；v1–v9 不解释并列裁定 `result.tieBreak`；v1–v10 不解释前置页 `frontPages` 与赛事图片 `assets`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
+- 写出方总是写 v12；读取方支持 v1–v12。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；v1–v6 不解释赛事的团体计分规则 `meet.teamScoring`；v1–v7 不解释赛事组别目录 `groups` 与各实体的 `groupId` / `groupIds`；v1–v8 不解释赛事的报名限制 `meet.entryLimits`；v1–v9 不解释并列裁定 `result.tieBreak`；v1–v10 不解释前置页 `frontPages` 与赛事图片 `assets`；v1–v11 不解释运动员 `competitionGender` 与 `genderIdentity`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
 - 读取方必须能读所有已发布版本;遇到比自己新的版本直接拒绝,并提示升级软件(不尝试猜测读取)。
 
 ## 3. 基本约定
@@ -42,12 +42,16 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | 计划时间 | `YYYY-MM-DDTHH:mm`,本地时间,精确到分钟,无时区,须是真实存在的日子与时刻 | `"2026-11-12T09:30"` |
 | 导出时刻 | RFC 3339,带时区偏移 | `"2026-11-12T18:05:31+08:00"` |
 
-### 3.3 性别
+### 3.3 参赛类别与性别认同
 
 | 场合 | 取值 |
 |---|---|
-| 运动员 `gender` | `"男"` / `"女"` / `""`(未知) |
+| 运动员 `competitionGender`（v12） | `"男"` / `"女"` / `""`（未指定参赛类别） |
+| 运动员 `genderIdentity`（v12） | `"男"` / `"女"` / `"非二元"` / `"其他"` / `"不愿透露"` / `""`（未填） |
+| 运动员 `gender`（v1–v11） | `"男"` / `"女"` / `""`，只读作参赛类别 |
 | 项目 `gender` | `"男"` / `"女"` / `"混合"` |
+
+v12 的个人认同与参赛类别分别保存，不互相推断。`不愿透露` 与未填是不同值；新文件不再写运动员 `gender`，该键作为未知字段忽略。项目与全能继续使用 `gender` 兼容键，含义为参赛类别。旧文件升级只填参赛类别，性别认同留空。
 
 ### 3.4 成绩值 `mark`
 
@@ -67,7 +71,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ```jsonc
 {
   "format": "sportsmeet-interchange",
-  "version": 8,
+  "version": 12,
   "exportedAt": "2026-11-12T18:05:31+08:00",
   "generator": { "name": "SportsMeet", "version": "0.1.0" },
   "meet": { ... },
@@ -123,7 +127,8 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 |---|---|:---:|---|
 | `id` | string | ✓ | |
 | `name` | string | ✓ | 非空 |
-| `gender` | string | | §3.3 |
+| `competitionGender` | string | | 运动员默认参赛类别，见 §3.3 |
+| `genderIdentity` | string | | 可选个人认同，见 §3.3；完整赛事备份保留 |
 | `bib` | string | | 号码布号 |
 | `studentNumber` | string | | 学号 / 证件号 |
 | `unitId` | string \| null | | 引用 `units[].id` |
@@ -141,7 +146,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|:---:|---|
 | `id` | string | ✓ | |
-| `name` | string | | 省略时读取方按「性别前缀 + `discipline` + 空格 + `groupLabel`」合成,如「男子100m 初中组」 |
+| `name` | string | | 省略时读取方按「参赛类别前缀 + `discipline` + 空格 + `groupLabel`」合成,如「男子100m 初中组」 |
 | `gender` | string | ✓ | §3.3 |
 | `discipline` | string | ✓ | 项目名,如 `100m`、`4×100m`、`跳远`、`跳高` |
 | `groupId` | string \| null | | 赛事组别，引用 `groups[].id`，空为不分组别 |
@@ -268,7 +273,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `athleteIds` | string[] | ✓ | 统一报名，引用运动员，可为空，不能重复 |
 | `components` | object[] | ✓ | 至少两项，按顺序排列，结构见下文 |
 
-每个分项为 `{eventId, ordinal, rule}`：`eventId` 引用 `events[].id`，该项目的 `combinedId` 必须回指本全能；`ordinal` 从 1 连续递增。分项继承全能的性别与组别，只能个人参赛，只含一个无晋级规则的决赛轮次，报名须与全能一致。一个项目只属于一个全能，不能悬空引用。
+每个分项为 `{eventId, ordinal, rule}`：`eventId` 引用 `events[].id`，该项目的 `combinedId` 必须回指本全能；`ordinal` 从 1 连续递增。分项继承全能的参赛类别与组别，只能个人参赛，只含一个无晋级规则的决赛轮次，报名须与全能一致。一个项目只属于一个全能，不能悬空引用。
 
 `rule` 为 `{bands, invalidPolicies}`：`bands` 每档包含整数 `mark`（单位同分项）与非负整数 `points`；按高标准到低标准排列，阈值严格单向，积分不能随标准降低而增加。达到某档得该档积分，不插值，低于最低标准得零分。`invalidPolicies` 必须给出 `DNS / DNF / DQ / NM` 各自的 `zero`（该项零分）或 `exclude`（不列总排名）。
 
@@ -340,7 +345,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 6. `status = OK` 时 `mark` 非空,否则 `mark` 为 `null`。
 7. v11：`frontPages`、`assets` 符合 §5.15（标题与正文长度、报表名、图片名唯一、base64 可解码、图片类型与内容一致、数量与大小上限）。
 
-以下只给**警告**,不阻止导入:运动员性别与项目性别不符、`seedMark` 缺失、运动员未报任何项目。
+以下只给**警告**,不阻止导入:运动员参赛类别与项目参赛类别不符、`seedMark` 缺失、运动员未报任何项目。
 
 ## 7. 导入到已有赛事
 
@@ -352,7 +357,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 2. `bib`
 3. `name` + `affiliation`
 
-找到 0 个则新建,1 个则复用,多于 1 个则报冲突、整份拒绝。比较前去掉首尾空白、合并连续空白、忽略英文大小写。
+找到 0 个则新建,1 个则复用,多于 1 个则报冲突、整份拒绝。复用时保留目标运动员的全部个人资料、参赛类别与性别认同；旧文件缺少认同不会清空目标资料。比较前去掉首尾空白、合并连续空白、忽略英文大小写。
 
 队伍在所属项目内按规范化的 `name + unitId` 识别,单位先匹配到目标赛事;成员也先匹配到目标运动员,名单顺序完全一致才复用。名单不符、匹配不唯一或成员已在该项目其他队伍时整份拒绝,避免把已有比赛记录对应到另一份名单。预览分别统计队伍新建与复用数量。
 

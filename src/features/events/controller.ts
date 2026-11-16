@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { act } from "../../lib/action";
 import { useData } from "../../lib/useData";
-import { Entries, Events, Marks, type Event, type EventRules, type Gender, type EntryInput, type TeamInput, type EventInput } from "../../mygo";
+import { Entries, Events, Marks, type Event, type EventRules, type CompetitionGender, type EntryInput, type TeamInput, type EventInput } from "../../mygo";
 
 export function useEvents(meetId: string) {
   return useData(() => Events.list(meetId), [meetId], (c) => c.meetId === meetId, `events:${meetId}`);
@@ -50,7 +50,7 @@ export function useEntryLimitWarnings(eventId: string, ids: string[]) {
 }
 
 export const EventsController = {
-  eventName: (gender: string, discipline: string, group: string) => Marks.eventName(gender as Gender, discipline, group),
+  eventName: (gender: string, discipline: string, group: string) => Marks.eventName(gender as CompetitionGender, discipline, group),
   save: (meetId: string, id: string, input: EventInput) => act(() => Events.save(meetId, id, input), "已保存"),
   saveTeam: (eventId: string, id: string, input: TeamInput) => act(() => Events.saveTeam(eventId, id, input), "已保存"),
   deleteTeam: (eventId: string, id: string) => act(() => Events.deleteTeam(eventId, id), "已删除"),

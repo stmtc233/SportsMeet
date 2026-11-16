@@ -7,7 +7,7 @@ import "github.com/stmtc233/sportsmeet/internal/domain"
 // Format and Version identify the file (spec §2).
 const (
 	Format  = "sportsmeet-interchange"
-	Version = 11
+	Version = 12
 )
 
 // File is one meet's full snapshot.
@@ -53,18 +53,20 @@ type Unit struct {
 }
 
 type Athlete struct {
-	GroupID       string  `json:"groupId,omitempty"`
-	ID            string  `json:"id"`
-	Name          string  `json:"name"`
-	Gender        string  `json:"gender,omitempty"`
-	Bib           string  `json:"bib,omitempty"`
-	StudentNumber string  `json:"studentNumber,omitempty"`
-	UnitID        *string `json:"unitId,omitempty"`
-	Affiliation   string  `json:"affiliation,omitempty"`
-	ClassName     string  `json:"className,omitempty"`
-	Grade         string  `json:"grade,omitempty"`
-	BirthDate     *string `json:"birthDate,omitempty"`
-	Note          string  `json:"note,omitempty"`
+	GroupID           string  `json:"groupId,omitempty"`
+	ID                string  `json:"id"`
+	Name              string  `json:"name"`
+	Gender            string  `json:"gender,omitempty"` // v1-v11 competition category only
+	CompetitionGender string  `json:"competitionGender,omitempty"`
+	GenderIdentity    string  `json:"genderIdentity,omitempty"`
+	Bib               string  `json:"bib,omitempty"`
+	StudentNumber     string  `json:"studentNumber,omitempty"`
+	UnitID            *string `json:"unitId,omitempty"`
+	Affiliation       string  `json:"affiliation,omitempty"`
+	ClassName         string  `json:"className,omitempty"`
+	Grade             string  `json:"grade,omitempty"`
+	BirthDate         *string `json:"birthDate,omitempty"`
+	Note              string  `json:"note,omitempty"`
 }
 
 type Event struct {

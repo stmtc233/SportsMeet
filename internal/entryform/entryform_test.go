@@ -53,9 +53,9 @@ func TestBuildAndParse(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []FormAthlete{
-		{Line: 4, Name: "张三", Gender: "男", Events: []string{"男子100m", "男子跳远"}},
-		{Line: 6, Name: "李四", Gender: "女", StudentNumber: "2001", Events: []string{"女子100m"}},
-		{Line: 7, Name: "王五", Gender: "男", Events: []string{}, Problem: "「男子100m」只能填 √"},
+		{Line: 4, Name: "张三", CompetitionGender: "男", Events: []string{"男子100m", "男子跳远"}},
+		{Line: 6, Name: "李四", CompetitionGender: "女", StudentNumber: "2001", Events: []string{"女子100m"}},
+		{Line: 7, Name: "王五", CompetitionGender: "男", Events: []string{}, Problem: "「男子100m」只能填 √"},
 	}
 	if !reflect.DeepEqual(got.Athletes, want) {
 		t.Fatalf("athletes = %+v", got.Athletes)
@@ -112,7 +112,7 @@ func TestGroupForm(t *testing.T) {
 	if got.Group != "高一" || got.Unit != "" {
 		t.Fatalf("form = %+v", got)
 	}
-	if want := []FormAthlete{{Line: 4, Name: "张三", Gender: "男", Unit: "高一(2)班", Events: []string{"男子100m"}}}; !reflect.DeepEqual(got.Athletes, want) {
+	if want := []FormAthlete{{Line: 4, Name: "张三", CompetitionGender: "男", Unit: "高一(2)班", Events: []string{"男子100m"}}}; !reflect.DeepEqual(got.Athletes, want) {
 		t.Fatalf("athletes = %+v", got.Athletes)
 	}
 	if want := []FormTeam{{Line: 3, Event: "男子4×100m", Unit: "高一(2)班", Members: []string{"张三"}}}; !reflect.DeepEqual(got.Teams, want) {

@@ -4,7 +4,9 @@ import type { Athlete, AthleteEntryOption, AthleteInput, Unit } from "../../mygo
 import { GroupSelect } from "../groups/GroupFields";
 import { AthletesController, useAthleteEntryOptions } from "./controller";
 
-const blank: Required<AthleteInput> = { name: "", gender: "", bib: "", studentNumber: "", groupId: "", unitId: "", className: "", grade: "", birthDate: "", note: "" };
+type AthleteForm = Required<Omit<AthleteInput, "gender" | "competitionGender" | "genderIdentity">> & { competitionGender: string; genderIdentity: string };
+
+const blank: AthleteForm = { name: "", competitionGender: "", genderIdentity: "", bib: "", studentNumber: "", groupId: "", unitId: "", className: "", grade: "", birthDate: "", note: "" };
 
 /** Creates an athlete (athlete undefined; in unitId and groupId when given) or edits one. */
 export function AthleteDialog({ meetId, open, athlete, units, unitId = "", groupId = "", onClose }: {
@@ -16,31 +18,33 @@ export function AthleteDialog({ meetId, open, athlete, units, unitId = "", group
   groupId?: string;
   onClose: () => void;
 }) {
-  const [form, setForm] = useState<Required<AthleteInput>>(blank);
+  const [form, setForm] = useState<AthleteForm>(blank);
   const [busy, setBusy] = useState(false);
+  const [allEvents, setAllEvents] = useState(false);
   // 报名项目 as ticked here; undefined until one is changed, then the athlete's entries follow it.
   const [ticked, setTicked] = useState<Set<string>>();
-  const { data: options } = useAthleteEntryOptions(meetId, athlete?.id ?? "", form.gender, form.groupId, open);
+  const { data: options } = useAthleteEntryOptions(meetId, athlete?.id ?? "", form.competitionGender, form.groupId, open);
   const entered = new Set((options ?? []).filter((o) => o.entered).map((o) => o.eventId));
   const events = ticked ?? entered;
   useEffect(() => {
     if (!open) return;
     setTicked(undefined);
-    setForm(athlete ? { name: athlete.name, gender: athlete.gender, bib: athlete.bib, studentNumber: athlete.studentNumber, groupId: athlete.groupId ?? "", unitId: athlete.unitId, className: athlete.className, grade: athlete.grade, birthDate: athlete.birthDate, note: athlete.note } : { ...blank, unitId, groupId });
+    setAllEvents(false);
+    setForm(athlete ? { name: athlete.name, competitionGender: athlete.competitionGender, genderIdentity: athlete.genderIdentity, bib: athlete.bib, studentNumber: athlete.studentNumber, groupId: athlete.groupId ?? "", unitId: athlete.unitId, className: athlete.className, grade: athlete.grade, birthDate: athlete.birthDate, note: athlete.note } : { ...blank, unitId, groupId });
   }, [open, athlete, unitId, groupId]);
-  const set = (patch: Partial<Required<AthleteInput>>) => setForm((f) => ({ ...f, ...patch }));
+  const set = (patch: Partial<AthleteForm>) => setForm((f) => ({ ...f, ...patch }));
   const unitGroups = (id: string) => units.find((u) => u.id === id)?.groupIds ?? [];
   const save = async (another: boolean) => {
     setBusy(true);
     const ok = await AthletesController.save(meetId, athlete?.id ?? "", form);
-    // Only events still offered for the gender and group are kept.
+    // All choices stay loaded, including selected events outside the current filter.
     const ids = (options ?? []).filter((o) => events.has(o.eventId)).map((o) => o.eventId);
     const id = ok ? ok.athlete?.id : undefined;
     const entriesOk = !ok || !id || ticked === undefined || (await AthletesController.setEntries(meetId, id, ids));
     setBusy(false);
     if (!ok || !entriesOk) return;
     setTicked(undefined);
-    if (another) setForm((f) => ({ ...blank, gender: f.gender, unitId: f.unitId, className: f.className, grade: f.grade, groupId: f.groupId }));
+    if (another) setForm((f) => ({ ...blank, competitionGender: f.competitionGender, unitId: f.unitId, className: f.className, grade: f.grade, groupId: f.groupId }));
     else onClose();
   };
   return (
@@ -54,8 +58,8 @@ export function AthleteDialog({ meetId, open, athlete, units, unitId = "", group
       }>
       <div className="form-grid">
         <StTextField label="姓名" value={form.name} onChange={(name) => set({ name })} autoFocus />
-        <StSegmented label="性别" value={form.gender} onChange={(gender) => set({ gender })}
-          options={[{ value: "男", label: "男" }, { value: "女", label: "女" }, { value: "", label: "未填" }]} />
+        <StSelect label="性别认同" value={form.genderIdentity} onChange={(genderIdentity) => set({ genderIdentity })}
+          options={[{ value: "", label: "未填" }, { value: "男", label: "男" }, { value: "女", label: "女" }, { value: "非二元", label: "非二元" }, { value: "其他", label: "其他" }, { value: "不愿透露", label: "不愿透露" }]} />
         <StTextField label="号码" value={form.bib} onChange={(bib) => set({ bib })} />
         <StTextField label="学号" value={form.studentNumber} onChange={(studentNumber) => set({ studentNumber })} />
         <div className="span">
@@ -66,7 +70,10 @@ export function AthleteDialog({ meetId, open, athlete, units, unitId = "", group
         <StTextField label="年级" value={form.grade} onChange={(grade) => set({ grade })} />
         <StTextField label="班级" value={form.className} onChange={(className) => set({ className })} />
       </div>
-      <EntryChecks options={options} ticked={events} onChange={setTicked} />
+      <StSegmented label="参赛类别" value={form.competitionGender} onChange={(competitionGender) => set({ competitionGender })}
+        options={[{ value: "男", label: "男子" }, { value: "女", label: "女子" }, { value: "", label: "未指定" }]} />
+      <StCheckbox label="查看全部项目" checked={allEvents} onChange={setAllEvents} />
+      <EntryChecks options={options?.filter((o) => allEvents || o.matches || events.has(o.eventId))} ticked={events} onChange={setTicked} />
     </StDialog>
   );
 }

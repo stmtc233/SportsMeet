@@ -270,8 +270,8 @@ func (e Entries) Remove(ctx context.Context, eventID string, competitorIDs []str
 // Summary counts the athletes, entries and teams of each unit and group.
 // AthleteOptions lists the individual events the athlete dialog offers for
 // an athlete of this gender and group ("" for one not saved yet).
-func (e Entries) AthleteOptions(ctx context.Context, meetID, athleteID, gender, groupID string) ([]service.AthleteEntryOption, error) {
-	return e.Svc.AthleteEntryOptions(ctx, meetID, athleteID, domain.Gender(gender), groupID)
+func (e Entries) AthleteOptions(ctx context.Context, meetID, athleteID, gender, groupID string, all bool) ([]service.AthleteEntryOption, error) {
+	return e.Svc.AthleteEntryOptions(ctx, meetID, athleteID, domain.CompetitionGender(gender), groupID, all)
 }
 
 // SetAthlete makes the athlete's individual events exactly eventIDs.
@@ -582,7 +582,7 @@ func (Marks) Normalize(kind domain.EventKind, input string) (string, error) {
 }
 
 // EventName composes 「男子100m 初中组」 for previews.
-func (Marks) EventName(gender domain.Gender, discipline, group string) string {
+func (Marks) EventName(gender domain.CompetitionGender, discipline, group string) string {
 	return domain.ComposeEventName(gender, discipline, group)
 }
 

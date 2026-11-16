@@ -147,7 +147,7 @@ func (in EventInput) event() (domain.Event, error) {
 	}
 	switch {
 	case !ok:
-		return e, invalid("请选择性别")
+		return e, invalid("请选择参赛类别")
 	case e.Discipline == "":
 		return e, invalid("请填写项目名")
 	case !e.Kind.Valid():

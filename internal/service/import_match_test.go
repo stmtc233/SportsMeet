@@ -13,7 +13,7 @@ func TestEventProblem(t *testing.T) {
 	}
 	for _, c := range []struct {
 		token, group, groupName string
-		gender                  domain.Gender
+		gender                  domain.CompetitionGender
 		want                    string
 	}{
 		{"跳远", "", "", domain.GenderMale, "本赛事没有项目「跳远」"},

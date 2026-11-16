@@ -14,21 +14,25 @@ import (
 
 // Columns an athlete table can map to.
 const (
-	ColName          = "name"
-	ColGender        = "gender"
-	ColBib           = "bib"
-	ColStudentNumber = "studentNumber"
-	ColUnit          = "unit"
-	ColClassName     = "className"
-	ColGrade         = "grade"
-	ColGroup         = "group"
-	ColBirthDate     = "birthDate"
-	ColNote          = "note"
-	ColEvents        = "events" // event names, separated by 、 , ; or /
+	ColName              = "name"
+	ColGender            = "gender" // legacy competition category
+	ColCompetitionGender = "competitionGender"
+	ColGenderIdentity    = "genderIdentity"
+	ColBib               = "bib"
+	ColStudentNumber     = "studentNumber"
+	ColUnit              = "unit"
+	ColClassName         = "className"
+	ColGrade             = "grade"
+	ColGroup             = "group"
+	ColBirthDate         = "birthDate"
+	ColNote              = "note"
+	ColEvents            = "events" // event names, separated by 、 , ; or /
 )
 
 var headerColumns = map[string]string{
 	"姓名": ColName, "名字": ColName, "运动员": ColName, "name": ColName,
+	"参赛类别": ColCompetitionGender, "competitiongender": ColCompetitionGender,
+	"性别认同": ColGenderIdentity, "genderidentity": ColGenderIdentity,
 	"性别": ColGender, "gender": ColGender, "sex": ColGender,
 	"号码": ColBib, "号码布": ColBib, "号码簿": ColBib, "参赛号": ColBib, "bib": ColBib,
 	"学号": ColStudentNumber, "证件号": ColStudentNumber, "学籍号": ColStudentNumber, "编号": ColStudentNumber,
@@ -113,11 +117,13 @@ type AthleteImport struct {
 
 // ImportRow is one row of the preview.
 type ImportRow struct {
-	Line    int    `json:"line"`   // 1-based, among the data rows
-	Action  string `json:"action"` // create | update | keep | error
-	Name    string `json:"name"`
-	Message string `json:"message"`        // the error, or a warning
-	Unit    string `json:"unit,omitempty"` // a group's entry form names each row's unit
+	CompetitionGenderText string                `json:"competitionGenderText,omitempty"`
+	GenderIdentity        domain.GenderIdentity `json:"genderIdentity,omitempty"`
+	Line                  int                   `json:"line"`   // 1-based, among the data rows
+	Action                string                `json:"action"` // create | update | keep | error
+	Name                  string                `json:"name"`
+	Message               string                `json:"message"`        // the error, or a warning
+	Unit                  string                `json:"unit,omitempty"` // a group's entry form names each row's unit
 }
 
 // AthleteImportPreview says what an import would do.
@@ -274,6 +280,14 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 		input := AthleteInput{Name: cell(ColName), Gender: cell(ColGender), Bib: cell(ColBib),
 			StudentNumber: cell(ColStudentNumber), ClassName: cell(ColClassName), Grade: cell(ColGrade),
 			BirthDate: strings.ReplaceAll(cell(ColBirthDate), "/", "-"), Note: cell(ColNote)}
+		if cell(ColCompetitionGender) != "" {
+			value := cell(ColCompetitionGender)
+			input.CompetitionGender = &value
+		}
+		if cell(ColGenderIdentity) != "" {
+			value := cell(ColGenderIdentity)
+			input.GenderIdentity = &value
+		}
 		a, err := input.athlete()
 		if err != nil {
 			fail("%s", err)
@@ -368,9 +382,9 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 		if a.GroupID == "" && len(unitGroups[unitID]) == 1 {
 			a.GroupID = unitGroups[unitID][0]
 		}
-		gender := a.Gender
+		gender := a.CompetitionGender
 		if gender == "" && existing != nil {
-			gender = existing.Gender
+			gender = existing.CompetitionGender
 		}
 
 		tokens := strings.Split(eventSeparators.Replace(cell(ColEvents)), "\n")
@@ -426,8 +440,11 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 					*f.dst = *f.src
 				}
 			}
-			if a.Gender != "" {
-				merged.Gender = a.Gender
+			if a.CompetitionGender != "" {
+				merged.CompetitionGender = a.CompetitionGender
+			}
+			if a.GenderIdentity != "" {
+				merged.GenderIdentity = a.GenderIdentity
 			}
 			a = merged
 			out.Action = "update"
@@ -442,6 +459,8 @@ func (s *Service) planAthleteImport(ctx context.Context, meetID string, in Athle
 			p.Creates++
 			stmts = append(stmts, insertAthlete(a, now))
 		}
+		out.CompetitionGenderText = domain.CompetitionGenderText(a.CompetitionGender)
+		out.GenderIdentity = a.GenderIdentity
 		saved[a.ID] = a
 		for _, id := range eventIDs {
 			if k := id + "|" + a.ID; !entered[k] {
@@ -640,7 +659,7 @@ func sameMembers(ids, members []string, athletes map[string]domain.Athlete) bool
 
 // eventProblem says why a cell names no single event: the meet has none
 // of that name, none for the athlete's gender or group, or several.
-func eventProblem(events []domain.Event, token string, n int, gender domain.Gender, groupID, groupName string, grouped, teams bool) string {
+func eventProblem(events []domain.Event, token string, n int, gender domain.CompetitionGender, groupID, groupName string, grouped, teams bool) string {
 	if n == 0 {
 		if _, all := findEvent(events, token, "", "", teams); all == 0 {
 			return fmt.Sprintf("本赛事没有项目「%s」", token)
@@ -652,7 +671,7 @@ func eventProblem(events []domain.Event, token string, n int, gender domain.Gend
 	}
 	switch {
 	case gender == "":
-		return fmt.Sprintf("「%s」有多个项目，请填写性别", token)
+		return fmt.Sprintf("「%s」有多个项目，请填写参赛类别", token)
 	case groupID == "" && grouped:
 		return fmt.Sprintf("「%s」有多个项目，请填写组别", token)
 	}
@@ -738,7 +757,7 @@ func (s *Service) importLimitWarnings(ctx context.Context, meet *domain.Meet, ev
 // discipline among the events of the athlete's gender (and mixed ones)
 // and group, else among those with no group. Team events count only when teams is set. When no single
 // event fits it returns nil and how many did.
-func findEvent(events []domain.Event, token string, gender domain.Gender, groupID string, teams bool) (*domain.Event, int) {
+func findEvent(events []domain.Event, token string, gender domain.CompetitionGender, groupID string, teams bool) (*domain.Event, int) {
 	name, disc := domain.NormalizeText(token), domain.DisciplineKey(token)
 	var exact, candidates []domain.Event
 	for _, e := range events {
@@ -782,7 +801,7 @@ func findEvent(events []domain.Event, token string, gender domain.Gender, groupI
 }
 
 // matchEvent is findEvent among individual events, by id; "" = none.
-func matchEvent(events []domain.Event, token string, gender domain.Gender, groupID ...string) string {
+func matchEvent(events []domain.Event, token string, gender domain.CompetitionGender, groupID ...string) string {
 	g := ""
 	if len(groupID) > 0 {
 		g = groupID[0]

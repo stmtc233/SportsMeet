@@ -24,39 +24,40 @@ type Unit struct {
 
 // Athlete belongs to a meet and is shared by its events.
 type Athlete struct {
-	GroupID       string `json:"groupId"`
-	ID            string `json:"id"`
-	MeetID        string `json:"meetId"`
-	Name          string `json:"name"`
-	Gender        Gender `json:"gender"`
-	Bib           string `json:"bib"`
-	StudentNumber string `json:"studentNumber"`
-	UnitID        string `json:"unitId"` // "" = none
-	ClassName     string `json:"className"`
-	Grade         string `json:"grade"`
-	BirthDate     string `json:"birthDate"` // YYYY-MM-DD or ""
-	Note          string `json:"note"`
+	GroupID           string            `json:"groupId"`
+	ID                string            `json:"id"`
+	MeetID            string            `json:"meetId"`
+	Name              string            `json:"name"`
+	CompetitionGender CompetitionGender `json:"competitionGender"`
+	GenderIdentity    GenderIdentity    `json:"genderIdentity"`
+	Bib               string            `json:"bib"`
+	StudentNumber     string            `json:"studentNumber"`
+	UnitID            string            `json:"unitId"` // "" = none
+	ClassName         string            `json:"className"`
+	Grade             string            `json:"grade"`
+	BirthDate         string            `json:"birthDate"` // YYYY-MM-DD or ""
+	Note              string            `json:"note"`
 }
 
 // Event is one single item: gender + discipline + optional group.
 type Event struct {
 	GroupID string `json:"groupId"`
 	CompetitionConfig
-	CombinedID    string       `json:"combinedId,omitempty"`
-	ID            string       `json:"id"`
-	MeetID        string       `json:"meetId"`
-	Name          string       `json:"name"`
-	Gender        Gender       `json:"gender"`
-	Discipline    string       `json:"discipline"`
-	GroupLabel    string       `json:"groupLabel"`
-	Kind          EventKind    `json:"kind"`
-	Date          string       `json:"date"` // YYYY-MM-DD, "" = the meet's start
-	LaneCount     int          `json:"laneCount"`
-	AttemptCount  int          `json:"attemptCount"`
-	StartMode     StartMode    `json:"startMode"`
-	DistanceMode  DistanceMode `json:"distanceMode"`
-	RelayLegCount int          `json:"relayLegCount"`
-	Note          string       `json:"note"`
+	CombinedID    string            `json:"combinedId,omitempty"`
+	ID            string            `json:"id"`
+	MeetID        string            `json:"meetId"`
+	Name          string            `json:"name"`
+	Gender        CompetitionGender `json:"gender"`
+	Discipline    string            `json:"discipline"`
+	GroupLabel    string            `json:"groupLabel"`
+	Kind          EventKind         `json:"kind"`
+	Date          string            `json:"date"` // YYYY-MM-DD, "" = the meet's start
+	LaneCount     int               `json:"laneCount"`
+	AttemptCount  int               `json:"attemptCount"`
+	StartMode     StartMode         `json:"startMode"`
+	DistanceMode  DistanceMode      `json:"distanceMode"`
+	RelayLegCount int               `json:"relayLegCount"`
+	Note          string            `json:"note"`
 }
 
 // Attempt is one try in a distance event.

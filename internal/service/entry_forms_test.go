@@ -57,9 +57,9 @@ func TestEntryForms(t *testing.T) {
 
 	form := EntryForm{File: "一班.xlsx", Form: entryform.Form{Meet: "秋季运动会", Unit: "一班",
 		Athletes: []entryform.FormAthlete{
-			{Line: 4, Name: "张三", Gender: "男", Events: []string{"男子100m", jump1}},
-			{Line: 5, Name: "李四", Gender: "女", StudentNumber: "2001", Events: []string{female100}},
-			{Line: 6, Name: "王五", Gender: "男", Events: []string{}},
+			{Line: 4, Name: "张三", CompetitionGender: "男", Events: []string{"男子100m", jump1}},
+			{Line: 5, Name: "李四", CompetitionGender: "女", StudentNumber: "2001", Events: []string{female100}},
+			{Line: 6, Name: "王五", CompetitionGender: "男", Events: []string{}},
 		},
 		Teams: []entryform.FormTeam{{Line: 2, Event: relayName, Members: []string{"张三", "王五"}}},
 	}}
@@ -97,10 +97,10 @@ func TestEntryForms(t *testing.T) {
 	must(t, f.svc.UpdateMeet(f.ctx, ui, f.meet, MeetInput{Name: "秋季运动会", StartDate: "2026-11-12", EntryLimits: &limit}))
 	other := EntryForm{File: "二班.xlsx", Form: entryform.Form{Meet: "秋季运动会", Unit: "二班",
 		Athletes: []entryform.FormAthlete{
-			{Line: 4, Name: "赵六", Gender: "男", Events: []string{jump2}},
-			{Line: 5, Name: "钱七", Gender: "男", Events: []string{}, Problem: "「男子100m」只能填 √"},
-			{Line: 6, Name: "孙八", Gender: "男"},
-			{Line: 7, Name: "周九", Gender: "男"},
+			{Line: 4, Name: "赵六", CompetitionGender: "男", Events: []string{jump2}},
+			{Line: 5, Name: "钱七", CompetitionGender: "男", Events: []string{}, Problem: "「男子100m」只能填 √"},
+			{Line: 6, Name: "孙八", CompetitionGender: "男"},
+			{Line: 7, Name: "周九", CompetitionGender: "男"},
 		},
 		Teams: []entryform.FormTeam{
 			{Line: 2, Event: relayName, Members: []string{"赵六", "孙八"}},
@@ -183,10 +183,10 @@ func TestGroupEntryForms(t *testing.T) {
 
 	form := EntryForm{File: "高一.xlsx", Form: entryform.Form{Meet: "秋季运动会", Group: "高一",
 		Athletes: []entryform.FormAthlete{
-			{Line: 4, Name: "张三", Gender: "男", Unit: "一班", Events: []string{"男子100m"}},
-			{Line: 5, Name: "李四", Gender: "男", Unit: "二班"},
-			{Line: 6, Name: "王五", Gender: "男"},
-			{Line: 7, Name: "赵六", Gender: "男", Unit: "三班"},
+			{Line: 4, Name: "张三", CompetitionGender: "男", Unit: "一班", Events: []string{"男子100m"}},
+			{Line: 5, Name: "李四", CompetitionGender: "男", Unit: "二班"},
+			{Line: 6, Name: "王五", CompetitionGender: "男"},
+			{Line: 7, Name: "赵六", CompetitionGender: "男", Unit: "三班"},
 		},
 		Teams: []entryform.FormTeam{{Line: 2, Event: r.Name, Unit: "一班", Members: []string{"张三"}}},
 	}}
@@ -210,7 +210,7 @@ func TestGroupEntryForms(t *testing.T) {
 
 	// The same unit's athlete in a unit's form too: one name, two rows.
 	p, err = f.svc.PreviewEntryForms(f.ctx, f.meet, []EntryForm{form, {File: "一班.xlsx", Form: entryform.Form{Meet: "秋季运动会", Unit: "一班",
-		Athletes: []entryform.FormAthlete{{Line: 4, Name: "张三", Gender: "男"}}}}})
+		Athletes: []entryform.FormAthlete{{Line: 4, Name: "张三", CompetitionGender: "男"}}}}})
 	must(t, err)
 	if got := rowTexts(p.Forms[1].Rows); !reflect.DeepEqual(got, []string{"error:张三:同一单位有两行同名，请填写学号"}) {
 		t.Fatalf("same name = %q", got)
@@ -218,7 +218,7 @@ func TestGroupEntryForms(t *testing.T) {
 
 	form.Athletes = form.Athletes[:1]
 	none := EntryForm{File: "未分组.xlsx", Form: entryform.Form{Meet: "秋季运动会", Group: entryform.NoGroup,
-		Athletes: []entryform.FormAthlete{{Line: 4, Name: "李四", Gender: "男", Unit: "二班", Events: []string{"男子100m"}}}}}
+		Athletes: []entryform.FormAthlete{{Line: 4, Name: "李四", CompetitionGender: "男", Unit: "二班", Events: []string{"男子100m"}}}}}
 	p, err = f.svc.ImportEntryForms(f.ctx, ui, f.meet, []EntryForm{form, none})
 	must(t, err)
 	if p.Creates != 2 || p.Entries != 2 || p.Teams != 1 {

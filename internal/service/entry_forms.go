@@ -64,7 +64,7 @@ func (s *Service) EntryForms(ctx context.Context, meetID string, ids []string, b
 	if err != nil {
 		return nil, err
 	}
-	gender := map[domain.Gender]int{domain.GenderMale: 0, domain.GenderFemale: 1, domain.GenderMixed: 2}
+	gender := map[domain.CompetitionGender]int{domain.GenderMale: 0, domain.GenderFemale: 1, domain.GenderMixed: 2}
 	slices.SortStableFunc(events, func(a, b domain.Event) int { return gender[a.Gender] - gender[b.Gender] })
 	var notes []string
 	if n := meet.EntryLimits.AthleteEvents; n > 0 {
@@ -226,7 +226,7 @@ func (s *Service) planEntryForms(ctx context.Context, meetID string, forms []Ent
 		return nil, nil, err
 	}
 	preview := &EntryFormPreview{Forms: []EntryFormResult{}}
-	in := AthleteImport{Mapping: []string{ColName, ColGender, ColStudentNumber, ColUnit, ColGroup}, Rows: [][]string{}}
+	in := AthleteImport{Mapping: []string{ColName, ColCompetitionGender, ColStudentNumber, ColUnit, ColGroup, ColGenderIdentity, ColGender}, Rows: [][]string{}}
 	rows := &formRows{}
 	var planned []int           // indexes into preview.Forms
 	seen := map[string]string{} // unit id or group:<id> → file
@@ -300,7 +300,7 @@ func (s *Service) planEntryForms(ctx context.Context, meetID string, forms []Ent
 			if a.Problem != "" {
 				problem = a.Problem
 			}
-			in.Rows = append(in.Rows, []string{a.Name, a.Gender, a.StudentNumber, name, groupName})
+			in.Rows = append(in.Rows, []string{a.Name, a.CompetitionGender, a.StudentNumber, name, groupName, a.GenderIdentity, a.LegacyCompetitionGender})
 			rows.lines = append(rows.lines, a.Line)
 			rows.problems = append(rows.problems, problem)
 			rows.events = append(rows.events, a.Events)

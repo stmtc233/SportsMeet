@@ -35,7 +35,8 @@ export interface Athlete {
   id: string;
   meetId: string;
   name: string;
-  gender: Gender;
+  competitionGender: CompetitionGender;
+  genderIdentity: GenderIdentity;
   bib: string;
   studentNumber: string;
   /** "" = none */
@@ -52,6 +53,8 @@ export interface Athlete {
  * it: whether the athlete is in it, and whether that can be undone there.
  */
 export interface AthleteEntryOption {
+  /** category and competition group match */
+  matches: boolean;
   eventId: string;
   name: string;
   entered: boolean;
@@ -84,7 +87,10 @@ export interface AthleteImportPreview {
 export interface AthleteInput {
   groupId?: string;
   name: string;
+  /** Gender is the legacy competition category, never a gender identity. */
   gender?: string;
+  competitionGender?: string;
+  genderIdentity?: string;
   bib?: string;
   studentNumber?: string;
   unitId?: string;
@@ -96,6 +102,7 @@ export interface AthleteInput {
 
 /** AthleteRow is an athlete in the meet's list. */
 export interface AthleteRow {
+  competitionGenderText: string;
   teamMember: boolean;
   athlete: Athlete;
   unitName: string;
@@ -293,7 +300,7 @@ export interface Combined {
   id: string;
   meetId: string;
   name: string;
-  gender: Gender;
+  gender: CompetitionGender;
   groupLabel: string;
   note: string;
   ruleVersion: number;
@@ -380,6 +387,12 @@ export interface CombinedRulesRequest {
   combinedId: string;
   rules: CombinedRuleChange[];
 }
+
+/**
+ * CompetitionGender is a competition category, independent of gender identity.
+ * Athletes use 男 / 女 / empty; events also allow 混合.
+ */
+export type CompetitionGender = "男" | "女" | "混合" | "";
 
 /**
  * CompetitionGroup is a meet's independently ranked category, such as 初一.
@@ -516,7 +529,8 @@ export interface EntryView {
   groupMismatch: boolean;
   athleteId: string;
   name: string;
-  gender: Gender;
+  competitionGender: CompetitionGender;
+  competitionGenderText: string;
   bib: string;
   unitId: string;
   /** short name when the unit has one */
@@ -547,7 +561,7 @@ export interface Event {
   id: string;
   meetId: string;
   name: string;
-  gender: Gender;
+  gender: CompetitionGender;
   discipline: string;
   groupLabel: string;
   kind: EventKind;
@@ -660,7 +674,10 @@ export interface FormAthlete {
   /** the sheet's row number */
   line: number;
   name: string;
-  gender: string;
+  competitionGender: string;
+  genderIdentity?: string;
+  /** only when both old and new columns are supplied */
+  legacyCompetitionGender?: string;
   studentNumber: string;
   /** on a group's form */
   unit?: string;
@@ -714,8 +731,8 @@ export interface FrontPageView {
   updatedAt: number;
 }
 
-/** Gender of an athlete ("" = unknown) or of an event (男 / 女 / 混合). */
-export type Gender = "男" | "女" | "混合" | "";
+/** GenderIdentity is optional personal information and never determines eligibility. */
+export type GenderIdentity = "" | "男" | "女" | "非二元" | "其他" | "不愿透露";
 
 export interface GroupAssignment {
   /** unit | athlete */
@@ -1037,6 +1054,8 @@ export interface ImportPreview {
 
 /** ImportRow is one row of the preview. */
 export interface ImportRow {
+  competitionGenderText?: string;
+  genderIdentity?: GenderIdentity;
   /** 1-based, among the data rows */
   line: number;
   /** create | update | keep | error */
@@ -1977,7 +1996,7 @@ export interface TeamScoreLine {
   eventId: string;
   combinedId: string;
   eventName: string;
-  gender: Gender;
+  gender: CompetitionGender;
   groupLabel: string;
   base: ScoreValue;
   multiplier: number;
@@ -2000,7 +2019,7 @@ export interface TeamScoreSource {
   eventId: string;
   combinedId: string;
   name: string;
-  gender: Gender;
+  gender: CompetitionGender;
   groupLabel: string;
   complete: boolean;
   multiplier: number;
@@ -2012,7 +2031,7 @@ export interface TeamScoreTarget {
   eventId: string;
   combinedId: string;
   name: string;
-  gender: Gender;
+  gender: CompetitionGender;
   groupLabel: string;
   relay: boolean;
 }
@@ -2521,8 +2540,8 @@ export const Entries = {
    * AthleteOptions lists the individual events the athlete dialog offers for
    * an athlete of this gender and group ("" for one not saved yet).
    */
-  athleteOptions(meetID: string, athleteID: string, gender: string, groupID: string): Promise<AthleteEntryOption[]> {
-    return call("Entries.AthleteOptions", meetID, athleteID, gender, groupID);
+  athleteOptions(meetID: string, athleteID: string, gender: string, groupID: string, all: boolean): Promise<AthleteEntryOption[]> {
+    return call("Entries.AthleteOptions", meetID, athleteID, gender, groupID, all);
   },
   /**
    * ExportForms asks for a folder and writes the 报名登记表 into it: one per
@@ -2845,7 +2864,7 @@ export const Exchange = {
 /** Marks parses and formats marks; the page never does it itself. */
 export const Marks = {
   /** EventName composes 「男子100m 初中组」 for previews. */
-  eventName(gender: Gender, discipline: string, group: string): Promise<string> {
+  eventName(gender: CompetitionGender, discipline: string, group: string): Promise<string> {
     return call("Marks.EventName", gender, discipline, group);
   },
   format(kind: EventKind, mark: number): Promise<string> {

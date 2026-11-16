@@ -72,7 +72,7 @@ func TestImportAthletes(t *testing.T) {
 		t.Fatalf("import = %+v", p)
 	}
 	list, _ := f.svc.ListAthletes(f.ctx, f.meet)
-	if len(list) != 5 || list[0].Athlete.Name != "选手一" || list[0].Athlete.Gender != "男" || list[0].UnitName != "一班" || list[0].Entries != 1 {
+	if len(list) != 5 || list[0].Athlete.Name != "选手一" || list[0].Athlete.CompetitionGender != "男" || list[0].UnitName != "一班" || list[0].Entries != 1 {
 		t.Fatalf("after import: %+v", list)
 	}
 	if list[2].Athlete.Name != "张三" || list[2].UnitName != "三班" || list[2].Entries != 1 || list[3].UnitName != "一班" {
@@ -230,7 +230,7 @@ func TestImportIntoExistingMeet(t *testing.T) {
 	if len(p.Overwrites) != 1 || p.Overwrites[0].Before != "12.34" || p.Overwrites[0].After != "12.00" || !strings.Contains(p.Overwrites[0].Athlete, "选手01") {
 		t.Fatalf("overwrites = %+v", p.Overwrites)
 	}
-	if len(p.Warnings) != 1 || !strings.Contains(p.Warnings[0], "性别") {
+	if len(p.Warnings) != 1 || !strings.Contains(p.Warnings[0], "参赛类别") {
 		t.Fatalf("warnings = %v", p.Warnings)
 	}
 	_, err = f.svc.ImportMeet(f.ctx, ui, data, f.meet, p.Hash)

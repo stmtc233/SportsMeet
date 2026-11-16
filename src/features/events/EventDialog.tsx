@@ -67,8 +67,8 @@ export function EventDialog({ meetId, open, row, initialGroupId = "", onClose }:
       <div className="form-grid" inert={busy}>
         {!row && <div className="span"><StSelect label="常用项目" value={presetId} onChange={choosePreset} width="fill"
           options={[{ value: "", label: "自定义" }, ...(presets ?? []).map((p) => ({ value: p.id, label: `${p.category} · ${p.label}` }))]} /></div>}
-        <StSegmented label="性别" value={form.gender} onChange={(gender) => set({ gender })}
-          options={[{ value: "男", label: "男" }, { value: "女", label: "女" }, { value: "混合", label: "混合" }]} />
+        <StSegmented label="参赛类别" value={form.gender} onChange={(gender) => set({ gender })}
+          options={[{ value: "男", label: "男子" }, { value: "女", label: "女子" }, { value: "混合", label: "混合" }]} />
         <StTextField label="项目名" placeholder={kind === "relay" ? "4×100m" : kind === "track" ? "100m" : kind === "distance" ? "跳远" : "跳高"} value={form.discipline} onChange={(discipline) => { setPresetId(""); set({ discipline }); }} autoFocus />
         <GroupSelect meetId={meetId} value={form.groupId} onChange={(groupId) => set({ groupId, groupLabel: "" })} />
         <div className="span"><StTextField label="显示名称" placeholder={auto} value={form.name} onChange={(name) => set({ name })} width="fill" /></div>

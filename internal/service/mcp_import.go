@@ -16,7 +16,7 @@ func mcpImportErrors(data []byte) []string {
 	} // The normal importer reports decoding errors in full.
 	genders, names := map[string]string{}, map[string]string{}
 	for _, a := range f.Athletes {
-		genders[a.ID] = a.Gender
+		genders[a.ID] = a.CompetitionGender
 		names[a.ID] = a.Name
 	}
 	errors := []string{}
@@ -26,24 +26,24 @@ func mcpImportErrors(data []byte) []string {
 			opposite = "男子"
 		}
 		if e.Gender != "混合" && strings.Contains(e.Name, opposite) {
-			errors = append(errors, fmt.Sprintf("项目「%s」的名称与性别不符", e.Name))
+			errors = append(errors, fmt.Sprintf("项目「%s」的名称与参赛类别不符", e.Name))
 		}
 		for _, t := range e.Teams {
 			for _, id := range t.MemberIDs {
 				if g := genders[id]; g != "" && e.Gender != "混合" && g != e.Gender {
-					errors = append(errors, fmt.Sprintf("运动员「%s」的性别与项目「%s」不符", names[id], e.Discipline))
+					errors = append(errors, fmt.Sprintf("运动员「%s」的参赛类别与项目「%s」不符", names[id], e.Discipline))
 				}
 			}
 		}
 		for _, en := range e.Entries {
 			if g := genders[en.AthleteID]; g != "" && e.Gender != "混合" && g != e.Gender {
-				errors = append(errors, fmt.Sprintf("运动员「%s」的性别与项目「%s」不符", names[en.AthleteID], e.Discipline))
+				errors = append(errors, fmt.Sprintf("运动员「%s」的参赛类别与项目「%s」不符", names[en.AthleteID], e.Discipline))
 			}
 		}
 		for _, r := range e.Rounds {
 			for _, h := range r.Heats {
 				if e.Gender != "混合" && strings.Contains(h.Name, opposite) {
-					errors = append(errors, fmt.Sprintf("组「%s」的名称与项目性别不符", h.Name))
+					errors = append(errors, fmt.Sprintf("组「%s」的名称与项目参赛类别不符", h.Name))
 				}
 			}
 		}

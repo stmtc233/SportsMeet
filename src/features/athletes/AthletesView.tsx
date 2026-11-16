@@ -62,7 +62,7 @@ export function AthletesView({ meetId, node, path, onBack }: { meetId: string; n
           columns={[
             { key: "bib", title: "号码", width: "88px", render: (r) => r.athlete.bib },
             { key: "name", title: "姓名", width: "minmax(120px, 1.2fr)", render: (r) => <span className="cell-strong">{r.athlete.name}</span> },
-            { key: "gender", title: "性别", width: "64px", render: (r) => r.athlete.gender },
+            { key: "gender", title: "参赛类别", width: "96px", render: (r) => r.competitionGenderText },
             // The node already says the unit and the group.
             ...(node.unit ? [] : [{ key: "unit", title: "参赛单位", width: "minmax(120px, 1.5fr)", render: (r: AthleteRow) => r.unitName }]),
             ...(groups?.length && node.group === "all" ? [{ key: "group", title: "组别", width: "minmax(72px, 0.8fr)", render: (r: AthleteRow) => groups.find((g) => g.id === r.athlete.groupId)?.name ?? ungrouped }] : []),

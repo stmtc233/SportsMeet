@@ -26,19 +26,20 @@ type EventDetail struct {
 
 // EntryView is one entered athlete.
 type EntryView struct {
-	GroupMismatch  bool          `json:"groupMismatch"`
-	AthleteID      string        `json:"athleteId"`
-	Name           string        `json:"name"`
-	Gender         domain.Gender `json:"gender"`
-	Bib            string        `json:"bib"`
-	UnitID         string        `json:"unitId"`
-	UnitName       string        `json:"unitName"` // short name when the unit has one
-	SeedMark       *int64        `json:"seedMark"`
-	SeedText       string        `json:"seedText"`
-	Placed         bool          `json:"placed"`         // occupies a slot in this event
-	GenderMismatch bool          `json:"genderMismatch"` // differs from the event's gender
-	CompetitorID   string        `json:"competitorId"`
-	TeamID         string        `json:"teamId,omitempty"`
+	GroupMismatch         bool                     `json:"groupMismatch"`
+	AthleteID             string                   `json:"athleteId"`
+	Name                  string                   `json:"name"`
+	CompetitionGender     domain.CompetitionGender `json:"competitionGender"`
+	CompetitionGenderText string                   `json:"competitionGenderText"`
+	Bib                   string                   `json:"bib"`
+	UnitID                string                   `json:"unitId"`
+	UnitName              string                   `json:"unitName"` // short name when the unit has one
+	SeedMark              *int64                   `json:"seedMark"`
+	SeedText              string                   `json:"seedText"`
+	Placed                bool                     `json:"placed"`         // occupies a slot in this event
+	GenderMismatch        bool                     `json:"genderMismatch"` // differs from the event's gender
+	CompetitorID          string                   `json:"competitorId"`
+	TeamID                string                   `json:"teamId,omitempty"`
 	// OverEvents: the athlete enters more events than the meet allows.
 	OverEvents bool `json:"overEvents"`
 	// OverUnit: the unit enters more athletes (teams) here than allowed.
@@ -315,9 +316,9 @@ func (st *eventState) view(day string, zone *time.Location) *EventDetail {
 		if !ok {
 			continue
 		}
-		v := EntryView{AthleteID: e.AthleteID, TeamID: e.TeamID, CompetitorID: e.CompetitorID(), Name: a.Name, Gender: a.Gender, Bib: a.Bib, UnitID: a.UnitID,
+		v := EntryView{AthleteID: e.AthleteID, TeamID: e.TeamID, CompetitorID: e.CompetitorID(), Name: a.Name, CompetitionGender: a.CompetitionGender, CompetitionGenderText: domain.CompetitionGenderText(a.CompetitionGender), Bib: a.Bib, UnitID: a.UnitID,
 			UnitName: st.unitName(a.UnitID), SeedMark: e.SeedMark, Placed: placed[a.ID],
-			GenderMismatch: a.Gender != "" && st.event.Gender != domain.GenderMixed && a.Gender != st.event.Gender}
+			GenderMismatch: a.CompetitionGender != "" && st.event.Gender != domain.GenderMixed && a.CompetitionGender != st.event.Gender}
 		if e.SeedMark != nil {
 			v.SeedText = scoring.FormatEventMark(event, *e.SeedMark)
 		}

@@ -36,7 +36,7 @@ func (st *eventState) teamViews() []TeamView {
 		for _, id := range t.MemberIDs {
 			a := st.athletes[id]
 			v.MemberNames = append(v.MemberNames, a.Name)
-			v.GenderMismatch = v.GenderMismatch || (a.Gender != "" && st.event.Gender != domain.GenderMixed && a.Gender != st.event.Gender)
+			v.GenderMismatch = v.GenderMismatch || (a.CompetitionGender != "" && st.event.Gender != domain.GenderMixed && a.CompetitionGender != st.event.Gender)
 		}
 		for _, r := range st.rounds {
 			for _, h := range r.Heats {
@@ -58,13 +58,13 @@ func (st *eventState) teamViews() []TeamView {
 // competitor returns display/arrangement data for the event's athlete or team.
 type competitor struct {
 	ID, Name, UnitID, Bib string
-	Gender                domain.Gender
+	CompetitionGender     domain.CompetitionGender
 }
 
 func (st *eventState) competitor(id string) (competitor, bool) {
 	if !st.event.IsTeam() {
 		a, ok := st.athletes[id]
-		return competitor{ID: a.ID, Name: a.Name, UnitID: a.UnitID, Bib: a.Bib, Gender: a.Gender}, ok
+		return competitor{ID: a.ID, Name: a.Name, UnitID: a.UnitID, Bib: a.Bib, CompetitionGender: a.CompetitionGender}, ok
 	}
 	t, ok := st.teams[id]
 	return competitor{ID: t.ID, Name: t.Name, UnitID: t.UnitID}, ok
@@ -217,7 +217,7 @@ func (s *Service) TeamWarnings(ctx context.Context, eventID string, memberIDs []
 			return nil, invalid("运动员不属于本赛事")
 		}
 		groupMismatch = groupMismatch || (st.event.GroupID != "" && a.GroupID != "" && st.event.GroupID != a.GroupID)
-		mismatch = mismatch || (a.Gender != "" && st.event.Gender != domain.GenderMixed && a.Gender != st.event.Gender)
+		mismatch = mismatch || (a.CompetitionGender != "" && st.event.Gender != domain.GenderMixed && a.CompetitionGender != st.event.Gender)
 	}
 	if groupMismatch {
 		warnings = append(warnings, "成员组别与项目不符")

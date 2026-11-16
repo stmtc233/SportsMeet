@@ -266,7 +266,7 @@ func TestMCPImportRejectsGenderMixing(t *testing.T) {
 	f.addHeat(0, f.athletes[0])
 	file, err := f.svc.ExportMeet(f.ctx, f.meet)
 	must(t, err)
-	file.Athletes[0].Gender = "女"
+	file.Athletes[0].CompetitionGender = "女"
 	file.Events[0].Rounds[0].Heats[0].Name = "女子第一组"
 	data, err := interchange.Encode(file)
 	must(t, err)

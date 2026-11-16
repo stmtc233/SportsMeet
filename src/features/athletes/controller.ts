@@ -9,7 +9,7 @@ export function useAthletes(meetId: string) {
 
 /** The individual events the athlete dialog offers for this gender and group; entries change them. */
 export function useAthleteEntryOptions(meetId: string, athleteId: string, gender: string, groupId: string, open: boolean) {
-  return useData(() => (open ? Entries.athleteOptions(meetId, athleteId, gender, groupId) : Promise.resolve(undefined)), [meetId, athleteId, gender, groupId, open],
+  return useData(() => (open ? Entries.athleteOptions(meetId, athleteId, gender, groupId, true) : Promise.resolve(undefined)), [meetId, athleteId, gender, groupId, open],
     (c) => open && c.meetId === meetId && (c.kind === "entries" || c.kind === "events" || c.kind === "heats"));
 }
 

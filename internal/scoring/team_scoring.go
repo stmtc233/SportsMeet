@@ -48,27 +48,27 @@ type TeamScoreCompetitor struct {
 }
 
 type TeamScoreSource struct {
-	EventID     string                `json:"eventId"`
-	CombinedID  string                `json:"combinedId"`
-	Name        string                `json:"name"`
-	Gender      domain.Gender         `json:"gender"`
-	GroupLabel  string                `json:"groupLabel"`
-	Complete    bool                  `json:"complete"`
-	Multiplier  int64                 `json:"multiplier"`
-	State       string                `json:"state"`
-	Competitors []TeamScoreCompetitor `json:"-"`
+	EventID     string                   `json:"eventId"`
+	CombinedID  string                   `json:"combinedId"`
+	Name        string                   `json:"name"`
+	Gender      domain.CompetitionGender `json:"gender"`
+	GroupLabel  string                   `json:"groupLabel"`
+	Complete    bool                     `json:"complete"`
+	Multiplier  int64                    `json:"multiplier"`
+	State       string                   `json:"state"`
+	Competitors []TeamScoreCompetitor    `json:"-"`
 }
 
 type TeamScoreLine struct {
 	TeamScoreCompetitor
-	EventID    string        `json:"eventId"`
-	CombinedID string        `json:"combinedId"`
-	EventName  string        `json:"eventName"`
-	Gender     domain.Gender `json:"gender"`
-	GroupLabel string        `json:"groupLabel"`
-	Base       ScoreValue    `json:"base"`
-	Multiplier int64         `json:"multiplier"`
-	Score      ScoreValue    `json:"score"`
+	EventID    string                   `json:"eventId"`
+	CombinedID string                   `json:"combinedId"`
+	EventName  string                   `json:"eventName"`
+	Gender     domain.CompetitionGender `json:"gender"`
+	GroupLabel string                   `json:"groupLabel"`
+	Base       ScoreValue               `json:"base"`
+	Multiplier int64                    `json:"multiplier"`
+	Score      ScoreValue               `json:"score"`
 }
 
 type UnitStanding struct {
@@ -99,13 +99,13 @@ func TeamRank(rules domain.TeamScoringRules, units []domain.Unit, sources []Team
 	out := TeamScores{Rows: []UnitStanding{}, Sources: []TeamScoreSource{}, Unassigned: []TeamScoreLine{}, State: "未启用"}
 	type total struct {
 		row     UnitStanding
-		genders map[domain.Gender]*big.Rat
+		genders map[domain.CompetitionGender]*big.Rat
 		sum     *big.Rat
 	}
 	rows := make([]*total, 0, len(units))
 	byUnit := map[string]*total{}
 	for _, u := range units {
-		t := &total{row: UnitStanding{UnitID: u.ID, UnitName: u.Name, Lines: []TeamScoreLine{}}, sum: new(big.Rat), genders: map[domain.Gender]*big.Rat{domain.GenderMale: {}, domain.GenderFemale: {}, domain.GenderMixed: {}}}
+		t := &total{row: UnitStanding{UnitID: u.ID, UnitName: u.Name, Lines: []TeamScoreLine{}}, sum: new(big.Rat), genders: map[domain.CompetitionGender]*big.Rat{domain.GenderMale: {}, domain.GenderFemale: {}, domain.GenderMixed: {}}}
 		rows = append(rows, t)
 		byUnit[u.ID] = t
 	}

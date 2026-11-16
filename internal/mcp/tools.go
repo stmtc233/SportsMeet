@@ -51,7 +51,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	addTool(s, "list_units", "列出参赛单位。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.ListUnits(ctx, in.MeetID) })
 	addTool(s, "list_athletes", "列出运动员、所属单位及报名和排位状态。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.ListAthletes(ctx, in.MeetID) })
 	addTool(s, "list_events", "列出项目及比赛进度。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.ListEvents(ctx, in.MeetID) })
-	addTool(s, "list_event_presets", "列出常用项目预设。input 可作为 save_event 的初始字段，再调整性别、组别与配置；项目保存后独立于预设。", true, func(ctx context.Context, in empty) (any, error) { return svc.EventPresets(), nil })
+	addTool(s, "list_event_presets", "列出常用项目预设。input 可作为 save_event 的初始字段，再调整参赛类别、组别与配置；项目保存后独立于预设。", true, func(ctx context.Context, in empty) (any, error) { return svc.EventPresets(), nil })
 	addTool(s, "get_event", "读取项目、接力队伍与棒次、报名、轮次（含开始时间 scheduledAt）、组、位置、成绩、排名与 Q/q 晋级。组的 scheduledAt 是单独指定的时间（空 = 沿用轮次），effectiveAt 是生效计划时间，scheduleInherited 表示沿用轮次，durationMinutes 是预计用时，endAt 是预计结束时间；startedAt 是实际开赛时间（空 = 未记录），startedText 是其显示文本，startDeltaText 是与生效计划时间的差（如「晚 12 分钟」「早 5 分钟」「准时」）。", true, func(ctx context.Context, in eventArg) (any, error) { return svc.GetEvent(ctx, in.EventID) })
 	addTool(s, "get_schedule", "读取一个赛事的竞赛日程：days 按天、按生效时间列出各项目的轮次与组（startText / effectiveAt / endAt / durationText，scheduleInherited 表示沿用轮次开始时间，keepReason 非空表示已比赛；startedAt / startedText / startDeltaText 是实际开赛时间及与计划的差），unscheduled 是没有任何计划时间的轮次，pending 是未全部排好时间的轮次数（包括部分组缺时间），conflicts 是已知运动员的全部时间冲突。轮次的 timeState 与 arrange 分别表示排时间和编排状态，peopleText 显示名单待定或待编排人数，conflictPending 表示人员未定、冲突待检查。只读。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.Schedule(ctx, in.MeetID) })
 	addTool(s, "list_conflicts", "列出一个赛事的运动员时间冲突：同一运动员（队伍展开为队员，含全能分项）的两个组时间重叠，或前一组预计结束到后一组开始不足设置里的最短休息时间。没有预计用时的组按时间点计，没有计划时间的组不参与。只提示，不拦截任何保存。只读。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.MeetConflicts(ctx, in.MeetID) })
@@ -79,7 +79,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	addTool(s, "save_unit", "创建或更新一个参赛单位。id 留空创建；更新时 input 是全部字段。", false, func(ctx context.Context, in saveUnitArg) (any, error) {
 		return svc.SaveUnit(ctx, store.SourceMCP, in.MeetID, in.ID, in.Input)
 	})
-	addTool(s, "save_athlete", "创建或更新一个运动员。id 留空创建；学号、号码布赛事内唯一。更新时 input 是全部字段。", false, func(ctx context.Context, in saveAthleteArg) (any, error) {
+	addTool(s, "save_athlete", "创建或更新一个运动员。id 留空创建；学号、号码布赛事内唯一。competitionGender 为男／女／空，genderIdentity 为男／女／非二元／其他／不愿透露／空，两者独立，不得互相推断。更新时这两个字段省略保留，传空字符串清空；旧 gender 仅兼容参赛类别，其余 input 是全部字段。", false, func(ctx context.Context, in saveAthleteArg) (any, error) {
 		return svc.SaveAthleteWithWarnings(ctx, store.SourceMCP, in.MeetID, in.ID, in.Input)
 	})
 	addTool(s, "save_team", "创建或更新队伍。eventId 指定队伍项目，id 留空创建；input 是完整队名、参赛单位和按棒次顺序的 memberIds（可为空）。同一运动员在一个项目只能属于一队，已有比赛记录不能改棒次。保存队伍后用 add_entries 的 teamId 报名。", false, func(ctx context.Context, in struct {
@@ -89,7 +89,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	}) (any, error) {
 		return svc.SaveTeam(ctx, store.SourceMCP, in.EventID, in.ID, in.Input)
 	})
-	addTool(s, "save_event", "创建或更新一个项目。id 留空创建；必须有性别、项目名与类型。更新时 input 是全部字段。startMode 为 lanes（分道）、group（不分道）、break（分道后抢道）；distanceMode 为 jump 或 throw；relayLegCount 是建议棒数，0 为未指定。participantMode 为 athlete 或 team；count/score 支持 rankDirection（asc/desc）、attemptMode（single/best/sum）；scoreDecimals 为计分小数位 0–3。rounds 列出决赛之前的轮次，留空即直接决赛：stage 为 heat（预赛）、quarterfinal（次赛）、semifinal（半决赛），各带 advanceByPlace（各组前几名晋级）与 advanceByMark（其余按成绩晋级人数），两者至少一个大于 0；更新时未列出的轮次会被删除，已有组的轮次不能删除。", false, func(ctx context.Context, in saveEventArg) (any, error) {
+	addTool(s, "save_event", "创建或更新一个项目。id 留空创建；必须有参赛类别 gender、项目名与类型。更新时 input 是全部字段。startMode 为 lanes（分道）、group（不分道）、break（分道后抢道）；distanceMode 为 jump 或 throw；relayLegCount 是建议棒数，0 为未指定。participantMode 为 athlete 或 team；count/score 支持 rankDirection（asc/desc）、attemptMode（single/best/sum）；scoreDecimals 为计分小数位 0–3。rounds 列出决赛之前的轮次，留空即直接决赛：stage 为 heat（预赛）、quarterfinal（次赛）、semifinal（半决赛），各带 advanceByPlace（各组前几名晋级）与 advanceByMark（其余按成绩晋级人数），两者至少一个大于 0；更新时未列出的轮次会被删除，已有组的轮次不能删除。", false, func(ctx context.Context, in saveEventArg) (any, error) {
 		return svc.SaveEvent(ctx, store.SourceMCP, in.MeetID, in.ID, in.Input)
 	})
 	addTool(s, "set_seed", "设置一个报名成绩；seed 留空清除。", false, func(ctx context.Context, in struct {

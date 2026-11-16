@@ -19,7 +19,7 @@ export function CombinedEntriesDialog({ detail, onClose }: { detail: CombinedDet
     <div inert={busy}><StTable<Athlete> rows={detail.athletes.filter((a) => `${a.name} ${a.bib}`.includes(query) && (!sameGroup || !detail.combined.groupId || a.groupId === detail.combined.groupId || selected.has(a.id)))} rowKey={(a) => a.id} rowLabel={(a) => a.name} selected={selected} onSelect={setSelected} dense columns={[
       { key: "bib", title: "号码", width: "96px", render: (a) => a.bib },
       { key: "name", title: "姓名", render: (a) => a.name },
-      { key: "gender", title: "性别", render: (a) => a.gender },
+      { key: "gender", title: "参赛类别", render: (a) => a.competitionGender },
     ]} /></div>
   </StDialog>;
 }

@@ -22,13 +22,13 @@ type TeamScoreFilter struct {
 	TargetIDs  []string `json:"targetIds,omitempty"`
 }
 type TeamScoreTarget struct {
-	GroupID    string        `json:"groupId"`
-	EventID    string        `json:"eventId"`
-	CombinedID string        `json:"combinedId"`
-	Name       string        `json:"name"`
-	Gender     domain.Gender `json:"gender"`
-	GroupLabel string        `json:"groupLabel"`
-	Relay      bool          `json:"relay"`
+	GroupID    string                   `json:"groupId"`
+	EventID    string                   `json:"eventId"`
+	CombinedID string                   `json:"combinedId"`
+	Name       string                   `json:"name"`
+	Gender     domain.CompetitionGender `json:"gender"`
+	GroupLabel string                   `json:"groupLabel"`
+	Relay      bool                     `json:"relay"`
 }
 
 func (t TeamScoreTarget) id() string {
@@ -159,7 +159,7 @@ func (st *teamScoreState) normalizeRules(r domain.TeamScoringRules) (domain.Team
 
 func (st *teamScoreState) validateFilter(filter TeamScoreFilter) error {
 	if filter.Gender != "" && filter.Gender != "男" && filter.Gender != "女" && filter.Gender != "混合" {
-		return invalid("请选择性别")
+		return invalid("请选择参赛类别")
 	}
 	for _, id := range filter.TargetIDs {
 		if id == "" || !slices.ContainsFunc(st.targets, func(t TeamScoreTarget) bool { return t.id() == id }) {

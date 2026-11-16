@@ -101,7 +101,7 @@ func newPerfFixture(t *testing.T, scale perfScale) *perfFixture {
 	must(t, err)
 	a := athletes[0].Athlete
 	pf := &perfFixture{svc: s, meet: p.MeetID, event: events[0].Event.ID, round: d.Rounds[0].ID, heat: d.Rounds[0].Heats[0].ID,
-		athleteID: a.ID, athlete: AthleteInput{Name: a.Name, Gender: string(a.Gender), Bib: a.Bib, StudentNumber: a.StudentNumber, UnitID: a.UnitID}, data: data}
+		athleteID: a.ID, athlete: AthleteInput{Name: a.Name, Gender: string(a.CompetitionGender), Bib: a.Bib, StudentNumber: a.StudentNumber, UnitID: a.UnitID}, data: data}
 	pf.draft.EventID = pf.event
 	for _, r := range d.Rounds {
 		for _, h := range r.Heats {

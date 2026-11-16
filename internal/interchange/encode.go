@@ -63,7 +63,17 @@ func Encode(f *File) ([]byte, error) {
 		out.WriteString("[\n")
 		for j := range value.Len() {
 			out.WriteString("    ")
-			if err := write(value.Index(j).Interface(), "    "); err != nil {
+			item := value.Index(j).Interface()
+			if name == "athletes" {
+				athlete := item.(Athlete)
+				if f.Version < 12 {
+					athlete.CompetitionGender, athlete.GenderIdentity = "", ""
+				} else {
+					athlete.Gender = ""
+				}
+				item = athlete
+			}
+			if err := write(item, "    "); err != nil {
 				return nil, err
 			}
 			if j+1 < value.Len() {

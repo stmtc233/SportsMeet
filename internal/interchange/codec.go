@@ -40,11 +40,9 @@ func Decode(data []byte) (*File, error) {
 	if head.Version < 1 {
 		return nil, Problems{"version 必须为正整数"}
 	}
-	if head.Version < 11 {
-		var err error
-		if data, err = withoutNewerFields(data, head.Version); err != nil {
-			return nil, fmt.Errorf("不是有效的 JSON:%w", err)
-		}
+	var err error
+	if data, err = withoutNewerFields(data, head.Version); err != nil {
+		return nil, fmt.Errorf("不是有效的 JSON:%w", err)
 	}
 	var f File
 	var decodeErr error
@@ -93,6 +91,11 @@ func Decode(data []byte) (*File, error) {
 	if decodeErr != nil {
 		return nil, fmt.Errorf("字段类型不正确:%w", decodeErr)
 	}
+	if head.Version < 12 {
+		for i := range f.Athletes {
+			f.Athletes[i].CompetitionGender = f.Athletes[i].Gender
+		}
+	}
 	p := Validate(&f)
 	if head.Version >= 7 && f.Meet.TeamScoring != nil {
 		p = append(p, validateTeamScoringShape(data)...)
@@ -111,6 +114,16 @@ func withoutNewerFields(data []byte, version int) ([]byte, error) {
 	var doc map[string]any
 	if err := dec.Decode(&doc); err != nil {
 		return nil, err
+	}
+	for _, value := range asArray(doc["athletes"]) {
+		if athlete, ok := value.(map[string]any); ok {
+			if version < 12 {
+				delete(athlete, "competitionGender")
+				delete(athlete, "genderIdentity")
+			} else {
+				delete(athlete, "gender")
+			}
+		}
 	}
 	if version < 11 {
 		delete(doc, "frontPages")
@@ -230,8 +243,18 @@ func Validate(f *File) Problems {
 		if strings.TrimSpace(a.Name) == "" {
 			add("athletes[%d].name 不能为空", i)
 		}
-		if a.Gender != "" && a.Gender != string(domain.GenderMale) && a.Gender != string(domain.GenderFemale) {
-			add("athletes[%d].gender 只能为 男、女 或空", i)
+		category := a.CompetitionGender
+		if f.Version < 12 {
+			category = a.Gender
+		}
+		if category != "" && category != string(domain.GenderMale) && category != string(domain.GenderFemale) {
+			add("athletes[%d].competitionGender 只能为 男、女 或空", i)
+		}
+		if f.Version >= 12 {
+			identity, valid := domain.NormalizeGenderIdentity(a.GenderIdentity)
+			if !valid || string(identity) != a.GenderIdentity {
+				add("athletes[%d].genderIdentity 不正确", i)
+			}
 		}
 		if a.UnitID != nil && !units[*a.UnitID] {
 			add("athletes[%d].unitId 找不到参赛单位 %s", i, *a.UnitID)
@@ -501,3 +524,5 @@ func validateResult(at string, event domain.Event, r *Result) Problems {
 	}
 	return p
 }
+
+func asArray(value any) []any { values, _ := value.([]any); return values }

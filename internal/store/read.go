@@ -69,16 +69,16 @@ func (s *Store) ListParticipants(ctx context.Context, sc Scope) ([]domain.Athlet
 }
 
 func (s *Store) readAthletes(ctx context.Context, where string, args ...any) ([]domain.Athlete, error) {
-	rows, err := s.Query(ctx, `SELECT id, meet_id, name, gender, bib, student_number, unit_id, class_name,
-		grade, birth_date, note, group_id FROM athletes WHERE `+where+` ORDER BY created_at, rowid`, args...)
+	rows, err := s.Query(ctx, `SELECT id, meet_id, name, competition_gender, bib, student_number, unit_id, class_name,
+		grade, birth_date, note, group_id, gender_identity FROM athletes WHERE `+where+` ORDER BY created_at, rowid`, args...)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]domain.Athlete, 0, len(rows.Values))
 	for _, r := range rows.Values {
-		out = append(out, domain.Athlete{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), Gender: domain.Gender(str(r[3])),
+		out = append(out, domain.Athlete{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), CompetitionGender: domain.CompetitionGender(str(r[3])),
 			Bib: str(r[4]), StudentNumber: str(r[5]), UnitID: str(r[6]), ClassName: str(r[7]), Grade: str(r[8]),
-			BirthDate: str(r[9]), Note: str(r[10]), GroupID: str(r[11])})
+			BirthDate: str(r[9]), Note: str(r[10]), GroupID: str(r[11]), GenderIdentity: domain.GenderIdentity(str(r[12]))})
 	}
 	return out, nil
 }
@@ -98,7 +98,7 @@ func (s *Store) ListEvents(ctx context.Context, sc Scope) ([]domain.Event, error
 	}
 	out := make([]domain.Event, 0, len(rows.Values))
 	for _, r := range rows.Values {
-		e := domain.Event{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), Gender: domain.Gender(str(r[3])),
+		e := domain.Event{ID: str(r[0]), MeetID: str(r[1]), Name: str(r[2]), Gender: domain.CompetitionGender(str(r[3])),
 			Discipline: str(r[4]), GroupLabel: str(r[5]), Kind: domain.EventKind(str(r[6])), Date: str(r[7]),
 			LaneCount: int(i64(r[8])), AttemptCount: int(i64(r[9])), Note: str(r[10]), StartMode: domain.StartMode(str(r[11])), DistanceMode: domain.DistanceMode(str(r[12])), RelayLegCount: int(i64(r[13])), CombinedID: str(r[15]), GroupID: str(r[16])}
 		if err := json.Unmarshal([]byte(str(r[14])), &e.CompetitionConfig); err != nil {
@@ -372,4 +372,13 @@ func stringIDs(v any) []string {
 	ids := []string{}
 	_ = json.Unmarshal([]byte(str(v)), &ids)
 	return ids
+}
+
+// GetAthlete reads one athlete in the requested meet, including both independent fields.
+func (s *Store) GetAthlete(ctx context.Context, meetID, id string) (*domain.Athlete, error) {
+	athletes, err := s.readAthletes(ctx, "meet_id = ? AND id = ?", meetID, id)
+	if err != nil || len(athletes) == 0 {
+		return nil, err
+	}
+	return &athletes[0], nil
 }
