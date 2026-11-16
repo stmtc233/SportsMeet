@@ -1,0 +1,45 @@
+{
+  "format": "sportsmeet-print-style",
+  "version": 1,
+  "name": "红色表头示例",
+  "params": {
+    "paper": "a4",
+    "paperWidth": 0,
+    "paperHeight": 0,
+    "orientation": "portrait",
+    "marginTop": 18,
+    "marginRight": 15,
+    "marginBottom": 18,
+    "marginLeft": 15,
+    "font": "hei",
+    "fontSize": 9.5,
+    "lineHeight": 1.4,
+    "titleSize": 18,
+    "eventTitleSize": 12.5,
+    "tableLines": "grid",
+    "lineWidth": 1,
+    "header": true,
+    "pageNumber": "dash",
+    "rosterColumns": 4,
+    "showUnit": true,
+    "showSeed": true,
+    "showBib": true
+  },
+  "css": ":root{--accent: #b3261e;}\nth{background: #fbeceb;color: var(--accent);}\n.sheet-meet, .pv-head{font-weight: 600;}\n.cover{text-align: center;padding-top: 60mm;}\n.cover img{width: 30mm;height: 30mm;}\n",
+  "slots": {
+    "cover": "<img src=\"asset:校徽\" alt=\"\"><h1>{{.Meet}}</h1><p>{{.Title}}</p>",
+    "footer": "第 {page} 页，共 {pages} 页",
+    "header_right": "{{.Title}}"
+  },
+  "templates": {
+    "checkin": "{{$meet := .Meet}}\n{{range .Sheets}}\n<section class=\"sheet{{if .Break}} break{{end}}\">\n  <h2>{{.Event}} {{.Round}} {{.Heat}}</h2>\n  <p>计划时间 {{.Time}}{{if $.ShowCheckIn}}，检录时间 {{.CheckIn}}{{end}}</p>\n  <table class=\"grid\">\n    <thead><tr><th class=\"num\">{{.PositionLabel}}</th><th>{{.NameLabel}}</th><th class=\"org\">单位</th><th class=\"check\">到</th></tr></thead>\n    <tbody>\n      {{range .Lines}}<tr><td class=\"num\">{{.Position}}</td><td>{{.Name}}</td><td class=\"org\">{{.Unit}}</td><td class=\"check\"><span class=\"box\"></span></td></tr>\n      {{end}}\n    </tbody>\n  </table>\n</section>\n{{end}}\n{{with .Slots.after_events}}{{.}}{{end}}"
+  },
+  "dataVersion": 1,
+  "assets": [
+    {
+      "name": "校徽",
+      "mime": "image/png",
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+    }
+  ]
+}

@@ -93,7 +93,7 @@ func TestStartListScheduleAndHeadings(t *testing.T) {
 	}
 	// Books name the meet and the report for the preview's running head;
 	// sheets name them on each sheet instead.
-	if !strings.Contains(html, `<body data-meet="秋季运动会" data-title="秩序册">`) {
+	if !strings.Contains(html, `data-meet="秋季运动会" data-title="秩序册"`) {
 		t.Fatal("running head data missing")
 	}
 	sheets, err := f.svc.RenderCheckIn(f.ctx, CheckInRequest{MeetID: f.meet})

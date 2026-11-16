@@ -101,7 +101,7 @@ for (const scale of ["school", "large", "extreme", "wide"]) for (const variant o
       }).observe({ entryTypes: ["longtask"] });
       const bridge = (globalThis as any).mygo;
       const call = bridge.call;
-      bridge.call = (method: string, ...args: unknown[]) => method === "Reports.Render" ? Promise.resolve(html) : call(method, ...args);
+      bridge.call = (method: string, ...args: unknown[]) => method === "Reports.Render" ? Promise.resolve({ html, warnings: [] }) : call(method, ...args);
     });
     await page.setViewportSize({ width: 1280, height: 800 });
     const errors: string[] = [];

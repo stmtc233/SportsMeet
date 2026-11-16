@@ -1,0 +1,751 @@
+{
+  "book": {
+    "groupName": "",
+    "groupBooks": null,
+    "newPage": false,
+    "compact": false,
+    "title": "",
+    "meet": "第一届校园运动会",
+    "dates": "2026-11-12 – 2026-11-13",
+    "location": "第一中学田径场",
+    "printedAt": "2026-11-12 09:31",
+    "rosters": [
+      {
+        "name": "初一（1）班",
+        "count": 3,
+        "bibs": "101–103",
+        "groups": [
+          {
+            "label": "男子",
+            "athletes": [
+              {
+                "position": 0,
+                "attempts": null,
+                "best": 0,
+                "bars": null,
+                "rank": "",
+                "bib": "101",
+                "name": "张三",
+                "members": null,
+                "unit": "",
+                "seed": "",
+                "mark": "",
+                "qualify": "",
+                "heat": ""
+              },
+              {
+                "position": 0,
+                "attempts": null,
+                "best": 0,
+                "bars": null,
+                "rank": "",
+                "bib": "102",
+                "name": "李四",
+                "members": null,
+                "unit": "",
+                "seed": "",
+                "mark": "",
+                "qualify": "",
+                "heat": ""
+              }
+            ]
+          },
+          {
+            "label": "女子",
+            "athletes": [
+              {
+                "position": 0,
+                "attempts": null,
+                "best": 0,
+                "bars": null,
+                "rank": "",
+                "bib": "103",
+                "name": "王五",
+                "members": null,
+                "unit": "",
+                "seed": "",
+                "mark": "",
+                "qualify": "",
+                "heat": ""
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "schedule": [
+      {
+        "day": "2026-11-12 周四",
+        "rows": [
+          {
+            "no": 1,
+            "time": "09:00",
+            "kind": "径赛",
+            "event": "男子100m",
+            "round": "决赛",
+            "heats": 2,
+            "people": 6
+          },
+          {
+            "no": 2,
+            "time": "10:00",
+            "kind": "田赛",
+            "event": "男子跳远",
+            "round": "决赛",
+            "heats": 1,
+            "people": 3
+          }
+        ]
+      }
+    ],
+    "events": [
+      {
+        "entries": [
+          {
+            "position": 1,
+            "attempts": null,
+            "best": 0,
+            "bars": null,
+            "rank": "",
+            "bib": "101",
+            "name": "张三",
+            "members": null,
+            "unit": "一班",
+            "seed": "12.50",
+            "mark": "",
+            "qualify": "",
+            "heat": ""
+          },
+          {
+            "position": 2,
+            "attempts": null,
+            "best": 0,
+            "bars": null,
+            "rank": "",
+            "bib": "102",
+            "name": "李四",
+            "members": null,
+            "unit": "二班",
+            "seed": "12.80",
+            "mark": "",
+            "qualify": "",
+            "heat": ""
+          }
+        ],
+        "count": "6 人",
+        "name": "男子100m",
+        "meta": "2026-11-12 周四 · 分道",
+        "team": false,
+        "nameLabel": "姓名",
+        "positionLabel": "道次",
+        "seeded": true,
+        "tryHeads": null,
+        "bars": false,
+        "wide": false,
+        "rounds": [
+          {
+            "label": "决赛",
+            "advance": "各组前 2 名晋级",
+            "heats": [
+              {
+                "label": "第 1 组",
+                "time": "09:00",
+                "count": "2 人",
+                "started": "09:02",
+                "resultsTime": "09:05",
+                "lines": [
+                  {
+                    "position": 1,
+                    "attempts": null,
+                    "best": -1,
+                    "bars": null,
+                    "rank": "1",
+                    "bib": "101",
+                    "name": "张三",
+                    "members": null,
+                    "unit": "一班",
+                    "seed": "12.50",
+                    "mark": "12.31",
+                    "qualify": "Q",
+                    "heat": ""
+                  },
+                  {
+                    "position": 2,
+                    "attempts": null,
+                    "best": -1,
+                    "bars": null,
+                    "rank": "2",
+                    "bib": "102",
+                    "name": "李四",
+                    "members": null,
+                    "unit": "二班",
+                    "seed": "12.80",
+                    "mark": "12.90",
+                    "qualify": "Q",
+                    "heat": ""
+                  }
+                ]
+              },
+              {
+                "label": "第 2 组",
+                "time": "09:10",
+                "count": "1 人",
+                "started": "",
+                "resultsTime": "",
+                "lines": [
+                  {
+                    "position": 1,
+                    "attempts": null,
+                    "best": -1,
+                    "bars": null,
+                    "rank": "1",
+                    "bib": "103",
+                    "name": "王五",
+                    "members": null,
+                    "unit": "一班",
+                    "seed": "",
+                    "mark": "13.02",
+                    "qualify": "q",
+                    "heat": ""
+                  }
+                ]
+              }
+            ],
+            "standings": null,
+            "byHeat": true
+          }
+        ]
+      },
+      {
+        "entries": [
+          {
+            "position": 1,
+            "attempts": null,
+            "best": 0,
+            "bars": null,
+            "rank": "",
+            "bib": "101",
+            "name": "张三",
+            "members": null,
+            "unit": "一班",
+            "seed": "",
+            "mark": "",
+            "qualify": "",
+            "heat": ""
+          }
+        ],
+        "count": "2 人",
+        "name": "男子跳远",
+        "meta": "2026-11-12 周四 · 3 次",
+        "team": false,
+        "nameLabel": "姓名",
+        "positionLabel": "顺序",
+        "seeded": false,
+        "tryHeads": [
+          "第1次",
+          "第2次",
+          "第3次"
+        ],
+        "bars": false,
+        "wide": true,
+        "rounds": [
+          {
+            "label": "决赛",
+            "advance": "",
+            "heats": [
+              {
+                "label": "第 1 组",
+                "time": "",
+                "count": "2 人",
+                "started": "10:00",
+                "resultsTime": "",
+                "lines": [
+                  {
+                    "position": 1,
+                    "attempts": null,
+                    "best": 0,
+                    "bars": null,
+                    "rank": "",
+                    "bib": "101",
+                    "name": "张三",
+                    "members": null,
+                    "unit": "一班",
+                    "seed": "",
+                    "mark": "",
+                    "qualify": "",
+                    "heat": ""
+                  },
+                  {
+                    "position": 2,
+                    "attempts": null,
+                    "best": 0,
+                    "bars": null,
+                    "rank": "",
+                    "bib": "102",
+                    "name": "李四",
+                    "members": null,
+                    "unit": "二班",
+                    "seed": "",
+                    "mark": "",
+                    "qualify": "",
+                    "heat": ""
+                  }
+                ]
+              }
+            ],
+            "standings": [
+              {
+                "position": 0,
+                "attempts": [
+                  "5.10",
+                  "5.32",
+                  "X"
+                ],
+                "best": 1,
+                "bars": null,
+                "rank": "1",
+                "bib": "101",
+                "name": "张三",
+                "members": null,
+                "unit": "一班",
+                "seed": "",
+                "mark": "5.32",
+                "qualify": "",
+                "heat": "第 1 组"
+              },
+              {
+                "position": 0,
+                "attempts": [
+                  "4.90",
+                  "",
+                  ""
+                ],
+                "best": 0,
+                "bars": null,
+                "rank": "2",
+                "bib": "102",
+                "name": "李四",
+                "members": null,
+                "unit": "二班",
+                "seed": "",
+                "mark": "4.90",
+                "qualify": "",
+                "heat": "第 1 组"
+              }
+            ],
+            "byHeat": false
+          }
+        ]
+      },
+      {
+        "entries": null,
+        "count": "1 人",
+        "name": "男子跳高",
+        "meta": "2026-11-12 周四",
+        "team": false,
+        "nameLabel": "姓名",
+        "positionLabel": "顺序",
+        "seeded": false,
+        "tryHeads": null,
+        "bars": true,
+        "wide": false,
+        "rounds": [
+          {
+            "label": "决赛",
+            "advance": "",
+            "heats": [
+              {
+                "label": "第 1 组",
+                "time": "",
+                "count": "1 人",
+                "started": "",
+                "resultsTime": "",
+                "lines": [
+                  {
+                    "position": 1,
+                    "attempts": null,
+                    "best": -1,
+                    "bars": [
+                      "1.50 O",
+                      "1.55 XO"
+                    ],
+                    "rank": "1",
+                    "bib": "101",
+                    "name": "张三",
+                    "members": null,
+                    "unit": "一班",
+                    "seed": "",
+                    "mark": "1.55",
+                    "qualify": "",
+                    "heat": ""
+                  }
+                ]
+              }
+            ],
+            "standings": null,
+            "byHeat": true
+          }
+        ]
+      },
+      {
+        "entries": [
+          {
+            "position": 1,
+            "attempts": null,
+            "best": 0,
+            "bars": null,
+            "rank": "",
+            "bib": "",
+            "name": "",
+            "members": [
+              "1棒 张三 101",
+              "2棒 李四 102"
+            ],
+            "unit": "一班",
+            "seed": "",
+            "mark": "",
+            "qualify": "",
+            "heat": ""
+          }
+        ],
+        "count": "2 队",
+        "name": "男子4×100m接力",
+        "meta": "2026-11-13 周五 · 分道",
+        "team": true,
+        "nameLabel": "棒次",
+        "positionLabel": "道次",
+        "seeded": false,
+        "tryHeads": null,
+        "bars": false,
+        "wide": true,
+        "rounds": [
+          {
+            "label": "决赛",
+            "advance": "",
+            "heats": [
+              {
+                "label": "第 1 组",
+                "time": "",
+                "count": "1 队",
+                "started": "",
+                "resultsTime": "",
+                "lines": [
+                  {
+                    "position": 1,
+                    "attempts": null,
+                    "best": -1,
+                    "bars": null,
+                    "rank": "1",
+                    "bib": "",
+                    "name": "",
+                    "members": [
+                      "1棒 张三 101",
+                      "2棒 李四 102"
+                    ],
+                    "unit": "一班",
+                    "seed": "",
+                    "mark": "52.10",
+                    "qualify": "",
+                    "heat": ""
+                  }
+                ]
+              }
+            ],
+            "standings": null,
+            "byHeat": true
+          }
+        ]
+      }
+    ],
+    "combineds": [
+      {
+        "name": "男子三项全能",
+        "state": "已完成",
+        "components": [
+          {
+            "no": 1,
+            "name": "100m",
+            "time": "2026-11-12 08:30"
+          },
+          {
+            "no": 2,
+            "name": "跳远",
+            "time": ""
+          }
+        ],
+        "roster": [
+          {
+            "position": 0,
+            "attempts": null,
+            "best": 0,
+            "bars": null,
+            "rank": "",
+            "bib": "101",
+            "name": "张三",
+            "members": null,
+            "unit": "一班",
+            "seed": "",
+            "mark": "",
+            "qualify": "",
+            "heat": ""
+          }
+        ],
+        "tables": [
+          {
+            "label": "",
+            "headers": [
+              "100m",
+              "跳远"
+            ],
+            "rows": [
+              {
+                "name": "张三",
+                "bib": "101",
+                "unit": "一班",
+                "rank": "1",
+                "total": "1500",
+                "cells": [
+                  {
+                    "mark": "12.31",
+                    "points": "800"
+                  },
+                  {
+                    "mark": "5.32",
+                    "points": "700"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "teamScores": {
+      "state": "已完成",
+      "scope": "全部项目",
+      "counted": 4,
+      "total": 5,
+      "targets": [
+        "男子100m",
+        "男子跳远"
+      ],
+      "mixed": true,
+      "standalone": false,
+      "rows": [
+        {
+          "rank": "1",
+          "unit": "初一（1）班",
+          "male": "16",
+          "female": "9",
+          "mixed": "2",
+          "total": "27"
+        }
+      ]
+    },
+    "teamOnly": false,
+    "hideBib": false,
+    "hideUnit": false,
+    "hideSeed": false,
+    "rosterColumns": 0
+  },
+  "checkInBook": {
+    "title": "",
+    "meet": "第一届校园运动会",
+    "dates": "2026-11-12 – 2026-11-13",
+    "location": "第一中学田径场",
+    "printedAt": "2026-11-12 09:31",
+    "showCheckIn": true,
+    "sheets": [
+      {
+        "break": false,
+        "event": "男子100m",
+        "round": "预赛",
+        "from": "",
+        "heat": "第 1 组",
+        "time": "2026-11-12 09:00",
+        "checkIn": "08:40",
+        "positionLabel": "道次",
+        "team": false,
+        "nameLabel": "姓名",
+        "lines": [
+          {
+            "position": 1,
+            "attempts": null,
+            "best": 0,
+            "bars": null,
+            "rank": "",
+            "bib": "101",
+            "name": "张三",
+            "members": null,
+            "unit": "一班",
+            "seed": "",
+            "mark": "",
+            "qualify": "",
+            "heat": ""
+          },
+          {
+            "position": 2,
+            "attempts": null,
+            "best": 0,
+            "bars": null,
+            "rank": "",
+            "bib": "102",
+            "name": "李四",
+            "members": null,
+            "unit": "二班",
+            "seed": "",
+            "mark": "",
+            "qualify": "",
+            "heat": ""
+          }
+        ]
+      },
+      {
+        "break": true,
+        "event": "男子4×100m接力",
+        "round": "决赛",
+        "from": "预赛",
+        "heat": "第 1 组",
+        "time": "2026-11-13 09:00",
+        "checkIn": "08:40",
+        "positionLabel": "道次",
+        "team": true,
+        "nameLabel": "棒次",
+        "lines": [
+          {
+            "position": 1,
+            "attempts": null,
+            "best": 0,
+            "bars": null,
+            "rank": "",
+            "bib": "",
+            "name": "",
+            "members": [
+              "1棒 张三 101",
+              "2棒 李四 102"
+            ],
+            "unit": "一班",
+            "seed": "",
+            "mark": "",
+            "qualify": "",
+            "heat": ""
+          }
+        ]
+      }
+    ]
+  },
+  "dataVersion": 1,
+  "recordBook": {
+    "title": "",
+    "meet": "第一届校园运动会",
+    "dates": "2026-11-12 – 2026-11-13",
+    "location": "第一中学田径场",
+    "printedAt": "2026-11-12 09:31",
+    "sheets": [
+      {
+        "break": false,
+        "event": "男子100m",
+        "round": "决赛",
+        "heat": "第 1 组",
+        "time": "2026-11-12 09:00",
+        "heatWind": true,
+        "positionLabel": "道次",
+        "team": false,
+        "nameLabel": "姓名",
+        "columns": null,
+        "columnsTitle": "",
+        "attemptWind": false,
+        "markLabel": "成绩",
+        "lines": [
+          {
+            "position": 1,
+            "attempts": null,
+            "best": 0,
+            "bars": null,
+            "rank": "",
+            "bib": "101",
+            "name": "张三",
+            "members": null,
+            "unit": "一班",
+            "seed": "",
+            "mark": "",
+            "qualify": "",
+            "heat": ""
+          }
+        ]
+      },
+      {
+        "break": true,
+        "event": "男子跳远",
+        "round": "决赛",
+        "heat": "第 1 组",
+        "time": "2026-11-12 10:00",
+        "heatWind": false,
+        "positionLabel": "顺序",
+        "team": false,
+        "nameLabel": "姓名",
+        "columns": [
+          "第1次",
+          "第2次",
+          "第3次"
+        ],
+        "columnsTitle": "",
+        "attemptWind": true,
+        "markLabel": "最好成绩",
+        "lines": [
+          {
+            "position": 1,
+            "attempts": null,
+            "best": 0,
+            "bars": null,
+            "rank": "",
+            "bib": "101",
+            "name": "张三",
+            "members": null,
+            "unit": "一班",
+            "seed": "",
+            "mark": "",
+            "qualify": "",
+            "heat": ""
+          }
+        ]
+      },
+      {
+        "break": true,
+        "event": "男子跳高",
+        "round": "决赛",
+        "heat": "第 1 组",
+        "time": "",
+        "heatWind": false,
+        "positionLabel": "顺序",
+        "team": false,
+        "nameLabel": "姓名",
+        "columns": [
+          "",
+          "",
+          ""
+        ],
+        "columnsTitle": "高度",
+        "attemptWind": false,
+        "markLabel": "最好成绩",
+        "lines": [
+          {
+            "position": 1,
+            "attempts": null,
+            "best": 0,
+            "bars": null,
+            "rank": "",
+            "bib": "101",
+            "name": "张三",
+            "members": null,
+            "unit": "一班",
+            "seed": "",
+            "mark": "",
+            "qualify": "",
+            "heat": ""
+          }
+        ]
+      }
+    ]
+  }
+}

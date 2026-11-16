@@ -1,11 +1,3 @@
-<!doctype html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<title>{{.Meet}} {{.Title}}</title>
-<style>{{.Style}}</style>
-</head>
-<body data-meet="{{.Meet}}" data-title="{{.Title}}">
 <header>
   <h1>{{.Meet}}</h1>
   <p class="title">{{.Title}}</p>
@@ -16,10 +8,7 @@
 <h2 class="report-group__title">{{.GroupName}}</h2>
 {{template "resultsBody" .}}
 </section>{{end}}{{else}}{{template "resultsBody" .}}{{end}}
-{{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
-</body>
-</html>
-
+{{with .Slots.after_events}}{{.}}{{end}}{{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
 {{define "resultsBody"}}
 {{template "teamScores" .TeamScores}}
 {{if not .TeamOnly}}
@@ -35,9 +24,9 @@
       <div class="heat">
         <h4>{{.Label}}{{if .Started}}<small>实际开赛 {{.Started}}</small>{{end}}</h4>
         <table>
-          <thead><tr><th class="num">{{$e.PositionLabel}}</th>{{if not $e.Team}}<th class="bib">号码</th>{{end}}<th>{{$e.NameLabel}}</th><th class="org">单位</th>{{range $e.TryHeads}}<th class="try">{{.}}</th>{{end}}{{if $e.Bars}}<th>试跳记录</th>{{end}}<th class="mark">成绩</th><th class="num">名次</th><th class="q">晋级</th></tr></thead>
+          <thead><tr><th class="num">{{$e.PositionLabel}}</th>{{if and (not $e.Team) (not $.HideBib)}}<th class="bib">号码</th>{{end}}<th>{{$e.NameLabel}}</th>{{if not $.HideUnit}}<th class="org">单位</th>{{end}}{{range $e.TryHeads}}<th class="try">{{.}}</th>{{end}}{{if $e.Bars}}<th>试跳记录</th>{{end}}<th class="mark">成绩</th><th class="num">名次</th><th class="q">晋级</th></tr></thead>
           <tbody>
-            {{range .Lines}}{{$best := .Best}}<tr><td class="num">{{.Position}}</td>{{if not $e.Team}}<td class="bib">{{.Bib}}</td>{{end}}<td>{{template "competitor" .}}</td><td class="org">{{.Unit}}</td>{{range $i, $a := .Attempts}}<td class="try{{if eq $i $best}} best{{end}}">{{$a}}</td>{{end}}{{if $e.Bars}}<td class="bars">{{template "bars" .Bars}}</td>{{end}}<td class="mark">{{.Mark}}</td><td class="num">{{.Rank}}</td><td class="q">{{.Qualify}}</td></tr>
+            {{range .Lines}}{{$best := .Best}}<tr><td class="num">{{.Position}}</td>{{if and (not $e.Team) (not $.HideBib)}}<td class="bib">{{.Bib}}</td>{{end}}<td>{{template "competitor" .}}</td>{{if not $.HideUnit}}<td class="org">{{.Unit}}</td>{{end}}{{range $i, $a := .Attempts}}<td class="try{{if eq $i $best}} best{{end}}">{{$a}}</td>{{end}}{{if $e.Bars}}<td class="bars">{{template "bars" .Bars}}</td>{{end}}<td class="mark">{{.Mark}}</td><td class="num">{{.Rank}}</td><td class="q">{{.Qualify}}</td></tr>
             {{end}}
           </tbody>
         </table>
@@ -47,9 +36,9 @@
     </div>
     {{else if .Standings}}{{$multi := gt (len .Heats) 1}}
     <table>
-      <thead><tr><th class="num">名次</th>{{if not $e.Team}}<th class="bib">号码</th>{{end}}<th>{{$e.NameLabel}}</th><th class="org">单位</th>{{range $e.TryHeads}}<th class="try">{{.}}</th>{{end}}{{if $e.Bars}}<th>试跳记录</th>{{end}}<th class="mark">成绩</th>{{if $multi}}<th class="heat-col">组</th>{{end}}</tr></thead>
+      <thead><tr><th class="num">名次</th>{{if and (not $e.Team) (not $.HideBib)}}<th class="bib">号码</th>{{end}}<th>{{$e.NameLabel}}</th>{{if not $.HideUnit}}<th class="org">单位</th>{{end}}{{range $e.TryHeads}}<th class="try">{{.}}</th>{{end}}{{if $e.Bars}}<th>试跳记录</th>{{end}}<th class="mark">成绩</th>{{if $multi}}<th class="heat-col">组</th>{{end}}</tr></thead>
       <tbody>
-        {{range .Standings}}{{$best := .Best}}<tr><td class="num">{{.Rank}}</td>{{if not $e.Team}}<td class="bib">{{.Bib}}</td>{{end}}<td>{{template "competitor" .}}</td><td class="org">{{.Unit}}</td>{{range $i, $a := .Attempts}}<td class="try{{if eq $i $best}} best{{end}}">{{$a}}</td>{{end}}{{if $e.Bars}}<td class="bars">{{template "bars" .Bars}}</td>{{end}}<td class="mark">{{.Mark}}</td>{{if $multi}}<td class="heat-col">{{.Heat}}</td>{{end}}</tr>
+        {{range .Standings}}{{$best := .Best}}<tr><td class="num">{{.Rank}}</td>{{if and (not $e.Team) (not $.HideBib)}}<td class="bib">{{.Bib}}</td>{{end}}<td>{{template "competitor" .}}</td>{{if not $.HideUnit}}<td class="org">{{.Unit}}</td>{{end}}{{range $i, $a := .Attempts}}<td class="try{{if eq $i $best}} best{{end}}">{{$a}}</td>{{end}}{{if $e.Bars}}<td class="bars">{{template "bars" .Bars}}</td>{{end}}<td class="mark">{{.Mark}}</td>{{if $multi}}<td class="heat-col">{{.Heat}}</td>{{end}}</tr>
         {{end}}
       </tbody>
     </table>
@@ -65,8 +54,8 @@
 <h2>{{.Name}}<small>{{.State}}</small></h2>
 {{range .Tables}}{{if .Label}}<h3>{{.Label}}</h3>{{end}}
 <table>
-  <thead><tr><th class="num">名次</th><th class="bib">号码</th><th>姓名</th><th class="org">单位</th>{{range .Headers}}<th class="mark">{{.}}<div class="pts">积分</div></th>{{end}}<th class="mark">总分</th></tr></thead>
-  <tbody>{{range .Rows}}<tr><td class="num">{{.Rank}}</td><td class="bib">{{.Bib}}</td><td>{{.Name}}</td><td class="org">{{.Unit}}</td>{{range .Cells}}<td class="mark">{{.Mark}}{{if .Points}}<div class="pts">{{.Points}}</div>{{end}}</td>{{end}}<td class="mark total">{{.Total}}</td></tr>{{end}}</tbody>
+  <thead><tr><th class="num">名次</th>{{if not $.HideBib}}<th class="bib">号码</th>{{end}}<th>姓名</th>{{if not $.HideUnit}}<th class="org">单位</th>{{end}}{{range .Headers}}<th class="mark">{{.}}<div class="pts">积分</div></th>{{end}}<th class="mark">总分</th></tr></thead>
+  <tbody>{{range .Rows}}<tr><td class="num">{{.Rank}}</td>{{if not $.HideBib}}<td class="bib">{{.Bib}}</td>{{end}}<td>{{.Name}}</td>{{if not $.HideUnit}}<td class="org">{{.Unit}}</td>{{end}}{{range .Cells}}<td class="mark">{{.Mark}}{{if .Points}}<div class="pts">{{.Points}}</div>{{end}}</td>{{end}}<td class="mark total">{{.Total}}</td></tr>{{end}}</tbody>
 </table>
 {{end}}
 </section>{{end}}

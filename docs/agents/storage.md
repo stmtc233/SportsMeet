@@ -9,7 +9,7 @@
 ## 设置
 
 - 应用设置复用 `settings(key,value)` 表,`preferences`(外观、接收测试版)与 `mcp` 两个键分别存 JSON。缺失时使用默认值。外观默认跟随系统;MCP 默认开启、端口 18765，启动时为已开启且缺少令牌的配置生成并保存令牌；监听与保存顺序见 [mcp.md](mcp.md)。
-- 赛事设置存在 `meets.settings`(JSON 文本,空 = 全部默认):默认开启同单位分散和均衡人数、关闭项目另起一页、秩序册印代表队名单与竞赛日程表、成绩册印团体总分表、不印成绩时间、最短休息时间 0(只查重叠)、检录提前时间 20 分钟、检录单与成绩记录表每个轮次一页。JSON 缺少某个字段时该字段按默认值读取;旧的 `printCheckInNewPage` 开关读作检录单分页(service `parseMeetSettings`)。赛事设置不进交换格式,导入或新建的赛事用默认值。
+- 赛事设置存在 `meets.settings`(JSON 文本,空 = 全部默认):默认开启同单位分散和均衡人数、关闭项目另起一页、秩序册印代表队名单与竞赛日程表、成绩册印团体总分表、不印成绩时间、最短休息时间 0(只查重叠)、检录提前时间 20 分钟、检录单与成绩记录表每个轮次一页。JSON 缺少某个字段时该字段按默认值读取;旧的 `printCheckInNewPage` 开关读作检录单分页(service `parseMeetSettings`)。赛事设置不进交换格式,导入或新建的赛事用默认值;沿用项目与赛制新建赛事时例外:选用的打印样式 `printStyleId` 随之沿用,其余仍是默认值。`printStyleId`(空 = 默认样式)只由 `SetMeetPrintStyle` 写,`SaveMeetSettings` 保持它不变;读取时指向已删除样式的 id 读作空(→ [print-style.md](print-style.md))。
 - 所有设置写入走 service 写锁与日志;应用设置广播 `settings` 变更,赛事设置广播带赛事 ID 的 `meets` 变更(日志动作 `meet.settings`);令牌只保存在本地配置中,不写操作日志。监听切换规则见 [mcp.md](mcp.md)。
 
 ## 迁移
@@ -38,6 +38,15 @@
 - `0006_schedule.sql` 追加 `rounds.scheduled_at`(轮次开始时间,`TEXT NOT NULL DEFAULT ''`,空为未安排)与 `heats.duration_minutes`(预计用时,可空整数),并建操作日志索引 `idx_audit_meet(meet_id, ts)`。已有数据库升级后轮次都未安排开始时间、组都没有预计用时,组自己的 `scheduled_at` 保持原值,显示与排序不变。
 - `0007_heat_started.sql` 追加 `heats.started_at`(实际开赛时间,`TEXT NOT NULL DEFAULT ''`,空为未记录);已有的组升级后都未记录。它与位置、成绩分开存,编排保存的 `UPDATE` 不写这一列,所以重排位置不会清掉它。
 - `heats.scheduled_at` 只存组单独指定的时间,沿用轮次的组存空;生效时间在读取后由 domain 计算,不存储,轮次开始时间改动时不需要改写组(→ [domain.md](domain.md)「时间」)。
+
+## 打印样式数据
+
+- `0014_print_styles.sql` 新增五张表:`print_styles`(`id`、唯一的 `name`、`params_json`、`css`、`slots_json`、`templates_json`、`data_version`、`version`、时间)、`print_style_versions`(`style_id` + `version` 为主键,`source`、`snapshot_json`)、`print_style_assets`(`style_id`、`name`、`mime`、`data` BLOB、`sha256`,`style_id` + `name` 唯一)、`meet_front_pages`(`meet_id`、`position`、`title`、`body_md`、`reports_json`)与 `meet_assets`(结构同样式图片,`meet_id` + `name` 唯一)。样式是全局的,没有赛事外键;版本与样式图片随样式级联删除,前置页与赛事图片随赛事级联删除。
+- 外键列都是所在主键或唯一约束的第一列(`style_id`、`meet_id`),`meet_front_pages` 另建 `idx_meet_front_pages_meet(meet_id, position)`,按它们查找与级联删除都走索引。已有数据库升级后没有样式、前置页与图片,赛事读作默认样式,行为与升级前一致。
+- **图片是 BLOB,列表查询不读数据**:`ListAssets` 默认只取名称、类型、指纹与 `length(data)`,只有渲染(且内容里出现了 `asset:`)与导出、复制才带 `withData`;样式列表、详情与版本列表因此不随图片体积变慢。缩略图由前端按指纹单张读取。
+- 版本快照里的图片只存名称与指纹,不存数据:恢复版本不恢复图片。每次保存后 `TrimPrintStyleVersions` 在同一事务里删掉 30 个之前的版本。
+- 样式的使用情况(哪些赛事选用了它)由 `ListMeetStyleUse` 一次查询从 `meets.settings` 的 JSON 取出,不逐赛事读取。
+- 日志动作与广播见 [print-style.md](print-style.md);迁移前备份沿用上面的规则。
 
 ## 连接与并发
 

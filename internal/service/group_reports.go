@@ -16,19 +16,37 @@ type GroupReportRequest struct {
 	EventIDs []string `json:"eventIds"`
 }
 
+// RenderGroupedReport renders the 成绩册 or the 团体总分表 by group, in the
+// meet's print style (RenderGroupedReportWith chooses the style).
 func (s *Service) RenderGroupedReport(ctx context.Context, req GroupReportRequest) (string, error) {
+	return htmlOnly(s.RenderGroupedReportWith(ctx, req, RenderOptions{}))
+}
+
+// RenderGroupedReportWith is RenderGroupedReport with a style chosen by opt
+// instead of the meet's, and the style's warnings.
+func (s *Service) RenderGroupedReportWith(ctx context.Context, req GroupReportRequest, opt RenderOptions) (*RenderedReport, error) {
+	a, err := s.groupedBook(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return s.renderAssembled(ctx, req.MeetID, a, opt)
+}
+
+// groupedBook gathers the 成绩册 or 团体总分表 by group, under the write
+// lock for one consistent read.
+func (s *Service) groupedBook(ctx context.Context, req GroupReportRequest) (*assembledReport, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if req.Kind != ReportResults && req.Kind != ReportTeamScores {
-		return "", invalid("报表类型不正确")
+		return nil, invalid("报表类型不正确")
 	}
 	st, err := s.loadTeamScoreState(ctx, req.MeetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	for _, id := range req.GroupIDs {
 		if id != "" && !slices.ContainsFunc(st.groups, func(g domain.CompetitionGroup) bool { return g.ID == id }) {
-			return "", invalid("组别不属于本赛事")
+			return nil, invalid("组别不属于本赛事")
 		}
 	}
 	for _, id := range req.EventIDs {
@@ -41,12 +59,12 @@ func (s *Service) RenderGroupedReport(ctx context.Context, req GroupReportReques
 			}
 		}
 		if !eventOK && !combinedOK {
-			return "", invalid("项目或全能不属于本赛事")
+			return nil, invalid("项目或全能不属于本赛事")
 		}
 	}
 	prefs, err := s.MeetSettings(ctx, req.MeetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	root := report.Book{Meet: st.meet.Name, Dates: domain.DateRangeText(st.meet.StartDate, st.meet.EndDate), Location: st.meet.Location, PrintedAt: domain.RecordedText(s.store.Now(), s.zone), NewPage: prefs.PrintNewPage, GroupBooks: []report.Book{}}
 	groups := append([]domain.CompetitionGroup{}, st.groups...)
@@ -80,7 +98,7 @@ func (s *Service) RenderGroupedReport(ctx context.Context, req GroupReportReques
 		if req.Kind == ReportResults {
 			book, err = s.reportBook(ctx, req.MeetID, ids, prefs.PrintResultsTime, true)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 		}
 		book.GroupName = g.Name
@@ -96,7 +114,7 @@ func (s *Service) RenderGroupedReport(ctx context.Context, req GroupReportReques
 			if len(targets) > 0 {
 				d, err := st.detail(TeamScoreFilter{MeetID: req.MeetID, GroupID: ptr(g.ID), TargetIDs: targets}, st.rules)
 				if err != nil {
-					return "", err
+					return nil, err
 				}
 				table := &report.TeamScoreTable{State: d.State, Counted: d.Counted, Total: d.Total, Scope: "全部项目", Rows: []report.TeamScoreRow{}}
 				if len(req.EventIDs) > 0 {
@@ -121,8 +139,5 @@ func (s *Service) RenderGroupedReport(ctx context.Context, req GroupReportReques
 		}
 		root.GroupBooks = append(root.GroupBooks, *book)
 	}
-	if req.Kind == ReportTeamScores {
-		return report.TeamScores(root)
-	}
-	return report.Results(root)
+	return &assembledReport{kind: req.Kind, book: root, styleID: prefs.PrintStyleID}, nil
 }

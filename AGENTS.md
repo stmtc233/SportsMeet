@@ -15,7 +15,7 @@ SportsMeet 是一款开源的**单机离线**田径与校园运动会编排软�
 - **Go 模块**:`github.com/stmtc233/sportsmeet`;应用标识 `io.github.stmtc233.sportsmeet`。
 - mygo 自带的 agent 技能在 `.agents/skills/`(`mygo install-skills` 更新),改 mygo 相关代码前可参考。
 - **平台**:macOS 12+、Windows 10/11、Linux(amd64 / arm64)。
-- **定位边界**(用户要求):只做单机;**唯一的对外接口是 MCP**(仅本机)。出网只有 mygo 自动更新。导入导出使用开放的交换格式([docs/interchange-format.md](docs/interchange-format.md));其他系统(如计时系统)写回成绩用成绩交换格式([docs/results-format.md](docs/results-format.md))。
+- **定位边界**(用户要求):只做单机;**唯一的对外接口是 MCP**(仅本机)。出网只有 mygo 自动更新。导入导出使用开放的交换格式([docs/interchange-format.md](docs/interchange-format.md));其他系统(如计时系统)写回成绩用成绩交换格式([docs/results-format.md](docs/results-format.md));打印样式可单独导出为样式文件([docs/print-style-format.md](docs/print-style-format.md))。
 
 ## 2. 术语 —— 必须严格区分,不得自创同义词
 
@@ -61,25 +61,35 @@ SportsMeet/
 │   │   ├── migrations/      ← NNNN_名称.sql,嵌入二进制,启动时按序执行
 │   │   ├── schema.sql       ← 当前完整结构快照
 │   │   ├── read.go          ← 完整 / 日程轻量读取、项目范围与参与者查询
-│   │   └── overview.go      ← 项目计数、报名人数、报名限制计数与运动员索引查询
+│   │   ├── overview.go      ← 项目计数、报名人数、报名限制计数与运动员索引查询
+│   │   └── print_styles.go  ← 打印样式、版本、前置页与图片(样式与赛事两类图片)的查询与语句;图片列表默认不读数据
 │   ├── arrange/             ← 自动编排(deal.go 快速选组、排道)、组序号、组指纹、晋级判定、运动员时间冲突检查;纯函数
 │   ├── scoring/             ← 成绩解析与格式化、逐次汇总、排名、全能积分与总排名、团体计分与单位排名
-│   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配;encode.go 逐记录输出 JSON,复用 scoring 校验逐次汇总;results.go 成绩交换格式的解码与校验
+│   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配;encode.go 逐记录输出 JSON,复用 scoring 校验逐次汇总;results.go 成绩交换格式的解码与校验;frontpages.go 前置页与赛事图片(v11)的校验
 │   ├── entryform/           ← 报名登记表 xlsx 的生成与读取(纯计算,不碰 mygo)
+│   ├── printstyle/          ← 打印样式的纯计算部分:版面参数与校验、CSS 与 HTML 清洗、CSP、前置页 Markdown、模板编译与限制、图片校验与 `asset:` 解析、样式文件编解码;不依赖其他包
 │   ├── report/              ← 报名表 / 秩序册(含代表队名单、竞赛日程表)/ 成绩册(含团体总分表)/ 检录单 / 成绩记录表(HTML 模板);号码布待实现
+│   │   ├── render.go        ← 样式(`Style`)与文档组装:head 顺序、封面 / 前置页 / 正文、清洗与图片解析
+│   │   ├── source.go        ← 写样式的人读的内置模板源码、数据类型、CSS 变量与类名清单(由代码与样式表生成)
+│   │   ├── sample.go        ← 各报表的样例数据,模板保存时在它上面试运行
+│   │   └── base.css · default.css ← 页面与预览的必需规则 / 默认外观(读版面参数生成的 CSS 变量)
 │   ├── service/             ← 唯一写入口:写锁、校验、操作日志(写入与只读查询)、变更通知;含项目预设、全能与计分规则、表格导入、报名限制提示、按运动员报名、报名登记表的导出与导入、各单位与组别的报名进度、总览的工作流汇总与侧栏角标、赛事设置、全赛事轮次表与批量自动编排、编排保存、排时间(单轮次 / 多轮次)、竞赛日程与冲突、成绩、并列裁定与实际开赛时间、检录单、成绩记录表、导入导出
-│   │   ├── meet_template.go ← 沿用已有赛事的项目与赛制新建赛事，独立映射组别、全能与计分规则
+│   │   ├── meet_template.go ← 沿用已有赛事的项目与赛制新建赛事，独立映射组别、全能与计分规则,并带上选用的打印样式、前置页与赛事图片
+│   │   ├── print_style*.go  ← 打印样式的增改复制删除、版本与恢复、图片、样式文件导出导入;写入直接生效
+│   │   ├── front_pages.go   ← 赛事前置页(Markdown)的增改删与排序
+│   │   ├── print_render.go · print_data.go ← 合成渲染用的样式与带警告的渲染、报表数据与内置模板、接口说明 `PrintGuide`
+│   │   ├── print_content_import.go ← 交换格式里前置页与图片的导入规划
 │   │   ├── group*.go        ← 组别目录、归属建议与调整、运动员随单位组别联动、分组团体榜与打印
 │   │   └── team_scoring*.go ← 团体总分查询、规则保存（MCP 另有预览确认）与界面数字输入解析
-│   ├── mcp/                 ← MCP 服务与监听生命周期(仅 127.0.0.1,默认开启)
+│   ├── mcp/                 ← MCP 服务与监听生命周期(仅 127.0.0.1,默认开启);print_tools.go 是打印样式、前置页、图片与报表数据的工具
 │   ├── layers/              ← 分层测试:各包允许的依赖、纯计算包不碰 mygo、bind / mcp 不越过 service
-│   └── bind/                ← 给前端的 mygo 服务 + `dataChanged` 事件(薄层,只转调 service,另加文件对话框与打印窗口)
+│   └── bind/                ← 给前端的 mygo 服务 + `dataChanged` 事件(薄层,只转调 service,另加文件对话框与打印窗口);print_styles.go 是打印样式、前置页与选用样式的绑定
 ├── src/                     ← 前端(React)
 │   ├── main.tsx · App.tsx   ← 入口;外壳(按阶段分组的侧栏 + 页面切换)
 │   ├── mygo.ts              ← `mygo generate` 生成物,勿手改
 │   ├── app/                 ← nav.tsx(页面路由状态、离开前确认、返回来源页)、ErrorBoundary.tsx(页面渲染出错时的退路)、app.css(外壳与页面布局,只用 token)
 │   ├── design/              ← tokens.css、components.css、`St*` 组件、icons.ts、motion.tsx(滑动底板、进入范围、变化强调);经 index.ts 统一导出
-│   ├── features/            ← meets/ overview/(总览:赛前 / 比赛 / 赛后三段工作流与下一步、按小时列出当天轮次与状态的赛程、可跳转的赛事结构图、赛事信息) setup/(赛事设置:赛事信息、报名限制、团体总分、编排与打印设置、赛事文件) entries/(报名:组别 → 单位的树与运动员名单,登记表下发与回收、报名进度) groups/(赛事组别) units/ athletes/(含运动员对话框里的报名项目) events/(项目列表,含全能) event/(项目工作区:报名、队伍、组时间显示)combined/(全能)arrange/ rounds/(侧栏「编排」与「成绩」两页:全赛事轮次表、批量自动编排)schedule/(竞赛日程)results/ reports/(打印,`kinds.ts` 是分组的报表种类,`open.ts` 从其他页面按范围打开) team-scoring/(团体总分) exchange/ ai-mcp/(AI/MCP 独立页、连接配置与支持的 Agent) settings/(应用设置:通用 / 操作日志 / 关于) about/
+│   ├── features/            ← meets/ overview/(总览:赛前 / 比赛 / 赛后三段工作流与下一步、按小时列出当天轮次与状态的赛程、可跳转的赛事结构图、赛事信息) setup/(赛事设置:赛事信息、报名限制、团体总分、编排与打印设置、选用打印样式、前置页与赛事图片、赛事文件) entries/(报名:组别 → 单位的树与运动员名单,登记表下发与回收、报名进度) groups/(赛事组别) units/ athletes/(含运动员对话框里的报名项目) events/(项目列表,含全能) event/(项目工作区:报名、队伍、组时间显示)combined/(全能)arrange/ rounds/(侧栏「编排」与「成绩」两页:全赛事轮次表、批量自动编排)schedule/(竞赛日程)results/ reports/(打印,`kinds.ts` 是分组的报表种类,`open.ts` 从其他页面按范围打开,样式警告条与按纸张分页) team-scoring/(团体总分) exchange/ ai-mcp/(AI/MCP 独立页、连接配置与支持的 Agent) settings/(应用设置:通用 / 打印样式 / 操作日志 / 关于;`print-styles/` 是样式的版面参数、图片、版本与导入导出) about/
 │   └── lib/                 ← coalesce.ts(事件刷新合并)、useData.ts(读取与按键缓存)、viewState.ts(滚动位置与切换状态记忆)、action.ts、optimistic.ts(设置控件立即显示、依次保存)、errors.ts、labels.ts、wallTime.ts(日期 / 时刻输入拆合)
 ├── .agents/skills/          ← mygo 自带的 agent 技能
 ├── tests/ui/                ← Playwright 页面冒烟测试(模拟 mygo 桥接)
@@ -95,11 +105,14 @@ SportsMeet/
 │   ├── brand-guidelines.md             ←「跑道 S」品牌设计规范与资源索引
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
 │   ├── results-format.md              ← 成绩交换格式规范(事实源),schema/results-v1.schema.json · examples/sample-results.json
-│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json · interchange-v6.schema.json · interchange-v7.schema.json · interchange-v8.schema.json · interchange-v9.schema.json · interchange-v10.schema.json
+│   ├── print-style-format.md          ← 打印样式文件、报表数据与排版约定规范(事实源),schema/print-style-v1.schema.json · examples/sample-print-style.smstyle.json
+│   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json · interchange-v6.schema.json · interchange-v7.schema.json · interchange-v8.schema.json · interchange-v9.schema.json · interchange-v10.schema.json · interchange-v11.schema.json
 │   ├── examples/sample-meet.json
 │   ├── performance.md · performance-results.json · performance-optimized-results.json ← 优化与压测对比
 │   └── agents/                        ← 专题细则(§5)
-└── testdata/interchange/              ← 编解码黄金文件
+├── testdata/interchange/              ← 编解码黄金文件
+├── testdata/report/                   ← 报表黄金文件:默认样式的输出(default-*.body.html)与报表数据(data-v1.json)
+└── testdata/print/param-rules.json    ← 版面参数范围的黄金文件,前端单测与页面测试读它
 ```
 
 分层与数据流:
@@ -163,6 +176,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 | 赛事组别、归属、按年级分榜、`internal/service/group*.go`、`src/features/groups/` | [groups.md](docs/agents/groups.md) + [domain.md](docs/agents/domain.md) |
 | 团体总分、按单位计分、`src/features/team-scoring/`、`internal/service/team_scoring*.go` | [team-scoring.md](docs/agents/team-scoring.md) + [domain.md](docs/agents/domain.md) |
 | `internal/mcp/` | [mcp.md](docs/agents/mcp.md) |
+| 打印样式、前置页、赛事图片、`internal/printstyle/`、`internal/report/` 的样式与清洗、`src/features/settings/print-styles/` | [print-style.md](docs/agents/print-style.md) + [print-style-format.md](docs/print-style-format.md) + [mcp.md](docs/agents/mcp.md)「打印样式」 |
 | `internal/interchange/`、导入导出、成绩文件导入(`service/results_import.go`) | [interchange-format.md](docs/interchange-format.md) + [results-format.md](docs/results-format.md) + [mcp.md](docs/agents/mcp.md)「导入」 |
 | `internal/store/`、迁移、查询性能 | [storage.md](docs/agents/storage.md) |
 | `src/` 代码结构、事件刷新、设置页、`internal/report/` 打印 | [frontend.md](docs/agents/frontend.md) |
@@ -175,7 +189,9 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 - **所有写操作只经 `internal/service`**:前端绑定与 MCP 共用同一组方法和校验,`bind/`、`mcp/` 不直接碰 `store/`;否则会绕过校验,界面也收不到变更事件。
 - **包的依赖方向由 `internal/layers` 的测试把关**:新增包或新增依赖时,在它的分层表里登记并同步 §3。
 - **业务规则只在 Go**:成绩解析与格式化、排名、晋级、项目名称组成、时间的校验与显示都在 Go,前端只调用(→ domain.md)。
-- **打印的是预览排好的 A4 纸面**:表格断开处的「续下页」/「（续）」与页眉页码由前端分页时画上并随之印出,不让 WebView 自己给 Go 的连续文档分页(→ frontend.md「打印」)。
+- **打印的是预览排好的纸面**(纸张与边距来自打印样式):表格断开处的「续下页」/「（续）」与页眉页码由前端分页时画上并随之印出,不让 WebView 自己给 Go 的连续文档分页(→ frontend.md「打印」)。
+- **打印样式是软件全局的,赛事选用其一**(用户要求):自定义 CSS、插槽与报表模板只由 AI 经 MCP 写,界面只改版面参数、图片、版本、导入导出,前置页属于赛事、可在界面编辑(→ print-style.md)。
+- **自定义内容必须清洗,文档带 CSP**:CSS 与 HTML 只放行白名单、不联网不跑脚本;不为某个样式放宽,放宽的是整个应用的安全边界(→ print-style.md「安全」)。
 - **新版本检测与安装用 mygo 的更新窗口**:默认检查正式版，「关于」可选择接收测试版并打开仓库；不能自更新时提供发布页入口，这是应用唯一的出网(→ frontend.md「设置页」)。
 - **`src/mygo.ts` 是生成物**,不手改。
 - **前端只有 `src/lib/` 与各 feature 的 `controller` / `data` 文件调用 Go**,其余文件只从 `src/mygo.ts` 引入类型;棘轮把关(→ frontend.md)。
@@ -192,7 +208,8 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 
 ### 5.2 领域与编排 → [domain.md](docs/agents/domain.md) · [arrange.md](docs/agents/arrange.md)
 
-- 新建赛事可沿用已有赛事的组别、项目配置、轮次与晋级规则、全能及计分规则，全部引用独立新建，不带参赛数据和时间（→ domain.md「沿用项目与赛制新建赛事」）。
+- 新建赛事可沿用已有赛事的组别、项目配置、轮次与晋级规则、全能及计分规则，全部引用独立新建，不带参赛数据和时间；选用的打印样式、前置页与赛事图片一并沿用（→ domain.md「沿用项目与赛制新建赛事」）。
+- 前置页（Markdown）与赛事图片属于赛事、不属于样式，换样式不丢；赛事选用的样式只由 `SetMeetPrintStyle` 改，`SaveMeetSettings` 不碰它；使用中的样式被删除时赛事读作默认样式（→ print-style.md）。
 - 项目 = 一个单项,必带性别与项目名、必属于赛事;男女、不同距离不得混在一个项目。
 - 运动员属于赛事,经报名进项目;排进位置即自动报名,取消报名不动已排位置;运动员对话框可一次设定其个人项目报名;学号 / 号码布赛事内唯一。
 - 报名登记表每单位一份 xlsx(有组别时可每组别一份,每行填参赛单位)、格式固定:个人项目写全名只打 √,接力与集体项目按队填;导入不用对应列,同一张表重复导入不新建,单位已有的队伍不改;入口是侧栏「报名」页,同页的树按组别与单位列出报名进度;只在界面导入,AI 读文件后经 MCP 写入(→ domain.md「报名登记表」)。
@@ -232,8 +249,9 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 - 默认开启（用户要求），独立「AI/MCP」入口在开启时高亮；只监听 `127.0.0.1`，使用独立令牌并拒绝非本机 `Origin`。
 - MCP 沿用项目与赛制新建赛事走 `preview_create_meet → create_meet`，确认指纹覆盖来源定义与赛事列表，同一确认只能新建一次（→ domain.md）。
 - MCP 可以写成绩(用户要求):空位直接写,覆盖已有成绩须预览确认;名次由 `scoring` 重算,不能直接指定。
-- 批量改动与删除走「预览指纹 + `confirmed=true`」,提交时持 service 写锁重算比对，再事务写入;有成绩的数据 MCP 不能删。界面不走这套确认,只对删除弹确认框。
+- 批量改动与删除走「预览指纹 + `confirmed=true`」,提交时持 service 写锁重算比对，再事务写入;有成绩的数据 MCP 不能删。界面不走这套确认,只对删除弹确认框。**例外(用户要求)**:打印样式、前置页与图片的写入与删除(界面与 MCP 都是)直接生效、不预览确认,靠每个样式最近 30 个版本回退(→ print-style.md)。
 - 日程与冲突只读查询(`get_schedule`、`list_conflicts`);多轮次连排扩展 `preview_schedule` / `schedule_heats` 的 `rounds`,原单轮次参数照常可用;`set_heat_time` 带组指纹逐组改时间,不动位置与成绩。
+- 打印样式相关工具(`save_print_style`、`render_report` 带 `warnings` 与 `draft`、`get_report_data` 等)见 mcp.md「打印样式」;接口说明 `guide` 由代码与样式表生成。
 - 不内置云模型。
 
 ### 5.4 数据与交换格式 → [storage.md](docs/agents/storage.md) · [interchange-format.md](docs/interchange-format.md)
@@ -242,7 +260,8 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 - 迁移只追加,已发布的迁移文件不再修改;同步 `schema.sql`。
 - 已有数据的数据库在迁移前先复制到 `backups/`,复制失败就不迁移。
 - 外键所在的列都建完整索引；运动员的规范化检索键按 `domain.NormalizeText` 维护，号码布 / 学号的唯一性只由 service 校验，不建唯一索引。
-- 交换格式改字段即 bump `version`;读取方能读所有已发布版本,写出总是最新版本。
+- 交换格式改字段即 bump `version`;读取方能读所有已发布版本,写出总是最新版本。v11 起带前置页与赛事图片,打印样式本身不进交换格式、有自己的样式文件与版本(→ print-style-format.md)。
+- 图片以 BLOB 存在 `print_style_assets` 与 `meet_assets`;列表查询只读名称、类型、大小与指纹,不读数据,渲染才读且仅当内容引用了 `asset:`(→ storage.md)。
 - 成绩交换格式按组 ID 与运动员 / 队伍 ID 写回计时项目成绩,ID 不在组内时按学号 → 号码布 → 姓名在组内核对;文件不带名次与晋级,写完按界面录入的同一套规则重算涉及的轮次,只增改不删成绩;版本号与交换格式各自独立(→ results-format.md)。
 
 ### 5.5 文案与提交 → [copywriting.md](docs/agents/copywriting.md)
@@ -254,7 +273,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 
 ### 5.6 未实现与后续计划
 
-当前已实现:沿用已有赛事的项目与赛制新建赛事、总览(赛前 / 比赛 / 赛后三段工作流与下一步、按小时列出当天轮次与状态的赛程、可跳转的赛事结构图、赛事信息)、基础数据(赛事、参赛单位、运动员含表格导入、项目含 35 个预设与自定义配置、按单位或按运动员报名与报名限制提示)、编排(预赛 / 次赛 / 半决赛 / 决赛、自动编排、手动调整、草稿保存、全赛事批量自动编排、排时间与多轮次排时间)、比赛日按时间排列的成绩页与「下一场」、竞赛日程页与运动员时间冲突提示、秩序册代表队名单与竞赛日程表、统一的时间规则(项目按时间排序、组与成绩修改时间显示、报表打印时间)、计时 / 田赛 / 计次 / 计分成绩录入与排名晋级、并列名次的人工裁定、普通队伍项目、全能分项与积分总排名、赛事统一组别与批量归属整理、按组别分榜的团体总分与规则预览确认及打印、报名登记表下发与回收导入、报名表、秩序册、成绩册、检录单与成绩记录表打印、组的实际开赛时间、交换格式导入导出、赛事设置(编排与打印选项按赛事保存)、AI/MCP 独立页与应用设置(通用 / 操作日志 / 关于)、新版本检测与更新、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
+当前已实现:沿用已有赛事的项目与赛制新建赛事、总览(赛前 / 比赛 / 赛后三段工作流与下一步、按小时列出当天轮次与状态的赛程、可跳转的赛事结构图、赛事信息)、基础数据(赛事、参赛单位、运动员含表格导入、项目含 35 个预设与自定义配置、按单位或按运动员报名与报名限制提示)、编排(预赛 / 次赛 / 半决赛 / 决赛、自动编排、手动调整、草稿保存、全赛事批量自动编排、排时间与多轮次排时间)、比赛日按时间排列的成绩页与「下一场」、竞赛日程页与运动员时间冲突提示、秩序册代表队名单与竞赛日程表、统一的时间规则(项目按时间排序、组与成绩修改时间显示、报表打印时间)、计时 / 田赛 / 计次 / 计分成绩录入与排名晋级、并列名次的人工裁定、普通队伍项目、全能分项与积分总排名、赛事统一组别与批量归属整理、按组别分榜的团体总分与规则预览确认及打印、报名登记表下发与回收导入、报名表、秩序册、成绩册、检录单与成绩记录表打印、组的实际开赛时间、交换格式导入导出、赛事设置(编排与打印选项按赛事保存)、打印样式(版面参数、自定义 CSS 与模板由 AI 经 MCP 写、图片、版本回退、样式文件导入导出、赛事选用)与赛事前置页、AI/MCP 独立页与应用设置(通用 / 打印样式 / 操作日志 / 关于)、新版本检测与更新、本机 MCP 查询与写入、宽窄窗口页面冒烟测试。验证范围见 [docs/verification.md](docs/verification.md)。以下按优先级排列,做完一项就从这里删掉,并在 §3 与对应细则里写成现状。
 
 排序依据:先让学校能装上、能办完一场校运会,再补规则细节与打磨。
 
@@ -263,7 +282,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 学校的电脑多为 Windows,没有安装包就没有用户;现场流程没有在原生窗口里完整走过,问题只会在比赛当天暴露。
 
 1. Windows 的运行、文件对话框、打印与打包。
-2. 原生 WebView 里走完一场完整赛事:手动拖放、田赛逐次录入的键盘操作、800 宽窗口、实际纸张分页;浏览器 1280 / 800、浅色 / 深色已由自动测试覆盖。
+2. 原生 WebView 里走完一场完整赛事:手动拖放、田赛逐次录入的键盘操作、800 宽窗口、实际纸张分页(含打印样式的 A3、横向等非 A4 纸张);浏览器 1280 / 800、浅色 / 深色已由自动测试覆盖。
 3. 系统签名(发布的安装包未做 macOS 签名公证与 Windows 签名);发布工作流与应用内更新在 GitHub 上实际跑通一次。
 
 **第二优先:校运会必备**
@@ -274,7 +293,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 
 5. **风速录入**:径赛整组风速、远度逐次风速(数据可随交换格式保留,成绩记录表已留栏,界面未提供)。
 6. **破纪录标记**:赛事纪录表与成绩册标注(交换格式不含,需要时加字段并 bump 版本)。
-7. 奖状打印;打印样式预设。
+7. 奖状打印。
 8. 编排页:组卡片标题拖动排序;窄窗口下名单收为侧面板。
 9. Linux 的运行、文件对话框、打印与打包。
 
@@ -287,6 +306,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 1. 增删 / 重命名包、重要文件、顶层目录、构建配置 → §3 / §4。
 1. 改术语或实体层级 → §2 与 domain.md。
 2. 改交换格式 → interchange-format.md、JSON Schema、示例与 `testdata/interchange/` 黄金文件;改成绩交换格式 → results-format.md、`results-v1` Schema 与示例,并通知写出方(SyncTrack 服务端 `internal/sportsmeet/export.go`)。
+2. 改打印样式文件、报表数据(`report` 的 `Book` 等导出字段与 json 名)或排版约定 → print-style-format.md、`print-style-v1` Schema 与示例;报表数据变化须 bump `report.DataVersion` 并新增 `testdata/report/data-vN.json`。
 3. 新增 / 废弃 / 修改不变量 → 在对应细则写完整规则,并在 §5 加 / 改**一句话摘要**;新主题建新细则并登记到 §5.0 路由表。
 4. 改用户能看到的操作、按钮名称、默认值或页面 → `website/docs.html` 使用文档的对应章节。
 

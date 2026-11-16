@@ -221,19 +221,34 @@ func competitorHeading(e domain.Event, named bool) string {
 // check-in time is the heat's effective planned time minus the settings'
 // lead (domain.CheckInAt); a heat without a time prints it blank.
 func (s *Service) RenderCheckIn(ctx context.Context, req CheckInRequest) (string, error) {
+	return htmlOnly(s.RenderCheckInWith(ctx, req, RenderOptions{}))
+}
+
+// RenderCheckInWith is RenderCheckIn with a style chosen by opt instead of
+// the meet's, and the style's warnings.
+func (s *Service) RenderCheckInWith(ctx context.Context, req CheckInRequest, opt RenderOptions) (*RenderedReport, error) {
+	a, err := s.checkInBook(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return s.renderAssembled(ctx, req.MeetID, a, opt)
+}
+
+// checkInBook gathers the 检录单's content.
+func (s *Service) checkInBook(ctx context.Context, req CheckInRequest) (*assembledReport, error) {
 	prefs, err := s.MeetSettings(ctx, req.MeetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	d, err := s.loadCheckIn(ctx, req.MeetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	list, err := d.sheetHeats(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	book := report.CheckInBook{Meet: d.meet.Name, PrintedAt: domain.RecordedText(s.store.Now(), s.zone), ShowCheckIn: prefs.CheckInLeadMinutes > 0}
+	book := report.CheckInBook{Meet: d.meet.Name, Dates: domain.DateRangeText(d.meet.StartDate, d.meet.EndDate), Location: d.meet.Location, PrintedAt: domain.RecordedText(s.store.Now(), s.zone), ShowCheckIn: prefs.CheckInLeadMinutes > 0}
 	breaks := sheetBreaks(list, prefs.PrintCheckInBreak)
 	for i, t := range list {
 		e := t.event
@@ -242,5 +257,5 @@ func (s *Service) RenderCheckIn(ctx context.Context, req CheckInRequest) (string
 			Time: domain.ScheduledText(t.at, ""), CheckIn: domain.ScheduledText(domain.CheckInAt(t.at, prefs.CheckInLeadMinutes), domain.ScheduledDay(t.at)),
 			PositionLabel: e.Rules().PositionLabel, Team: e.IsTeam(), NameLabel: label, Lines: lines})
 	}
-	return report.CheckIn(book)
+	return &assembledReport{kind: report.KindCheckIn, book: book, styleID: prefs.PrintStyleID}, nil
 }

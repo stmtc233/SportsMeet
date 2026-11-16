@@ -21,6 +21,11 @@ type meetProjectDefinitions struct {
 	Rounds      map[string][]domain.Round `json:"rounds"`
 	Combineds   []meetCombinedDefinition  `json:"combineds"`
 	TeamScoring domain.TeamScoringRules   `json:"teamScoring"`
+	// Print style choice, front pages and the meet's images (named, not
+	// their bytes: the hash covers their contents) come along.
+	PrintStyleID string          `json:"printStyleId"`
+	FrontPages   []FrontPageView `json:"frontPages"`
+	Assets       []AssetInfo     `json:"assets"`
 }
 
 // MeetCreationPlan shows the new meet's fields and the source definitions to copy.
@@ -88,7 +93,24 @@ func (s *Service) meetProjects(ctx context.Context, sourceID string) (*meetProje
 		}
 	}
 	rules.Overrides = overrides
-	return &meetProjectDefinitions{Source: *source, Groups: groups, Events: events, Rounds: rounds, Combineds: parents, TeamScoring: rules}, nil
+	prefs, err := s.MeetSettings(ctx, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	frontPages, err := s.store.ListFrontPages(ctx, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	assets, err := s.store.ListAssets(ctx, store.AssetOfMeet, sourceID, false)
+	if err != nil {
+		return nil, err
+	}
+	pages := make([]FrontPageView, len(frontPages))
+	for i, p := range frontPages {
+		pages[i] = frontPageView(p)
+	}
+	return &meetProjectDefinitions{Source: *source, Groups: groups, Events: events, Rounds: rounds, Combineds: parents, TeamScoring: rules,
+		PrintStyleID: prefs.PrintStyleID, FrontPages: pages, Assets: assetInfos(assets)}, nil
 }
 
 // copyMeetProjects prepares independent definitions while the caller holds the
@@ -145,5 +167,29 @@ func (s *Service) copyMeetProjects(ctx context.Context, sourceID string, meet do
 		return a.CombinedID < b.CombinedID
 	})
 	stmts = append(stmts, store.Stmt(`INSERT INTO meet_team_scoring(meet_id,rules_json) VALUES (?,?)`, meet.ID, jsonValue(rules)))
+	// The print style the source uses is chosen again; the other settings
+	// stay the defaults.
+	if defs.PrintStyleID != "" {
+		prefs := DefaultMeetSettings()
+		prefs.PrintStyleID = defs.PrintStyleID
+		stmts = append(stmts, store.Stmt(`UPDATE meets SET settings = ? WHERE id = ?`, jsonValue(prefs), meet.ID))
+	}
+	now := s.store.Now()
+	sourcePages, err := s.store.ListFrontPages(ctx, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range sourcePages {
+		p.ID, p.MeetID, p.CreatedAt, p.UpdatedAt = newID(), meet.ID, now, now
+		stmts = append(stmts, store.InsertFrontPage(p))
+	}
+	sourceAssets, err := s.store.ListAssets(ctx, store.AssetOfMeet, sourceID, true)
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range sourceAssets {
+		a.ID, a.OwnerID = newID(), meet.ID
+		stmts = append(stmts, store.UpsertAsset(store.AssetOfMeet, a))
+	}
 	return stmts, nil
 }

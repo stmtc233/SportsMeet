@@ -7,7 +7,7 @@ import "github.com/stmtc233/sportsmeet/internal/domain"
 // Format and Version identify the file (spec §2).
 const (
 	Format  = "sportsmeet-interchange"
-	Version = 10
+	Version = 11
 )
 
 // File is one meet's full snapshot.
@@ -22,6 +22,10 @@ type File struct {
 	Units      []Unit     `json:"units"`
 	Athletes   []Athlete  `json:"athletes"`
 	Events     []Event    `json:"events"`
+	// FrontPages and Assets are the meet's print front pages and images
+	// (v11); omitted = none. A print style is not part of the file.
+	FrontPages []FrontPage `json:"frontPages,omitempty"`
+	Assets     []Asset     `json:"assets,omitempty"`
 }
 
 type Generator struct {
@@ -178,4 +182,22 @@ type Group struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Ordinal int    `json:"ordinal"`
+}
+
+// FrontPage is a Markdown page printed at the start of the meet's reports
+// (v11). The order in frontPages is the print order.
+type FrontPage struct {
+	Title  string `json:"title"`
+	BodyMD string `json:"bodyMd"`
+	// Reports are report kinds (entries, startlist, results, team_scores,
+	// checkin, recordsheet); empty = every report.
+	Reports []string `json:"reports,omitempty"`
+}
+
+// Asset is an image of the meet's, referred to as asset:name in front pages
+// (v11); Data is base64.
+type Asset struct {
+	Name string `json:"name"`
+	MIME string `json:"mime"`
+	Data string `json:"data"`
 }

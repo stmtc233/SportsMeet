@@ -1,7 +1,9 @@
 import { StPage, StToolbar } from "../../design";
 import { ExchangeSection } from "../exchange/ExchangeSection";
 import { TeamScoringSection } from "../team-scoring/TeamScoringSection";
+import { AssetsSection } from "../settings/print-styles/AssetsSection";
 import { MeetSection } from "./MeetSection";
+import { FrontPagesSection } from "./FrontPagesSection";
 import { MeetSettingsSection } from "./MeetSettingsSection";
 import { setupScrollKey } from "./open";
 
@@ -13,6 +15,8 @@ export function SetupPage({ meetId }: { meetId: string }) {
         <MeetSection meetId={meetId} />
         <TeamScoringSection meetId={meetId} />
         <MeetSettingsSection meetId={meetId} />
+        <FrontPagesSection meetId={meetId} />
+        <AssetsSection scope="meet" ownerId={meetId} title="赛事图片" />
         <ExchangeSection meetId={meetId} />
       </div>
     </StPage>

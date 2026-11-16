@@ -6,6 +6,7 @@ import { ungrouped } from "../groups/GroupFields";
 import { useOpenPrintSettings } from "../setup/open";
 import type { Zoom } from "./paginate";
 import { ReportPreview, type PrintPages } from "./ReportPreview";
+import { ReportWarnings } from "./ReportWarnings";
 import { checkInRows, checkInSelection } from "./checkin";
 import { ReportsController, useCheckInTargets, useReportHTML, useReportTargets, useReportTeamScores, useSheetHTML } from "./controller";
 import { reportGroups, reportKindKey, reportKinds, reportScopeKey, type ReportKind as Kind, type ReportScope } from "./kinds";
@@ -44,7 +45,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   const { data: teamScores, error: teamError } = useReportTeamScores(meetId, kind === "team_scores");
   const teamUnavailable = kind === "team_scores" && !teamScores?.rules.enabled;
   const sheet = kind === "checkin" || kind === "record" ? kind : null;
-  const { data: bookHTML, error: bookError } = useReportHTML(sheet ? "startlist" : kind, meetId, ids, all.length, chosen.length, !sheet && !teamUnavailable, groupIds);
+  const { data: book, error: bookError } = useReportHTML(sheet ? "startlist" : kind, meetId, ids, all.length, chosen.length, !sheet && !teamUnavailable, groupIds);
   // 检录单 and 成绩记录表: by round, optionally one day.
   const { data: targets, error: targetsError } = useCheckInTargets(meetId);
   const [chosenDay, setDay] = useViewState(`reports:day:${meetId}`, "");
@@ -54,7 +55,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
   const rows = checkInRows(targets, day);
   const rounds = checkInSelection(rows, skippedRounds);
   const req = { meetId, roundIds: rounds.roundIds, day };
-  const { data: sheetHTML, error: sheetError } = useSheetHTML(sheet ?? "checkin", req, sheet ? rounds.chosen.length : 0);
+  const { data: sheetReport, error: sheetError } = useSheetHTML(sheet ?? "checkin", req, sheet ? rounds.chosen.length : 0);
 
   // Opened from another page for some rounds or events: tick just those, once.
   const scopeKey = reportScopeKey(meetId);
@@ -74,7 +75,8 @@ export function ReportsPage({ meetId }: { meetId: string }) {
     remember(scopeKey, undefined);
   }, [scopeKey, kind, sheet, targets, events, setDay, setSkippedRounds, setSkipped, setPickedGroups]);
 
-  const html = sheet ? sheetHTML : bookHTML;
+  const report = sheet ? sheetReport : book;
+  const html = report?.html;
   const count = teamUnavailable ? 0 : sheet ? rounds.chosen.length : chosen.length;
   const error = kind === "team_scores" && teamError ? teamError : sheet ? targetsError || sheetError : eventsError || bookError;
   // Why there is nothing to preview; "" while the choices are still loading.
@@ -109,6 +111,7 @@ export function ReportsPage({ meetId }: { meetId: string }) {
         <div className="report-main">
           {error ? <div className="report-note"><StNotice tone="danger">{error}</StNotice></div> : count === 0 ? (none && <StEmpty>{none}</StEmpty>) : (
             <>
+              <ReportWarnings warnings={report?.warnings ?? []} />
               <div className="subbar">
                 <StSelect label="比例" size="small" value={zoom} onChange={setZoom} options={zooms} />
                 <span className="subbar__spacer" />

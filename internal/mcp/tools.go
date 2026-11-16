@@ -45,7 +45,7 @@ type saveEventArg struct {
 }
 
 func NewServer(svc *service.Service) *sdk.Server {
-	s := sdk.NewServer(&sdk.Implementation{Name: "SportsMeet", Version: service.Version}, &sdk.ServerOptions{Instructions: "SportsMeet 是单机田径运动会软件。先查询再修改，使用返回的 ID。批量操作与删除必须先 preview_*，展示完整预览并取得用户明确确认后，携带相同参数、previewHash 和 confirmed=true 提交；errors 非空不得提交。数据变化时重新预览。空成绩位置可直接 set_results，覆盖已有成绩必须 preview_results 并确认。不得把获取预览当作用户确认。成绩名次与晋级由服务计算。设置、令牌、文件系统与网络不向 MCP 开放。"})
+	s := sdk.NewServer(&sdk.Implementation{Name: "SportsMeet", Version: service.Version}, &sdk.ServerOptions{Instructions: "SportsMeet 是单机田径运动会软件。先查询再修改，使用返回的 ID。批量操作与删除必须先 preview_*，展示完整预览并取得用户明确确认后，携带相同参数、previewHash 和 confirmed=true 提交；errors 非空不得提交。数据变化时重新预览。空成绩位置可直接 set_results，覆盖已有成绩必须 preview_results 并确认。不得把获取预览当作用户确认。成绩名次与晋级由服务计算。打印样式、前置页和图片不是比赛记录，直接写入、不需要预览确认，样式保留版本可回退：改样式前先 get_print_style 读接口说明，改完用 render_report 或 render_style_sample 检查返回的 warnings，用户在应用「打印」页即时看到效果。设置、令牌、文件系统与网络不向 MCP 开放。"})
 	addTool(s, "list_meets", "列出赛事。", true, func(ctx context.Context, _ empty) (any, error) { return svc.ListMeets(ctx) })
 	addTool(s, "get_meet", "读取赛事。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.MeetDetail(ctx, in.MeetID) })
 	addTool(s, "list_units", "列出参赛单位。", true, func(ctx context.Context, in meetArg) (any, error) { return svc.ListUnits(ctx, in.MeetID) })
@@ -106,22 +106,10 @@ func NewServer(svc *service.Service) *sdk.Server {
 	}) (any, error) {
 		return service.ParseTable(in.Text)
 	})
-	addTool(s, "render_report", "生成秩序册、成绩册或团体总分 HTML。kind 为 startlist、results 或 team_scores；eventIds 留空选全部。不操作系统打印窗口。", true, func(ctx context.Context, in struct {
-		MeetID   string   `json:"meetId"`
-		Kind     string   `json:"kind"`
-		EventIDs []string `json:"eventIds,omitempty"`
-		GroupIDs []string `json:"groupIds,omitempty"`
-	}) (any, error) {
-		if in.Kind == service.ReportResults || in.Kind == service.ReportTeamScores {
-			html, err := svc.RenderGroupedReport(ctx, service.GroupReportRequest{Kind: in.Kind, MeetID: in.MeetID, GroupIDs: in.GroupIDs, EventIDs: in.EventIDs})
-			return map[string]string{"html": html}, err
-		}
-		html, err := svc.RenderReport(ctx, in.Kind, in.MeetID, in.EventIDs)
-		return map[string]string{"html": html}, err
-	})
 	registerCombined(s, svc)
 	registerTeamScoring(s, svc)
 	registerGroups(s, svc)
+	registerPrint(s, svc)
 	registerMutations(s, svc)
 	return s
 }

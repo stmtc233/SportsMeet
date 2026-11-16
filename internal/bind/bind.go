@@ -384,9 +384,10 @@ func (r Reports) Targets(ctx context.Context, meetID string) ([]service.ReportTa
 	return r.Svc.ReportTargets(ctx, meetID)
 }
 
-// Render returns the report as an HTML document, for the preview.
-func (r Reports) Render(ctx context.Context, kind, meetID string, eventIDs []string) (string, error) {
-	return r.Svc.RenderReport(ctx, kind, meetID, eventIDs)
+// Render returns the report as an HTML document for the preview, with
+// what the meet's print style could not do.
+func (r Reports) Render(ctx context.Context, kind, meetID string, eventIDs []string) (*service.RenderedReport, error) {
+	return r.Svc.RenderReportWith(ctx, kind, meetID, eventIDs, service.RenderOptions{})
 }
 
 // CheckInTargets lists the rounds the 检录单 can print and its days.
@@ -395,13 +396,13 @@ func (r Reports) CheckInTargets(ctx context.Context, meetID string) (*service.Ch
 }
 
 // RenderCheckIn returns the 检录单 as an HTML document, for the preview.
-func (r Reports) RenderCheckIn(ctx context.Context, req service.CheckInRequest) (string, error) {
-	return r.Svc.RenderCheckIn(ctx, req)
+func (r Reports) RenderCheckIn(ctx context.Context, req service.CheckInRequest) (*service.RenderedReport, error) {
+	return r.Svc.RenderCheckInWith(ctx, req, service.RenderOptions{})
 }
 
 // RenderRecordSheet returns the 成绩记录表 as an HTML document, for the preview.
-func (r Reports) RenderRecordSheet(ctx context.Context, req service.CheckInRequest) (string, error) {
-	return r.Svc.RenderRecordSheet(ctx, req)
+func (r Reports) RenderRecordSheet(ctx context.Context, req service.CheckInRequest) (*service.RenderedReport, error) {
+	return r.Svc.RenderRecordSheetWith(ctx, req, service.RenderOptions{})
 }
 
 // PrintPages opens the preview's laid-out sheets (paginate.ts printable) in

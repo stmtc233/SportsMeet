@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sportsmeet.invalid/schema/print-style-v1.schema.json",
+  "title": "SportsMeet 打印样式文件 v1",
+  "description": "结构约束。CSS 与 HTML 的清洗、模板语法与试运行、图片内容与大小由读取方校验，见 docs/print-style-format.md。",
+  "type": "object",
+  "required": ["format", "version", "name"],
+  "properties": {
+    "format": { "const": "sportsmeet-print-style" },
+    "version": { "const": 1 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+    "params": {
+      "type": "object",
+      "description": "版面参数。缺的字段取默认值；不允许未知字段。",
+      "additionalProperties": false,
+      "properties": {
+        "paper": { "enum": ["a4", "a3", "b5", "16k", "letter", "custom"] },
+        "paperWidth": { "type": "number", "description": "paper 为 custom 时 100–1000，其他纸张忽略", "minimum": 0, "maximum": 1000 },
+        "paperHeight": { "type": "number", "description": "paper 为 custom 时 100–1000，其他纸张忽略", "minimum": 0, "maximum": 1000 },
+        "orientation": { "enum": ["portrait", "landscape"] },
+        "marginTop": { "type": "number", "minimum": 0, "maximum": 60 },
+        "marginRight": { "type": "number", "minimum": 0, "maximum": 60 },
+        "marginBottom": { "type": "number", "minimum": 0, "maximum": 60 },
+        "marginLeft": { "type": "number", "minimum": 0, "maximum": 60 },
+        "font": { "enum": ["song", "hei", "kai", "fang", "sans"] },
+        "fontSize": { "type": "number", "minimum": 6, "maximum": 24 },
+        "lineHeight": { "type": "number", "minimum": 1, "maximum": 2.5 },
+        "titleSize": { "type": "number", "minimum": 8, "maximum": 48 },
+        "eventTitleSize": { "type": "number", "minimum": 8, "maximum": 36 },
+        "tableLines": { "enum": ["rules", "grid"] },
+        "lineWidth": { "type": "number", "minimum": 0.1, "maximum": 3 },
+        "header": { "type": "boolean" },
+        "pageNumber": { "enum": ["n_of_m", "dash", "none"] },
+        "rosterColumns": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "showUnit": { "type": "boolean" },
+        "showSeed": { "type": "boolean" },
+        "showBib": { "type": "boolean" }
+      }
+    },
+    "css": { "type": "string", "maxLength": 262144 },
+    "slots": {
+      "type": "object",
+      "propertyNames": { "enum": ["cover", "before_rosters", "after_events", "header_left", "header_right", "footer"] },
+      "additionalProperties": { "type": "string", "maxLength": 262144 }
+    },
+    "templates": {
+      "type": "object",
+      "propertyNames": { "enum": ["entries", "startlist", "results", "team_scores", "checkin", "recordsheet"] },
+      "additionalProperties": { "type": "string", "maxLength": 262144 }
+    },
+    "dataVersion": { "type": "integer", "minimum": 0 },
+    "assets": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "required": ["name", "mime", "data"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 40, "pattern": "^[^\\s\"'`()\\[\\]{}<>（）【】《》“”‘’「」\\\\&%;,]+$" },
+          "mime": { "enum": ["image/png", "image/jpeg", "image/webp"] },
+          "data": { "type": "string", "contentEncoding": "base64" }
+        }
+      }
+    }
+  },
+  "if": {
+    "anyOf": [
+      { "properties": { "slots": { "minProperties": 1 } }, "required": ["slots"] },
+      { "properties": { "templates": { "minProperties": 1 } }, "required": ["templates"] }
+    ]
+  },
+  "then": { "required": ["dataVersion"], "properties": { "dataVersion": { "minimum": 1 } } }
+}

@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { reportStyle } from "./reportStyle";
 import { installRuntime, selectReport } from "./runtime";
 
-const style = readFileSync("internal/report/style.css", "utf8");
+const style = reportStyle;
 
 async function installTeamScoring(page: Page, disabled = false) {
   await installRuntime(page);
@@ -43,7 +43,7 @@ async function installTeamScoring(page: Page, disabled = false) {
           return clone(rules);
         }
         case "Reports.Targets": return targets.map((t) => ({ id: t.eventId, name: t.name }));
-        case "Reports.Render": return `<!doctype html><html><head><style>${style}</style></head><body><header><h1>秋季运动会</h1></header><section class="event"><h2>团体总分表</h2><p>正式排名</p><table><thead><tr><th>名次</th><th>参赛单位</th><th>总分</th></tr></thead><tbody><tr><td>1</td><td>一班</td><td>16</td></tr><tr><td>1</td><td>二班</td><td>16</td></tr></tbody></table></section></body></html>`;
+        case "Reports.Render": return { html: `<!doctype html><html><head><style>${style}</style></head><body><header><h1>秋季运动会</h1></header><section class="event"><h2>团体总分表</h2><p>正式排名</p><table><thead><tr><th>名次</th><th>参赛单位</th><th>总分</th></tr></thead><tbody><tr><td>1</td><td>一班</td><td>16</td></tr><tr><td>1</td><td>二班</td><td>16</td></tr></tbody></table></section></body></html>`, warnings: [] };
         case "Reports.PrintPages": return null;
         default: return baseCall(method, ...args);
       }

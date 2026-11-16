@@ -18,6 +18,7 @@
 .mcp-agent { display: inline-flex; align-items: center; gap: var(--st-space-8); padding: var(--st-space-12) var(--st-space-16); border: 1px solid var(--st-outline); border-radius: var(--st-radius-8); corner-shape: superellipse(1.78); }
 
 .narrow { width: 100%; max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--st-space-section); }
+.wide { width: 100%; max-width: 1120px; margin: 0 auto; }
 .fill { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 /* A tab's or a section's content fading in when switched to. */
 .view-enter { animation: st-page-in var(--st-motion-medium) var(--st-ease-out) backwards; }
@@ -374,3 +375,27 @@
 .entry-checks__title { padding: 0; margin-bottom: var(--st-space-8); font-size: var(--st-text-sm); font-weight: 500; color: var(--st-text-muted); }
 .entry-checks__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--st-space-4) var(--st-space-12); max-height: 200px; overflow-y: auto; }
 .setup-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--st-space-12); padding: var(--st-space-12) var(--st-space-16) var(--st-space-16); }
+
+/* 打印样式: images, the styles list beside one style's settings */
+.asset-thumb { display: block; width: 40px; height: 40px; object-fit: contain; border: 1px solid var(--st-outline); border-radius: var(--st-radius-6); corner-shape: superellipse(1.78); background: var(--st-bg); }
+.setup-fields--row { display: flex; }
+.setup-fields--compact { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.asset-hint { padding: var(--st-space-8) var(--st-space-16) var(--st-space-12); }
+.print-styles { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--st-space-section); align-items: start; margin-top: var(--st-space-16); }
+.print-styles__list { display: flex; flex-direction: column; gap: var(--st-space-8); position: sticky; top: 0; }
+.print-styles__nav { border: 1px solid var(--st-outline); border-radius: var(--st-radius-12); corner-shape: superellipse(1.78); background: var(--st-surface); padding: var(--st-space-4); }
+.print-styles__detail { display: flex; flex-direction: column; gap: var(--st-space-section); min-width: 0; }
+.print-styles__back { display: none; }
+.style-name { padding: var(--st-space-12) var(--st-space-16) 0; }
+.style-facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--st-space-8); padding: var(--st-space-12) var(--st-space-16) var(--st-space-16); }
+@media (max-width: 900px) {
+  .print-styles { grid-template-columns: minmax(0, 1fr); }
+  .print-styles:not([data-detail]) .print-styles__detail { display: none; }
+  .print-styles[data-detail] .print-styles__list { display: none; }
+  .print-styles__back { display: block; }
+  /* The style's own back button takes the place of the one to the categories. */
+  .settings__content:has(.print-styles[data-detail]) .settings__back { display: none; }
+}
+.versions { max-height: 360px; overflow-y: auto; border: 1px solid var(--st-outline); border-radius: var(--st-radius-8); corner-shape: superellipse(1.78); }
+.report-warnings { display: flex; flex-direction: column; gap: var(--st-space-4); padding: var(--st-space-8) var(--st-space-page); border-bottom: 1px solid var(--st-outline); flex: none; }
+.front-page__more { display: inline-flex; }

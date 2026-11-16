@@ -33,6 +33,10 @@ type MeetSettings struct {
 	// PrintResultsTime prints each heat's results time in the 成绩册.
 	PrintResultsTime bool `json:"printResultsTime"`
 	PrintTeamScores  bool `json:"printTeamScores"`
+	// PrintStyleID is the print style the meet's reports use (打印样式, see
+	// print_style.go); "" is the default style. An id whose style is gone
+	// reads as "".
+	PrintStyleID string `json:"printStyleId"`
 }
 
 // DefaultMeetSettings are a new meet's settings.
@@ -67,7 +71,22 @@ func (s *Service) MeetSettings(ctx context.Context, meetID string) (MeetSettings
 	if err != nil {
 		return DefaultMeetSettings(), err
 	}
-	return parseMeetSettings(raw)
+	m, err := parseMeetSettings(raw)
+	if err != nil || m.PrintStyleID == "" {
+		return m, err
+	}
+	if m.PrintStyleID == DefaultPrintStyleID {
+		m.PrintStyleID = ""
+		return m, nil
+	}
+	row, err := s.store.GetPrintStyle(ctx, m.PrintStyleID)
+	if err != nil {
+		return m, err
+	}
+	if row == nil {
+		m.PrintStyleID = ""
+	}
+	return m, nil
 }
 
 // SaveMeetSettings checks and keeps a meet's settings.
@@ -87,10 +106,57 @@ func (s *Service) SaveMeetSettings(ctx context.Context, src store.Source, meetID
 	if err != nil {
 		return err
 	}
+	// The style choice is SetMeetPrintStyle's: a caller that sends these
+	// settings without printStyleId would otherwise clear the meet's style.
+	cur, err := s.MeetSettings(ctx, meetID)
+	if err != nil {
+		return err
+	}
+	in.PrintStyleID = cur.PrintStyleID
 	raw, err := json.Marshal(in)
 	if err != nil {
 		return err
 	}
 	return s.write(ctx, store.Audit{Source: src, Action: "meet.settings", MeetID: meetID, Message: meet.Name, Detail: in},
 		Change{Kind: "meets", MeetID: meetID}, store.Stmt(`UPDATE meets SET settings = ? WHERE id = ?`, string(raw), meetID))
+}
+
+// SetMeetPrintStyle makes the meet's reports use a print style, at once.
+// styleID is a saved style, DefaultPrintStyleID or "" for the default; any
+// other id is an error.
+func (s *Service) SetMeetPrintStyle(ctx context.Context, src store.Source, meetID, styleID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	meet, err := s.GetMeet(ctx, meetID)
+	if err != nil {
+		return err
+	}
+	name := defaultPrintStyleName
+	if styleID == DefaultPrintStyleID {
+		styleID = ""
+	}
+	if styleID != "" {
+		row, err := s.store.GetPrintStyle(ctx, styleID)
+		if err != nil {
+			return err
+		}
+		if row == nil {
+			return errNoStyle()
+		}
+		name = row.Name
+	}
+	raw, err := s.store.MeetSettings(ctx, meetID)
+	if err != nil {
+		return err
+	}
+	prefs, err := parseMeetSettings(raw)
+	if err != nil {
+		return err
+	}
+	if prefs.PrintStyleID == styleID {
+		return nil
+	}
+	prefs.PrintStyleID = styleID
+	return s.write(ctx, store.Audit{Source: src, Action: "meet.printstyle", MeetID: meetID, Message: meet.Name, Detail: map[string]any{"styleId": styleID, "style": name}},
+		Change{Kind: "meets", MeetID: meetID}, store.Stmt(`UPDATE meets SET settings = ? WHERE id = ?`, jsonValue(prefs), meetID))
 }

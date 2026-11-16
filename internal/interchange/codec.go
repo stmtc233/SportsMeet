@@ -40,7 +40,7 @@ func Decode(data []byte) (*File, error) {
 	if head.Version < 1 {
 		return nil, Problems{"version 必须为正整数"}
 	}
-	if head.Version < 10 {
+	if head.Version < 11 {
 		var err error
 		if data, err = withoutNewerFields(data, head.Version); err != nil {
 			return nil, fmt.Errorf("不是有效的 JSON:%w", err)
@@ -112,6 +112,10 @@ func withoutNewerFields(data []byte, version int) ([]byte, error) {
 	if err := dec.Decode(&doc); err != nil {
 		return nil, err
 	}
+	if version < 11 {
+		delete(doc, "frontPages")
+		delete(doc, "assets")
+	}
 	if version < 9 {
 		if meet, ok := doc["meet"].(map[string]any); ok {
 			delete(meet, "entryLimits")
@@ -165,7 +169,9 @@ func withoutNewerFields(data []byte, version int) ([]byte, error) {
 								if version < 6 {
 									delete(result, "heightPending")
 								}
-								delete(result, "tieBreak") // version < 10
+								if version < 10 {
+									delete(result, "tieBreak")
+								}
 							}
 						}
 					}
@@ -184,6 +190,7 @@ var (
 // result consistency).
 func Validate(f *File) Problems {
 	p := resolveFileGroups(f)
+	p = append(p, validateFrontPages(f)...)
 	add := func(format string, a ...any) { p = append(p, fmt.Sprintf(format, a...)) }
 
 	if strings.TrimSpace(f.Meet.Name) == "" {

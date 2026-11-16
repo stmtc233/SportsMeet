@@ -43,9 +43,16 @@ func startedRollback() []sqlite.Statement {
 	return append(identityRollback(), Stmt("DELETE FROM schema_migrations WHERE version = 7"), Stmt("ALTER TABLE heats DROP COLUMN started_at"))
 }
 
-// followRollback undoes migration 0013, which changes data only.
+// printStyleRollback undoes migration 0014.
+func printStyleRollback() []sqlite.Statement {
+	return []sqlite.Statement{Stmt("DELETE FROM schema_migrations WHERE version = 14"),
+		Stmt("DROP INDEX idx_meet_front_pages_meet"), Stmt("DROP TABLE meet_front_pages"), Stmt("DROP TABLE meet_assets"),
+		Stmt("DROP TABLE print_style_versions"), Stmt("DROP TABLE print_style_assets"), Stmt("DROP TABLE print_styles")}
+}
+
+// followRollback undoes migrations 0014 and 0013 (which changes data only).
 func followRollback() []sqlite.Statement {
-	return []sqlite.Statement{Stmt("DELETE FROM schema_migrations WHERE version = 13")}
+	return append(printStyleRollback(), Stmt("DELETE FROM schema_migrations WHERE version = 13"))
 }
 
 // settingsRollback undoes migrations 0013 and 0012.

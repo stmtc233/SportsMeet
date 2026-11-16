@@ -41,6 +41,7 @@ func (g Groups) Change(ctx context.Context, req service.GroupChangeRequest) erro
 	return g.Svc.ChangeGroup(ctx, ui, req)
 }
 
-func (r Reports) RenderGrouped(ctx context.Context, req service.GroupReportRequest) (string, error) {
-	return r.Svc.RenderGroupedReport(ctx, req)
+// RenderGrouped is the 成绩册 or 团体总分表 by group, for the preview.
+func (r Reports) RenderGrouped(ctx context.Context, req service.GroupReportRequest) (*service.RenderedReport, error) {
+	return r.Svc.RenderGroupedReportWith(ctx, req, service.RenderOptions{})
 }

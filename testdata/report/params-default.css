@@ -1,0 +1,2 @@
+:root{--paper-w:210mm;--paper-h:297mm;--m-t:15mm;--m-r:15mm;--m-b:15mm;--m-l:15mm;--font:-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;--fs:9.5pt;--lh:1.4;--fs-title:18pt;--fs-event:12.5pt;--rule:1pt;--rule-event:1.2pt;--rule-mid:0.6pt;--rule-thin:0.3pt;--cell-line:0;--row-line:var(--rule-thin) solid #c8c8c8;}
+@page{size:210mm 297mm;margin:15mm 15mm 15mm 15mm}

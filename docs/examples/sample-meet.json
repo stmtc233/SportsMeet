@@ -1,6 +1,6 @@
 {
   "format": "sportsmeet-interchange",
-  "version": 10,
+  "version": 11,
   "exportedAt": "2026-11-12T18:05:31+08:00",
   "generator": {
     "name": "SportsMeet",
@@ -786,6 +786,27 @@
       "id": "g2",
       "name": "初中组",
       "ordinal": 2
+    }
+  ],
+  "frontPages": [
+    {
+      "title": "致辞",
+      "bodyMd": "# 欢迎\n\n![校徽](asset:logo)\n\n-> 秋季运动会 <-"
+    },
+    {
+      "title": "竞赛须知",
+      "bodyMd": "1. 请提前 20 分钟检录\n2. 服从裁判员安排\n\n---pagebreak---\n\n祝比赛顺利。",
+      "reports": [
+        "startlist",
+        "checkin"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "name": "logo",
+      "mime": "image/png",
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
     }
   ]
 }

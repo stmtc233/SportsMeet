@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -80,6 +81,20 @@ func (s *Service) ExportMeet(ctx context.Context, meetID string) (*interchange.F
 	}
 	for _, g := range groups {
 		f.Groups = append(f.Groups, interchange.Group{ID: g.ID, Name: g.Name, Ordinal: g.Ordinal})
+	}
+	pages, err := s.store.ListFrontPages(ctx, meetID)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range pages {
+		f.FrontPages = append(f.FrontPages, interchange.FrontPage{Title: p.Title, BodyMD: p.BodyMD, Reports: frontPageView(p).Reports})
+	}
+	assets, err := s.store.ListAssets(ctx, store.AssetOfMeet, meetID, true)
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range assets {
+		f.Assets = append(f.Assets, interchange.Asset{Name: a.Name, MIME: a.MIME, Data: base64.StdEncoding.EncodeToString(a.Data)})
 	}
 	combineds, err := s.store.ListCombined(ctx, meetID)
 	if err != nil {
@@ -197,6 +212,8 @@ type Tally struct {
 // shown.
 type ImportPreview struct {
 	Groups             Tally          `json:"groups"`
+	FrontPages         Tally          `json:"frontPages"`
+	Assets             Tally          `json:"assets"`
 	Combineds          Tally          `json:"combineds"`
 	MeetName           string         `json:"meetName"`
 	NewMeet            bool           `json:"newMeet"`
@@ -844,6 +861,9 @@ func (s *Service) planImport(ctx context.Context, data []byte, meetID string) (*
 		} else {
 			add(`INSERT INTO meet_team_scoring(meet_id,rules_json) VALUES (?,?)`, meetID, jsonValue(incoming))
 		}
+	}
+	if err := s.planPrintContent(ctx, plan, f, now); err != nil {
+		return nil, err
 	}
 	return finish()
 }

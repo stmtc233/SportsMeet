@@ -1,11 +1,3 @@
-<!doctype html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<title>{{.Meet}} {{.Title}}</title>
-<style>{{.Style}}</style>
-</head>
-<body>
 {{$meet := .Meet}}{{$title := .Title}}
 {{range .Sheets}}{{$cols := .Columns}}{{$wind := .AttemptWind}}{{$rows := .LineRows}}{{$team := .Team}}{{$unit := "人"}}{{if .Team}}{{$unit = "队"}}{{end}}
 <section class="sheet record{{if .ColumnsTitle}} bars{{end}}{{if .Break}} break{{end}}">
@@ -29,6 +21,4 @@
 </section>
 {{else}}<p class="empty">没有可打印的组</p>
 {{end}}
-{{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}
-</body>
-</html>
+{{with .Slots.after_events}}{{.}}{{end}}{{if .PrintedAt}}<footer class="printed">打印时间 {{.PrintedAt}}</footer>{{end}}

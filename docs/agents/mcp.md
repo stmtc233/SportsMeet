@@ -28,6 +28,8 @@
 
 预览有错误(非空 `errors`)不得提交。
 
+**例外(用户要求)**:打印样式、前置页、图片的写入与删除直接生效,不走预览确认,见下文「打印样式」。
+
 - **删除**:只能删没有成绩的赛事、组、项目、运动员;有成绩的(及含这类组的赛事 / 项目、排在这类组里的运动员)一律拒绝,只能在界面上删。原因:AI 不应在无人确认时抹掉比赛数据。
 - **自动编排**:只追加新组,不提供「替换全部」。
 - **晋级**:只新建下一轮次的组,只读来源组的成绩。
@@ -60,7 +62,7 @@
 - 启动时为缺少令牌的已开启配置生成令牌，预留监听并保存配置后才开始处理请求；令牌保存失败时释放端口，页面显示原因；自动初始化的操作日志来源为 `system`。开启或换端口时先预留本机监听,保存设置成功后才开始处理请求并切换运行状态;端口占用或保存失败时保留原设置与监听。启动时恢复保存的开关,监听失败时应用仍可使用,「AI/MCP」页显示停止状态与原因。
 - 每个已通过认证的请求持运行管理器读锁到结束;关闭、换端口和令牌轮换等候这些请求完成,新请求随后使用当前配置。关闭监听后端口释放;退出先关闭 MCP 再关闭数据库。
 - 令牌使用 `crypto/rand` 生成 32 字节,只通过本地设置绑定显示或复制。日志只记设置键,不含令牌。复制令牌和连接信息使用 mygo 的 Concealed 剪贴板选项。
-- 设置、令牌、原生文件对话框和系统打印窗口均不向 MCP 开放;MCP 的导入导出传递数据,报表工具返回 HTML。
+- 设置、令牌、原生文件对话框和系统打印窗口均不向 MCP 开放(赛事选用的打印样式 `set_meet_print_style` 除外);MCP 的导入导出传递数据,报表工具返回 HTML。
 
 ## 预览实现
 
@@ -89,7 +91,8 @@
 | `save_team` | 创建 / 更新一个队伍及完整成员名单;规则见 [domain.md](domain.md)「队伍与接力」 |
 | `set_seed` | 更新一个报名成绩;个人传 `athleteId`,接力传 `teamId` |
 | `parse_table` | CSV / TSV 解析与列映射;导入只传数据行 |
-| `export_meet` / `render_report` | 完整交换格式对象 / 秩序册、成绩册或团体总分表 HTML |
+| `export_meet` / `render_report` | 完整交换格式对象 / 报名表、秩序册、成绩册、团体总分表、检录单或成绩记录表的 HTML,返回 `{html, warnings}`,见「打印样式」 |
+| 打印样式、前置页、图片 | 见「打印样式」一节,直接写入 |
 | `preview_entries` → `add_entries` | 批量报名;每项二选一 `athleteId` / `teamId`;`result.warnings` 列出超出报名限制的人或单位,只提示不拦截 |
 | `preview_remove_entries` → `remove_entries` | 取消报名;个人传 `athleteIds`,接力传 `teamIds` |
 | `preview_delete_team` → `delete_team` | 传 `eventId` 与 `id`,删除未排进组的队伍及其报名 |
@@ -136,7 +139,7 @@
 - 组第一次写入成绩时,`set_results` 与界面录入一样自动记下当时时刻(已有就不覆盖);规则见 [domain.md](domain.md)「时间」。
 - `set_heat_started` 接受 `input: {heatId, startedAt}`,`startedAt` 为本地 `YYYY-MM-DDTHH:mm`,空字符串清除。只改这一个字段,不进组指纹、不影响锁定与成绩,已比赛的组也可改,所以直接写入、不走预览;值不变时不写日志。日志动作 `heat.started`、来源 `mcp`。
 - 返回 `{heatId, startedAt, startedText, startDeltaText}`,与 `get_event` 中该组的字段相同。
-- 检录单、成绩记录表与检录提前时间只在应用里打印和设置,MCP 不提供。
+- 检录提前时间只在应用「赛事设置」修改,MCP 不改设置;检录单与成绩记录表的 HTML 经 `render_report` 取得。
 
 ## 客户端连接
 
@@ -171,7 +174,7 @@
 
 - `get_team_scores` 接受 `{meetId, gender?, groupLabel?, targetIds?}`；`groupLabel` 省略为全部、空字符串为无组别；`targetIds` 为普通项目或全能 ID。查询结果包含规则、排名、单位明细、无单位明细与计分进度，`ScoreValue.exact` 为精确分数，`text` 为显示值。
 - `preview_team_scoring` 与 `apply_team_scoring` 接受 `request: {meetId, rules: {enabled, places, tiePolicy, relayMultiplier, overrides}}`，确认提交携带 `previewHash` 与 `confirmed=true`。规则、完成口径、指纹范围、导入兼容与同分并列要求见 [team-scoring.md](team-scoring.md)。
-- `render_report` 的 `kind=team_scores` 返回团体总分表 HTML，`eventIds` 沿用普通项目与全能的选择；不调用系统打印窗口。
+- `render_report` 的 `kind=team_scores` 返回团体总分表 HTML(`{html, warnings}`)，`eventIds` 沿用普通项目与全能的选择；不调用系统打印窗口。
 
 ## 赛事组别
 
@@ -180,3 +183,30 @@
 - `preview_delete_group → delete_group` 与 `preview_reorder_groups → reorder_groups` 使用通用预览；删除组别时引用它的项目、全能与单位移出该组别，运动员随单位剩下的组别调整，改后项目身份重复时预览 `errors` 列出原因，不能提交。排序 `ids` 必须完整包含赛事全部组别。
 - `get_team_score_boards` 返回各组独立排名，`groupId` 省略表示全部组别分别出榜，空字符串表示未分组；`get_team_scores` 的全赛事汇总接口保留兼容调用。
 - `render_report` 的成绩册与团体表支持 `groupIds`，省略或空数组为全部，数组中的空字符串选择未分组；`eventIds` 限定所选项目，按组分别汇总并另起页。
+
+## 打印样式
+
+打印样式(版面参数、自定义 CSS、插槽、报表模板、图片)全局保存,赛事选用其一;前置页属于赛事。内置「默认」样式不存储、不能改,新样式从它复制或起步。清洗、模板、样式文件与报表数据的实现见 `internal/printstyle`、`internal/report`。自定义内容由 AI 经 MCP 写,普通用户不接触。
+
+**写入与删除直接生效,不走预览 → 确认(用户要求,「预览 → 确认 → 提交」的例外)**:样式、前置页与图片不是比赛记录,改坏不丢数据;样式每次保存留一个版本(最近 30 个),`restore_print_style_version` 可回退,前置页和图片由 `list_*` 与 `save_*` 修正。这些工具没有 `previewHash` / `confirmed` 参数;日志来源 `mcp`。
+
+| 工具 | 用途 |
+|---|---|
+| `list_print_styles` | 内置默认样式与自定义样式,含版本、被几个赛事使用、是否有自定义 CSS 与模板 |
+| `get_print_style` | 一个样式的 `params`、`css`、`slots`、`templates`、图片与使用它的赛事,外加接口说明 `guide`(`noGuide=true` 时省略) |
+| `save_print_style` | `id` 省略为新建;`input` 各字段省略即不改:`name`、`params`(完整)或 `paramsPatch`(部分,对象或其 JSON 文本,二选一)、`css`(整体替换)、`slots` 与 `templates`(按键修改,值空白即删除该键)。返回 `{style, version, changed, warnings}`,`changed=false` 不产生版本 |
+| `copy_print_style` / `rename_print_style` / `delete_print_style` | 复制(含图片,内置默认样式也可复制,同名报错)/ 改名 / 删除(使用它的赛事读作默认样式);内置默认样式不能改名与删除 |
+| `list_print_style_versions` / `restore_print_style_version` | 保留的版本(新的在前,含来源与原因)/ 恢复参数、CSS、插槽与模板为新的一次保存,名称与图片不变 |
+| `export_print_style` / `import_print_style` | 返回样式文件 JSON 对象(含图片 base64)/ 接受同一对象或其 JSON 文本,总是新建一个样式,不碰文件系统 |
+| `get_report_template` | 某报表种类的内置模板源码、子模板 `parts`、数据类型 `dataTypes`(每个字段的 Go 名与 JSON 键名、可调用的方法)、模板函数;`withSample` 附样例数据 |
+| `get_report_data` | 某赛事某报表在范围内的数据 JSON 与 `dataVersion`,就是自定义模板收到的 `Book` / `CheckInBook` / `RecordBook`;只读 |
+| `render_report` | 见下 |
+| `render_style_sample` | 不依赖赛事,用内置样例数据渲染 `kind`;`styleId` 省略为内置默认样式,`draft` 试写改动不保存;返回 `{html, warnings}` |
+| `set_meet_print_style` | 赛事选用样式(`default` 为内置默认样式),直接生效 |
+| `list_front_pages` / `save_front_page` / `delete_front_page` / `reorder_front_pages` | 赛事前置页(Markdown);`save_front_page` 的 `id` 省略为新增到末尾,返回 `{page, warnings}`(找不到的图片);`reorder_front_pages` 的 `ids` 须恰好包含全部前置页 |
+| `list_assets` / `save_asset` / `delete_asset` | `scope` 为 `style` 或 `meet`,`ownerId` 是样式或赛事 ID;`save_asset` 传 `dataBase64`(也接受 `data:` URI),`mime` 可省;列表不返回图片数据 |
+
+- **`render_report`**:参数 `meetId`、`kind`(`entries`、`startlist`、`results`、`team_scores`、`checkin`、`recordsheet`)、`eventIds`、`groupIds`(成绩册与团体表)、`roundIds` 与 `day`(检录单与成绩记录表,选择同界面)、`styleId`(覆盖赛事选用,`default` 为内置)、`draft`(同 `save_print_style` 的 `input`,不含 `name`,叠在样式上渲染、不保存、按保存同样的规则检查与清洗)。返回 `{html, warnings}`;`warnings` 是:被清洗的内容、找不到的图片、出错而回退默认版式的模板、旧数据版本而失效的模板。`styleId` 不存在、草稿不合格(参数越界、模板语法或运行出错)返回错误。与界面共用 `RenderReportRequest`,不调用系统打印窗口。
+- **接口说明 `guide`** 由 `service.PrintGuide` 生成:参数、CSS 变量、类名、插槽、报表种类与限制来自代码和样式表,取值范围由测试对照 `Params.Validate`;分页约定、模板、前置页 Markdown、图片引用与清洗规则是文字说明。改版面规则时同步这些文字与测试。
+- 模板与插槽用 Go 字段名取数(`{{.Meet}}`),`get_report_data` 的 JSON 用各字段的 json 名;自定义报表模板只写 `<body>` 内容并替换整个正文,封面、前置页、页眉页脚由系统放入。模板针对报表数据版本 `dataVersion` 写成,版本变化后不再使用并给出警告。
+- 保存时模板与插槽在样例数据上试运行,CSS、HTML、Markdown 清洗后写入,清洗掉的内容在 `warnings` 里列出;文档另带 Content-Security-Policy,不联网。图片只收 png / jpeg / webp、单张 2 MB;MCP 请求体上限 2MB(含 base64 与样式文件的图片),所以经 MCP 传的单张图约 1.5 MB 以内。

@@ -32,7 +32,7 @@ for (const width of [1280, 800]) for (const colorScheme of ["light", "dark"] as 
         if (method === "Reports.Targets") return Promise.resolve([{ id: "event", name: "男子100m" }, { id: "jump", name: "女子跳远" }]);
         if (method === "Reports.Render" && args[0] === "entries") {
           (globalThis as any).__entryReportCalls.push(args);
-          return Promise.resolve(html);
+          return Promise.resolve({ html, warnings: [] });
         }
         return call(method, ...args);
       };

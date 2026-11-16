@@ -21,26 +21,36 @@ const (
 	ReportResults    = "results"     // 成绩册
 )
 
-// RenderReport returns a printable HTML document for the meet. eventIDs
-// limits it to some events (in the list's order, domain.ScheduleOrder);
-// empty means all.
+// RenderReport returns a printable HTML document for the meet, in the
+// meet's print style. eventIDs limits it to some events (in the list's
+// order, domain.ScheduleOrder); empty means all. RenderReportWith takes
+// the style options and returns the warnings too.
 func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventIDs []string) (string, error) {
-	if kind == ReportEntries {
-		return s.renderEntries(ctx, meetID, eventIDs)
-	}
+	return htmlOnly(s.RenderReportWith(ctx, kind, meetID, eventIDs, RenderOptions{}))
+}
+
+// RenderReportWith is RenderReport with a style chosen by opt instead of
+// the meet's, and the style's warnings.
+func (s *Service) RenderReportWith(ctx context.Context, kind, meetID string, eventIDs []string, opt RenderOptions) (*RenderedReport, error) {
 	if kind == ReportResults || kind == ReportTeamScores {
-		return s.RenderGroupedReport(ctx, GroupReportRequest{Kind: kind, MeetID: meetID, EventIDs: eventIDs})
+		return s.RenderGroupedReportWith(ctx, GroupReportRequest{Kind: kind, MeetID: meetID, EventIDs: eventIDs}, opt)
 	}
-	if kind != ReportStartList {
-		return "", invalid("报表类型不正确")
+	a, err := s.assembleReport(ctx, ReportRequest{Kind: kind, MeetID: meetID, EventIDs: eventIDs})
+	if err != nil {
+		return nil, err
 	}
+	return s.renderAssembled(ctx, meetID, a, opt)
+}
+
+// startListBook gathers the 秩序册's content, as the meet's settings shape it.
+func (s *Service) startListBook(ctx context.Context, meetID string, eventIDs []string) (*assembledReport, error) {
 	prefs, err := s.MeetSettings(ctx, meetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	book, err := s.reportBook(ctx, meetID, eventIDs, false, false)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	book.NewPage = prefs.PrintNewPage
 	book.Compact = prefs.PrintCompact
@@ -50,7 +60,7 @@ func (s *Service) RenderReport(ctx context.Context, kind, meetID string, eventID
 	if !prefs.PrintRoster {
 		book.Rosters = nil
 	}
-	return report.StartList(*book)
+	return &assembledReport{kind: ReportStartList, book: *book, styleID: prefs.PrintStyleID}, nil
 }
 
 // reportBook gathers the printed content; resultsTime adds each heat's

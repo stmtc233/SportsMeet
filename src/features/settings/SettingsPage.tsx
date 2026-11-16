@@ -5,10 +5,11 @@ import { IconBack, StIconButton, StListItem, StNavGroup, StPage, StToolbar, icon
 import { AboutContent } from "../about/AboutContent";
 import { AuditPanel } from "./AuditPanel";
 import { PreferencesPanel } from "./PreferencesPanel";
+import { PrintStylesPanel } from "./print-styles/PrintStylesPanel";
 
-export type SettingsSection = "general" | "log" | "about";
+export type SettingsSection = "general" | "print-styles" | "log" | "about";
 const sections: { value: SettingsSection; label: string }[] = [
-  { value: "general", label: "通用" }, { value: "log", label: "操作日志" }, { value: "about", label: "关于" },
+  { value: "general", label: "通用" }, { value: "print-styles", label: "打印样式" }, { value: "log", label: "操作日志" }, { value: "about", label: "关于" },
 ];
 
 export function SettingsPage() {
@@ -33,9 +34,9 @@ export function SettingsPage() {
         </nav>
         <main ref={content} className="settings__content">
           <div className="settings__back"><StIconButton label="设置分类" onClick={() => go({ ...route, section: null })}><IconBack size={18} strokeWidth={iconStroke} /></StIconButton></div>
-          <div key={section} className="narrow view-enter">
+          <div key={section} className={section === "print-styles" ? "wide view-enter" : "narrow view-enter"}>
             <h2 className="settings__title">{title}</h2>
-            {section === "log" ? <AuditPanel /> : section === "about" ? <AboutContent /> : <PreferencesPanel />}
+            {section === "log" ? <AuditPanel /> : section === "about" ? <AboutContent /> : section === "print-styles" ? <PrintStylesPanel /> : <PreferencesPanel />}
           </div>
         </main>
       </div>

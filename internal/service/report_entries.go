@@ -9,25 +9,25 @@ import (
 	"github.com/stmtc233/sportsmeet/internal/store"
 )
 
-// renderEntries reads entries rather than positions: arranging or advancing a
+// entriesBook reads entries rather than positions: arranging or advancing a
 // competitor does not change how many times they appear in the table.
-func (s *Service) renderEntries(ctx context.Context, meetID string, eventIDs []string) (string, error) {
+func (s *Service) entriesBook(ctx context.Context, meetID string, eventIDs []string) (*assembledReport, error) {
 	meet, err := s.GetMeet(ctx, meetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	prefs, err := s.MeetSettings(ctx, meetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	sc := store.Scope{MeetID: meetID}
 	events, err := s.store.ListEvents(ctx, sc)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	parents, err := s.store.ListCombined(ctx, meetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	chosen := map[string]bool{}
 	for _, id := range eventIDs {
@@ -43,23 +43,23 @@ func (s *Service) renderEntries(ctx context.Context, meetID string, eventIDs []s
 	}
 	entries, err := s.store.ListEntries(ctx, sc)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	teams, err := s.store.ListTeams(ctx, sc)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	athletes, err := s.store.ListAthletes(ctx, meetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	units, err := s.store.ListUnits(ctx, meetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	overviews, err := s.store.EventOverviews(ctx, meetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	rounds := map[string][]domain.Round{}
 	for id, overview := range overviews {
@@ -117,5 +117,5 @@ func (s *Service) renderEntries(ctx context.Context, meetID string, eventIDs []s
 		}
 		book.Events = append(book.Events, ev)
 	}
-	return report.Entries(book)
+	return &assembledReport{kind: ReportEntries, book: book, styleID: prefs.PrintStyleID}, nil
 }

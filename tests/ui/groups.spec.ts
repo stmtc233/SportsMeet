@@ -51,7 +51,7 @@ async function installGroups(page: Page) {
           return ["g1", "g2"].map((groupId, i) => ({ ...rows[0], entries: 0, heats: 0, placed: 0, event: { ...rows[0].event, id: i ? "event2" : "event", groupId, groupLabel: groups.find((g) => g.id === groupId)?.name, name: `男子100m ${groups.find((g) => g.id === groupId)?.name}` } }));
         }
         case "Reports.Targets": return groups.slice(0, 2).map((g, i) => ({ id: i ? "event2" : "event", groupId: g.id, name: `男子100m ${g.name}` }));
-        case "Reports.RenderGrouped": return `<!doctype html><html><body><h1>分组成绩册</h1><p>${args[0].groupIds.join(",")}</p></body></html>`;
+        case "Reports.RenderGrouped": return { html: `<!doctype html><html><body><h1>分组成绩册</h1><p>${args[0].groupIds.join(",")}</p></body></html>`, warnings: [] };
         case "Reports.PrintPages": return null;
         default: return base(method, ...args);
       }

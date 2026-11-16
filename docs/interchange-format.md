@@ -1,8 +1,8 @@
-# 交换格式规范 v10
+# 交换格式规范 v11
 
 SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的完整快照**:参赛单位、运动员、项目、报名、轮次、组、成绩。
 
-- 机器可读定义：[v10](schema/interchange-v10.schema.json)；兼容读取 [v9](schema/interchange-v9.schema.json)、[v8](schema/interchange-v8.schema.json)、[v7](schema/interchange-v7.schema.json)、[v6](schema/interchange-v6.schema.json)、[v5](schema/interchange-v5.schema.json)、[v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
+- 机器可读定义：[v11](schema/interchange-v11.schema.json)；兼容读取 [v10](schema/interchange-v10.schema.json)、[v9](schema/interchange-v9.schema.json)、[v8](schema/interchange-v8.schema.json)、[v7](schema/interchange-v7.schema.json)、[v6](schema/interchange-v6.schema.json)、[v5](schema/interchange-v5.schema.json)、[v1](schema/interchange-v1.schema.json)、[v2](schema/interchange-v2.schema.json)、[v3](schema/interchange-v3.schema.json)、[v4](schema/interchange-v4.schema.json)（JSON Schema 2020-12）
 - 示例:[examples/sample-meet.json](examples/sample-meet.json)
 
 ## 1. 文件
@@ -20,12 +20,12 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 ## 2. 版本
 
 ```json
-{ "format": "sportsmeet-interchange", "version": 10 }
+{ "format": "sportsmeet-interchange", "version": 11 }
 ```
 
 - `format` 固定,不符即拒绝读取。
 - `version` 为正整数。增删字段、改字段含义、改单位、改枚举取值均须 +1。
-- 写出方总是写 v10；读取方支持 v1–v10。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；v1–v6 不解释赛事的团体计分规则 `meet.teamScoring`；v1–v7 不解释赛事组别目录 `groups` 与各实体的 `groupId` / `groupIds`；v1–v8 不解释赛事的报名限制 `meet.entryLimits`；v1–v9 不解释并列裁定 `result.tieBreak`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
+- 写出方总是写 v11；读取方支持 v1–v11。v1 不解释起跑方式、跳跃／投掷、建议棒数；v1／v2 不解释参赛方式、计次计分与全能字段；v1–v3 不解释轮次开始时间 `rounds[].scheduledAt` 与组的预计用时 `heats[].durationMinutes`；v1–v4 不解释组的实际开赛时间 `heats[].startedAt`；v1–v5 不解释高度成绩的过程状态 `result.heightPending`；v1–v6 不解释赛事的团体计分规则 `meet.teamScoring`；v1–v7 不解释赛事组别目录 `groups` 与各实体的 `groupId` / `groupIds`；v1–v8 不解释赛事的报名限制 `meet.entryLimits`；v1–v9 不解释并列裁定 `result.tieBreak`；v1–v10 不解释前置页 `frontPages` 与赛事图片 `assets`；这些未知字段即使使用其他 JSON 类型也忽略。兼容默认值为计时项目分道、远度跳跃、接力按队伍其余按个人参赛，不根据项目名推断。
 - 读取方必须能读所有已发布版本;遇到比自己新的版本直接拒绝,并提示升级软件(不尝试猜测读取)。
 
 ## 3. 基本约定
@@ -75,7 +75,9 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
   "units": [ ... ],
   "athletes": [ ... ],
   "events": [ ... ],
-  "combineds": [ ... ]
+  "combineds": [ ... ],
+  "frontPages": [ ... ],
+  "assets": [ ... ]
 }
 ```
 
@@ -88,6 +90,8 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 | `units` / `athletes` / `events` | ✓ | 数组,可为空 |
 | `groups` | | 赛事组别目录，省略表示无组别，见 §5.13 |
 | `combineds` | | 全能数组，省略表示无全能，见 §5.11 |
+| `frontPages` | | 打印前置页，省略表示没有，见 §5.15 |
+| `assets` | | 前置页用的赛事图片，省略表示没有，见 §5.15 |
 
 ## 5. 实体
 
@@ -304,6 +308,26 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 
 各项为 0–99 的整数，0 或省略为不限；导出时没有任何限制就省略整个对象。限制只用于提示，文件里超出限制的报名照常导入。导入新赛事时采用文件的限制，导入已有赛事保留目标赛事的限制。计数规则见 [领域细则](agents/domain.md)「报名限制」。
 
+### 5.15 前置页 `frontPages[]` 与赛事图片 `assets[]`
+
+前置页是印在报表开头的 Markdown 页（致辞、规程、须知），属于赛事；数组顺序就是打印顺序，最多 20 页。打印样式本身（版面参数、CSS、模板）是软件全局的，**不进交换格式**，有自己的样式文件。
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|:---:|---|
+| `title` | string | ✓ | 去掉首尾空白后 1–60 个字 |
+| `bodyMd` | string | ✓ | Markdown 正文，最多 256 KB。表格与删除线可用，行内换行即换行，原始 HTML 不渲染；图片写 `![说明](asset:名称)`；单独一行 `---pagebreak---` 另起一页；以 `->` 开头、`<-` 结尾的段落居中 |
+| `reports` | string[] | | 印在哪些报表开头，取 `entries` 报名表 / `startlist` 秩序册 / `results` 成绩册 / `team_scores` 团体总分表 / `checkin` 检录单 / `recordsheet` 成绩记录表，不可重复；省略或空表示全部报表 |
+
+赛事图片 `assets[]`，前置页通过 `asset:名称` 引用，最多 30 张、解码后合计不超过 16 MB：
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|:---:|---|
+| `name` | string | ✓ | 引用名，1–40 个字，文件内唯一；不含空白、引号、括号与 `& % ; ,` |
+| `mime` | string | ✓ | `image/png` / `image/jpeg` / `image/webp`，须与内容一致 |
+| `data` | string | ✓ | base64（标准字母表），解码后最大 2 MB |
+
+引用了文件里没有的图片名不是错误，打印时该处留空并在警告里提示。
+
 ## 6. 校验
 
 读取方导入前必须检查,任一失败即整份拒绝,并列出全部错误(不只第一条):
@@ -314,6 +338,7 @@ SportsMeet 赛事数据的导入导出格式。一个文件是**一个赛事的�
 4. §5 中的唯一性约束。
 5. `slots[].athleteId` / `teamId` 已在本项目报名;队伍项目的 `slots` 只能用 `teamId`,个人项目只能用 `athleteId`。
 6. `status = OK` 时 `mark` 非空,否则 `mark` 为 `null`。
+7. v11：`frontPages`、`assets` 符合 §5.15（标题与正文长度、报表名、图片名唯一、base64 可解码、图片类型与内容一致、数量与大小上限）。
 
 以下只给**警告**,不阻止导入:运动员性别与项目性别不符、`seedMark` 缺失、运动员未报任何项目。
 
@@ -347,3 +372,9 @@ v7／v8 同赛事导入时，按匹配后的普通项目／全能 ID 规范化�
 - v8 导入新赛事时按 `ordinal` 处理目录并重新生成组别 ID，单位、运动员、普通项目、全能与分项引用全部映射；导入已有赛事时按规范化组别名称复用目录，新组别追加在现有顺序之后。
 - v8 复用单位或运动员时，映射后的组别归属须与目标一致；冲突整份拒绝，归属变更须走预览确认。目录顺序的导入不覆盖已有赛事排序。
 - v1–v7 按项目与全能的非空 `groupLabel` 建立或复用赛事目录，不从年级和报名自动推断单位或运动员归属；复用单位、运动员时保留目标归属。空标签保留不分组别，已有混年级项目不自动拆分。
+
+### 前置页与图片
+
+- 导入新赛事时按文件顺序全部写入。
+- 导入已有赛事时只增不改：标题与正文都与赛事已有某一页相同的前置页视为已有；其余追加在赛事现有前置页之后，合计超过 20 页整份拒绝。图片名在赛事里没有的就添加，同名且内容相同视为已有，同名而内容不同保留赛事里的并给出警告。赛事已有的前置页、顺序与图片不改动。
+- v1–v10 文件没有这两项，导入不改动目标赛事的前置页与图片。

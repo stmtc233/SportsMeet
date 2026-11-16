@@ -21,6 +21,14 @@ export interface AppInfo {
   repositoryURL: string;
 }
 
+/** AssetInfo is an image without its bytes. */
+export interface AssetInfo {
+  name: string;
+  mime: string;
+  sha256: string;
+  size: number;
+}
+
 /** Athlete belongs to a meet and is shared by its events. */
 export interface Athlete {
   groupId: string;
@@ -235,7 +243,7 @@ export interface BoardSave {
 
 /** Change tells listeners which data moved, so pages reload only that. */
 export interface Change {
-  /** meets | units | athletes | events | entries | heats | results | combined | team_scoring | groups */
+  /** meets | units | athletes | events | entries | heats | results | combined | team_scoring | groups | printStyles (app-wide: no meet) */
   kind: string;
   meetId: string;
   eventId: string;
@@ -674,6 +682,38 @@ export interface FormTeam {
   members: string[];
 }
 
+/** FrontPageInput is a front page's text and the reports it goes in. */
+export interface FrontPageInput {
+  title: string;
+  bodyMd: string;
+  /**
+   * Reports are report kinds (printstyle.ReportKinds: entries, startlist,
+   * results, team_scores, checkin, recordsheet); empty = every report.
+   */
+  reports: string[];
+}
+
+/** FrontPageSaved is a saved front page with what to tell the user. */
+export interface FrontPageSaved {
+  page: FrontPageView;
+  /**
+   * Warnings name the images the text refers to that the meet and its
+   * style do not have.
+   */
+  warnings: string[];
+}
+
+/** FrontPageView is a stored front page; Position counts from 1. */
+export interface FrontPageView {
+  id: string;
+  meetId: string;
+  position: number;
+  title: string;
+  bodyMd: string;
+  reports: string[];
+  updatedAt: number;
+}
+
 /** Gender of an athlete ("" = unknown) or of an event (男 / 女 / 混合). */
 export type Gender = "男" | "女" | "混合" | "";
 
@@ -974,6 +1014,8 @@ export interface HeightRowPreview {
  */
 export interface ImportPreview {
   groups: Tally;
+  frontPages: Tally;
+  assets: Tally;
   combineds: Tally;
   meetName: string;
   newMeet: boolean;
@@ -1103,6 +1145,12 @@ export interface MeetSettings {
   /** PrintResultsTime prints each heat's results time in the 成绩册. */
   printResultsTime: boolean;
   printTeamScores: boolean;
+  /**
+   * PrintStyleID is the print style the meet's reports use (打印样式, see
+   * print_style.go); "" is the default style. An id whose style is gone
+   * reads as "".
+   */
+  printStyleId: string;
 }
 
 /** MeetView is a meet with its days as shown. */
@@ -1121,6 +1169,20 @@ export interface MeetView {
   entryLimits: EntryLimits;
   /** domain.DateRangeText */
   datesText: string;
+}
+
+/**
+ * NumberLimit is the range of a numeric parameter, by its json name. The
+ * limits are Validate's, and the layout form and the MCP guide show the
+ * same ones: a range written down a second time would drift from this one.
+ */
+export interface NumberLimit {
+  key: string;
+  label: string;
+  min: number;
+  max: number;
+  unit: string;
+  integer: boolean;
 }
 
 /**
@@ -1249,6 +1311,52 @@ export interface OverviewUnit {
   over: number;
 }
 
+/**
+ * Params are the layout knobs of a style. DefaultParams is the look the
+ * reports have without any style.
+ */
+export interface Params {
+  /** a4 / a3 / b5 / 16k / letter / custom */
+  paper: string;
+  /** mm, custom only */
+  paperWidth: number;
+  /** mm, custom only */
+  paperHeight: number;
+  /** portrait / landscape */
+  orientation: string;
+  /** mm */
+  marginTop: number;
+  marginRight: number;
+  marginBottom: number;
+  marginLeft: number;
+  /** song / hei / kai / fang / sans */
+  font: string;
+  /** body, pt */
+  fontSize: number;
+  /** times the font size */
+  lineHeight: number;
+  /** the meet's name at the top, pt */
+  titleSize: number;
+  /** an event's heading, pt */
+  eventTitleSize: number;
+  /** rules / grid */
+  tableLines: string;
+  /** the heavy rule, pt; lighter rules follow */
+  lineWidth: number;
+  /** running head from the second page */
+  header: boolean;
+  /** n_of_m / dash / none */
+  pageNumber: string;
+  /** athletes a row of the 代表队名单 */
+  rosterColumns: number;
+  /** the 单位 column */
+  showUnit: boolean;
+  /** the 报名成绩 column */
+  showSeed: boolean;
+  /** the 号码 column */
+  showBib: boolean;
+}
+
 /** PickedFile is a file chosen for import. */
 export interface PickedFile {
   path: string;
@@ -1322,6 +1430,131 @@ export interface Preferences {
   theme: string;
   /** UpdatePrereleases includes test versions in mygo's update checks. */
   updatePrereleases: boolean;
+}
+
+/**
+ * PrintParamRules are the limits of a style's layout parameters, for the
+ * form to show a wrong value at its field before it is saved.
+ */
+export interface PrintParamRules {
+  numbers: NumberLimit[];
+  /** Papers are the named sheets, width and height in mm, portrait. */
+  papers: Record<string, number[]>;
+  /**
+   * MinContent is the least the margins leave of the sheet each way, mm;
+   * MarginsTooBig is the message when they leave less.
+   */
+  minContent: number;
+  marginsTooBig: string;
+}
+
+/** PrintStyleDetail is a whole style. */
+export interface PrintStyleDetail {
+  id: string;
+  name: string;
+  builtin: boolean;
+  /** Version counts the saves, from 1; 0 for the built-in style. */
+  version: number;
+  /** ms; 0 for the built-in style */
+  updatedAt: number;
+  /** UsedBy is how many meets use it. */
+  usedBy: number;
+  hasCustomCss: boolean;
+  /** HasTemplates: it holds custom templates or slots. */
+  hasTemplates: boolean;
+  createdAt: number;
+  params: Params;
+  css: string;
+  /**
+   * Slots and Templates are written for report data version DataVersion
+   * (the current one is report.DataVersion).
+   */
+  slots: Record<string, string>;
+  templates: Record<string, string>;
+  dataVersion: number;
+  assets: AssetInfo[];
+  meets: PrintStyleMeet[];
+}
+
+/**
+ * PrintStyleInput creates a style (no id) or changes one. A nil field is
+ * left as it is; on creation the default's value stands.
+ */
+export interface PrintStyleInput {
+  name: string | null;
+  /**
+   * Params replace the layout parameters. ParamsPatch (a JSON object)
+   * changes only the fields it names; give one of the two.
+   */
+  params: Params | null;
+  paramsPatch: string;
+  css: string | null;
+  /**
+   * Slots and Templates are changed by key: a key given is set, a key
+   * given with white space only is removed, keys not given stay.
+   */
+  slots: Record<string, string>;
+  templates: Record<string, string>;
+}
+
+/** PrintStyleMeet is a meet that uses a style. */
+export interface PrintStyleMeet {
+  id: string;
+  name: string;
+}
+
+/** PrintStyleSaved is the result of a save. */
+export interface PrintStyleSaved {
+  style: PrintStyleDetail | null;
+  version: number;
+  /** Changed is false when the input changed nothing: no version was made. */
+  changed: boolean;
+  /** Warnings say what was cleaned from the CSS and the like. */
+  warnings: string[];
+}
+
+/** PrintStyleSummary is a style in the list. */
+export interface PrintStyleSummary {
+  id: string;
+  name: string;
+  builtin: boolean;
+  /** Version counts the saves, from 1; 0 for the built-in style. */
+  version: number;
+  /** ms; 0 for the built-in style */
+  updatedAt: number;
+  /** UsedBy is how many meets use it. */
+  usedBy: number;
+  hasCustomCss: boolean;
+  /** HasTemplates: it holds custom templates or slots. */
+  hasTemplates: boolean;
+}
+
+/** PrintStyleVersion is a kept snapshot of a style. */
+export interface PrintStyleVersion {
+  version: number;
+  current: boolean;
+  /** ms */
+  at: number;
+  /** AtText is At shown to the minute in the service's time zone. */
+  atText: string;
+  /** Source is who saved it: ui, mcp or system. */
+  source: string;
+  /** Reason says what the save was: 新建, 保存, 改名, 图片, 恢复 … */
+  reason: string;
+  name: string;
+  hasCustomCss: boolean;
+  hasTemplates: boolean;
+  assets: number;
+}
+
+/**
+ * RenderedReport is a printable document and what the style could not do
+ * (CSS that was cleaned, a missing image, a template that failed and was
+ * replaced by the built-in layout).
+ */
+export interface RenderedReport {
+  html: string;
+  warnings: string[];
 }
 
 export interface ReportTarget {
@@ -2065,6 +2298,10 @@ export const Meets = {
   saveSettings(meetID: string, in_: MeetSettings): Promise<void> {
     return call("Meets.SaveSettings", meetID, in_);
   },
+  /** SetPrintStyle makes the meet's reports use a print style ("" = 默认). */
+  setPrintStyle(meetID: string, styleID: string): Promise<void> {
+    return call("Meets.SetPrintStyle", meetID, styleID);
+  },
   /** Settings returns the meet's arrange and print settings. */
   settings(meetID: string): Promise<MeetSettings> {
     return call("Meets.Settings", meetID);
@@ -2406,23 +2643,127 @@ export const Reports = {
   printPages(title: string, html: string): Promise<void> {
     return call("Reports.PrintPages", title, html);
   },
-  /** Render returns the report as an HTML document, for the preview. */
-  render(kind: string, meetID: string, eventIDs: string[]): Promise<string> {
+  /**
+   * Render returns the report as an HTML document for the preview, with
+   * what the meet's print style could not do.
+   */
+  render(kind: string, meetID: string, eventIDs: string[]): Promise<RenderedReport | null> {
     return call("Reports.Render", kind, meetID, eventIDs);
   },
   /** RenderCheckIn returns the 检录单 as an HTML document, for the preview. */
-  renderCheckIn(req: CheckInRequest): Promise<string> {
+  renderCheckIn(req: CheckInRequest): Promise<RenderedReport | null> {
     return call("Reports.RenderCheckIn", req);
   },
-  renderGrouped(req: GroupReportRequest): Promise<string> {
+  /** RenderGrouped is the 成绩册 or 团体总分表 by group, for the preview. */
+  renderGrouped(req: GroupReportRequest): Promise<RenderedReport | null> {
     return call("Reports.RenderGrouped", req);
   },
   /** RenderRecordSheet returns the 成绩记录表 as an HTML document, for the preview. */
-  renderRecordSheet(req: CheckInRequest): Promise<string> {
+  renderRecordSheet(req: CheckInRequest): Promise<RenderedReport | null> {
     return call("Reports.RenderRecordSheet", req);
   },
   targets(meetID: string): Promise<ReportTarget[]> {
     return call("Reports.Targets", meetID);
+  },
+} as const;
+
+/**
+ * PrintStyles manages 打印样式 (global to the app) and their images. The
+ * page edits the layout parameters, images and versions; CSS and templates
+ * are left to AI through MCP.
+ */
+export const PrintStyles = {
+  /** AssetImage is an image as an embedded data URI, for a thumbnail. */
+  assetImage(scope: string, ownerID: string, name: string): Promise<string> {
+    return call("PrintStyles.AssetImage", scope, ownerID, name);
+  },
+  /** Assets lists the images of a style (scope "style") or a meet (scope "meet"). */
+  assets(scope: string, ownerID: string): Promise<AssetInfo[]> {
+    return call("PrintStyles.Assets", scope, ownerID);
+  },
+  /** Copy makes a new style of a style; name "" is the source's name with 「 副本」. */
+  copy(id: string, name: string): Promise<PrintStyleSaved | null> {
+    return call("PrintStyles.Copy", id, name);
+  },
+  /** Delete removes a style; the meets that used it read as the default. */
+  delete(id: string): Promise<void> {
+    return call("PrintStyles.Delete", id);
+  },
+  /** DeleteAsset removes an image by name. */
+  deleteAsset(scope: string, ownerID: string, name: string): Promise<void> {
+    return call("PrintStyles.DeleteAsset", scope, ownerID, name);
+  },
+  /**
+   * Export asks where to save the style and writes it there. It returns the
+   * chosen path, or "" when the user canceled.
+   */
+  export(id: string): Promise<string> {
+    return call("PrintStyles.Export", id);
+  },
+  /** Get returns one style; "default" is the built-in one. */
+  get(id: string): Promise<PrintStyleDetail | null> {
+    return call("PrintStyles.Get", id);
+  },
+  /**
+   * Import asks for a style file and adds its style as a new one; nil when
+   * the user canceled.
+   */
+  import(): Promise<PrintStyleSaved | null> {
+    return call("PrintStyles.Import");
+  },
+  /** List returns the built-in default first, then the saved styles. */
+  list(): Promise<PrintStyleSummary[]> {
+    return call("PrintStyles.List");
+  },
+  /** ParamRules returns the limits of the layout parameters, for the form. */
+  paramRules(): Promise<PrintParamRules> {
+    return call("PrintStyles.ParamRules");
+  },
+  /** Rename gives a style another name. */
+  rename(id: string, name: string): Promise<PrintStyleSaved | null> {
+    return call("PrintStyles.Rename", id, name);
+  },
+  /** Restore brings a kept version back as a new save. */
+  restore(id: string, version: number): Promise<PrintStyleSaved | null> {
+    return call("PrintStyles.Restore", id, version);
+  },
+  /** Save changes a style's parameters (or creates one with id ""), at once. */
+  save(id: string, in_: PrintStyleInput): Promise<PrintStyleSaved | null> {
+    return call("PrintStyles.Save", id, in_);
+  },
+  /**
+   * UploadAsset asks for an image (png, jpeg or webp) and adds it to the
+   * style or the meet under its file name; nil when the user canceled.
+   */
+  uploadAsset(scope: string, ownerID: string): Promise<AssetInfo | null> {
+    return call("PrintStyles.UploadAsset", scope, ownerID);
+  },
+  /** Versions lists the kept snapshots of a style, newest first. */
+  versions(id: string): Promise<PrintStyleVersion[]> {
+    return call("PrintStyles.Versions", id);
+  },
+} as const;
+
+/** FrontPages manages a meet's 前置页. */
+export const FrontPages = {
+  /** Delete removes a front page. */
+  delete(meetID: string, id: string): Promise<void> {
+    return call("FrontPages.Delete", meetID, id);
+  },
+  /** List returns the meet's front pages in print order. */
+  list(meetID: string): Promise<FrontPageView[]> {
+    return call("FrontPages.List", meetID);
+  },
+  /** Reorder sets the print order; ids name every front page once. */
+  reorder(meetID: string, ids: string[]): Promise<void> {
+    return call("FrontPages.Reorder", meetID, ids);
+  },
+  /**
+   * Save adds a front page (id "") or changes one; the result carries the
+   * warnings, such as an image the text refers to that is missing.
+   */
+  save(meetID: string, id: string, in_: FrontPageInput): Promise<FrontPageSaved | null> {
+    return call("FrontPages.Save", meetID, id, in_);
   },
 } as const;
 

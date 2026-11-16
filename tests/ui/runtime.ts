@@ -1,4 +1,8 @@
+import { readFileSync } from "node:fs";
 import { expect, type Page } from "@playwright/test";
+
+// The layout parameters' limits as Go gives them (internal/service print_rules_test.go keeps the file current).
+const paramRules = JSON.parse(readFileSync("testdata/print/param-rules.json", "utf8"));
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
@@ -6,7 +10,7 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { updatePrereleases: false, theme: "system" };
-    let meetSettings = { separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, printCompact: false, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false, printTeamScores: true };
+    let meetSettings = { separateUnits: true, balance: true, printNewPage: false, printSchedule: true, printRoster: true, printCompact: false, minRestMinutes: 0, checkInLeadMinutes: 20, printCheckInBreak: "round", printRecordBreak: "round", printResultsTime: false, printTeamScores: true, printStyleId: "" };
     let mcp = { enabled: true, running: true, port: 18765, address: "http://127.0.0.1:18765/mcp", error: "" };
     const meet = { id: "meet", name: "秋季运动会", startDate: "2026-11-12", endDate: "", location: "体育场", note: "", createdAt: 1, datesText: "2026-11-12", entryLimits: { athleteEvents: options.limits ? 2 : 0, unitAthletes: 0, unitTeams: 0 } };
     const createdMeets: typeof meet[] = [];
@@ -521,22 +525,27 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
           };
           case "Reports.RenderCheckIn":
             (globalThis as any).__checkInCalls = [...((globalThis as any).__checkInCalls ?? []), structuredClone(args[0])];
-            return `<!DOCTYPE html><html><body><h1>检录单</h1><p>${args[0].day || "全部日期"} · ${args[0].roundIds.join(",") || "全部轮次"}</p></body></html>`;
+            return { html: `<!DOCTYPE html><html><body><h1>检录单</h1><p>${args[0].day || "全部日期"} · ${args[0].roundIds.join(",") || "全部轮次"}</p></body></html>`, warnings: [] };
           case "Reports.RenderRecordSheet":
-            return `<!DOCTYPE html><html><body><h1>成绩记录表</h1><p>${args[0].day || "全部日期"} · ${args[0].roundIds.join(",") || "全部轮次"}</p></body></html>`;
+            return { html: `<!DOCTYPE html><html><body><h1>成绩记录表</h1><p>${args[0].day || "全部日期"} · ${args[0].roundIds.join(",") || "全部轮次"}</p></body></html>`, warnings: [] };
           case "Reports.PrintPages":
             (globalThis as any).__prints = [...((globalThis as any).__prints ?? []), args[1]];
             return null;
           case "Combined.List": return [];
           case "TeamScoring.Get": return { rules: { enabled: false, places: [7, 5, 4, 3, 2, 1], tiePolicy: "average", relayMultiplier: 2, overrides: [] }, targets: [{ eventId: event.id, combinedId: "", name: event.name, gender: "男", groupLabel: "", relay: false }],
             groups: [], rows: [], sources: [], unassigned: [], warnings: [], counted: 0, total: 0, complete: false, state: "未启用" };
-          case "Reports.Render": return "<!DOCTYPE html><html><body><h1>秋季运动会</h1><p>秩序册</p></body></html>";
+          case "Reports.Render": return { html: "<!DOCTYPE html><html><body><h1>秋季运动会</h1><p>秩序册</p></body></html>", warnings: [] };
+          // Print styles: the built-in one only; specs that edit styles bring their own.
+          case "PrintStyles.List": return [{ id: "default", name: "默认", builtin: true, version: 0, updatedAt: 0, usedBy: 1, hasCustomCss: false, hasTemplates: false }];
+          case "PrintStyles.ParamRules": return options.paramRules;
+          case "PrintStyles.Assets": return [];
+          case "FrontPages.List": return [];
           case "Marks.EventName": return `${args[0] === "混合" ? "混合" : args[0] === "女" ? "女子" : "男子"}${args[1]}${args[2] ? ` ${args[2]}` : ""}`;
           default: return error(`未模拟的方法：${method}`);
         }
       },
     };
-  }, options);
+  }, { ...options, paramRules });
 }
 
 /** Select a printable report in 打印's list. */

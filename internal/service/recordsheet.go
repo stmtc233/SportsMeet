@@ -17,19 +17,34 @@ const recordHeightColumns = 10
 // as the 检录单 is. Its columns follow the event's kind and configuration
 // (recordColumns); marks already entered are not printed.
 func (s *Service) RenderRecordSheet(ctx context.Context, req CheckInRequest) (string, error) {
+	return htmlOnly(s.RenderRecordSheetWith(ctx, req, RenderOptions{}))
+}
+
+// RenderRecordSheetWith is RenderRecordSheet with a style chosen by opt
+// instead of the meet's, and the style's warnings.
+func (s *Service) RenderRecordSheetWith(ctx context.Context, req CheckInRequest, opt RenderOptions) (*RenderedReport, error) {
+	a, err := s.recordSheetBook(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return s.renderAssembled(ctx, req.MeetID, a, opt)
+}
+
+// recordSheetBook gathers the 成绩记录表's content.
+func (s *Service) recordSheetBook(ctx context.Context, req CheckInRequest) (*assembledReport, error) {
 	prefs, err := s.MeetSettings(ctx, req.MeetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	d, err := s.loadCheckIn(ctx, req.MeetID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	list, err := d.sheetHeats(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	book := report.RecordBook{Meet: d.meet.Name, PrintedAt: domain.RecordedText(s.store.Now(), s.zone)}
+	book := report.RecordBook{Meet: d.meet.Name, Dates: domain.DateRangeText(d.meet.StartDate, d.meet.EndDate), Location: d.meet.Location, PrintedAt: domain.RecordedText(s.store.Now(), s.zone)}
 	breaks := sheetBreaks(list, prefs.PrintRecordBreak)
 	for i, t := range list {
 		e := t.event
@@ -39,7 +54,7 @@ func (s *Service) RenderRecordSheet(ctx context.Context, req CheckInRequest) (st
 		recordColumns(e, &sheet)
 		book.Sheets = append(book.Sheets, sheet)
 	}
-	return report.RecordSheets(book)
+	return &assembledReport{kind: report.KindRecordSheet, book: book, styleID: prefs.PrintStyleID}, nil
 }
 
 // recordColumns sets what the judges fill in for an event:
