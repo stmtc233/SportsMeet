@@ -92,39 +92,66 @@ func (s *Service) planResultsImport(ctx context.Context, data []byte, meetID str
 	var order []*importRound
 	started := map[string]string{} // heat id → started_at to record
 	now := s.store.Now()
+	byHeat, err := s.planPromotions(ctx, plan, f, meetID, events, rounds, &order)
+	if err != nil {
+		return nil, err
+	}
+	if len(p.Errors) > 0 {
+		return finish()
+	}
+	heatIndex := map[string][2]string{}
+	if len(f.Heats) > 0 {
+		ids := make([]string, 0, len(f.Heats))
+		for _, h := range f.Heats {
+			ids = append(ids, h.HeatID)
+		}
+		raw, _ := json.Marshal(ids)
+		rows, err := s.store.Query(ctx, `SELECT h.id,r.event_id,r.id FROM heats h JOIN rounds r ON r.id=h.round_id JOIN events e ON e.id=r.event_id WHERE e.meet_id=? AND h.id IN (SELECT value FROM json_each(?))`, meetID, string(raw))
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows.Values {
+			heatIndex[row[0].(string)] = [2]string{row[1].(string), row[2].(string)}
+		}
+	}
+
 	for _, fh := range f.Heats {
 		label := fh.Label
 		if label == "" {
 			label = fh.HeatID
 		}
-		rows, err := s.store.Query(ctx, `SELECT r.event_id, r.id FROM heats h JOIN rounds r ON r.id = h.round_id JOIN events e ON e.id = r.event_id
-			WHERE h.id = ? AND e.meet_id = ?`, fh.HeatID, meetID)
-		if err != nil {
-			return nil, err
-		}
-		if len(rows.Values) == 0 {
-			p.Warnings = append(p.Warnings, fmt.Sprintf("「%s」不在本赛事，未导入", label))
-			continue
-		}
-		eventID, roundID := rows.Values[0][0].(string), rows.Values[0][1].(string)
-		st := events[eventID]
-		if st == nil {
-			if st, err = s.loadEventParticipants(ctx, eventID); err != nil {
-				return nil, err
+		ir := byHeat[fh.HeatID]
+		var st *eventState
+		if ir != nil {
+			st = ir.st
+		} else {
+
+			ids, ok := heatIndex[fh.HeatID]
+			if !ok {
+				p.Warnings = append(p.Warnings, fmt.Sprintf("「%s」不在本赛事，未导入", label))
+				continue
 			}
-			events[eventID] = st
+			eventID, roundID := ids[0], ids[1]
+			st = events[eventID]
+			if st == nil {
+				if st, err = s.loadEventParticipants(ctx, eventID); err != nil {
+					return nil, err
+				}
+				events[eventID] = st
+			}
+			if !st.event.Kind.Timed() {
+				p.Warnings = append(p.Warnings, fmt.Sprintf("「%s」不是计时项目，未导入", label))
+				continue
+			}
+			ir = rounds[roundID]
+			if ir == nil {
+				round := st.round(roundID)
+				ir = &importRound{st: st, round: round, before: storedResults(round.Heats), heats: copyHeats(round.Heats)}
+				rounds[roundID] = ir
+				order = append(order, ir)
+			}
 		}
-		if !st.event.Kind.Timed() {
-			p.Warnings = append(p.Warnings, fmt.Sprintf("「%s」不是计时项目，未导入", label))
-			continue
-		}
-		ir := rounds[roundID]
-		if ir == nil {
-			round := st.round(roundID)
-			ir = &importRound{st: st, round: round, before: storedResults(round.Heats), heats: copyHeats(round.Heats)}
-			rounds[roundID] = ir
-			order = append(order, ir)
-		}
+
 		var heat *domain.Heat
 		for i := range ir.heats {
 			if ir.heats[i].ID == fh.HeatID {
@@ -190,6 +217,7 @@ func (s *Service) planResultsImport(ctx context.Context, data []byte, meetID str
 		rescoreEvent(ir.st.event, ir.round.Advance, ir.heats)
 		plan.stmts = append(plan.stmts, resultWrites(ir.before, ir.heats, nil, now)...)
 	}
+	p.Errors = append(p.Errors, validatePromotionQualifiers(f, rounds)...)
 	for heatID, at := range started {
 		plan.stmts = append(plan.stmts, store.Stmt(`UPDATE heats SET started_at = ? WHERE id = ? AND started_at = ''`, at, heatID))
 	}

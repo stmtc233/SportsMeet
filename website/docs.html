@@ -550,7 +550,7 @@
     <li><strong>导出</strong>：「赛事设置 → 赛事文件」点「导出赛事文件」。</li>
     <li><strong>导入为新赛事</strong>：在「全部赛事」点「导入赛事文件」。</li>
     <li><strong>导入到本赛事</strong>：在「赛事设置 → 赛事文件」点「导入到本赛事」，把文件内容合并进当前赛事。项目按性别、项目名与组别对应，运动员按学号、号码或姓名加单位对应，先预览新建、复用与覆盖的数量，确认后才写入。</li>
-    <li><strong>导入成绩文件</strong>：计时系统（如 SyncTrack）比完后导出的 <code>.results.json</code>，在「赛事设置 → 赛事文件」点「导入成绩文件」写回成绩，名次与晋级随之重算；覆盖已有成绩时先列出原成绩与新成绩，确认后才写入。格式见<a href="https://github.com/stmtc233/SportsMeet/blob/main/docs/results-format.md" rel="noopener">成绩交换格式规范</a>。</li>
+    <li><strong>导入成绩文件</strong>：计时系统（如 SyncTrack）比完后导出的 <code>.results.json</code>，在「赛事设置 → 赛事文件」点「导入成绩文件」写回成绩，名次与晋级随之重算；覆盖已有成绩时先列出原成绩与新成绩，确认后才写入。成绩文件也可携带下一轮的晋级编排：优先复用已有轮次，保留计划时间；已有不同编排时会提示冲突，不覆盖。格式见<a href="https://github.com/stmtc233/SportsMeet/blob/main/docs/results-format.md" rel="noopener">成绩交换格式规范</a>。</li>
   </ul>
   <p>赛事设置（编排与打印选项）和打印样式不随赛事文件导出，导入的赛事使用默认设置与「默认」样式；打印样式在「设置 → 打印样式」单独导出。文件格式是公开的，见<a href="https://github.com/stmtc233/SportsMeet/blob/main/docs/interchange-format.md" rel="noopener">交换格式规范</a>，其他程序可以读写。</p>
 </section>

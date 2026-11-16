@@ -92,7 +92,7 @@ func TestImportResultsRefusals(t *testing.T) {
 		"不属于本赛事": resultsFile(t, "other", heat),
 		"mark":   resultsFile(t, f.meet, heat, interchange.HeatResult{Position: 1, AthleteID: f.athletes[0], Status: "OK"}),
 		"重复":     resultsFile(t, f.meet, heat, interchange.HeatResult{Position: 1, AthleteID: f.athletes[0], Status: "DNS"}, interchange.HeatResult{Position: 1, AthleteID: f.athletes[1], Status: "DNS"}),
-		"升级":     []byte(`{"format":"sportsmeet-results","version":2}`),
+		"升级":     []byte(`{"format":"sportsmeet-results","version":3}`),
 		"format": []byte(`{"format":"sportsmeet-interchange","version":1}`),
 	}
 	for want, data := range cases {

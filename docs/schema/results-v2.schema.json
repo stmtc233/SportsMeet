@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sportsmeet.invalid/schema/results-v2.schema.json",
+  "title": "SportsMeet results v2",
+  "description": "结构约束。唯一性与目标赛事校验见 docs/results-format.md §5,由读取方校验。",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "exportedAt",
+    "generator",
+    "meetId",
+    "heats"
+  ],
+  "properties": {
+    "format": {
+      "const": "sportsmeet-results"
+    },
+    "version": {
+      "const": 2
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generator": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "meetId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "heats": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/heat"
+      }
+    },
+    "promotions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "sourceRoundId",
+          "targetRoundId",
+          "count",
+          "heats"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceRoundId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "targetRoundId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "heats": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "heatId",
+                "ordinal",
+                "slots"
+              ],
+              "properties": {
+                "heatId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "ordinal": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "name": {
+                  "type": "string"
+                },
+                "scheduledAt": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/wallTime"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "slots": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "position",
+                      "athleteId"
+                    ],
+                    "properties": {
+                      "position": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "athleteId": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "wallTime": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$"
+    },
+    "heat": {
+      "type": "object",
+      "required": [
+        "heatId",
+        "results"
+      ],
+      "properties": {
+        "heatId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "startedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/wallTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/result"
+          }
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": [
+        "position",
+        "status"
+      ],
+      "properties": {
+        "position": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "athleteId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "teamId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "check": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "studentNumber": {
+                  "type": "string"
+                },
+                "bib": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "DNS",
+            "DNF",
+            "DQ",
+            "NM"
+          ]
+        },
+        "mark": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "athleteId"
+          ],
+          "not": {
+            "required": [
+              "teamId"
+            ]
+          }
+        },
+        {
+          "required": [
+            "teamId"
+          ],
+          "not": {
+            "required": [
+              "athleteId"
+            ]
+          }
+        }
+      ],
+      "if": {
+        "properties": {
+          "status": {
+            "const": "OK"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "mark"
+        ],
+        "properties": {
+          "mark": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "mark": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  }
+}

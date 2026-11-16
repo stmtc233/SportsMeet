@@ -104,7 +104,7 @@ SportsMeet/
 ├── docs/
 │   ├── brand-guidelines.md             ←「跑道 S」品牌设计规范与资源索引
 │   ├── interchange-format.md          ← 交换格式规范(事实源)
-│   ├── results-format.md              ← 成绩交换格式规范(事实源),schema/results-v1.schema.json · examples/sample-results.json
+│   ├── results-format.md              ← 成绩交换格式规范(事实源),schema/results-v1.schema.json · results-v2.schema.json · examples/sample-results.json · examples/sample-results-v2.json
 │   ├── print-style-format.md          ← 打印样式文件、报表数据与排版约定规范(事实源),schema/print-style-v1.schema.json · examples/sample-print-style.smstyle.json
 │   ├── schema/interchange-v1.schema.json · interchange-v2.schema.json · interchange-v3.schema.json · interchange-v4.schema.json · interchange-v5.schema.json · interchange-v6.schema.json · interchange-v7.schema.json · interchange-v8.schema.json · interchange-v9.schema.json · interchange-v10.schema.json · interchange-v11.schema.json
 │   ├── examples/sample-meet.json
@@ -264,7 +264,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 - 外键所在的列都建完整索引；运动员的规范化检索键按 `domain.NormalizeText` 维护，号码布 / 学号的唯一性只由 service 校验，不建唯一索引。
 - 交换格式改字段即 bump `version`;读取方能读所有已发布版本,写出总是最新版本。v11 起带前置页与赛事图片,打印样式本身不进交换格式、有自己的样式文件与版本(→ print-style-format.md)。
 - 图片以 BLOB 存在 `print_style_assets` 与 `meet_assets`;列表查询只读名称、类型、大小与指纹,不读数据,渲染才读且仅当内容引用了 `asset:`(→ storage.md)。
-- 成绩交换格式按组 ID 与运动员 / 队伍 ID 写回计时项目成绩,ID 不在组内时按学号 → 号码布 → 姓名在组内核对;文件不带名次与晋级,写完按界面录入的同一套规则重算涉及的轮次,只增改不删成绩;版本号与交换格式各自独立(→ results-format.md)。
+- 成绩交换格式按组 ID 与运动员 / 队伍 ID 写回计时项目成绩,ID 不在组内时按学号 → 号码布 → 姓名在组内核对;成绩文件 v2 可附已有下一轮的晋级编排，复用轮次与稳定组 ID、不同编排拒绝覆盖；名次与晋级标记仍按界面录入的同一套规则重算涉及的轮次,只增改不删成绩;版本号与交换格式各自独立(→ results-format.md)。
 
 ### 5.5 文案与提交 → [copywriting.md](docs/agents/copywriting.md)
 
@@ -307,7 +307,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 
 1. 增删 / 重命名包、重要文件、顶层目录、构建配置 → §3 / §4。
 1. 改术语或实体层级 → §2 与 domain.md。
-2. 改交换格式 → interchange-format.md、JSON Schema、示例与 `testdata/interchange/` 黄金文件;改成绩交换格式 → results-format.md、`results-v1` Schema 与示例,并通知写出方(SyncTrack 服务端 `internal/sportsmeet/export.go`)。
+2. 改交换格式 → interchange-format.md、JSON Schema、示例与 `testdata/interchange/` 黄金文件;改成绩交换格式 → results-format.md、`results-v2` Schema 与示例,并通知写出方(SyncTrack 服务端 `internal/sportsmeet/export.go`)。
 2. 改打印样式文件、报表数据(`report` 的 `Book` 等导出字段与 json 名)或排版约定 → print-style-format.md、`print-style-v1` Schema 与示例;报表数据变化须 bump `report.DataVersion` 并新增 `testdata/report/data-vN.json`。
 3. 新增 / 废弃 / 修改不变量 → 在对应细则写完整规则,并在 §5 加 / 改**一句话摘要**;新主题建新细则并登记到 §5.0 路由表。
 4. 改用户能看到的操作、按钮名称、默认值或页面 → `website/docs.html` 使用文档的对应章节。

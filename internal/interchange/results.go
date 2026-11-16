@@ -11,17 +11,18 @@ import (
 // some heats back into a meet, located by the ids of an exported file.
 const (
 	ResultsFormat  = "sportsmeet-results"
-	ResultsVersion = 1
+	ResultsVersion = 2
 )
 
 // ResultsFile is a decoded results file.
 type ResultsFile struct {
-	Format     string        `json:"format"`
-	Version    int           `json:"version"`
-	ExportedAt string        `json:"exportedAt"`
-	Generator  *Generator    `json:"generator"`
-	MeetID     string        `json:"meetId"`
-	Heats      []ResultsHeat `json:"heats"`
+	Format     string             `json:"format"`
+	Version    int                `json:"version"`
+	ExportedAt string             `json:"exportedAt"`
+	Generator  *Generator         `json:"generator"`
+	MeetID     string             `json:"meetId"`
+	Heats      []ResultsHeat      `json:"heats"`
+	Promotions []ResultsPromotion `json:"promotions,omitempty"`
 }
 
 // ResultsHeat is the marks of one heat.
@@ -78,9 +79,20 @@ func DecodeResults(data []byte) (*ResultsFile, error) {
 	if head.Version < 1 {
 		return nil, Problems{"version 必须为正整数"}
 	}
+	if head.Version < 2 {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return nil, err
+		}
+		delete(raw, "promotions")
+		data, _ = json.Marshal(raw)
+	}
 	var f ResultsFile
 	if err := json.Unmarshal(data, &f); err != nil {
 		return nil, fmt.Errorf("字段类型不正确:%w", err)
+	}
+	if f.Version < 2 {
+		f.Promotions = nil
 	}
 	if p := validateResults(&f); len(p) > 0 {
 		return nil, p
@@ -146,5 +158,6 @@ func validateResults(f *ResultsFile) Problems {
 			}
 		}
 	}
+	p = append(p, validatePromotions(f.Promotions)...)
 	return p
 }

@@ -22,7 +22,7 @@ func TestDecodeResultsSample(t *testing.T) {
 }
 
 func TestDecodeResultsProblems(t *testing.T) {
-	if _, err := DecodeResults([]byte(`{"format":"sportsmeet-results","version":2}`)); !errors.Is(err, ErrNewerVersion) {
+	if _, err := DecodeResults([]byte(`{"format":"sportsmeet-results","version":3}`)); !errors.Is(err, ErrNewerVersion) {
 		t.Fatalf("newer: %v", err)
 	}
 	_, err := DecodeResults([]byte(`{"format":"sportsmeet-results","version":1,"exportedAt":"x","generator":{"name":"t"},"meetId":"m",
@@ -39,6 +39,35 @@ func TestDecodeResultsProblems(t *testing.T) {
 	for _, want := range []string{"heatId 重复", "startedAt", "其中一个", "position 重复", "应为 null", "应为正整数", "status 不正确", "运动员或队伍重复"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing %q in:\n%s", want, text)
+		}
+	}
+}
+
+func TestResultsV2PromotionsAndVersionIsolation(t *testing.T) {
+	data, err := os.ReadFile("../../docs/examples/sample-results-v2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err := DecodeResults(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if file.Version != 2 || len(file.Promotions) != 1 {
+		t.Fatal(file)
+	}
+	// v1 readers treat the future field as unknown, including a different JSON type.
+	data = []byte(`{"format":"sportsmeet-results","version":1,"exportedAt":"x","generator":{"name":"t"},"meetId":"m","heats":[],"promotions":"future"}`)
+	if _, err = DecodeResults(data); err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []string{
+		`{"eventId":"e","sourceRoundId":"s","targetRoundId":"t","count":2,"heats":[]}`,
+		`{"eventId":"e","sourceRoundId":"s","targetRoundId":"s","count":0,"heats":[]}`,
+		`{"eventId":"e","sourceRoundId":"s","targetRoundId":"t","count":1,"heats":[{"heatId":"h","ordinal":1,"slots":[{"position":1,"athleteId":"a"},{"position":1,"athleteId":"a"}]}]}`,
+	} {
+		raw := []byte(`{"format":"sportsmeet-results","version":2,"exportedAt":"x","generator":{"name":"t"},"meetId":"m","heats":[],"promotions":[` + bad + `]}`)
+		if _, err = DecodeResults(raw); err == nil {
+			t.Fatalf("accepted %s", bad)
 		}
 	}
 }
