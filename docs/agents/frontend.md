@@ -24,6 +24,7 @@
 
 ## 新建赛事
 
+- 「赛事」列表正文常驻「创建示例赛事」按钮，经 `MeetsController.createExample` 调用 `Meets.CreateExample`；创建中禁用并显示加载状态，失败留在列表且允许重试，成功进入新赛事总览。每次创建独立副本，不需要文件选择或导入确认；完整数据与事务规则见 [domain.md](domain.md)「内置示例赛事」。
 - `meets/MeetDialog.tsx` 在已有赛事时提供「沿用项目与赛制」下拉，候选来自赛事列表的 Go 读取结果，显示名称与日期范围，默认「不沿用」；只在新建时显示，打开对话框重新清空选择。赛事信息和报名限制照本次输入保存，切换来源不覆盖输入。
 - 选择经 `MeetInput.sourceMeetId` 与表单一起交给 `MeetsController.save`，保存失败保留来源与全部输入，成功后进入新赛事总览；复制范围与事务规则见 [domain.md](domain.md)「沿用项目与赛制新建赛事」。
 

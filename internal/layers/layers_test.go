@@ -30,15 +30,16 @@ var allowed = map[string][]string{
 	"printstyle":  {},
 	"report":      {"printstyle"},
 	"entryform":   {},
+	"examplemeet": {"domain", "interchange", "scoring", "arrange"},
 	"store":       {"domain"},
-	"service":     {"arrange", "domain", "entryform", "interchange", "printstyle", "report", "scoring", "store"},
+	"service":     {"arrange", "domain", "entryform", "examplemeet", "interchange", "printstyle", "report", "scoring", "store"},
 	"mcp":         {"service", "store"},
 	"bind":        {"arrange", "domain", "interchange", "mcp", "scoring", "service", "store"},
 	"layers":      {},
 }
 
 // pure packages compute only: no mygo, so no IO, windows or database.
-var pure = []string{"domain", "arrange", "scoring", "interchange", "printstyle", "report", "entryform"}
+var pure = []string{"domain", "arrange", "scoring", "interchange", "printstyle", "report", "entryform", "examplemeet"}
 
 // storeNames is what bind and mcp may use from store: the types that
 // appear in service signatures. Anything else (Open, Stmt, a *Store) would

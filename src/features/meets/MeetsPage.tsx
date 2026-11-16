@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AIMCPEntry } from "../ai-mcp/AIMCPEntry";
 import { lastMeetTab, useNav } from "../../app/nav";
-import { IconAdd, IconDelete, IconEdit, IconImport, IconSettings, IconMeet, StButton, StCard, StEmpty, StIconButton, StListItem, StNotice, StPage, StToolbar, iconStroke } from "../../design";
+import { IconAdd, IconDelete, IconEdit, IconImport, IconSettings, IconMeet, StButton, StCard, StEmpty, StIconButton, StListItem, StNotice, StPage, StStack, StToolbar, iconStroke } from "../../design";
 import type { Meet, MeetCounts, PickedFile } from "../../mygo";
 import { ImportMeetDialog } from "../exchange/ImportMeetDialog";
 import { MeetsController } from "./controller";
@@ -15,6 +15,7 @@ export function MeetsPage() {
   const [editing, setEditing] = useState<{ meet?: Meet } | null>(null);
   const [deleting, setDeleting] = useState<{ meet: Meet; counts: MeetCounts } | null>(null);
   const [file, setFile] = useState<PickedFile | null>(null);
+  const [creatingExample, setCreatingExample] = useState(false);
   const open = (meetId: string) => go({ page: "meet", meetId, tab: lastMeetTab(meetId) });
 
   const askDelete = async (meet: Meet) => {
@@ -24,6 +25,13 @@ export function MeetsPage() {
   const pick = async () => {
     const picked = await MeetsController.pickFile();
     if (picked?.path) setFile(picked);
+  };
+  const createExample = async () => {
+    if (creatingExample) return;
+    setCreatingExample(true);
+    const id = await MeetsController.createExample();
+    setCreatingExample(false);
+    if (id) open(id);
   };
 
   return (
@@ -39,24 +47,27 @@ export function MeetsPage() {
         </StToolbar>
       }>
       <div className="narrow">
-        {error && <StNotice tone="danger">{error}</StNotice>}
-        <StCard padded={false}>
-          {meets?.length === 0 && <StEmpty action={<StButton variant="primary" onClick={() => setEditing({})}>新建赛事</StButton>}>还没有赛事</StEmpty>}
-          {(meets ?? []).map((m) => (
-            <StListItem key={m.id} title={m.name} subtitle={[m.datesText, m.location].filter(Boolean).join(" · ")}
-              leading={<IconMeet size={20} strokeWidth={iconStroke} />} onClick={() => open(m.id)}
-              trailing={
-                <span onClick={(e) => e.stopPropagation()} className="cell-actions">
-                  <StIconButton label="编辑" onClick={() => setEditing({ meet: m })}>
-                    <IconEdit size={16} strokeWidth={iconStroke} />
-                  </StIconButton>
-                  <StIconButton label="删除" onClick={() => askDelete(m)}>
-                    <IconDelete size={16} strokeWidth={iconStroke} />
-                  </StIconButton>
-                </span>
-              } />
-          ))}
-        </StCard>
+        <StStack gap={16}>
+          {error && <StNotice tone="danger">{error}</StNotice>}
+          <StCard padded={false}>
+            {meets?.length === 0 && <StEmpty action={<StButton variant="primary" onClick={() => setEditing({})}>新建赛事</StButton>}>还没有赛事</StEmpty>}
+            {(meets ?? []).map((m) => (
+              <StListItem key={m.id} title={m.name} subtitle={[m.datesText, m.location].filter(Boolean).join(" · ")}
+                leading={<IconMeet size={20} strokeWidth={iconStroke} />} onClick={() => open(m.id)}
+                trailing={
+                  <span onClick={(e) => e.stopPropagation()} className="cell-actions">
+                    <StIconButton label="编辑" onClick={() => setEditing({ meet: m })}>
+                      <IconEdit size={16} strokeWidth={iconStroke} />
+                    </StIconButton>
+                    <StIconButton label="删除" onClick={() => askDelete(m)}>
+                      <IconDelete size={16} strokeWidth={iconStroke} />
+                    </StIconButton>
+                  </span>
+                } />
+            ))}
+          </StCard>
+          <div><StButton loading={creatingExample} aria-busy={creatingExample} onClick={createExample}>创建示例赛事</StButton></div>
+        </StStack>
       </div>
       <MeetDialog open={editing !== null} meet={editing?.meet} sources={meets ?? []} onClose={() => setEditing(null)} onSaved={editing?.meet ? undefined : open} />
       <DeleteDialog open={deleting !== null} title={`删除「${deleting?.meet.name ?? ""}」？`} onClose={() => setDeleting(null)} onDelete={() => MeetsController.remove(deleting!.meet.id)}>

@@ -18,6 +18,7 @@ var auditActions = map[string]string{
 	"group.projects":       "调整项目组别",
 	"group.assignments":    "调整参赛组别",
 	"meet.created":         "新建赛事",
+	"meet.example":         "创建示例赛事",
 	"meet.updated":         "修改赛事",
 	"meet.settings":        "修改赛事设置",
 	"meet.deleted":         "删除赛事",

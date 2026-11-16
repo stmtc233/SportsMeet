@@ -100,6 +100,11 @@ func (m Meets) Create(ctx context.Context, in service.MeetInput) (*domain.Meet, 
 	return m.Svc.CreateMeet(ctx, ui, in)
 }
 
+// CreateExample creates a complete, independent fictional meet.
+func (m Meets) CreateExample(ctx context.Context) (string, error) {
+	return m.Svc.CreateExampleMeet(ctx, ui)
+}
+
 // Update changes a meet.
 func (m Meets) Update(ctx context.Context, id string, in service.MeetInput) error {
 	return m.Svc.UpdateMeet(ctx, ui, id, in)

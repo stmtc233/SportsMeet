@@ -6,7 +6,7 @@ const paramRules = JSON.parse(readFileSync("testdata/print/param-rules.json", "u
 
 // Page tests exercise the UI with a deterministic mygo bridge. Business writes
 // and actual HTTP MCP calls are verified against real SQLite by the Go tests.
-export async function installRuntime(page: Page, options: { rejectMeetCreate?: boolean; limits?: boolean; athleteCount?: number; schedule?: boolean; planning?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean; groups?: boolean; denseTimeline?: boolean } = {}) {
+export async function installRuntime(page: Page, options: { emptyMeets?: boolean; rejectExampleCreate?: boolean; rejectMeetCreate?: boolean; limits?: boolean; athleteCount?: number; schedule?: boolean; planning?: boolean; staleSchedule?: boolean; scheduleErrors?: boolean; relay?: boolean; rejectTeamSave?: boolean; brokenEvent?: boolean; eventConfig?: "group" | "throw" | "count" | "score" | "teamCount" | "height"; heightRounds?: boolean; rejectHeightSave?: boolean; emptyBoard?: boolean; conflicts?: boolean; datedList?: boolean; selfUpdate?: boolean; rejectUpdatePreferences?: boolean; slowUpdatePreferences?: boolean; ties?: boolean; groups?: boolean; denseTimeline?: boolean } = {}) {
   await page.addInitScript((options) => {
     const listeners = new Set<(change: unknown) => void>();
     let prefs = { updatePrereleases: false, theme: "system" };
@@ -209,8 +209,17 @@ export async function installRuntime(page: Page, options: { rejectMeetCreate?: b
             (globalThis as any).__updateChecks = [...((globalThis as any).__updateChecks ?? []), { prereleases: prefs.updatePrereleases, selfUpdate: options.selfUpdate !== false }];
             return null;
           case "App.OpenRepository": (globalThis as any).__repositoryOpened = true; return null;
-          case "Meets.List": return [meet, ...createdMeets];
+          case "Meets.List": return options.emptyMeets ? [...createdMeets] : [meet, ...createdMeets];
           case "Meets.Get": return createdMeets.find((m) => m.id === args[0]) ?? meet;
+          case "Meets.CreateExample": {
+            const calls = (globalThis as any).__exampleCreateCalls = ((globalThis as any).__exampleCreateCalls ?? 0) + 1;
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            if (options.rejectExampleCreate && calls === 1) return error("示例赛事创建失败，请重试");
+            const created = { ...meet, id: `example${createdMeets.length + 1}`, name: "青禾市校园田径运动会（示例）" };
+            createdMeets.push(created);
+            changed("meets", created.id);
+            return created.id;
+          }
           case "Meets.Create": {
             const calls = (globalThis as any).__meetCreateCalls = [...((globalThis as any).__meetCreateCalls ?? []), structuredClone(args[0])];
             if (options.rejectMeetCreate && calls.length === 1) return error("来源赛事不存在或已删除");

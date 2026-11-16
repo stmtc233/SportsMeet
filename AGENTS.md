@@ -50,6 +50,7 @@ SportsMeet 是一款开源的**单机离线**田径与校园运动会编排软�
 SportsMeet/
 ├── AGENTS.md / CLAUDE.md / README.md / CHANGELOG.md(发布说明) / LICENSE(MIT)
 ├── main.go                  ← mygo 入口:窗口、Bind 各服务、MCP 开关、更新窗口;数据打不开时弹窗说明后退出
+├── cmd/example-meet/        ← 将软件自带的完整示例赛事输出为 .meet.json（不读写用户数据库）
 ├── go.mod
 ├── mygo.config.ts           ← 应用名、标识、版本(唯一来源,Go 经 `mygo.App.Version()` 读取)、打包、更新来源与公钥;bindings 输出 src/mygo.ts
 ├── package.json · vite.config.ts · tsconfig.json · index.html
@@ -69,6 +70,7 @@ SportsMeet/
 │   ├── scoring/             ← 成绩解析与格式化、逐次汇总、排名、全能积分与总排名、团体计分与单位排名
 │   ├── interchange/         ← 交换格式编解码与校验、与已有赛事的匹配;encode.go 逐记录输出 JSON,复用 scoring 校验逐次汇总;results.go 成绩交换格式的解码与校验;frontpages.go 前置页与赛事图片(v11)的校验
 │   ├── entryform/           ← 报名登记表 xlsx 的生成与读取(纯计算,不碰 mygo)
+│   ├── examplemeet/         ← 内置虚构赛事的确定性生成：1152 人、3 组别、93 个项目（含 18 个全能分项）、6 项全能、180 队；复用排名与晋级纯函数
 │   ├── printstyle/          ← 打印样式的纯计算部分:版面参数与校验、CSS 与 HTML 清洗、CSP、前置页 Markdown、模板编译与限制、图片校验与 `asset:` 解析、样式文件编解码;不依赖其他包
 │   ├── report/              ← 报名表 / 秩序册(含代表队名单、竞赛日程表)/ 成绩册(含团体总分表)/ 检录单 / 成绩记录表(HTML 模板);号码布待实现
 │   │   ├── render.go        ← 样式(`Style`)与文档组装:head 顺序、封面 / 前置页 / 正文、清洗与图片解析
@@ -211,6 +213,7 @@ Linux 下载链接按架构匹配 `.deb`、`.rpm` 与便携包;release 没有 AR
 
 ### 5.2 领域与编排 → [domain.md](docs/agents/domain.md) · [arrange.md](docs/agents/arrange.md)
 
+- 赛事列表可「创建示例赛事」：按需创建完整虚构赛事的独立副本，不在启动时自动写入；经 service 复用交换格式校验与 ID 映射，一个事务、日志和通知完成（→ domain.md「内置示例赛事」）。
 - 新建赛事可沿用已有赛事的组别、项目配置、轮次与晋级规则、全能及计分规则，全部引用独立新建，不带参赛数据和时间；选用的打印样式、前置页与赛事图片一并沿用（→ domain.md「沿用项目与赛制新建赛事」）。
 - 前置页（Markdown）与赛事图片属于赛事、不属于样式，换样式不丢；赛事选用的样式只由 `SetMeetPrintStyle` 改，`SaveMeetSettings` 不碰它；使用中的样式被删除时赛事读作默认样式（→ print-style.md）。
 - 项目 = 一个单项,必带参赛类别与项目名、必属于赛事;男女、不同距离不得混在一个项目。

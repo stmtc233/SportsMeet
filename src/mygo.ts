@@ -2322,6 +2322,10 @@ export const Meets = {
   create(in_: MeetInput): Promise<Meet | null> {
     return call("Meets.Create", in_);
   },
+  /** CreateExample creates a complete, independent fictional meet. */
+  createExample(): Promise<string> {
+    return call("Meets.CreateExample");
+  },
   /** Delete removes a meet and everything in it. */
   delete(id: string): Promise<void> {
     return call("Meets.Delete", id);
